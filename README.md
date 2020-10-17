@@ -5,4 +5,4 @@
 You can not catch all the cmdline cause sometimes pid file has disappeared, expecially when you do `id`, `whoami` which run in a very short time. Cmdline like `sleep` barely failed. Here is a pic for demo.
 
 
-![](https://github.com/chriskaliX/HIDS-Linux/hids1.png)
+![image](https://github.com/chriskaliX/HIDS-Linux/hids1.png)
