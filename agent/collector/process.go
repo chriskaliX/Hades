@@ -19,6 +19,7 @@ import (
 
 const MaxProcess = 5000
 
+// 获取进程
 func GetProcess() (procs []network.Process, err error) {
 	var allProc procfs.Procs
 	var sys procfs.Stat
@@ -30,6 +31,8 @@ func GetProcess() (procs []network.Process, err error) {
 	if err != nil {
 		return
 	}
+
+	// 如果超出最大进程数, 则shuffle打乱后获取 MaxProcess 大小
 	if len(allProc) > MaxProcess {
 		rand.Shuffle(len(allProc), func(i, j int) {
 			allProc[i], allProc[j] = allProc[j], allProc[i]
@@ -94,6 +97,7 @@ func GetProcess() (procs []network.Process, err error) {
 	return
 }
 
+// 获取单个 process 信息
 func GetProcessInfo(pid uint32) (network.Process, error) {
 	var (
 		err  error
@@ -174,7 +178,6 @@ func GetProcessInfo(pid uint32) (network.Process, error) {
 	if sockets, err := network.ParseProcNet(unix.AF_INET, unix.IPPROTO_TCP, "/proc/"+fmt.Sprint(pid)+"/net/tcp", network.TCP_ESTABLISHED); err == nil {
 		for _, socket := range sockets {
 			if socket.Inode != 0 {
-				// 过滤一下
 				if socket.DIP.String() == "0.0.0.0" {
 					continue
 				}

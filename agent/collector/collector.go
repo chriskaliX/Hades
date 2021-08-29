@@ -2,13 +2,18 @@ package collector
 
 import (
 	"hids-agent/global"
+	"runtime"
 	"sync"
 
 	"go.uber.org/zap"
 )
 
-// 总的方法, 为了调用清晰
+func init() {
+	// 限制最大 PROC 数量
+	runtime.GOMAXPROCS(4)
+}
 
+// 总的方法, 为了调用清晰
 var (
 	Singleton *Collector
 	once      sync.Once
@@ -24,7 +29,7 @@ func GetCollectorSingleton() *Collector {
 	return Singleton
 }
 
-// 定期执行
+// 定期执行, 进程采集
 func (c *Collector) FlushProcessCache() {
 	processes, err := GetProcess()
 	if err != nil {
