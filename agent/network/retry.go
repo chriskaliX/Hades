@@ -76,6 +76,7 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 func (c *Context) IClose(netRetry INetRetry) {
 	// log
 	c.Shutdown = true
+	fmt.Printf("shutdown %s ", netRetry.String())
 	for {
 		if !c.RetryStatus {
 			netRetry.Close()

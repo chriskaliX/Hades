@@ -39,42 +39,53 @@ func GetServer() (*Server, error) {
 
 func ServerRun() (err error) {
 	server, err := GetServer()
+
 	if err != nil {
+		fmt.Println(1, err)
 		return err
 	}
-
+	init := true
 	for {
 		conn, err := server.l.Accept()
 		reader := msgp.NewReaderSize(conn, 8*1024)
 		if err != nil {
+			fmt.Println(2, err)
 			// Break when socket is closed
 			if errors.Is(err, net.ErrClosed) {
+				fmt.Println("closed is called")
 				break
 			}
 		}
 
-		init := true
-		if init {
-			r := msgp.NewReader(conn)
-			req := support.RegistRequest{}
-			err = (&req).DecodeMsg(r)
-			if err != nil {
-				init = false
+		go func() {
+			for {
+				if init {
+					init = false
+					r := msgp.NewReader(conn)
+					req := support.RegistRequest{}
+					err = (&req).DecodeMsg(r)
+					if err != nil {
+						fmt.Println(3, err)
+					}
+					fmt.Println(req.Name)
+				}
+
+				data := &support.Data{}
+				err = data.DecodeMsg(reader)
+				if err != nil {
+					return
+				}
+				for _, d := range *data {
+					b, err := json.MarshalIndent(d, "", "  ")
+					if err != nil {
+						fmt.Println(4, err)
+					}
+					fmt.Print(string(b))
+				}
+
 			}
-			fmt.Println(req.Name)
-		}
-
-		data := &support.Data{}
-		err = data.DecodeMsg(reader)
-		if err != nil {
-			return err
-		}
-
-		b, err := json.MarshalIndent(data, "", "  ")
-		if err != nil {
-			fmt.Println("error:", err)
-		}
-		fmt.Print(string(b))
+		}()
 	}
+	fmt.Println("server is quiting...")
 	return nil
 }

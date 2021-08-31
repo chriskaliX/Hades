@@ -1,9 +1,13 @@
 package main
 
 import (
+	"hids-agent/collector"
 	"hids-agent/transport/domain"
+	"time"
 )
 
 func main() {
-	domain.ServerRun()
+	go domain.ServerRun()
+	time.Sleep(1 * time.Second)
+	collector.Run()
 }

@@ -3,6 +3,7 @@ package collector
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"hids-agent/global"
 	"hids-agent/network"
 	"sync"
@@ -126,6 +127,10 @@ func handleProcEvent(data []byte) {
 			kafkaLog.PPID = int(ppid.(uint32))
 		}
 		kafkaLog.Pstree = global.GetPstree(pid)
+		data := map[string]string{}
+		data["Pstree"] = kafkaLog.Pstree
+		data["Cmdline"] = kafkaLog.Process.Cmdline
+
 		/*
 			转换成队列, 超过丢弃, 参考美团的文章内容
 			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
@@ -134,9 +139,9 @@ func handleProcEvent(data []byte) {
 		*/
 		// network.KafkaChannel <- kafkaLog
 		select {
-		case network.KafkaChannel <- kafkaLog:
+		case global.UploadChannel <- data:
 		default:
-			// drop your message
+			fmt.Println("drop")
 		}
 	case network.PROC_EVENT_NS:
 	case network.PROC_EVENT_EXIT:
