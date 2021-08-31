@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"hids-agent/global"
 	"hids-agent/network"
 	"hids-agent/support"
@@ -44,7 +45,7 @@ func (c *Collector) FlushProcessCache() {
 	}
 }
 
-func main() {
+func Run() {
 	// socket 连接初始化
 	clientContext := &network.Context{}
 	client := &support.Client{
@@ -60,7 +61,7 @@ func main() {
 	// 开启生产进程
 	go CN_PROC_START()
 
-	// 开启消费进程, 传递至 socket 下
+	// 开启消费进程, 传递至 socket 下, 限制一秒最多100条
 	buf := make([]map[string]string, 0, 100)
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -73,7 +74,7 @@ func main() {
 				err := client.Send(buf)
 				buf = buf[:0]
 				if err != nil {
-					zap.S().Error(err)
+					fmt.Println(err)
 					return
 				}
 			}

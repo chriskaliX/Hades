@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/Shopify/sarama v1.29.1
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/prometheus/procfs v0.7.3
 	github.com/shirou/gopsutil/v3 v3.21.7
