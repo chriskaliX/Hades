@@ -10,27 +10,9 @@ import (
 )
 
 var (
-	netlinkContext   *network.Context
-	netlinkSingleton *network.Netlink
-	nlContextOnce    sync.Once
-	nlOnce           sync.Once
+	netlinkContext *network.Context
+	netlink        *network.Netlink
 )
-
-// 获取netlink单例
-func GetNlSingleton() *network.Netlink {
-	nlOnce.Do(func() {
-		netlinkSingleton = &network.Netlink{}
-	})
-	return netlinkSingleton
-}
-
-// 获取netlink单例
-func GetNlContextSingleton() *network.Context {
-	nlContextOnce.Do(func() {
-		netlinkContext = &network.Context{}
-	})
-	return netlinkContext
-}
 
 // linux/cn_proc.h: struct proc_event.{what,cpu,timestamp_ns}
 type procEventHeader struct {
@@ -144,8 +126,12 @@ func handleProcEvent(data []byte) {
 			kafkaLog.PPID = int(ppid.(uint32))
 		}
 		kafkaLog.Pstree = global.GetPstree(pid)
-		// 转换成队列, 超过丢弃, 参考美团的文章内容
-		// 内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。对于这个问题，我们在用户态做了队列控制
+		/*
+			转换成队列, 超过丢弃, 参考美团的文章内容
+			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
+			导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
+			对于这个问题，我们在用户态做了队列控制
+		*/
 		// network.KafkaChannel <- kafkaLog
 		select {
 		case network.KafkaChannel <- kafkaLog:
@@ -166,14 +152,15 @@ func handleProcEvent(data []byte) {
 
 func CN_PROC_START() error {
 	var err error
-	nlSingleton := GetNlSingleton()
-	contextInstance := GetNlContextSingleton()
-	if err = contextInstance.IRetry(nlSingleton); err != nil {
+	netlinkContext = &network.Context{}
+	netlink = &network.Netlink{}
+
+	if err = netlinkContext.IRetry(netlink); err != nil {
 		return err
 	}
-	if err = nlSingleton.StartCN(); err != nil {
+	if err = netlink.StartCN(); err != nil {
 		return err
 	}
-	go nlSingleton.Receive(handleProcEvent)
+	go netlink.Receive(handleProcEvent)
 	return nil
 }

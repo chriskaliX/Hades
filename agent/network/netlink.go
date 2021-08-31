@@ -84,14 +84,8 @@ func (nl *Netlink) GetHashMod() uint {
 }
 
 func (nl *Netlink) Close() {
-
-}
-
-func (nl *Netlink) GetStatus() bool {
-	if nl.addr != nil {
-		return true
-	}
-	return false
+	// 直接关闭还是需要发送 stop 信号再关闭
+	syscall.Close(nl.sock)
 }
 
 func (netlink *Netlink) bind() error {

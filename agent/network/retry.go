@@ -18,8 +18,6 @@ type INetRetry interface {
 	GetMaxRetry() uint
 	// 获取 Mod
 	GetHashMod() uint
-	// 获取状态
-	GetStatus() bool
 	// 关闭
 	Close()
 }
@@ -54,6 +52,7 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 		}
 
 		if maxRetries > 0 && retries >= maxRetries {
+			c.RetryStatus = false
 			return errors.New("over maxtries")
 		}
 
@@ -67,18 +66,19 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 			retries = retries + 1
 			time.Sleep(time.Second * time.Duration(delay))
 		} else {
+			c.RetryStatus = false
 			return nil
 		}
 	}
 }
 
 // 关闭统一使用接口
-func (c *Context) Close(netRetry INetRetry) {
+func (c *Context) IClose(netRetry INetRetry) {
 	// log
 	c.Shutdown = true
 	for {
 		if !c.RetryStatus {
-			c.Close(netRetry)
+			netRetry.Close()
 		}
 		time.Sleep(time.Second * time.Duration(1))
 	}
