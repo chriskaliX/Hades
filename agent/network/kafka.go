@@ -104,10 +104,6 @@ func (k *Kafka) Close() {
 	}
 }
 
-func (k *Kafka) GetStatus() bool {
-	return k.Producer != nil
-}
-
 func (this *Kafka) LoadConfig() error {
 	kafkaConfig := sarama.NewConfig()
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll

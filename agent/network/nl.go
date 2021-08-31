@@ -75,10 +75,6 @@ func (netlink *VNetlink) GetHashMod() uint {
 	return 1
 }
 
-func (netlink *VNetlink) GetStatus() bool {
-	return netlink.socket != nil
-}
-
 func (netlink *VNetlink) Close() {
 	netlink.shutdown = true
 }

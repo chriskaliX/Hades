@@ -20,6 +20,7 @@ var (
 	KernelVersion   string
 	PlatformFamily  string
 	AgentID         string
+	UploadChannel   chan map[string]string
 )
 
 const (
@@ -34,8 +35,12 @@ func globalTime() {
 }
 
 func init() {
+	// 全局时间
 	go globalTime()
+	// 初始化全局的上传管道
+	UploadChannel = make(chan map[string]string, 100)
 
+	// 初始信息
 	Hostname, _ = os.Hostname()
 	KernelVersion, _ = host.KernelVersion()
 	Platform, PlatformFamily, PlatformVersion, _ = host.PlatformInformation()
