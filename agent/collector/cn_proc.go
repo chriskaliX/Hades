@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"hids-agent/global"
 	"hids-agent/network"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -105,31 +107,49 @@ func handleProcEvent(data []byte) {
 	// 重点关注 Fork & Exec
 	switch hdr.What {
 	case network.PROC_EVENT_NONE:
-	// fork 事件
 	case network.PROC_EVENT_FORK:
 		event := ProcEventForkPool.Get().(*ProcEventFork)
 		defer ProcEventForkPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
-		// fork 将事件刷入进程树
+		// 进程树
 		global.ProcessCache.Add(event.ChildPid, event.ParentPid)
-	// exec 事件
 	case network.PROC_EVENT_EXEC:
 		// 对象池获取
 		event := ProcEventExecPool.Get().(*ProcEventExec)
 		defer ProcEventExecPool.Put(event)
-		kafkaLog := network.KafkaLogPool.Get().(*network.KafkaLog)
-		// 读取exec
 		binary.Read(buf, network.BYTE_ORDER, event)
 		pid := event.ProcessPid
-		kafkaLog.Process, _ = GetProcessInfo(pid)
-		global.ProcessCmdlineCache.Add(pid, kafkaLog.Process.Cmdline)
-		if ppid, ok := global.ProcessCache.Get(pid); ok {
-			kafkaLog.PPID = int(ppid.(uint32))
+
+		// 获取进程信息
+		Process, err := GetProcessInfo(pid)
+		if err != nil {
+			return
 		}
-		kafkaLog.Pstree = global.GetPstree(pid)
+
+		global.ProcessCmdlineCache.Add(pid, Process.Cmdline)
+		if ppid, ok := global.ProcessCache.Get(pid); ok {
+			Process.PPID = int(ppid.(uint32))
+		}
+		Process.PsTree = global.GetPstree(pid)
+
 		data := map[string]string{}
-		data["Pstree"] = kafkaLog.Pstree
-		data["Cmdline"] = kafkaLog.Process.Cmdline
+
+		data["Cmdline"] = Process.Cmdline
+		data["PID"] = strconv.Itoa(Process.PID)
+		data["PPID"] = strconv.Itoa(Process.PPID)
+		data["Name"] = Process.Name
+		data["Exe"] = Process.Exe
+		data["Sha256"] = Process.Sha256
+		data["UID"] = Process.UID
+		data["Username"] = Process.Username
+		data["EUID"] = Process.EUID
+		data["Eusername"] = Process.EUID
+		data["Cwd"] = Process.Cwd
+		data["Session"] = strconv.Itoa(Process.Session)
+		data["TTY"] = strconv.Itoa(Process.TTY)
+		data["StartTime"] = strconv.Itoa(int(Process.StartTime))
+		data["RemoteAddrs"] = strings.Join(Process.RemoteAddrs, ",")
+		data["PsTree"] = Process.PsTree
 
 		/*
 			转换成队列, 超过丢弃, 参考美团的文章内容
@@ -137,7 +157,6 @@ func handleProcEvent(data []byte) {
 			导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
 			对于这个问题，我们在用户态做了队列控制
 		*/
-		// network.KafkaChannel <- kafkaLog
 		select {
 		case global.UploadChannel <- data:
 		default:

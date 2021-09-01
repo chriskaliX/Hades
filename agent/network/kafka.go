@@ -59,6 +59,7 @@ type Process struct {
 	TTY         int      `json:"tty"`
 	StartTime   uint64   `json:"start_time"`
 	RemoteAddrs []string `json:"RemoteAddrs"`
+	PsTree      string   `json:"PsTree"`
 }
 
 // Kafka, 实现 IRetry 接口

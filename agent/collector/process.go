@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hids-agent/global"
 	"hids-agent/network"
+	"sync"
 
 	"hids-agent/utils"
 	"math/rand"
@@ -95,6 +96,12 @@ func GetProcess() (procs []network.Process, err error) {
 		procs = append(procs, proc)
 	}
 	return
+}
+
+var ProcessPool = sync.Pool{
+	New: func() interface{} {
+		return new(network.Process)
+	},
 }
 
 // 获取单个 process 信息
