@@ -79,7 +79,7 @@ func init() {
 				if strings.HasPrefix(ip.String(), "10.") || strings.HasPrefix(ip.String(), "192.168.") || regexp.MustCompile(`^172\.([1][6-9]|[2]\d|[3][0-1])\.`).MatchString(ip.String()) {
 					PrivateIPv4 = append(PrivateIPv4, ip.String())
 				}
-
+				//
 			}
 		}
 	}
