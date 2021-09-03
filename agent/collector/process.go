@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"hids-agent/global"
+	"hids-agent/global/structs"
 	"hids-agent/network"
 	"sync"
 
@@ -21,7 +22,7 @@ import (
 const MaxProcess = 5000
 
 // 获取进程
-func GetProcess() (procs []network.Process, err error) {
+func GetProcess() (procs []structs.Process, err error) {
 	var allProc procfs.Procs
 	var sys procfs.Stat
 	allProc, err = procfs.AllProcs()
@@ -42,7 +43,7 @@ func GetProcess() (procs []network.Process, err error) {
 	}
 	for _, p := range allProc {
 		var err error
-		proc := network.Process{PID: p.PID}
+		proc := structs.Process{PID: p.PID}
 		proc.Exe, err = p.Executable()
 		if err != nil {
 			continue
@@ -100,22 +101,22 @@ func GetProcess() (procs []network.Process, err error) {
 
 var ProcessPool = sync.Pool{
 	New: func() interface{} {
-		return new(network.Process)
+		return new(structs.Process)
 	},
 }
 
 // 获取单个 process 信息
-func GetProcessInfo(pid uint32) (network.Process, error) {
+func GetProcessInfo(pid uint32) (structs.Process, error) {
 	var (
 		err  error
-		proc network.Process
+		proc structs.Process
 	)
 	process, err := procfs.NewProc(int(pid))
 	if err != nil {
 		return proc, errors.New("no process found")
 	}
 
-	proc = network.Process{PID: process.PID}
+	proc = structs.Process{PID: process.PID}
 
 	status, err := process.NewStatus()
 	if err == nil {
@@ -199,10 +200,10 @@ func GetProcessInfo(pid uint32) (network.Process, error) {
 			inode, _ := strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
 			d, ok := inodes[uint32(inode)]
 			if ok {
-				if proc.RemoteAddrs == nil {
-					proc.RemoteAddrs = make([]string, 0)
+				if proc.RemoteAddrs == "" {
+					proc.RemoteAddrs = d
 				}
-				proc.RemoteAddrs = append(proc.RemoteAddrs, d)
+				proc.RemoteAddrs = proc.RemoteAddrs + "," + d
 			}
 		}
 	}

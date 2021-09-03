@@ -2,6 +2,7 @@ package global
 
 import (
 	"fmt"
+	"hids-agent/global/structs"
 	"net"
 	"os"
 	"regexp"
@@ -20,7 +21,11 @@ var (
 	KernelVersion   string
 	PlatformFamily  string
 	AgentID         string
-	UploadChannel   chan map[string]string
+	// 上传数据管道
+	UploadChannel chan map[string]string
+
+	// 进程管道
+	ProcessChannel chan structs.Process
 )
 
 const (
@@ -39,6 +44,7 @@ func init() {
 	go globalTime()
 	// 初始化全局的上传管道
 	UploadChannel = make(chan map[string]string, 100)
+	ProcessChannel = make(chan structs.Process, 1000)
 
 	// 初始信息
 	Hostname, _ = os.Hostname()
@@ -47,7 +53,7 @@ func init() {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cann't get interfaces:%v", err)
+		fmt.Fprintf(os.Stderr, "Can't get interfaces:%v", err)
 	}
 	for _, i := range interfaces {
 		if strings.HasPrefix(i.Name, "docker") || strings.HasPrefix(i.Name, "lo") {

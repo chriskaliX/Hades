@@ -3,11 +3,8 @@ package collector
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"hids-agent/global"
 	"hids-agent/network"
-	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 )
@@ -111,7 +108,7 @@ func handleProcEvent(data []byte) {
 		event := ProcEventForkPool.Get().(*ProcEventFork)
 		defer ProcEventForkPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
-		// 进程树
+		// 进程树补充
 		global.ProcessCache.Add(event.ChildPid, event.ParentPid)
 	case network.PROC_EVENT_EXEC:
 		// 对象池获取
@@ -131,26 +128,6 @@ func handleProcEvent(data []byte) {
 			Process.PPID = int(ppid.(uint32))
 		}
 		Process.PsTree = global.GetPstree(pid)
-
-		data := map[string]string{}
-
-		data["Cmdline"] = Process.Cmdline
-		data["PID"] = strconv.Itoa(Process.PID)
-		data["PPID"] = strconv.Itoa(Process.PPID)
-		data["Name"] = Process.Name
-		data["Exe"] = Process.Exe
-		data["Sha256"] = Process.Sha256
-		data["UID"] = Process.UID
-		data["Username"] = Process.Username
-		data["EUID"] = Process.EUID
-		data["Eusername"] = Process.EUID
-		data["Cwd"] = Process.Cwd
-		data["Session"] = strconv.Itoa(Process.Session)
-		data["TTY"] = strconv.Itoa(Process.TTY)
-		data["StartTime"] = strconv.Itoa(int(Process.StartTime))
-		data["RemoteAddrs"] = strings.Join(Process.RemoteAddrs, ",")
-		data["PsTree"] = Process.PsTree
-
 		/*
 			转换成队列, 超过丢弃, 参考美团的文章内容
 			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
@@ -158,9 +135,9 @@ func handleProcEvent(data []byte) {
 			对于这个问题，我们在用户态做了队列控制
 		*/
 		select {
-		case global.UploadChannel <- data:
+		case global.ProcessChannel <- Process:
 		default:
-			fmt.Println("drop")
+			// drop here
 		}
 	case network.PROC_EVENT_NS:
 	case network.PROC_EVENT_EXIT:

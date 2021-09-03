@@ -77,12 +77,6 @@ func ServerRun() (err error) {
 					return
 				}
 				for _, d := range *data {
-					// bf := bytes.NewBuffer([]byte{})
-					// jsonEncoder := json.NewEncoder(bf)
-					// jsonEncoder.SetEscapeHTML(false)
-					// jsonEncoder.Encode(t)
-
-					// encoder.SetEscapeHTML(false)
 					b, err := json.MarshalIndent(d, "", "  ")
 					if err != nil {
 						fmt.Println(4, err)
