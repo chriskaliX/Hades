@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"fmt"
 	"hids-agent/global"
 	"hids-agent/network"
 	"hids-agent/support"
@@ -45,6 +44,8 @@ func (c *Collector) FlushProcessCache() {
 	}
 }
 
+// 这里采集的数据, 统一不带上主机基础信息
+// 统一上传结构体然后Marshal上传
 func Run() {
 	// socket 连接初始化
 	clientContext := &network.Context{}
@@ -57,7 +58,11 @@ func Run() {
 		return
 	}
 	defer clientContext.IClose(client)
+
 	Singleton.FlushProcessCache()
+	// 定期
+
+
 	// 开启生产进程
 	go CN_PROC_START()
 
@@ -74,7 +79,6 @@ func Run() {
 				err := client.Send(buf)
 				buf = buf[:0]
 				if err != nil {
-					fmt.Println(err)
 					return
 				}
 			}
