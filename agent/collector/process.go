@@ -111,6 +111,7 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 		err  error
 		proc structs.Process
 	)
+
 	process, err := procfs.NewProc(int(pid))
 	if err != nil {
 		return proc, errors.New("no process found")
