@@ -1,10 +1,12 @@
 package collector
 
 import (
+	"encoding/json"
 	"hids-agent/global"
 	"hids-agent/network"
 	"hids-agent/support"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -62,9 +64,38 @@ func Run() {
 	Singleton.FlushProcessCache()
 	// 定期
 
-
 	// 开启生产进程
 	go CN_PROC_START()
+
+	// 开启定期消费
+	go func() {
+		ticker := time.NewTicker(time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// 这里看一下是否需要对象池
+				pid := <-global.PidChannel
+				process, err := GetProcessInfo(pid)
+				if err != nil {
+					continue
+				}
+				global.ProcessCmdlineCache.Add(pid, process.Cmdline)
+				if ppid, ok := global.ProcessCache.Get(pid); ok {
+					process.PPID = int(ppid.(uint32))
+				}
+				data, err := json.Marshal(process)
+				if err == nil {
+					rawdata := make(map[string]string)
+					rawdata["data"] = string(data)
+					rawdata["time"] = strconv.Itoa(global.Time)
+					rawdata["data_type"] = "1000"
+				}
+			case <-global.Context.Done():
+				return
+			}
+		}
+	}()
 
 	// 开启消费进程, 传递至 socket 下, 限制一秒最多100条
 	buf := make([]map[string]string, 0, 100)

@@ -108,26 +108,34 @@ func handleProcEvent(data []byte) {
 		event := ProcEventForkPool.Get().(*ProcEventFork)
 		defer ProcEventForkPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
+
 		// 进程树补充
 		global.ProcessCache.Add(event.ChildPid, event.ParentPid)
 	case network.PROC_EVENT_EXEC:
+		/*
+			这里有个顺序问题, 如果在进程比较多的情况下
+			先获取 pid 再丢弃仍然会导致频繁打开大量 fd
+			会有性能占用的问题
+		*/
+
 		// 对象池获取
 		event := ProcEventExecPool.Get().(*ProcEventExec)
 		defer ProcEventExecPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
 		pid := event.ProcessPid
 
-		// 获取进程信息
-		Process, err := GetProcessInfo(pid)
-		if err != nil {
-			return
-		}
+		// // 获取进程信息
+		// Process, err := GetProcessInfo(pid)
+		// if err != nil {
+		// 	return
+		// }
 
-		global.ProcessCmdlineCache.Add(pid, Process.Cmdline)
-		if ppid, ok := global.ProcessCache.Get(pid); ok {
-			Process.PPID = int(ppid.(uint32))
-		}
-		Process.PsTree = global.GetPstree(pid)
+		// global.ProcessCmdlineCache.Add(pid, Process.Cmdline)
+		// if ppid, ok := global.ProcessCache.Get(pid); ok {
+		// 	Process.PPID = int(ppid.(uint32))
+		// }
+		// Process.PsTree = global.GetPstree(pid)
+
 		/*
 			转换成队列, 超过丢弃, 参考美团的文章内容
 			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
@@ -135,7 +143,7 @@ func handleProcEvent(data []byte) {
 			对于这个问题，我们在用户态做了队列控制
 		*/
 		select {
-		case global.ProcessChannel <- Process:
+		case global.PidChannel <- pid:
 		default:
 			// drop here
 		}
