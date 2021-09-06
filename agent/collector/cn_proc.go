@@ -141,6 +141,9 @@ func handleProcEvent(data []byte) {
 			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
 			导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
 			对于这个问题，我们在用户态做了队列控制
+
+			采用 PidChannel 作为缓冲池, 完全读取或者丢弃 pid,
+			防止 netlink 阻塞
 		*/
 		select {
 		case global.PidChannel <- pid:

@@ -5,6 +5,7 @@ import (
 	"hids-agent/global"
 	"hids-agent/network"
 	"hids-agent/support"
+	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
@@ -52,7 +53,7 @@ func Run() {
 	// socket 连接初始化
 	clientContext := &network.Context{}
 	client := &support.Client{
-		Addr:    "/etc/ckhids/plugin.sock",
+		Addr:    "/var/run/plugin.sock",
 		Name:    "collector",
 		Version: "0.0.1",
 	}
@@ -62,12 +63,59 @@ func Run() {
 	defer clientContext.IClose(client)
 
 	Singleton.FlushProcessCache()
-	// 定期
 
 	// 开启生产进程
-	go CN_PROC_START()
+	// 必须 netlink 连接上, 否则没有进程采集功能了
+	err := CN_PROC_START()
+	if err != nil {
+		return
+	}
+
+	// 定期刷新进程树
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				Singleton.FlushProcessCache()
+			case <-global.Context.Done():
+				return
+			}
+		}
+	}()
+
+	// socket 定期采集
+	// 在同一时间突然流量激增导致丢弃，给一个初始随机值，再reset掉
+	go func() {
+		init := true
+		ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(600)+1))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if init {
+					ticker.Reset(time.Hour)
+					init = false
+				}
+				// 是否开启proc，统一关闭先
+				socks, err := GetSockets(false, network.TCP_ESTABLISHED)
+				if err == nil {
+					data, err := json.Marshal(socks)
+					if err == nil {
+						rawdata := make(map[string]string)
+						rawdata["time"] = strconv.Itoa(global.Time)
+						rawdata["data"] = string(data)
+						rawdata["data_type"] = "1001"
+						global.UploadChannel <- rawdata
+					}
+				}
+			}
+		}
+	}()
 
 	// 开启定期消费
+	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃
 	go func() {
 		ticker := time.NewTicker(time.Millisecond)
 		defer ticker.Stop()
@@ -84,12 +132,14 @@ func Run() {
 				if ppid, ok := global.ProcessCache.Get(pid); ok {
 					process.PPID = int(ppid.(uint32))
 				}
+				process.PsTree = global.GetPstree(uint32(process.PID))
 				data, err := json.Marshal(process)
 				if err == nil {
 					rawdata := make(map[string]string)
 					rawdata["data"] = string(data)
 					rawdata["time"] = strconv.Itoa(global.Time)
 					rawdata["data_type"] = "1000"
+					global.UploadChannel <- rawdata
 				}
 			case <-global.Context.Done():
 				return

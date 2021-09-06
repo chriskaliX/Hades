@@ -58,6 +58,7 @@ func globalTime() {
 }
 
 func init() {
+	Context = context.Context(context.Background())
 	// 全局时间
 	go globalTime()
 	// 初始化全局的上传管道

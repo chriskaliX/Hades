@@ -24,9 +24,9 @@ var instance *Server
 
 func GetServer() (*Server, error) {
 	if instance == nil {
-		syscall.Unlink("/etc/ckhids/plugin.sock")
-		os.RemoveAll("/etc/ckhids/plugin.sock")
-		l, err := net.Listen("unix", "/etc/ckhids/plugin.sock")
+		syscall.Unlink("/var/run/plugin.sock")
+		os.RemoveAll("/var/run/plugin.sock")
+		l, err := net.Listen("unix", "/var/run/plugin.sock")
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +42,6 @@ func ServerRun() (err error) {
 	server, err := GetServer()
 
 	if err != nil {
-		fmt.Println(1, err)
 		return err
 	}
 	init := true
@@ -50,8 +49,6 @@ func ServerRun() (err error) {
 		conn, err := server.l.Accept()
 		reader := msgp.NewReaderSize(conn, 8*1024)
 		if err != nil {
-			fmt.Println(2, err)
-			// Break when socket is closed
 			if errors.Is(err, net.ErrClosed) {
 				fmt.Println("closed is called")
 				break
@@ -66,7 +63,7 @@ func ServerRun() (err error) {
 					req := support.RegistRequest{}
 					err = (&req).DecodeMsg(r)
 					if err != nil {
-						fmt.Println(3, err)
+						continue
 					}
 					fmt.Println(req.Name)
 				}
@@ -76,14 +73,14 @@ func ServerRun() (err error) {
 				if err != nil {
 					return
 				}
-				for _, d := range *data {
-					b, err := json.MarshalIndent(d, "", "  ")
-					if err != nil {
-						fmt.Println(4, err)
-					}
-					fmt.Print(strings.ReplaceAll(string(b), "\\u003c", "<"))
-				}
 
+				for _, d := range *data {
+					b, err := json.MarshalIndent(d["data"], "", "\t")
+					if err != nil {
+						continue
+					}
+					fmt.Println(strings.ReplaceAll(string(b), "\\\\u003c", "<"))
+				}
 			}
 		}()
 	}
