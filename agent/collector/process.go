@@ -22,6 +22,7 @@ import (
 const MaxProcess = 5000
 
 // 获取进程
+// 直接搬运，写的很好
 func GetProcess() (procs []structs.Process, err error) {
 	var allProc procfs.Procs
 	var sys procfs.Stat
@@ -106,6 +107,7 @@ var ProcessPool = sync.Pool{
 }
 
 // 获取单个 process 信息
+// 改造一下, 用于补足单个进程的完整信息
 func GetProcessInfo(pid uint32) (structs.Process, error) {
 	var (
 		err  error
@@ -203,6 +205,8 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 			if ok {
 				if proc.RemoteAddrs == "" {
 					proc.RemoteAddrs = d
+				} else if strings.Contains(proc.RemoteAddrs, d) {
+					continue
 				}
 				proc.RemoteAddrs = proc.RemoteAddrs + "," + d
 			}
