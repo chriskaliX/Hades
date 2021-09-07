@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func init() {
@@ -58,16 +59,28 @@ func Run() {
 		Version: "0.0.1",
 	}
 	if err := clientContext.IRetry(client); err != nil {
+		zap.S().Error(err)
 		return
 	}
 	defer clientContext.IClose(client)
 
+	// 配置初始化
+	config := zap.NewProductionEncoderConfig()
+	config.CallerKey = "source"
+	config.TimeKey = "timestamp"
+	config.EncodeTime = func(t time.Time, z zapcore.PrimitiveArrayEncoder) {
+		z.AppendString(strconv.FormatInt(t.Unix(), 10))
+	}
+
+	// 初始采集, 刷一批进内存, 能构建初步的进程树
 	Singleton.FlushProcessCache()
 
 	// 开启生产进程
 	// 必须 netlink 连接上, 否则没有进程采集功能了
+	// 强制退出
 	err := CN_PROC_START()
 	if err != nil {
+		zap.S().Error(err)
 		return
 	}
 
@@ -116,6 +129,7 @@ func Run() {
 
 	// 开启定期消费
 	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃
+	// 防止打开过多 fd 造成资源占用问题
 	go func() {
 		ticker := time.NewTicker(time.Millisecond)
 		defer ticker.Stop()
