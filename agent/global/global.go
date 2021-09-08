@@ -38,6 +38,9 @@ var (
 
 	// pid 管道
 	PidChannel chan uint32
+
+	// GrpcChannel 全局上传管道
+	GrpcChannel chan []*Record
 )
 
 const (

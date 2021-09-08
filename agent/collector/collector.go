@@ -71,6 +71,7 @@ func Run() {
 	config.EncodeTime = func(t time.Time, z zapcore.PrimitiveArrayEncoder) {
 		z.AppendString(strconv.FormatInt(t.Unix(), 10))
 	}
+	// remoteEncoder := zapcore.NewJSONEncoder(config)
 
 	// 初始采集, 刷一批进内存, 能构建初步的进程树
 	Singleton.FlushProcessCache()
