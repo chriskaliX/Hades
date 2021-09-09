@@ -3,6 +3,7 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"hids-agent/global"
 )
 
 type ErrorLog struct {

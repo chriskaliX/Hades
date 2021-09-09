@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/Shopify/sarama v1.29.1
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/uuid v1.3.0
@@ -23,4 +24,5 @@ require (
 	golang.org/x/net v0.0.0-20210907225631-ff17edfbf26d // indirect
 	golang.org/x/sys v0.0.0-20210908160347-a851e7ddeee0
 	golang.org/x/tools v0.1.5 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 )
