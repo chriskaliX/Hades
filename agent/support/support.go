@@ -6,7 +6,6 @@ package support
 */
 import (
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -90,8 +89,6 @@ func (c *Client) Send(d Data) error {
 	defer c.mu.Unlock()
 	err := d.EncodeMsg(c.writer)
 	if err != nil {
-		fmt.Println(err.Error())
-		fmt.Println("fmt.Println(line, err)")
 		return err
 	}
 	err = c.writer.Flush()
