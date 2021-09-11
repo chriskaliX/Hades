@@ -10,8 +10,10 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/tinylib/msgp/msgp"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -39,11 +41,18 @@ func GetServer() (*Server, error) {
 }
 
 func ServerRun() (err error) {
-	server, err := GetServer()
+	defer func() {
+		if err := recover(); err != nil {
+			time.Sleep(time.Second)
+			panic(err)
+		}
+	}()
 
+	server, err := GetServer()
 	if err != nil {
-		return err
+		zap.S().Panic(err)
 	}
+
 	init := true
 	for {
 		conn, err := server.l.Accept()
@@ -71,7 +80,7 @@ func ServerRun() (err error) {
 				data := &support.Data{}
 				err = data.DecodeMsg(reader)
 				if err != nil {
-					return
+					continue
 				}
 
 				for _, d := range *data {
