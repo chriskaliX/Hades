@@ -1,8 +1,8 @@
 package collector
 
 import (
-	"agent/global"
-	"agent/network"
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
+	"github.com/chriskaliX/HIDS-Linux/agent/network"
 	"bytes"
 	"encoding/binary"
 	"sync"

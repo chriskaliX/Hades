@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"agent/global"
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
