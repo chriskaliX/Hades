@@ -1,10 +1,11 @@
 package collector
 
 import (
-	"agent/network"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/network"
 
 	"github.com/prometheus/procfs"
 	"golang.org/x/sys/unix"

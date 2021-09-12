@@ -1,7 +1,6 @@
 package global
 
 import (
-	"agent/global/structs"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/global/structs"
 
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/host"

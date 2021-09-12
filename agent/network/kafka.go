@@ -1,8 +1,8 @@
 package network
 
 import (
-	"agent/global"
-	"agent/global/structs"
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
+	"github.com/chriskaliX/HIDS-Linux/agent/global/structs"
 	"reflect"
 	"sync"
 

@@ -1,19 +1,21 @@
 package collector
 
 import (
-	"agent/global"
-	"agent/global/structs"
-	"agent/network"
 	"errors"
 	"fmt"
 	"sync"
 
-	"agent/utils"
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
+	"github.com/chriskaliX/HIDS-Linux/agent/global/structs"
+	"github.com/chriskaliX/HIDS-Linux/agent/network"
+
 	"math/rand"
 	"os"
 	"os/user"
 	"strconv"
 	"strings"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/utils"
 
 	"github.com/prometheus/procfs"
 	"golang.org/x/sys/unix"
