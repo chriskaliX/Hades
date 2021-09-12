@@ -1,8 +1,8 @@
 package network
 
 import (
+	"agent/utils"
 	"bufio"
-	"hids-agent/utils"
 	"io"
 	"os"
 	"os/user"

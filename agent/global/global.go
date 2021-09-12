@@ -1,9 +1,9 @@
 package global
 
 import (
+	"agent/global/structs"
 	"context"
 	"fmt"
-	"hids-agent/global/structs"
 	"io/ioutil"
 	"net"
 	"os"

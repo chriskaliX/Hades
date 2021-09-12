@@ -1,4 +1,4 @@
-module hids-agent
+module agent
 
 go 1.16
 

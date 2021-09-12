@@ -1,9 +1,9 @@
 package log
 
 import (
+	"agent/global"
 	"encoding/json"
 	"fmt"
-	"hids-agent/global"
 )
 
 type ErrorLog struct {

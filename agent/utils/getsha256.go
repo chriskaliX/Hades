@@ -1,11 +1,11 @@
 package utils
 
 import (
+	"agent/global"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"hash"
-	"hids-agent/global"
 	"io"
 	"os"
 	"sync"

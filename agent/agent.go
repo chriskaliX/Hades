@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hids-agent/collector"
-	"hids-agent/transport/domain"
+	"agent/collector"
+	"agent/transport/domain"
 	"time"
 )
 

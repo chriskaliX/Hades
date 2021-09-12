@@ -1,7 +1,7 @@
 package collector
 
 import (
-	"hids-agent/network"
+	"agent/network"
 	"strconv"
 	"strings"
 	"sync"
