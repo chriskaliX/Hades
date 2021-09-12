@@ -1,10 +1,10 @@
 package collector
 
 import (
+	"agent/global"
+	"agent/network"
 	"bytes"
 	"encoding/binary"
-	"hids-agent/global"
-	"hids-agent/network"
 	"sync"
 	"syscall"
 )

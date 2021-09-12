@@ -1,14 +1,14 @@
 package collector
 
 import (
+	"agent/global"
+	"agent/global/structs"
+	"agent/network"
 	"errors"
 	"fmt"
-	"hids-agent/global"
-	"hids-agent/global/structs"
-	"hids-agent/network"
 	"sync"
 
-	"hids-agent/utils"
+	"agent/utils"
 	"math/rand"
 	"os"
 	"os/user"

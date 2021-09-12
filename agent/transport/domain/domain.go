@@ -1,10 +1,10 @@
 package domain
 
 import (
+	"agent/support"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hids-agent/support"
 	"net"
 	"os"
 	"strings"

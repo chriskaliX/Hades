@@ -1,10 +1,10 @@
 package collector
 
 import (
+	"agent/global"
+	"agent/network"
+	"agent/support"
 	"encoding/json"
-	"hids-agent/global"
-	"hids-agent/network"
-	"hids-agent/support"
 	"math/rand"
 	"runtime"
 	"strconv"
