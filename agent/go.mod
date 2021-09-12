@@ -9,7 +9,6 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/klauspost/compress v1.13.5 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
-	github.com/prometheus/procfs v0.7.3
 	github.com/shirou/gopsutil/v3 v3.21.8
 	github.com/tinylib/msgp v1.1.6
 	github.com/vishvananda/netlink v1.1.0

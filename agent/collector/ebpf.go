@@ -1,4 +1,4 @@
-package collector
+package main
 
 // ebpf 的采集
 // 大致逻辑为: 写一段代码让内核 load

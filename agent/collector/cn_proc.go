@@ -1,12 +1,13 @@
-package collector
+package main
 
 import (
-	"github.com/chriskaliX/HIDS-Linux/agent/global"
-	"github.com/chriskaliX/HIDS-Linux/agent/network"
 	"bytes"
 	"encoding/binary"
 	"sync"
 	"syscall"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
+	"github.com/chriskaliX/HIDS-Linux/agent/network"
 )
 
 var (
