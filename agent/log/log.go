@@ -1,7 +1,7 @@
 package log
 
 import (
-	"agent/global"
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
 	"encoding/json"
 	"fmt"
 )
