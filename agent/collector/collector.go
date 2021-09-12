@@ -51,7 +51,7 @@ func (c *Collector) FlushProcessCache() {
 
 // 这里采集的数据, 统一不带上主机基础信息
 // 统一上传结构体然后Marshal上传
-func Run() {
+func main() {
 	// socket 连接初始化
 	clientContext := &network.Context{}
 	client := &support.Client{
