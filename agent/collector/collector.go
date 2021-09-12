@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"agent/global"
 	"agent/network"
 	"agent/support"
 	"encoding/json"
@@ -10,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/global"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

@@ -1,4 +1,4 @@
-module agent
+module github.com/chriskaliX/HIDS-Linux/agent
 
 go 1.16
 
