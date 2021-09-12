@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"agent/support"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/support"
 
 	"github.com/tinylib/msgp/msgp"
 	"go.uber.org/zap"

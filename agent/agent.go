@@ -1,9 +1,10 @@
 package main
 
 import (
-	"agent/collector"
-	"agent/transport/domain"
 	"time"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/collector"
+	"github.com/chriskaliX/HIDS-Linux/agent/transport/domain"
 )
 
 func main() {
