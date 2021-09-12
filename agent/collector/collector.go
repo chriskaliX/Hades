@@ -1,14 +1,15 @@
-package collector
+package main
 
 import (
-	"github.com/chriskaliX/HIDS-Linux/agent/network"
-	"github.com/chriskaliX/HIDS-Linux/agent/support"
 	"encoding/json"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/chriskaliX/HIDS-Linux/agent/network"
+	"github.com/chriskaliX/HIDS-Linux/agent/support"
 
 	"github.com/chriskaliX/HIDS-Linux/agent/global"
 
