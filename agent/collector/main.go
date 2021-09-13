@@ -74,7 +74,7 @@ func main() {
 	}
 	defer clientContext.IClose(client)
 
-	// 配置初始化
+	// 配置初始化 - 未完成
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"
