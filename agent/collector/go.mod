@@ -6,12 +6,13 @@ require (
 	github.com/chriskaliX/HIDS-Linux/agent v0.0.0-20210912054726-f91c9f009a15
 	github.com/prometheus/procfs v0.7.3
 	go.uber.org/zap v1.19.0
-	golang.org/x/sys v0.0.0-20210908160347-a851e7ddeee0
+	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0
 )
 
 require (
 	github.com/Shopify/sarama v1.29.1 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
+	github.com/chriskaliX/HIDS-Linux v0.0.0-20210912095642-7630e277ff95 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
