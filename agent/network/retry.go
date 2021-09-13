@@ -29,6 +29,10 @@ type Context struct {
 
 // 连接统一使用接口
 func (c *Context) IRetry(netRetry INetRetry) error {
+	c.RetryStatus = true
+	defer func() {
+		c.RetryStatus = false
+	}()
 	// 初始化动作
 	if err := netRetry.Init(); err != nil {
 		return err
@@ -43,16 +47,12 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 		delay   uint
 	)
 
-	c.RetryStatus = true
-
 	for {
 		if c.Shutdown {
-			c.RetryStatus = false
 			return errors.New("shutdown is true")
 		}
 
 		if maxRetries > 0 && retries >= maxRetries {
-			c.RetryStatus = false
 			return errors.New("over maxtries")
 		}
 
@@ -66,7 +66,6 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 			retries = retries + 1
 			time.Sleep(time.Second * time.Duration(delay))
 		} else {
-			c.RetryStatus = false
 			return nil
 		}
 	}

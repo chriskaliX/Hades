@@ -6,6 +6,8 @@ github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDO
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
+github.com/chriskaliX/HIDS-Linux v0.0.0-20210912095642-7630e277ff95 h1:7t+IoZDBaPb2ydjsjc2P6tSW2BeXod2eH7AQkLtjdgY=
+github.com/chriskaliX/HIDS-Linux v0.0.0-20210912095642-7630e277ff95/go.mod h1:8vE4/ZYq9yZsAOLCr3DmCRzMFmb3FoeCJEuvJHx1GDk=
 github.com/chriskaliX/HIDS-Linux/agent v0.0.0-20210912054726-f91c9f009a15 h1:TP6mCpwK+eXXjUo1jshoOHkBRR/Ab6GOGnSlkaOurjM=
 github.com/chriskaliX/HIDS-Linux/agent v0.0.0-20210912054726-f91c9f009a15/go.mod h1:dYAi+CnsCftWaMJbbjEUHJhsifZp9Fzek3seOXzXiAU=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
@@ -149,6 +151,8 @@ golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20210816074244-15123e1e1f71/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210908160347-a851e7ddeee0 h1:6xxeVXiyYpF8WCTnKKCbjnEdsrwjZYY8TOuk7xP0chg=
 golang.org/x/sys v0.0.0-20210908160347-a851e7ddeee0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 h1:xrCZDmdtoloIiooiA9q0OQb9r8HejIHYoHGhGCe1pGg=
+golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
