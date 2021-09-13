@@ -37,7 +37,8 @@
 
 > 好的框架设计, 会让开发的时候不再迷茫, 总图
 
-![image](https://github.com/chriskaliX/HIDS-Linux/blob/main/Arc.png)
+目前对 Agent 的架构设计上有点疑惑了, 我看了字节的模式, 进程之间 sock 通信，由agent统一控制plugins。暂时还不明白 Agent 自行升级，更新等如何操作。另外 unix domain 通信，没找到主动 kill 掉单个 plugin 的，可能是看的还不够多，我得找个比较合适的框架去实现
+采集部分相对都是比较稳定了，还有一些文件监控，user监控，登录监控，应该都比较简单，优先度不高
 
 ### Agent端设计
 
