@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/chriskaliX/HIDS-Linux/agent/utils"
+	"agent/utils"
 	"bufio"
 	"io"
 	"os"

@@ -1,11 +1,11 @@
-package main
+package collector
 
 import (
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/chriskaliX/HIDS-Linux/agent/network"
+	"agent/network"
 
 	"github.com/prometheus/procfs"
 	"golang.org/x/sys/unix"

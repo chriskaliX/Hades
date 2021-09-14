@@ -1,13 +1,13 @@
-package main
+package collector
 
 import (
 	"errors"
 	"fmt"
 	"sync"
 
-	"github.com/chriskaliX/HIDS-Linux/agent/global"
-	"github.com/chriskaliX/HIDS-Linux/agent/global/structs"
-	"github.com/chriskaliX/HIDS-Linux/agent/network"
+	"agent/global"
+	"agent/global/structs"
+	"agent/network"
 
 	"math/rand"
 	"os"
@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chriskaliX/HIDS-Linux/agent/utils"
+	"agent/utils"
 
 	"github.com/prometheus/procfs"
 	"golang.org/x/sys/unix"

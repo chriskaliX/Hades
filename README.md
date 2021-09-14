@@ -76,4 +76,4 @@
 
 ## 运行图片
 
-![image](https://github.com/chriskaliX/HIDS-Linux/blob/main/hids1.png)
+![image](https://blob/main/hids1.png)
