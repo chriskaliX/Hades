@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/chriskaliX/HIDS-Linux/agent/support"
+	"agent/support"
 
 	"github.com/tinylib/msgp/msgp"
 	"go.uber.org/zap"

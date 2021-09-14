@@ -1,4 +1,4 @@
-package main
+package collector
 
 import (
 	"bytes"
@@ -6,8 +6,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/chriskaliX/HIDS-Linux/agent/global"
-	"github.com/chriskaliX/HIDS-Linux/agent/network"
+	"agent/global"
+	"agent/network"
 )
 
 var (

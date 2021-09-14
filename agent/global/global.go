@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chriskaliX/HIDS-Linux/agent/global/structs"
+	"agent/global/structs"
 
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/host"

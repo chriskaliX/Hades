@@ -1,8 +1,8 @@
 package network
 
 import (
-	"github.com/chriskaliX/HIDS-Linux/agent/global"
-	"github.com/chriskaliX/HIDS-Linux/agent/global/structs"
+	"agent/global"
+	"agent/global/structs"
 	"reflect"
 	"sync"
 
@@ -16,13 +16,6 @@ var (
 	KafkaChannel   chan *KafkaLog
 	once           sync.Once
 )
-
-func GetKafkaSingleton() *Kafka {
-	once.Do(func() {
-		KafkaSingleton = &Kafka{}
-	})
-	return KafkaSingleton
-}
 
 func init() {
 	KafkaLogPool = &sync.Pool{
