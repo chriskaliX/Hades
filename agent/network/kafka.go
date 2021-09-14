@@ -47,7 +47,7 @@ type Kafka struct {
 
 func (k *Kafka) Init() error {
 	if k.Config == nil {
-		k.LoadConfig()
+		return k.LoadConfig()
 	}
 	return nil
 }
