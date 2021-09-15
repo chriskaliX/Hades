@@ -1,10 +1,7 @@
 package network
 
 import (
-	"agent/global"
-	"agent/global/structs"
 	"reflect"
-	"sync"
 
 	"github.com/Shopify/sarama"
 )
@@ -12,54 +9,33 @@ import (
 var (
 	KafkaSingleton *Kafka
 	KafkaContext   *Context
-	KafkaLogPool   *sync.Pool
-	KafkaChannel   chan *KafkaLog
-	once           sync.Once
+	KafkaChannel   = make(chan string, 1000)
 )
-
-func init() {
-	KafkaLogPool = &sync.Pool{
-		New: func() interface{} {
-			kafka := &KafkaLog{}
-			kafka.IP = "192.168.0.1"
-			kafka.Hostname = global.Hostname
-			return kafka
-		},
-	}
-	KafkaChannel = make(chan *KafkaLog, 5000)
-}
-
-type KafkaLog struct {
-	IP       string
-	Hostname string
-	Pstree   string
-
-	structs.Process
-}
 
 // Kafka, 实现 IRetry 接口
 type Kafka struct {
-	Producer *sarama.SyncProducer
-	Config   *sarama.Config
-	Address  *[]string
+	Producer sarama.SyncProducer
+	Config   sarama.Config
+	Address  []string
 	Topic    string
 }
 
 func (k *Kafka) Init() error {
-	if k.Config == nil {
-		return k.LoadConfig()
+	if &k.Config == nil {
+		kafkaConfig := sarama.NewConfig()
+		kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
+		kafkaConfig.Producer.Partitioner = sarama.NewRandomPartitioner
+		kafkaConfig.Producer.Return.Successes = true
+		kafkaConfig.Producer.Return.Errors = true
+		kafkaConfig.Version = sarama.V0_11_0_2
+		k.Config = *kafkaConfig
 	}
 	return nil
 }
 
-func (k *Kafka) Connect() error {
-	producer, err := sarama.NewSyncProducer([]string{"localhost:9092"}, k.Config)
-	if err != nil {
-		return err
-	}
-
-	k.Producer = &producer
-	return nil
+func (k *Kafka) Connect() (err error) {
+	k.Producer, err = sarama.NewSyncProducer([]string{"localhost:9092"}, &k.Config)
+	return
 }
 
 func (k *Kafka) GetMaxRetry() uint {
@@ -76,32 +52,21 @@ func (k *Kafka) GetHashMod() uint {
 
 func (k *Kafka) Close() {
 	if k != nil {
-		(*k.Producer).Close()
+		k.Producer.Close()
 	}
 }
 
-func (this *Kafka) LoadConfig() error {
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
-	kafkaConfig.Producer.Partitioner = sarama.NewRandomPartitioner
-	kafkaConfig.Producer.Return.Successes = true
-	kafkaConfig.Producer.Return.Errors = true
-	kafkaConfig.Version = sarama.V0_11_0_2
-
-	this.Config = kafkaConfig
-	return nil
+func (this *Kafka) Send(message string) (err error) {
+	msg := &sarama.ProducerMessage{
+		Topic: this.Topic,
+		Value: sarama.StringEncoder(message),
+	}
+	_, _, err = this.Producer.SendMessage(msg)
+	return
 }
 
-func (this *Kafka) Product() {
-
-}
-
-func KafkaInit() error {
-	KafkaSingleton.LoadConfig()
+func KafkaInit() (err error) {
 	KafkaContext = &Context{}
-	err := KafkaContext.IRetry(KafkaSingleton)
-	if err != nil {
-		return err
-	}
-	return nil
+	err = KafkaContext.IRetry(KafkaSingleton)
+	return
 }
