@@ -28,9 +28,7 @@ func (*LoggerWriter) Write(p []byte) (n int, err error) {
 	m["msg"] = l.Msg
 	m["data_type"] = "999"
 	select {
-	case global.GrpcChannel <- []*global.Record{{
-		Message: m,
-	}}:
+	case global.UploadChannel <- m:
 	default:
 		fmt.Println("Channel full")
 	}

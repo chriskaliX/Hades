@@ -96,7 +96,7 @@ func Run() {
 					data, err := json.Marshal(socks)
 					if err == nil {
 						rawdata := make(map[string]string)
-						rawdata["time"] = strconv.Itoa(global.Time)
+						rawdata["time"] = strconv.Itoa(int(global.Time))
 						rawdata["data"] = string(data)
 						rawdata["data_type"] = "1001"
 						global.UploadChannel <- rawdata
@@ -130,7 +130,7 @@ func Run() {
 				if err == nil {
 					rawdata := make(map[string]string)
 					rawdata["data"] = string(data)
-					rawdata["time"] = strconv.Itoa(global.Time)
+					rawdata["time"] = strconv.Itoa(int(global.Time))
 					rawdata["data_type"] = "1000"
 					global.UploadChannel <- rawdata
 				}

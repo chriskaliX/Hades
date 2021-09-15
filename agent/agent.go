@@ -1,11 +1,12 @@
 package collector
 
 import (
-	"fmt"
+	"encoding/json"
 	"time"
 
 	"agent/collector"
 	"agent/global"
+	"agent/network"
 )
 
 // 默认 agent 仅仅保留和server段通信功能, 通信失败就不开启
@@ -21,24 +22,17 @@ func main() {
 	collector.Run()
 
 	go func() {
-		buf := make([]map[string]string, 0, 100)
 		ticker := time.NewTicker(time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
-			case rd := <-global.UploadChannel:
-				buf = append(buf, rd)
 			case <-ticker.C:
-				// if len(buf) != 0 {
-				// 	err := client.Send(buf)
-				// 	buf = buf[:0]
-				// 	if err != nil {
-				// 		return
-				// 	}
-				// }
-
-				// 这里修改成kafka通道上传
-				fmt.Println(buf)
+				rd := <-global.UploadChannel
+				m, err := json.Marshal(rd)
+				if err != nil {
+					continue
+				}
+				network.KafkaSingleton.Send(string(m))
 			}
 		}
 	}()
