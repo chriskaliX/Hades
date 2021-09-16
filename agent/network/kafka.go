@@ -39,7 +39,7 @@ func (k *Kafka) Connect() (err error) {
 }
 
 func (k *Kafka) GetMaxRetry() uint {
-	return 5
+	return 3
 }
 
 func (k *Kafka) String() string {
