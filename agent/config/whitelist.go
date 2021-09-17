@@ -1,6 +1,9 @@
 package config
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 // 白名单, 每个主机支持64个白名单(性能问题), 支持对
 // 任意collection的任意字段, 进行组和的 contains,regexp 判断
@@ -17,21 +20,42 @@ import "errors"
 */
 
 type WhiteListConfig struct {
-	Config map[string]interface{}
+	Field string `json:"Field"`
+	Rules []Rule `json:"Rules"`
 }
 
-func (w *WhiteListConfig) Check() (err error) {
-	if w.Config != nil {
-		// 作用域加载, 过滤哪个事件
-		// 对应情况看 DOCS.md
-		field, ok := w.Config["field"]
-		if !ok {
-			err = errors.New("field not found")
-			return
-		}
-		
+type Rule struct {
+	Order uint   `json:"Order"`
+	Raw   string `json:"Raw"` //Raw字段 field:string
+	Type  string `json:"Type"`
+}
 
+func (w *WhiteListConfig) Check() error {
+	// 检验 config 是否存在
+	if w == nil {
+		return errors.New("config nil")
 	}
-	err = errors.New("config nil")
-	return
+
+	// 检验Field范围是否正确
+	if fieldNum, err := strconv.Atoi(w.Field); err != nil {
+		return err
+	} else {
+		if (fieldNum < 1000) || (fieldNum > 1007) {
+			return errors.New("field range error")
+		}
+	}
+
+	// 检验 config 数量是否正确
+	if len(w.Rules)%2 == 0 || len(w.Rules) > 5 {
+		return errors.New("config count error")
+	}
+
+	// 开始遍历 rules
+	for _, rule := range w.Rules {
+		if rule.Type != "operation" && rule.Type != "string" {
+			return errors.New("raw string field")
+		}
+	}
+
+	return nil
 }
