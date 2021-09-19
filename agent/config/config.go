@@ -2,7 +2,7 @@ package config
 
 type IConfig interface {
 	Check() error //检测配置合法性
-	Load() (IConfig, error)
+	Load(confByte []byte) (error)
 }
 
 // func ConfigLoad(confByte []byte, config IConfig) (IConfig, error) {
