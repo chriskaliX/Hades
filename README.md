@@ -11,11 +11,11 @@
 
 ### Agent
 
-[image](https://github.com/chriskaliX/HIDS-Linux/blob/main/agent.png)
+![agent](https://github.com/chriskaliX/HIDS-Linux/blob/main/agent.png)
 
 ### Data
 
-[image](https://github.com/chriskaliX/HIDS-Linux/blob/main/data_analyze.png)
+![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/data_analyze.png)
 
 ## 目前阶段
 
