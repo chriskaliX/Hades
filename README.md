@@ -1,5 +1,7 @@
 # HIDS-Linux
 
+![language](https://shields.io/github/languages/top/chriskalix/HIDS-Linux)
+
 > Linux HIDS based on Netlink Connector, cn_proc. Learn from [kinvolk](https://github.com/kinvolk/nswatch/blob/5ed779a0cbdfa80403ea42909ca157a89719f159/nswatch.go), [Elkeid](https://github.com/bytedance/Elkeid/blob/main/README-zh_CN.md)
 
 ## 开发目的
