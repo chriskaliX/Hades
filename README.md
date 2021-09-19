@@ -7,6 +7,16 @@
 较为完整的学习用户态采集的方案, 能够开发出一款稳定的纯 golang ncp 采集的 HIDS。使得其能够稳定的运行在 Linux 主机上。
 同时要对自己的开发水平有所认知, 在单人开发的情况下, 不尝试过大过多过难的功能...做出一个可用的即为我们的目标
 
+## Big Picture
+
+### Agent
+
+[image](https://github.com/chriskaliX/HIDS-Linux/blob/main/agent.png)
+
+### Data
+
+[image](https://github.com/chriskaliX/HIDS-Linux/blob/main/data_analyze.png)
+
 ## 目前阶段
 
 目前还属于玩具状态, 图个乐...
@@ -74,7 +84,3 @@
     文件打开限制(因为每个进程进来后, 需要打开多个 fd, 可能会有 IO 瓶颈的问题)
     文件写入限制(同理, Log 写入后的问题)
 ```
-
-## 运行图片
-
-![image](https://blob/main/hids1.png)
