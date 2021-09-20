@@ -1,17 +1,18 @@
 package config
 
 import (
+	"agent/global/structs"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"sync"
 )
 
 var (
-	ExeList        sync.Map
-	Sha256List     sync.Map
-	CmdlineList    sync.Map
-	PidtreeList    sync.Map
-	WhiteListCount uint
+	ExeList     sync.Map
+	Sha256List  sync.Map
+	CmdlineList sync.Map
+	PidtreeList sync.Map
 )
 
 const (
@@ -37,6 +38,10 @@ func (w *WhiteListConfig) Check() error {
 	}
 	if w.Rules == nil {
 		return errors.New("whitelist rules nil")
+	}
+
+	if len(w.Rules) > WhiteListLimit {
+		return errors.New("whitelist rules over 64")
 	}
 
 	// 开始遍历 rules
@@ -76,5 +81,74 @@ func (w *WhiteListConfig) Check() error {
 }
 
 func (w *WhiteListConfig) Load(confByte []byte) error {
+	// 解析
+	err := json.Unmarshal(confByte, w)
+	if err != nil {
+		return err
+	}
+
+	// check
+	err = w.Check()
+	if err != nil {
+		return err
+	}
+
+	// 清空函数
+	clear := func(sm sync.Map) {
+		sm.Range(func(key interface{}, value interface{}) bool {
+			sm.Delete(key)
+			return true
+		})
+	}
+
+	// 加载函数
+	load := func(sm sync.Map, list []string) {
+		clear(sm)
+		for _, v := range list {
+			sm.Store(v, nil)
+		}
+	}
+
+	var (
+		sha256temp  []string
+		exetemp     []string
+		cmdtemp     []string
+		pidtreetemp []string
+	)
+
+	// 规则加载
+	for _, rule := range w.Rules {
+		switch rule.Field {
+		case "sha256":
+			sha256temp = append(sha256temp, rule.Raw)
+		case "exe":
+			exetemp = append(exetemp, rule.Raw)
+		case "cmdline":
+			cmdtemp = append(cmdtemp, rule.Raw)
+		case "pidtree":
+			pidtreetemp = append(pidtreetemp, rule.Raw)
+		}
+	}
+	load(Sha256List, sha256temp)
+	load(ExeList, exetemp)
+	load(CmdlineList, cmdtemp)
+	load(PidtreeList, pidtreetemp)
 	return nil
 }
+
+func WhiteListCheck(process structs.Process) bool {
+	if _, ok := ExeList.Load(process.Exe); ok {
+		return true
+	}
+	if _, ok := Sha256List.Load(process.Sha256); ok {
+		return true
+	}
+	if _, ok := CmdlineList.Load(process.Cmdline); ok {
+		return true
+	}
+	if _, ok := PidtreeList.Load(process.PsTree); ok {
+		return true
+	}
+	return false
+}
+

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"agent/config"
 	"agent/network"
 
 	"agent/global"
@@ -121,6 +122,11 @@ func Run() {
 				if err != nil {
 					continue
 				}
+				// 白名单校验
+				if config.WhiteListCheck(process) {
+					continue
+				}
+
 				global.ProcessCmdlineCache.Add(pid, process.Cmdline)
 				if ppid, ok := global.ProcessCache.Get(pid); ok {
 					process.PPID = int(ppid.(uint32))
