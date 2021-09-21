@@ -42,7 +42,7 @@ func init() {
 	}()
 
 	// 初始化全局的上传管道
-	UploadChannel = make(chan map[string]string, 100)
+	UploadChannel = make(chan map[string]string, 1000)
 	ProcessChannel = make(chan structs.Process, 1000)
 	PidChannel = make(chan uint32, 100)
 	// 开启的时候采集一次
