@@ -108,6 +108,18 @@ func Run() {
 		}
 	}()
 
+	// 系统信息24小时上传一次
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				global.Info()
+			}
+		}
+	}()
+
 	// 开启定期消费
 	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃
 	// 防止打开过多 fd 造成资源占用问题
@@ -117,7 +129,6 @@ func Run() {
 		for {
 			select {
 			case <-ticker.C:
-				// 这里看一下是否需要对象池
 				pid := <-global.PidChannel
 				process, err := GetProcessInfo(pid)
 				if err != nil {
