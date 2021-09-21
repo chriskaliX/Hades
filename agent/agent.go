@@ -2,11 +2,11 @@ package collector
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"agent/collector"
 	"agent/global"
-	"agent/network"
 )
 
 // 默认 agent 仅仅保留和server段通信功能, 通信失败就不开启
@@ -34,7 +34,8 @@ func main() {
 				if err != nil {
 					continue
 				}
-				network.KafkaSingleton.Send(string(m))
+				fmt.Println(m)
+				// network.KafkaSingleton.Send(string(m))
 			}
 		}
 	}()
