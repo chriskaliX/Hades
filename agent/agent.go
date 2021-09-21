@@ -21,24 +21,22 @@ func main() {
 	// 默认collector也不开, 接收server指令后再开
 	collector.Run()
 
-	go func() {
-		ticker := time.NewTicker(time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				rd := <-global.UploadChannel
-				rd["AgentID"] = global.AgentID
-				rd["Hostname"] = global.Hostname
-				m, err := json.Marshal(rd)
-				if err != nil {
-					continue
-				}
-				fmt.Println(m)
-				// network.KafkaSingleton.Send(string(m))
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			rd := <-global.UploadChannel
+			rd["AgentID"] = global.AgentID
+			rd["Hostname"] = global.Hostname
+			m, err := json.Marshal(rd)
+			if err != nil {
+				continue
 			}
+			fmt.Println(m)
+			// network.KafkaSingleton.Send(string(m))
 		}
-	}()
+	}
 
 	// 指令回传在这里
 }
