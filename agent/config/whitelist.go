@@ -146,7 +146,7 @@ func WhiteListCheck(process structs.Process) bool {
 	if _, ok := CmdlineList.Load(process.Cmdline); ok {
 		return true
 	}
-	if _, ok := PidtreeList.Load(process.PsTree); ok {
+	if _, ok := PidtreeList.Load(process.PidTree); ok {
 		return true
 	}
 	return false

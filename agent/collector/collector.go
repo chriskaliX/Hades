@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent/config"
+	"agent/global/structs"
 	"agent/network"
 
 	"agent/global"
@@ -120,10 +121,14 @@ func Run() {
 				pid := <-global.PidChannel
 				process, err := GetProcessInfo(pid)
 				if err != nil {
+					process.Reset()
+					structs.ProcessPool.Put(process)
 					continue
 				}
 				// 白名单校验
 				if config.WhiteListCheck(process) {
+					process.Reset()
+					structs.ProcessPool.Put(process)
 					continue
 				}
 
@@ -131,7 +136,7 @@ func Run() {
 				if ppid, ok := global.ProcessCache.Get(pid); ok {
 					process.PPID = int(ppid.(uint32))
 				}
-				process.PsTree = global.GetPstree(uint32(process.PID))
+				process.PidTree = global.GetPstree(uint32(process.PID))
 				data, err := json.Marshal(process)
 				if err == nil {
 					rawdata := make(map[string]string)
@@ -140,6 +145,8 @@ func Run() {
 					rawdata["data_type"] = "1000"
 					global.UploadChannel <- rawdata
 				}
+				process.Reset()
+				structs.ProcessPool.Put(process)
 			case <-global.Context.Done():
 				return
 			}

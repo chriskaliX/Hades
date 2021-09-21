@@ -121,7 +121,8 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 		return proc, errors.New("no process found")
 	}
 
-	proc = structs.Process{PID: process.PID}
+	proc = structs.ProcessPool.Get().(structs.Process)
+	proc.PID = process.PID
 
 	status, err := process.NewStatus()
 	if err == nil {
