@@ -20,25 +20,13 @@ type Process struct {
 	TTY         int    `json:"tty"`
 	StartTime   uint64 `json:"start_time"`
 	RemoteAddrs string `json:"RemoteAddrs"`
-	PsTree      string `json:"PsTree"`
+	PidTree     string `json:"PidTree"`
 }
 
+var emptyProcess = &Process{}
+
 func (p *Process) Reset() {
-	p.PID = 0
-	p.PPID = 0
-	p.Name = ""
-	p.Cmdline = ""
-	p.Exe = ""
-	p.Sha256 = ""
-	p.UID = ""
-	p.EUID = ""
-	p.Eusername = ""
-	p.Cwd = ""
-	p.Session = 0
-	p.TTY = 0
-	p.StartTime = 0
-	p.RemoteAddrs = ""
-	p.PsTree = ""
+	*p = *emptyProcess
 }
 
 func init() {
