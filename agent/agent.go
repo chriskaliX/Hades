@@ -29,11 +29,12 @@ func main() {
 			rd := <-global.UploadChannel
 			rd["AgentID"] = global.AgentID
 			rd["Hostname"] = global.Hostname
-			m, err := json.Marshal(rd)
+			_, err := json.Marshal(rd)
 			if err != nil {
 				continue
 			}
-			fmt.Println(m)
+			fmt.Println(rd)
+			// fmt.Println(m)
 			// network.KafkaSingleton.Send(string(m))
 		}
 	}
