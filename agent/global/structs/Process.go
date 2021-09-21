@@ -32,7 +32,7 @@ func (p *Process) Reset() {
 func init() {
 	ProcessPool = &sync.Pool{
 		New: func() interface{} {
-			return new(Process)
+			return Process{}
 		},
 	}
 }
