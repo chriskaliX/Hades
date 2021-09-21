@@ -28,6 +28,8 @@ func main() {
 			select {
 			case <-ticker.C:
 				rd := <-global.UploadChannel
+				rd["AgentID"] = global.AgentID
+				rd["Hostname"] = global.Hostname
 				m, err := json.Marshal(rd)
 				if err != nil {
 					continue

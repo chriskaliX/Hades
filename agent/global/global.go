@@ -40,12 +40,16 @@ func init() {
 			}
 		}
 	}()
-	
+
 	// 初始化全局的上传管道
 	UploadChannel = make(chan map[string]string, 100)
 	ProcessChannel = make(chan structs.Process, 1000)
 	PidChannel = make(chan uint32, 100)
+	// 开启的时候采集一次
+	Info()
+}
 
+func Info() {
 	// 初始信息
 	Hostname, _ = os.Hostname()
 	KernelVersion, _ = host.KernelVersion()
