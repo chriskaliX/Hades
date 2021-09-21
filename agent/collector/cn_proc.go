@@ -3,7 +3,6 @@ package collector
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sync"
 	"syscall"
 
@@ -118,7 +117,6 @@ func handleProcEvent(data []byte) {
 		defer ProcEventExecPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
 		pid := event.ProcessPid
-		fmt.Println(pid)
 		/*
 			转换成队列, 超过丢弃, 参考美团的文章内容
 			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，

@@ -137,7 +137,6 @@ loop:
 			case unix.NLMSG_ERROR:
 				continue
 			}
-			// fmt.Println(m.Header.Type)
 			sockInfo := &_socket{}
 			if err := sockInfo.deserialize(m.Data); err != nil {
 				continue
