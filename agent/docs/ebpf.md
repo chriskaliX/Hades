@@ -1,3 +1,21 @@
-# EBPF
+# eBPF
 
 [nj师傅博客](https://www.njcx.bid/posts/S6.html)
+
+## 类型
+
+BPF_PROG_TYPE_SOCKET_FILTER：网络数据包过滤器
+BPF_PROG_TYPE_KPROBE：确定是否应触发kprobe
+BPF_PROG_TYPE_SCHED_CLS：网络流量控制分类器
+BPF_PROG_TYPE_SCHED_ACT：网络流量控制操作
+BPF_PROG_TYPE_TRACEPOINT：确定是否应触发跟踪点
+BPF_PROG_TYPE_XDP：从设备驱动程序接收路径运行的网络数据包筛选器
+BPF_PROG_TYPE_PERF_EVENT：确定是否应该触发性能事件处理程序
+BPF_PROG_TYPE_CGROUP_SKB：用于控制组的网络数据包过滤器
+BPF_PROG_TYPE_CGROUP_SOCK：用于控制组的网络数据包筛选器，允许修改套接字选项
+BPF_PROG_TYPE_LWT_ *：用于轻型隧道的网络数据包过滤器
+BPF_PROG_TYPE_SOCK_OPS：用于设置套接字参数的程序
+BPF_PROG_TYPE_SK_SKB：网络数据包过滤器，用于在套接字之间转发数据包
+BPF_PROG_CGROUP_DEVICE：确定是否应该允许设备操作
+
+我们重点关注 BPF_PROG_TYPE_KPROBE
