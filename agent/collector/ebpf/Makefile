@@ -1,8 +1,7 @@
-TARGET := ebpf
-TARGET_BPF := $(TARGET).bpf.o
-BPF_SRC = $(shell find . -type f -name '*.c')
-.PHONY: all
-all: $(TARGET) $(TARGET_BPF)
+pwd = $(shell pwd)
 
-$(TARGET_BPF): $(BPF_SRC)
-	clang -I /usr/include/ -O2 -c -target bpf -o $@ $<
+build:
+	clang -I /usr/include/ \
+	-I $(pwd)/headers/ \
+	-c ebpf.c \
+	-o ebpf.o

@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/Shopify/sarama v1.29.1
-	github.com/cilium/ebpf v0.6.2 // indirect
+	github.com/cilium/ebpf v0.6.2
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/uuid v1.3.0
