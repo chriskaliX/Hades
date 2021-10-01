@@ -1,9 +1,5 @@
 #include "common.h"
 #include "bpf_helpers.h"
-// #include "bpf_helper_defs.h"
-
-// clang -(llvm)-> ebpf obj -(load)-> libbpf
-
 /*
     记录一些reference
     https://github.com/iovisor/bcc/blob/master/docs/reference_guide.md
@@ -14,6 +10,16 @@
 * 所以基本就靠直接啃, 不懂的就搜索
 * C 的基础属于幼儿园水平, 但是没关系, 慢慢扣、多学习
 */
+
+/*
+    issue 1: 碰到 LLVM 的问题
+    https://github.com/cilium/ebpf/issues/43
+    解决方法:
+    llvm-strip ./kprobeexample_bpfeb.o --no-strip-all -R .BTF
+    llvm-strip ./kprobeexample_bpfel.o --no-strip-all -R .BTF
+*/
+
+char __license[] SEC("license") = "Dual MIT/GPL";
 
 // 截取长度最大值
 #define TASK_COMM_LEN 16
