@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"bytes"
+	"encoding/binary"
 	"log"
 	"os"
 	"os/signal"
@@ -9,6 +11,8 @@ import (
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/perf"
+	"golang.org/x/sys/unix"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/
@@ -56,20 +60,59 @@ func EbpfGather() {
 
 	// Read loop reporting the total amount of times the kernel
 	// function was entered, once per second.
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(1 * time.Millisecond)
+
+	// 一个reader
+	rd, err := perf.NewReader(objs.ExecveEvents, os.Getpagesize())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rd.Close()
 
 	log.Println("Waiting for events..")
+
+	var event Event
 
 	for {
 		select {
 		case <-ticker.C:
-			var value uint64
-			if err := objs.ExecveEvents.Lookup(mapKey, &value); err != nil {
-				log.Fatalf("reading map: %v", err)
+			// var value uint64
+			// if err := objs.ExecveEvents.Lookup(mapKey, &value); err != nil {
+			// 	log.Fatalf("reading map: %v", err)
+			// }
+
+			// log.Printf("%s called %d times\n", fn, value)
+			record, err := rd.Read()
+			if err != nil {
+				if perf.IsClosed(err) {
+					return
+				}
+				log.Printf("reading from perf event reader: %s", err)
 			}
-			log.Printf("%s called %d times\n", fn, value)
+
+			if record.LostSamples != 0 {
+				log.Printf("perf event ring buffer full, dropped %d samples", record.LostSamples)
+				continue
+			}
+
+			// Parse the perf event entry into an Event structure.
+			if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
+				log.Printf("parsing perf event: %s", err)
+				continue
+			}
+
+			log.Printf("return value: %s", unix.ByteSliceToString(event.Comm[:]))
 		case <-stopper:
+			log.Fatal("goodbye")
 			return
 		}
 	}
+}
+
+type Event struct {
+	PID  uint32
+	UID  uint32
+	GID  uint32
+	PPID uint32
+	Comm [16]byte
 }
