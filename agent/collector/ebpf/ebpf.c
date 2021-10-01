@@ -1,5 +1,6 @@
 #include "common.h"
 #include "bpf_helpers.h"
+// #include "bpf_helper_defs.h"
 
 // clang -(llvm)-> ebpf obj -(load)-> libbpf
 
@@ -15,7 +16,7 @@
 */
 
 // 截取长度最大值
-#define TASK_COMM_LEN 2000
+#define TASK_COMM_LEN 16
 
 // execve struct
 struct execve {
@@ -35,7 +36,7 @@ struct bpf_map_def SEC("maps/execve_events") execve_events = {
 };
 
 SEC("kprobe/sys_execve")
-int bpf_sys_execve(struct pt_regs *ctx) 
+int bpf_sys_execve(struct pt_regs *ctx)
 {
     // bpf 的默认结构体, 查看 bpf_helper_defs.h 前面申明的 struct, 获取当前 attach 信息
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
@@ -45,7 +46,8 @@ int bpf_sys_execve(struct pt_regs *ctx)
         .pid = bpf_get_current_pid_tgid() >> 32,
         .uid = bpf_get_current_uid_gid() >> 32,
         .gid = bpf_get_current_uid_gid(),
-        .ppid = task->real_parent->tgid; // 这个有bug, 在一些内核版本下
+        // .ppid = task->real_parent->tgid // 这个有bug, 在一些内核版本下
+        .ppid = 0,
     };
 
 
