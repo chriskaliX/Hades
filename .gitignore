@@ -1,4 +1,5 @@
 agent/agent
+agent/agent-id
 agent/collector/collector
 .VSCodeCounter/
 .vscode/
