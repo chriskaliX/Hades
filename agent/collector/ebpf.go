@@ -13,7 +13,7 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/
 
-// ebpf 的采集 - test
+// ebpf 的采集 - test1
 // osquery 的 ebpf 相关地址 https://github.com/osquery/osquery/tree/d2be385d71f401c85872f00d479df8f499164c5a/osquery/events/linux/bpf
 
 const mapKey uint32 = 0
