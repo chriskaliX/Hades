@@ -101,7 +101,7 @@ func EbpfGather() {
 				continue
 			}
 
-			log.Printf("return value: %s", unix.ByteSliceToString(event.Comm[:]))
+			log.Printf("pid: %d, uid: %d, return value: %s", event.PID, event.UID, unix.ByteSliceToString(event.Comm[:]))
 		case <-stopper:
 			log.Fatal("goodbye")
 			return
