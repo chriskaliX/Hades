@@ -1,27 +1,27 @@
-# HIDS-Linux
+# Hades
 
 ![language](https://shields.io/github/languages/top/chriskalix/HIDS-Linux)
 
-> Linux HIDS based on Netlink Connector, cn_proc. Learn from [kinvolk](https://github.com/kinvolk/nswatch/blob/5ed779a0cbdfa80403ea42909ca157a89719f159/nswatch.go), [Elkeid](https://github.com/bytedance/Elkeid/blob/main/README-zh_CN.md)
+Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内核态(ebpf)以及用户态(cn_proc)的事件进程采集。目标为用纯 Golang 开发一款实际能用的，非玩具的 HIDS。其中借鉴了非常多的代码和思想(from meituan, Elkeid)
 
-## 开发目的
-
-较为完整的学习用户态采集的方案, 能够开发出一款稳定的纯 golang ncp 采集的 HIDS。使得其能够稳定的运行在 Linux 主机上。
-同时要对自己的开发水平有所认知, 在单人开发的情况下, 不尝试过大过多过难的功能...做出一个可用的即为我们的目标
-
-## Big Picture
+## 架构设计以及引擎
 
 ### Agent
 
+> Agent自身接收命令，拆解Config指令，按照Osquery应该也要支持主动查询(其实就是Config中的一种)
+
 ![agent](https://github.com/chriskaliX/HIDS-Linux/blob/main/agent.png)
 
-### Data
+### 数据处理
+
+> Agent字段连接公司对应的cmdb，做初步扩展。之后走入 Flink CEP 做初步的节点数据清洗。打入 HIVE 时根据情况，也可再做一次清洗减小性能消耗。清洗过后的数据走入第二个 Flink CEP 以及规则引擎，HIDS 的规则部分其实较为头疼，是一个 HIDS 能否用好的关键所在，后续会把自己的想法逐步开源
 
 ![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/data_analyze.png)
 
 ## 目前阶段
 
 2021-09-21: 今天压测并且运行了一段时间, 感觉可以~后续会开始研究 `ebpf` 了
+2021-10-02: EBPF程序跑通，卡在环境和理解选型 CO-RE的问题消耗了比较多的时间
 
 ## 开发计划
 
@@ -38,12 +38,14 @@
   - [ ] 启动项采集
   - [ ] ssh 信息采集
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
+  - [ ] ebpf hook kprobe 进程采集 (working)
 - [ ] 完成日志部分
   - [ ] 日志设计
   - [ ] 日志存储 & 配置 & 分割
 - [ ] 完成轮询交互
   - [ ] Agent 端 HTTPS 心跳 & 配置检测
   - [ ] Server 端开发 (暂时滞后, 支持集群部署)
+- [ ] 自更新功能
 
 ## 框架设计
 
@@ -56,16 +58,6 @@
 ### Agent端设计
 
 > 自己尝试了一个初版之后, 发现自己的 Agent 存在耦合度太高, 灵活性低的问题, 遂重新学习。在阅读了字节的 Elkeid 部分代码后, 决定采用模块分离的方式。接口实现方面参考美团19年文章
-
-进程通信
-
-```txt
-目前只计划实现 Collector 下的模块, 后期仅需扩容即可
-
-------- Agent 进程(负责配置解析, 任务下发, Server 通信)
-   |(unix域通信)
-   --- Collector(负责进程事件采集, 循环配置采集)
-```
 
 统一接口
 
