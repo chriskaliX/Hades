@@ -1,4 +1,5 @@
-#include "common.h"
+// #include "common.h"
+#include "vmlinux.h"
 #include "bpf_helpers.h"
 /*
     记录一些reference
@@ -52,8 +53,7 @@ int bpf_sys_execve(struct pt_regs *ctx)
         .pid = bpf_get_current_pid_tgid() >> 32,
         .uid = bpf_get_current_uid_gid() >> 32,
         .gid = bpf_get_current_uid_gid(),
-        // .ppid = task->real_parent->tgid // 这个有bug, 在一些内核版本下
-        .ppid = 0,
+        .ppid = task->real_parent->tgid // 这个有bug, 在一些内核版本下会直接返回 0
     };
 
 
