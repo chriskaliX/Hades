@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/ -g -O2 -target bpf -D__TARGET_ARCH_x86
 
 // ebpf 的采集 - test1
 // osquery 的 ebpf 相关地址 https://github.com/osquery/osquery/tree/d2be385d71f401c85872f00d479df8f499164c5a/osquery/events/linux/bpf
@@ -101,7 +101,19 @@ func EbpfGather() {
 				continue
 			}
 
-			log.Printf("pid: %d, uid: %d, return value: %s", event.PID, event.UID, unix.ByteSliceToString(event.Comm[:]))
+			// log.Printf("pid: %d, uid: %d, return value: %s, arg: %s", event.PID, event.UID, unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
+			if unix.ByteSliceToString(event.Comm[:]) == "cpuUsage.sh" {
+				continue
+			} else if unix.ByteSliceToString(event.Comm[:]) == "node" {
+				continue
+			} else if unix.ByteSliceToString(event.Comm[:]) == "watchdog.sh" {
+				continue
+			} else if unix.ByteSliceToString(event.Comm[:]) != "bash" {
+				continue
+			}
+			log.Printf("ppid: %d, pid: %d, uid: %d, return value: %s, arg: %s", event.PPID, event.PID, event.UID, unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
+			log.Println(unix.ByteSliceToString(event.Argv[:]), event.Argv[:])
+
 		case <-stopper:
 			log.Fatal("goodbye")
 			return
@@ -115,4 +127,5 @@ type Event struct {
 	GID  uint32
 	PPID uint32
 	Comm [16]byte
+	Argv [256]byte
 }
