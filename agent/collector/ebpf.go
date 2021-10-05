@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -15,7 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/ -g -O2 -target bpf -D__TARGET_ARCH_x86
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/ -g -O2 -target bpf -D__x86_64__ -D__KERNEL__ -Wno-address-of-packed-member
 
 // ebpf 的采集 - test1
 // osquery 的 ebpf 相关地址 https://github.com/osquery/osquery/tree/d2be385d71f401c85872f00d479df8f499164c5a/osquery/events/linux/bpf
@@ -60,7 +59,7 @@ func EbpfGather() {
 
 	// Read loop reporting the total amount of times the kernel
 	// function was entered, once per second.
-	ticker := time.NewTicker(1 * time.Millisecond)
+	// ticker := time.NewTicker(1 * time.Millisecond)
 
 	// 一个reader
 	rd, err := perf.NewReader(objs.ExecveEvents, os.Getpagesize())
@@ -71,24 +70,18 @@ func EbpfGather() {
 
 	log.Println("Waiting for events..")
 
-	var event Event
-
 	for {
-		select {
-		case <-ticker.C:
-			// var value uint64
-			// if err := objs.ExecveEvents.Lookup(mapKey, &value); err != nil {
-			// 	log.Fatalf("reading map: %v", err)
-			// }
-
-			// log.Printf("%s called %d times\n", fn, value)
-			record, err := rd.Read()
-			if err != nil {
-				if perf.IsClosed(err) {
-					return
-				}
-				log.Printf("reading from perf event reader: %s", err)
+		var event Event
+		record, err := rd.Read()
+		if err != nil {
+			if perf.IsClosed(err) {
+				return
 			}
+			log.Printf("reading from perf event reader: %s", err)
+		}
+		select {
+		default:
+
 
 			if record.LostSamples != 0 {
 				log.Printf("perf event ring buffer full, dropped %d samples", record.LostSamples)
@@ -111,8 +104,8 @@ func EbpfGather() {
 			} else if unix.ByteSliceToString(event.Comm[:]) != "bash" {
 				continue
 			}
-			log.Printf("ppid: %d, pid: %d, uid: %d, return value: %s, arg: %s", event.PPID, event.PID, event.UID, unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
-			log.Println(unix.ByteSliceToString(event.Argv[:]), event.Argv[:])
+			log.Printf("ppid: %d, pid: %d, uid: %d, filename:%s, value: %s, arg: %s", event.PPID, event.PID, event.UID, unix.ByteSliceToString(event.File_name[:]), unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
+			// log.Println(unix.ByteSliceToString(event.Argv[:]), event.Argv[:])
 
 		case <-stopper:
 			log.Fatal("goodbye")
@@ -122,10 +115,11 @@ func EbpfGather() {
 }
 
 type Event struct {
-	PID  uint32
-	UID  uint32
-	GID  uint32
-	PPID uint32
-	Comm [16]byte
-	Argv [256]byte
+	PID       uint32
+	UID       uint32
+	GID       uint32
+	PPID      uint32
+	File_name [128]byte
+	Comm      [16]byte
+	Argv      [256]byte
 }
