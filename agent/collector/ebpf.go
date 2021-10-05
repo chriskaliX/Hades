@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I/root/projects/Hades/agent/collector/ebpf/headers/ -g -O2 -target bpf -D__x86_64__ -D__KERNEL__ -Wno-address-of-packed-member
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 KProbeExample ./ebpf/ebpf.c -- -nostdinc -I./ebpf/headers/ -g -O2 -target bpf -D__x86_64__ -D__KERNEL__ -Wno-address-of-packed-member
 
 // ebpf 的采集 - test1
 // osquery 的 ebpf 相关地址 https://github.com/osquery/osquery/tree/d2be385d71f401c85872f00d479df8f499164c5a/osquery/events/linux/bpf
@@ -82,7 +82,6 @@ func EbpfGather() {
 		select {
 		default:
 
-
 			if record.LostSamples != 0 {
 				log.Printf("perf event ring buffer full, dropped %d samples", record.LostSamples)
 				continue
@@ -121,5 +120,5 @@ type Event struct {
 	PPID      uint32
 	File_name [128]byte
 	Comm      [16]byte
-	Argv      [256]byte
+	Argv      [128]byte
 }
