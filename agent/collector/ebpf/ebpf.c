@@ -23,7 +23,7 @@ char __license[] SEC("license") = "Dual MIT/GPL";
 
 // 截取长度最大值
 #define TASK_COMM_LEN 16
-#define ARGV_LEN 256
+#define ARGV_LEN 128
 #define FILE_NAME_LEN 128
 #define __user
 
@@ -70,17 +70,22 @@ int bpf_sys_execve(struct pt_regs *ctx)
     char *filename;
     bpf_probe_read(&filename, sizeof(filename), &PT_REGS_PARM1(ctx1));
     bpf_probe_read(&execve_data.file_name, sizeof(execve_data.file_name), filename);
-    // // https://zhidao.baidu.com/question/684624210709860732.html
-    // /*
-    //     从上下文中获取信息, 第二个是 argv, 参考
-    //     https://blog.csdn.net/rikeyone/article/details/114586276
-    //     这个 __user 标识一下是用户态的
-    // */
-    const char __user *const __user *args = (void *)PT_REGS_PARM2(ctx);
+    
+    // https://zhidao.baidu.com/question/684624210709860732.html
+    /*
+        从上下文中获取信息, 第二个是 argv, 参考
+        https://blog.csdn.net/rikeyone/article/details/114586276
+        这个 __user 标识一下是用户态的
+    */
+
+    // const char __user *const __user *args = (void *)PT_REGS_PARM2(ctx);
     char *argv = NULL;
-    bpf_probe_read(&argv, sizeof(argv), args);
+    // char argv[10];
+    // bpf_probe_read(&argv, sizeof(argv), args);
+    struct pt_regs *ctx2 = (struct pt_regs *) PT_REGS_PARM2(ctx);
+    bpf_probe_read(&argv, sizeof(argv), &PT_REGS_PARM1(ctx2));
     if (argv) {
-        bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argv);
+        bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), &argv[0]);
     } else {
         char nothing[] = "...";
         bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), (void *)nothing);
