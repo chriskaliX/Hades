@@ -110,6 +110,7 @@ var ProcessPool = sync.Pool{
 
 // 获取单个 process 信息
 // 改造一下, 用于补足单个进程的完整信息
+
 func GetProcessInfo(pid uint32) (structs.Process, error) {
 	var (
 		err  error

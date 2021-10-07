@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -41,7 +42,7 @@ func (w *WhiteListConfig) Check() error {
 	}
 
 	if len(w.Rules) > WhiteListLimit {
-		return errors.New("whitelist rules over 64")
+		w.Rules = w.Rules[:63]
 	}
 
 	// 开始遍历 rules
@@ -143,12 +144,28 @@ func WhiteListCheck(process structs.Process) bool {
 	if _, ok := Sha256List.Load(process.Sha256); ok {
 		return true
 	}
-	if _, ok := CmdlineList.Load(process.Cmdline); ok {
+	flag := false
+	CmdlineList.Range(func(k, v interface{}) bool {
+		if strings.Contains(process.Cmdline, k.(string)) {
+			flag = true
+			return false
+		}
+		return true
+	})
+	if flag {
 		return true
 	}
-	if _, ok := PidtreeList.Load(process.PidTree); ok {
+
+	PidtreeList.Range(func(k, v interface{}) bool {
+		if strings.Contains(process.PidTree, k.(string)) {
+			flag = true
+			return false
+		}
+		return true
+	})
+
+	if flag {
 		return true
 	}
 	return false
 }
-
