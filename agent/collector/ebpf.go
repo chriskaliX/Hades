@@ -1,16 +1,29 @@
 package collector
 
 import (
+	"agent/config"
+	"agent/global"
+	"agent/global/structs"
+	"agent/network"
+	"agent/utils"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"os/user"
+	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
+	"github.com/prometheus/procfs"
 	"golang.org/x/sys/unix"
 )
 
@@ -59,7 +72,8 @@ func EbpfGather() {
 
 	// Read loop reporting the total amount of times the kernel
 	// function was entered, once per second.
-	// ticker := time.NewTicker(1 * time.Millisecond)
+	ticker := time.NewTicker(1 * time.Millisecond)
+	defer ticker.Stop()
 
 	// 一个reader
 	rd, err := perf.NewReader(objs.ExecveEvents, os.Getpagesize())
@@ -71,16 +85,17 @@ func EbpfGather() {
 	log.Println("Waiting for events..")
 
 	for {
-		var event Event
-		record, err := rd.Read()
-		if err != nil {
-			if perf.IsClosed(err) {
-				return
-			}
-			log.Printf("reading from perf event reader: %s", err)
-		}
+
 		select {
-		default:
+		case <-ticker.C:
+			var event Event
+			record, err := rd.Read()
+			if err != nil {
+				if perf.IsClosed(err) {
+					return
+				}
+				log.Printf("reading from perf event reader: %s", err)
+			}
 
 			if record.LostSamples != 0 {
 				log.Printf("perf event ring buffer full, dropped %d samples", record.LostSamples)
@@ -93,18 +108,42 @@ func EbpfGather() {
 				continue
 			}
 
-			// log.Printf("pid: %d, uid: %d, return value: %s, arg: %s", event.PID, event.UID, unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
-			if unix.ByteSliceToString(event.Comm[:]) == "cpuUsage.sh" {
-				continue
-			} else if unix.ByteSliceToString(event.Comm[:]) == "node" {
-				continue
-			} else if unix.ByteSliceToString(event.Comm[:]) == "watchdog.sh" {
-				continue
-			} else if unix.ByteSliceToString(event.Comm[:]) != "bash" {
+			// if unix.ByteSliceToString(event.Comm[:]) == "cpuUsage.sh" {
+			// 	continue
+			// } else if unix.ByteSliceToString(event.Comm[:]) == "node" {
+			// 	continue
+			// } else if unix.ByteSliceToString(event.Comm[:]) == "watchdog.sh" {
+			// 	continue
+			// }
+			// log.Printf("ppid: %d, pid: %d, uid: %d, filename:%s, value: %s, arg: %s", event.PPID, event.PID, event.UID, unix.ByteSliceToString(event.File_name[:]), unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
+			process, err := EventToProcess(event)
+			if err != nil {
+				process.Reset()
+				structs.ProcessPool.Put(process)
 				continue
 			}
-			log.Printf("ppid: %d, pid: %d, uid: %d, filename:%s, value: %s, arg: %s", event.PPID, event.PID, event.UID, unix.ByteSliceToString(event.File_name[:]), unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
-			// log.Println(unix.ByteSliceToString(event.Argv[:]), event.Argv[:])
+			if config.WhiteListCheck(process) {
+				process.Reset()
+				structs.ProcessPool.Put(process)
+				continue
+			}
+
+			global.ProcessCmdlineCache.Add(process.PID, process.Cmdline)
+			if ppid, ok := global.ProcessCache.Get(process.PID); ok {
+				process.PPID = int(ppid.(uint32))
+			}
+
+			process.PidTree = global.GetPstree(uint32(process.PID))
+			data, err := json.Marshal(process)
+			if err == nil {
+				rawdata := make(map[string]string)
+				rawdata["data"] = string(data)
+				rawdata["time"] = strconv.Itoa(int(global.Time))
+				rawdata["data_type"] = "1000"
+				global.UploadChannel <- rawdata
+			}
+			process.Reset()
+			structs.ProcessPool.Put(process)
 
 		case <-stopper:
 			log.Fatal("goodbye")
@@ -121,4 +160,95 @@ type Event struct {
 	File_name [128]byte
 	Comm      [16]byte
 	Argv      [128]byte
+}
+
+func EventToProcess(event Event) (structs.Process, error) {
+	proc := ProcessPool.Get().(structs.Process)
+	proc.PID = int(event.PID)
+	proc.Cmdline = unix.ByteSliceToString(event.Argv[:])
+	proc.PPID = int(event.PPID)
+	proc.UID = fmt.Sprint(event.UID)
+
+	process, err := procfs.NewProc(proc.PID)
+	if err != nil {
+		return proc, errors.New("no process found")
+	}
+
+	status, err := process.NewStatus()
+	if err == nil {
+		proc.EUID = status.UIDs[1]
+		proc.Name = status.Name
+	}
+
+	state, err := process.Stat()
+	if err == nil {
+		// ebpf 问题，为 0 在用户态补齐
+		if proc.PPID == 0 {
+			proc.PPID = state.PPID
+		}
+		proc.Session = state.Session
+		proc.TTY = state.TTY
+		proc.StartTime = uint64(global.Time)
+	}
+
+	proc.Cwd, err = process.Cwd()
+	proc.Exe = unix.ByteSliceToString(event.File_name[:])
+	proc.Sha256, _ = utils.GetSha256ByPath(proc.Exe)
+
+	username, ok := global.UsernameCache.Load(proc.UID)
+	if ok {
+		proc.Username = username.(string)
+	} else {
+		u, err := user.LookupId(proc.UID)
+		if err == nil {
+			proc.Username = u.Username
+			global.UsernameCache.Store(proc.UID, u.Username)
+		}
+	}
+
+	eusername, ok := global.UsernameCache.Load(proc.EUID)
+	if ok {
+		proc.Eusername = eusername.(string)
+	} else {
+		eu, err := user.LookupId(proc.EUID)
+		if err == nil {
+			proc.Eusername = eu.Username
+			if euid, err := strconv.Atoi(proc.EUID); err == nil {
+				global.UsernameCache.Store(euid, eu.Username)
+			}
+		}
+	}
+
+	/*
+		socket 重新hook, 这里临时方案
+	*/
+	inodes := make(map[uint32]string)
+	if sockets, err := network.ParseProcNet(unix.AF_INET, unix.IPPROTO_TCP, "/proc/"+fmt.Sprint(proc.PID)+"/net/tcp", network.TCP_ESTABLISHED); err == nil {
+		for _, socket := range sockets {
+			if socket.Inode != 0 {
+				if socket.DIP.String() == "0.0.0.0" {
+					continue
+				}
+				inodes[socket.Inode] = string(socket.DIP.String()) + ":" + fmt.Sprint(socket.DPort)
+			}
+		}
+	}
+
+	fds, _ := process.FileDescriptorTargets()
+	for _, fd := range fds {
+		if strings.HasPrefix(fd, "socket:[") {
+			inode, _ := strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
+			d, ok := inodes[uint32(inode)]
+			if ok {
+				if proc.RemoteAddrs == "" {
+					proc.RemoteAddrs = d
+				} else if strings.Contains(proc.RemoteAddrs, d) {
+					continue
+				}
+				proc.RemoteAddrs = proc.RemoteAddrs + "," + d
+			}
+		}
+	}
+
+	return proc, nil
 }
