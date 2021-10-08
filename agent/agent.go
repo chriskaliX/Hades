@@ -18,10 +18,9 @@ func main() {
 		}
 	}()
 
-	collector.EbpfGather()
-
 	// 默认collector也不开, 接收server指令后再开
-	collector.Run()
+	go collector.EbpfGather()
+	// collector.Run()
 
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()

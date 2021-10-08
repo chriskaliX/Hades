@@ -163,9 +163,9 @@ type Event struct {
 }
 
 func EventToProcess(event Event) (structs.Process, error) {
-	proc := ProcessPool.Get().(structs.Process)
+	proc := structs.ProcessPool.Get().(structs.Process)
 	proc.PID = int(event.PID)
-	proc.Cmdline = unix.ByteSliceToString(event.Argv[:])
+	proc.Cmdline = "ebpf" + unix.ByteSliceToString(event.Argv[:])
 	proc.PPID = int(event.PPID)
 	proc.UID = fmt.Sprint(event.UID)
 
