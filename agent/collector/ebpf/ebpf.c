@@ -1,6 +1,3 @@
-/*
-    都从libbpf里搬运, CO-RE
-*/
 #include "vmlinux.h"
 #include "bpf_helpers.h"
 #include "bpf_tracing.h" // tracing, 来读取上下文
@@ -80,6 +77,7 @@ int bpf_sys_execve(struct pt_regs *ctx)
     /*
         argv 错误了, 取不到
     */
+
     char *argv = NULL;
     struct pt_regs *ctx2 = (struct pt_regs *) PT_REGS_PARM2(ctx);
     bpf_probe_read(&argv, sizeof(argv), &PT_REGS_PARM1(ctx2));
