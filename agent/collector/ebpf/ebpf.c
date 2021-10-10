@@ -67,6 +67,10 @@ int bpf_sys_execve(struct pt_regs *ctx)
     char *filename;
     bpf_probe_read(&filename, sizeof(filename), &PT_REGS_PARM1(ctx1));
     bpf_probe_read(&execve_data.file_name, sizeof(execve_data.file_name), filename);
+
+    // char *filename;
+    // bpf_probe_read(&filename, sizeof(filename), (void *)PT_REGS_PARM1(ctx));
+    // bpf_probe_read(&execve_data.file_name, sizeof(execve_data.file_name), filename);
     
     // https://zhidao.baidu.com/question/684624210709860732.html
     /*
@@ -74,13 +78,10 @@ int bpf_sys_execve(struct pt_regs *ctx)
         https://blog.csdn.net/rikeyone/article/details/114586276
         这个 __user 标识一下是用户态的
     */
-    /*
-        argv 错误了, 取不到
-    */
 
-    char *argv = NULL;
-    struct pt_regs *ctx2 = (struct pt_regs *) PT_REGS_PARM2(ctx);
-    bpf_probe_read(&argv, sizeof(argv), &PT_REGS_PARM1(ctx2));
+    char *argv;
+    bpf_probe_read_user(&argv, sizeof(argv), (void *)PT_REGS_PARM2(ctx));
+    
     if (argv) {
         bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argv);
     } else {

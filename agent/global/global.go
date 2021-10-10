@@ -22,6 +22,8 @@ var (
 
 	// pid 管道
 	PidChannel chan uint32
+
+	GrpcChannel chan []*Record
 )
 
 func init() {

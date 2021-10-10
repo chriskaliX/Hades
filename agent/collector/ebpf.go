@@ -85,7 +85,6 @@ func EbpfGather() {
 	log.Println("Waiting for events..")
 
 	for {
-
 		select {
 		case <-ticker.C:
 			var event Event
@@ -108,14 +107,15 @@ func EbpfGather() {
 				continue
 			}
 
-			// if unix.ByteSliceToString(event.Comm[:]) == "cpuUsage.sh" {
+			// if strings.Contains(unix.ByteSliceToString(event.Comm[:]), "cpuUsage.sh") {
 			// 	continue
 			// } else if unix.ByteSliceToString(event.Comm[:]) == "node" {
 			// 	continue
 			// } else if unix.ByteSliceToString(event.Comm[:]) == "watchdog.sh" {
 			// 	continue
+			// } else if unix.ByteSliceToString(event.Comm[:]) != "bash" {
+			// 	continue
 			// }
-			// log.Printf("ppid: %d, pid: %d, uid: %d, filename:%s, value: %s, arg: %s", event.PPID, event.PID, event.UID, unix.ByteSliceToString(event.File_name[:]), unix.ByteSliceToString(event.Comm[:]), unix.ByteSliceToString(event.Argv[:]))
 			process, err := EventToProcess(event)
 			if err != nil {
 				process.Reset()
@@ -165,7 +165,7 @@ type Event struct {
 func EventToProcess(event Event) (structs.Process, error) {
 	proc := structs.ProcessPool.Get().(structs.Process)
 	proc.PID = int(event.PID)
-	proc.Cmdline = "ebpf" + unix.ByteSliceToString(event.Argv[:])
+	proc.Cmdline = unix.ByteSliceToString(event.Argv[:])
 	proc.PPID = int(event.PPID)
 	proc.UID = fmt.Sprint(event.UID)
 
@@ -174,10 +174,11 @@ func EventToProcess(event Event) (structs.Process, error) {
 		return proc, errors.New("no process found")
 	}
 
+	proc.Name = unix.ByteSliceToString(event.Comm[:])
+
 	status, err := process.NewStatus()
 	if err == nil {
 		proc.EUID = status.UIDs[1]
-		proc.Name = status.Name
 	}
 
 	state, err := process.Stat()

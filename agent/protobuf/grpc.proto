@@ -1,0 +1,23 @@
+syntax = "proto3";
+option go_package = "global";
+package proto;
+
+message RawData {
+  repeated string IntranetIPv4 = 1; //内网IPv4列表
+  repeated string ExtranetIPv4 = 2; //外网IPv4列表
+  repeated string IntranetIPv6 = 3;
+  repeated string ExtranetIPv6 = 4;
+
+  string Hostname = 5;
+  string AgentID = 6;
+  int64 Timestamp =7;  //Agent数据上报时间
+  string Version = 8;  //Agent版本
+  repeated Record Pkg = 9;
+}
+
+message Record {
+  //map.data_type = 数据类型; map.req_token = token
+  //其中 map.req_token = token 用于与ModulesCtrlMessage token相对应 （Issues #1）
+  map<string, string> message = 1;
+}
+
