@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Shopify/sarama v1.30.0
 	github.com/cilium/ebpf v0.6.3-0.20210907154550-0ecbe1516910
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
@@ -19,4 +20,5 @@ require (
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6 // indirect
 	golang.org/x/sys v0.0.0-20211001092434-39dca1131b70
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
