@@ -2,6 +2,8 @@ syntax = "proto3";
 option go_package = "global";
 package proto;
 
+// protoc --go_out=plugins=grpc:. *.proto
+
 message RawData {
   repeated string IntranetIPv4 = 1; //内网IPv4列表
   repeated string ExtranetIPv4 = 2; //外网IPv4列表
@@ -21,3 +23,10 @@ message Record {
   map<string, string> message = 1;
 }
 
+message Command {
+  map<string, string> message = 1;
+}
+
+service Transfer {
+  rpc Transfer (stream RawData) returns (stream Command){}
+}
