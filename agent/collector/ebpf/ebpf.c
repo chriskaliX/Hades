@@ -24,8 +24,7 @@ char __license[] SEC("license") = "Dual MIT/GPL";
 #define FILE_NAME_LEN 128
 #define __user
 
-// execve struct
-// 默认大小 512
+// default 512
 struct execve_t {
     u32 pid;
     u32 uid;
@@ -36,7 +35,6 @@ struct execve_t {
     char argv[ARGV_LEN];
 };
 
-// 定义返回通信的 map array?
 struct bpf_map_def SEC("maps/execve_events") execve_events = {
         .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
         .key_size = sizeof(int),
@@ -68,26 +66,30 @@ int bpf_sys_execve(struct pt_regs *ctx)
     bpf_probe_read(&filename, sizeof(filename), &PT_REGS_PARM1(ctx1));
     bpf_probe_read(&execve_data.file_name, sizeof(execve_data.file_name), filename);
 
-    // char *filename;
-    // bpf_probe_read(&filename, sizeof(filename), (void *)PT_REGS_PARM1(ctx));
-    // bpf_probe_read(&execve_data.file_name, sizeof(execve_data.file_name), filename);
-    
-    // https://zhidao.baidu.com/question/684624210709860732.html
-    /*
-        从上下文中获取信息, 第二个是 argv, 参考
-        https://blog.csdn.net/rikeyone/article/details/114586276
-        这个 __user 标识一下是用户态的
-    */
+    const char __user *const __user *argv = (void *)PT_REGS_PARM2(ctx);
+    // for (int i = 0;i < ARGV_LEN;i++) {
+    //     char *argp = NULL;
+    //     long res = bpf_probe_read(&argp, sizeof(&argp), (void *)argv);
+    //     if (res == 0) {
+    //         bpf_probe_read(execve_data.argv, sizeof(execve_data.argv), argp);
+    //         bpf_perf_event_output(ctx, &execve_events, cpu, &execve_data, sizeof(execve_data));
+    //         argv++;
+    //     } else {
+    //         break;
+    //     }
+    // }
 
-    char *argv;
-    bpf_probe_read_user(&argv, sizeof(argv), (void *)PT_REGS_PARM2(ctx));
-    
-    if (argv) {
-        bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argv);
-    } else {
-        char nothing[] = "...";
-        bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), (void *)nothing);
-    }
+
+    char *argp = NULL;
+    bpf_probe_read_user(&argp, sizeof(argp), (void *)&argv[0]);
+    bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argp);
+
+    // if (argv) {
+    //     bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argv);
+    // } else {
+    //     char nothing[] = "...";
+    //     bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), (void *)nothing);
+    // }
 
     bpf_perf_event_output(ctx, &execve_events, cpu, &execve_data, sizeof(execve_data));
     return 0;
