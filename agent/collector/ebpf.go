@@ -107,15 +107,15 @@ func EbpfGather() {
 				continue
 			}
 
-			// if strings.Contains(unix.ByteSliceToString(event.Comm[:]), "cpuUsage.sh") {
-			// 	continue
-			// } else if unix.ByteSliceToString(event.Comm[:]) == "node" {
-			// 	continue
-			// } else if unix.ByteSliceToString(event.Comm[:]) == "watchdog.sh" {
-			// 	continue
-			// } else if unix.ByteSliceToString(event.Comm[:]) != "bash" {
-			// 	continue
-			// }
+			if strings.Contains(unix.ByteSliceToString(event.Comm[:]), "cpuUsage.sh") {
+				continue
+			} else if unix.ByteSliceToString(event.Comm[:]) == "node" {
+				continue
+			} else if unix.ByteSliceToString(event.Comm[:]) == "watchdog.sh" {
+				continue
+			} else if unix.ByteSliceToString(event.Comm[:]) != "bash" {
+				continue
+			}
 			process, err := EventToProcess(event)
 			if err != nil {
 				process.Reset()
