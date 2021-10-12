@@ -4,6 +4,7 @@ import (
 	"agent/global"
 	"agent/transport/connection"
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// 改用 sync.Cond 学习一下
 func Run() {
 	conn, err := connection.New()
 	if err != nil {
@@ -71,4 +71,20 @@ func handleSend(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
 
 func handleReceive(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
 	defer wg.Done()
+	for {
+		cmd, err := c.Recv()
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+		/*
+			处理配置
+		*/
+		switch cmd.AgentCtrl {
+		case 1:
+			os.Exit(0)
+		case 2:
+			cmd.Message.Check()
+		}
+	}
 }
