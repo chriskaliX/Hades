@@ -20,14 +20,10 @@ message Record {
 }
 
 message Command {
-  repeated Record Pkg = 1;
-}
-
-message Configuration {
-    /*
-    1 关闭
-    2 自更新
-    3 配置
+  /*
+    1 关闭(Agent自身)
+    2 自更新(URL 下载)
+    3 白名单操作
   */
   int32 AgentCtrl = 1;
   map<string, string> message = 2;
