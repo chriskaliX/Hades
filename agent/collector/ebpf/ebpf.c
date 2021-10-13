@@ -79,7 +79,9 @@ int bpf_sys_execve(struct pt_regs *ctx)
     //     }
     // }
 
-
+    /*
+        这个还是有问题的, 估计是因为libbpf的问题, 导致无法正确获取 bash 下的 argv
+    */
     char *argp = NULL;
     bpf_probe_read_user(&argp, sizeof(argp), (void *)&argv[0]);
     bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argp);
