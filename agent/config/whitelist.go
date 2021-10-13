@@ -2,7 +2,6 @@ package config
 
 import (
 	"agent/global/structs"
-	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -81,15 +80,20 @@ func (w *WhiteListConfig) Check() error {
 	return nil
 }
 
-func (w *WhiteListConfig) Load(confByte []byte) error {
+func (w *WhiteListConfig) Load(conf map[string]string) error {
 	// 解析
-	err := json.Unmarshal(confByte, w)
-	if err != nil {
-		return err
+	var rules []Rule
+	for key, value := range conf {
+		rule := &Rule{
+			Field: key,
+			Raw:   value,
+		}
+		rules = append(rules, *rule)
 	}
+	w.Rules = rules
 
 	// check
-	err = w.Check()
+	err := w.Check()
 	if err != nil {
 		return err
 	}

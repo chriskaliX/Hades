@@ -1,10 +1,10 @@
 package transport
 
 import (
+	"agent/config"
 	"agent/global"
 	"agent/transport/connection"
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -70,6 +70,7 @@ func handleSend(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
 }
 
 func handleReceive(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
+	// 这里后续可能会复杂化，目前纯采集不需要下发扫描
 	defer wg.Done()
 	for {
 		cmd, err := c.Recv()
@@ -77,14 +78,6 @@ func handleReceive(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
 			zap.S().Error(err)
 			return
 		}
-		/*
-			处理配置
-		*/
-		switch cmd.AgentCtrl {
-		case 1:
-			os.Exit(0)
-		case 2:
-			cmd.Message.Check()
-		}
+		config.Load(*cmd)
 	}
 }

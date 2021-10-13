@@ -54,7 +54,7 @@ type KProbeExampleSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type KProbeExampleProgramSpecs struct {
-	SysExecve *ebpf.ProgramSpec `ebpf:"sys_execve"`
+	BpfSysExecve *ebpf.ProgramSpec `ebpf:"bpf_sys_execve"`
 }
 
 // KProbeExampleMapSpecs contains maps before they are loaded into the kernel.
@@ -96,12 +96,12 @@ func (m *KProbeExampleMaps) Close() error {
 //
 // It can be passed to LoadKProbeExampleObjects or ebpf.CollectionSpec.LoadAndAssign.
 type KProbeExamplePrograms struct {
-	SysExecve *ebpf.Program `ebpf:"sys_execve"`
+	BpfSysExecve *ebpf.Program `ebpf:"bpf_sys_execve"`
 }
 
 func (p *KProbeExamplePrograms) Close() error {
 	return _KProbeExampleClose(
-		p.SysExecve,
+		p.BpfSysExecve,
 	)
 }
 

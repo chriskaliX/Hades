@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// 写的好, 没必要重新写了 :->
 func Download(u []string, d string, c string) error {
 	hasher := sha256.New()
 	file, err := os.Open(d)
