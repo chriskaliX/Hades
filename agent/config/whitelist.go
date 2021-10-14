@@ -81,17 +81,6 @@ func (w *WhiteListConfig) Check() error {
 }
 
 func (w *WhiteListConfig) Load(conf map[string]string) error {
-	// 解析
-	var rules []Rule
-	for key, value := range conf {
-		rule := &Rule{
-			Field: key,
-			Raw:   value,
-		}
-		rules = append(rules, *rule)
-	}
-	w.Rules = rules
-
 	// check
 	err := w.Check()
 	if err != nil {
