@@ -5,13 +5,12 @@ go 1.16
 require (
 	github.com/Shopify/sarama v1.30.0
 	github.com/cilium/ebpf v0.6.3-0.20210907154550-0ecbe1516910
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/prometheus/procfs v0.7.3
 	github.com/shirou/gopsutil/v3 v3.21.9
-	github.com/tinylib/msgp v1.1.6
 	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
 	go.uber.org/atomic v1.9.0 // indirect
