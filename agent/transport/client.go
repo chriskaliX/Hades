@@ -4,6 +4,7 @@ import (
 	"agent/config"
 	"agent/global"
 	"agent/transport/connection"
+	"agent/utils"
 	"context"
 	"errors"
 	"os"
@@ -12,7 +13,6 @@ import (
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/internal/transport"
 )
 
 func Run() {
@@ -97,11 +97,12 @@ func Check(a *global.Command) error {
 	switch a.AgentCtrl {
 	case 1:
 	case 2:
-		if a.Message == nil {
+		downloadConfig := &config.Download{}
+		err := utils.Bind(a.Message, downloadConfig)
+		if err != nil {
 			return errors.New("no Message")
 		}
-		version := a.Message["Version"]
-		if version == global.Version {
+		if downloadConfig.Version == global.Version {
 			return errors.New("No need to update")
 		}
 	case 3:
@@ -125,7 +126,7 @@ func Check(a *global.Command) error {
 	return nil
 }
 
-func Load(a *global.Command) {
+func Load(a *global.Command) error {
 	switch a.AgentCtrl {
 	case 1:
 		os.Exit(0)
@@ -133,6 +134,12 @@ func Load(a *global.Command) {
 		// 这里自升级, 看一下 https://github.com/inconshreveable/go-update
 		// 参考 https://github.com/sanbornm/go-selfupdate/
 		// todo:
-		transport.Download(a.Message["DownloadUrl"])
+		downloadConfig := &config.Download{}
+		utils.Bind(a.Message, downloadConfig)
+		err := Download([]string{downloadConfig.Url}, "Hades.tmp", downloadConfig.Sha256)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
