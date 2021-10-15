@@ -3,6 +3,7 @@ package config
 import (
 	"agent/global/structs"
 	"errors"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -22,61 +23,66 @@ const (
 // 白名单, 每个主机支持64个白名单(性能问题), 支持对
 // 任意collection的任意字段, 进行组和的 contains, regexp(length超过1000跳过) 判断
 // 其他采集相对固定, 我们只需要对 execve 做过滤即可
-type WhiteListConfig struct {
-	Rules []Rule `json:"Rules"`
+type WhiteList struct {
+	Sha256  []string `json:"Sha256"`
+	Exe     []string `json:"Exe"`
+	Cmdline []string `json:"Cmdline"`
+	Pidtree []string `json:"Pidtree"`
 }
 
-type Rule struct {
-	Raw   string `json:"Raw"`
-	Field string `json:"Field"`
-}
-
-func (w *WhiteListConfig) Check() error {
-	// 检验 config 是否存在
-	if w == nil {
-		return errors.New("whitelist config nil")
+func (w *WhiteList) Check() error {
+	v := reflect.ValueOf(w).Elem()
+	t := v.Type()
+	var count int
+	for i := 0; i < t.NumField(); i++ {
+		if v.Field(i).IsValid() {
+			count = count + v.Field(i).Len()
+		}
 	}
-	if w.Rules == nil {
-		return errors.New("whitelist rules nil")
+	if count > WhiteListLimit {
+		return errors.New("config length over 64")
 	}
 
-	if len(w.Rules) > WhiteListLimit {
-		w.Rules = w.Rules[:63]
+	for i := 0; i < t.NumField(); i++ {
+		switch v.Field(i).String() {
+		case "Sha256":
+			
+		}
 	}
 
 	// 开始遍历 rules
 	// 有一条 rule 失败就错误
-	for _, rule := range w.Rules {
-		switch rule.Field {
-		// equals only
-		case "sha256":
-			matched, err := regexp.Match("([0-9]|[a-f]){64}", []byte(rule.Raw))
-			if err != nil {
-				return err
-			}
-			if !matched {
-				return errors.New("sha256 regexp not match")
-			}
-		// equals only
-		case "exe":
-			if len(rule.Raw) > 100 {
-				return errors.New("exe length over 100")
-			}
-		// matches
-		case "cmdline":
-			if len(rule.Raw) > 200 {
-				return errors.New("exe length over 100")
-			}
-		// matches
-		case "pidtree":
-			if len(rule.Raw) > 200 {
-				return errors.New("exe length over 100")
-			}
-		// else drop
-		default:
-			return errors.New("unrecognize field")
-		}
-	}
+	// for _, rule := range w.Rules {
+	// 	switch rule.Field {
+	// 	// equals only
+	// 	case "sha256":
+	// 		matched, err := regexp.Match("([0-9]|[a-f]){64}", []byte(rule.Raw))
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if !matched {
+	// 			return errors.New("sha256 regexp not match")
+	// 		}
+	// 	// equals only
+	// 	case "exe":
+	// 		if len(rule.Raw) > 100 {
+	// 			return errors.New("exe length over 100")
+	// 		}
+	// 	// matches
+	// 	case "cmdline":
+	// 		if len(rule.Raw) > 200 {
+	// 			return errors.New("exe length over 100")
+	// 		}
+	// 	// matches
+	// 	case "pidtree":
+	// 		if len(rule.Raw) > 200 {
+	// 			return errors.New("exe length over 100")
+	// 		}
+	// 	// else drop
+	// 	default:
+	// 		return errors.New("unrecognize field")
+	// 	}
+	// }
 	return nil
 }
 
