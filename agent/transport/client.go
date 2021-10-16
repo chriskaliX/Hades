@@ -15,25 +15,32 @@ import (
 	"google.golang.org/grpc"
 )
 
+// 这里的写法是错误直接Panic
 func Run() {
-	conn, err := connection.New()
-	if err != nil {
-		zap.S().Panic("No network is available")
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
+	for {
+		conn, err := connection.New()
+		if err != nil {
+			// zap.S().Panic("No network is available")
+			// test
+			zap.S().Error("No network is available")
+			continue
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		client, err := global.NewTransferClient(conn).Transfer(ctx, grpc.UseCompressor("snappy"))
+		if err != nil {
+			// zap.S().Panic(err)
+			// 先err来debug
+			zap.S().Error(err)
+		}
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go handleSend(&wg, client)
+		go handleReceive(&wg, client)
+		wg.Wait()
 		cancel()
 		conn.Close()
-	}()
-	client, err := global.NewTransferClient(conn).Transfer(ctx, grpc.UseCompressor("snappy"))
-	if err != nil {
-		zap.S().Panic(err)
+		time.Sleep(10 * time.Minute)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go handleSend(&wg, client)
-	go handleReceive(&wg, client)
-	wg.Wait()
 }
 
 func handleSend(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
@@ -90,9 +97,6 @@ func handleReceive(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
 }
 
 func CheckAndLoad(a *global.Command) error {
-	if a.AgentCtrl < 1 || a.AgentCtrl > 3 {
-		return errors.New("AgentCtrl flag not valid")
-	}
 	switch a.AgentCtrl {
 	case 1:
 		os.Exit(0)
@@ -105,7 +109,7 @@ func CheckAndLoad(a *global.Command) error {
 		downloadConfig := &config.Download{}
 		err := utils.Bind(a.Message, downloadConfig)
 		if err != nil {
-			return errors.New("no Message")
+			return err
 		}
 		if downloadConfig.Version == global.Version {
 			return errors.New("No need to update")
@@ -135,6 +139,8 @@ func CheckAndLoad(a *global.Command) error {
 		if err := w.Load(); err != nil {
 			return err
 		}
+	default:
+		return errors.New("AgentCtrl flag invalid")
 	}
 	return nil
 }

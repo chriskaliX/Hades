@@ -3,3 +3,5 @@ agent/agent-id
 agent/collector/collector
 .VSCodeCounter/
 .vscode/
+agent/log/Hades.log
+cert/
