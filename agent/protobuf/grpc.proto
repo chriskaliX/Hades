@@ -24,6 +24,7 @@ message Command {
     1 关闭(Agent自身)
     2 自更新(URL 下载)
     3 白名单操作
+    4 主动查询模式
   */
   int32 AgentCtrl = 1;
   map<string, string> message = 2;

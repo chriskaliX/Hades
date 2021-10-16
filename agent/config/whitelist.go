@@ -33,6 +33,8 @@ type WhiteList struct {
 func (w *WhiteList) Check() error {
 	v := reflect.ValueOf(w).Elem()
 	t := v.Type()
+
+	// 长度限制
 	var count int
 	for i := 0; i < t.NumField(); i++ {
 		if v.Field(i).IsValid() {
@@ -43,56 +45,41 @@ func (w *WhiteList) Check() error {
 		return errors.New("config length over 64")
 	}
 
+	// 开始check
 	for i := 0; i < t.NumField(); i++ {
-		switch v.Field(i).String() {
-		case "Sha256":
-			
+		if v.Field(i).IsValid() {
+			for j := 0; j < v.Field(i).Len(); j++ {
+				switch t.Field(i).Name {
+				case "Sha256":
+					matched, err := regexp.MatchString("^([0-9]|[a-f]){64}$", v.Field(i).Index(j).String())
+					if err != nil {
+						return err
+					}
+					if !matched {
+						return errors.New("Sha256 regexp not match")
+					}
+				case "Exe":
+					if v.Field(i).Index(j).Len() > 100 {
+						return errors.New("exe Length over 100")
+					}
+				case "Cmdline":
+					if v.Field(i).Index(j).Len() > 200 {
+						return errors.New("exe Length over 100")
+					}
+				case "Pidtree":
+					if v.Field(i).Index(j).Len() > 200 {
+						return errors.New("exe Length over 100")
+					}
+				default:
+					return errors.New("unrecognize field")
+				}
+			}
 		}
 	}
-
-	// 开始遍历 rules
-	// 有一条 rule 失败就错误
-	// for _, rule := range w.Rules {
-	// 	switch rule.Field {
-	// 	// equals only
-	// 	case "sha256":
-	// 		matched, err := regexp.Match("([0-9]|[a-f]){64}", []byte(rule.Raw))
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		if !matched {
-	// 			return errors.New("sha256 regexp not match")
-	// 		}
-	// 	// equals only
-	// 	case "exe":
-	// 		if len(rule.Raw) > 100 {
-	// 			return errors.New("exe length over 100")
-	// 		}
-	// 	// matches
-	// 	case "cmdline":
-	// 		if len(rule.Raw) > 200 {
-	// 			return errors.New("exe length over 100")
-	// 		}
-	// 	// matches
-	// 	case "pidtree":
-	// 		if len(rule.Raw) > 200 {
-	// 			return errors.New("exe length over 100")
-	// 		}
-	// 	// else drop
-	// 	default:
-	// 		return errors.New("unrecognize field")
-	// 	}
-	// }
 	return nil
 }
 
-func (w *WhiteListConfig) Load(conf map[string]string) error {
-	// check
-	err := w.Check()
-	if err != nil {
-		return err
-	}
-
+func (w *WhiteList) Load() error {
 	// 清空函数
 	clear := func(sm sync.Map) {
 		sm.Range(func(key interface{}, value interface{}) bool {
@@ -109,30 +96,10 @@ func (w *WhiteListConfig) Load(conf map[string]string) error {
 		}
 	}
 
-	var (
-		sha256temp  []string
-		exetemp     []string
-		cmdtemp     []string
-		pidtreetemp []string
-	)
-
-	// 规则加载
-	for _, rule := range w.Rules {
-		switch rule.Field {
-		case "sha256":
-			sha256temp = append(sha256temp, rule.Raw)
-		case "exe":
-			exetemp = append(exetemp, rule.Raw)
-		case "cmdline":
-			cmdtemp = append(cmdtemp, rule.Raw)
-		case "pidtree":
-			pidtreetemp = append(pidtreetemp, rule.Raw)
-		}
-	}
-	load(Sha256List, sha256temp)
-	load(ExeList, exetemp)
-	load(CmdlineList, cmdtemp)
-	load(PidtreeList, pidtreetemp)
+	load(Sha256List, w.Sha256)
+	load(ExeList, w.Exe)
+	load(CmdlineList, w.Cmdline)
+	load(PidtreeList, w.Pidtree)
 	return nil
 }
 
