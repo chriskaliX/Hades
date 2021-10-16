@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 /*
@@ -29,10 +31,10 @@ type Context struct {
 	RetryStatus bool // 连接状态, true代表尝试完毕, false 代表尝试中
 }
 
-/* 
-  * 连接使用统一动作
-  * 指数回连防止出现网络上的雪崩效应
-*/
+/*
+ * 连接使用统一动作
+ * 指数回连防止出现网络上的雪崩效应
+ */
 func (c *Context) IRetry(netRetry INetRetry) error {
 	// 重试动作标识位
 	c.RetryStatus = true
@@ -42,6 +44,7 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 
 	// 初始化动作
 	if err := netRetry.Init(); err != nil {
+		zap.S().Error(err)
 		return err
 	}
 
@@ -57,11 +60,15 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 	// 开始重试
 	for {
 		if c.Shutdown {
-			return errors.New("shutdown is true")
+			err := errors.New("shutdown is true")
+			zap.S().Error(err)
+			return err
 		}
 
 		if maxRetries > 0 && retries >= maxRetries {
-			return errors.New("over maxtries")
+			err := errors.New("over maxtries")
+			zap.S().Error(err)
+			return err
 		}
 
 		if e := netRetry.Connect(); e != nil {
@@ -70,7 +77,7 @@ func (c *Context) IRetry(netRetry INetRetry) error {
 				delay = 1
 			}
 			delay = delay * hashMod
-			fmt.Printf("Trying %s after %d seconds , retries:%d,error:%v\n", netRetry.String(), delay, retries, e)
+			zap.S().Info(fmt.Sprintf("Trying %s after %d seconds, retries:%d, error:%v", netRetry.String(), delay, retries, e))
 			retries = retries + 1
 			time.Sleep(time.Second * time.Duration(delay))
 		} else {

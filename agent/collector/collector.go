@@ -11,6 +11,7 @@ import (
 	"agent/config"
 	"agent/global/structs"
 	"agent/network"
+	"agent/utils"
 
 	"agent/global"
 
@@ -123,44 +124,45 @@ func Run() {
 	// 开启定期消费
 	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃
 	// 防止打开过多 fd 造成资源占用问题
-	go func() {
-		ticker := time.NewTicker(time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				pid := <-global.PidChannel
-				process, err := GetProcessInfo(pid)
-				if err != nil {
-					process.Reset()
-					structs.ProcessPool.Put(process)
-					continue
-				}
-				// 白名单校验
-				if config.WhiteListCheck(process) {
-					process.Reset()
-					structs.ProcessPool.Put(process)
-					continue
-				}
-
-				global.ProcessCmdlineCache.Add(pid, process.Cmdline)
-				if ppid, ok := global.ProcessCache.Get(pid); ok {
-					process.PPID = int(ppid.(uint32))
-				}
-				process.PidTree = global.GetPstree(uint32(process.PID))
-				data, err := json.Marshal(process)
-				if err == nil {
-					rawdata := make(map[string]string)
-					rawdata["data"] = string(data)
-					rawdata["time"] = strconv.Itoa(int(global.Time))
-					rawdata["data_type"] = "1000"
-					global.UploadChannel <- rawdata
-				}
+	// go func() {
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			pid := <-global.PidChannel
+			process, err := GetProcessInfo(pid)
+			if err != nil {
 				process.Reset()
 				structs.ProcessPool.Put(process)
-			case <-global.Context.Done():
-				return
+				continue
 			}
+			// 白名单校验
+			if config.WhiteListCheck(process) {
+				process.Reset()
+				structs.ProcessPool.Put(process)
+				continue
+			}
+
+			global.ProcessCmdlineCache.Add(pid, process.Cmdline)
+			if ppid, ok := global.ProcessCache.Get(pid); ok {
+				process.PPID = int(ppid.(uint32))
+			}
+			process.PidTree = global.GetPstree(uint32(process.PID))
+			// json 对 html 字符会转义, 转用下面方法是否会对性能有影响? 需要再看一下
+			// data, err := json.Marshal(process)
+			data, err := utils.Marshal(process)
+			if err == nil {
+				rawdata := make(map[string]string)
+				rawdata["data"] = string(data)
+				rawdata["time"] = strconv.Itoa(int(global.Time))
+				rawdata["data_type"] = "1000"
+				global.UploadChannel <- rawdata
+			}
+			process.Reset()
+			structs.ProcessPool.Put(process)
+		case <-global.Context.Done():
+			return
 		}
-	}()
+	}
 }

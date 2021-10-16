@@ -9,6 +9,7 @@ import (
 	"agent/collector"
 	"agent/global"
 	"agent/log"
+	"agent/transport"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -34,7 +35,7 @@ func main() {
 	grpcWriter := zapcore.AddSync(&log.LoggerWriter{})
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "log/elkeid-agent.log",
+		Filename:   "log/Hades.log",
 		MaxSize:    1, // megabytes
 		MaxBackups: 10,
 		MaxAge:     10,   //days
@@ -47,8 +48,9 @@ func main() {
 	defer undo()
 
 	// 默认collector也不开, 接收server指令后再开
-	go collector.EbpfGather()
-	// collector.Run()
+	// go collector.EbpfGather()
+	go collector.Run()
+	go transport.Run()
 
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()

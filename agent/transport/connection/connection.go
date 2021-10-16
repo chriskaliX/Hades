@@ -17,7 +17,6 @@ import (
 
 var (
 	dialOptions = []grpc.DialOption{}
-	addr        = "test.hades.net"
 )
 
 func New() (*grpc.ClientConn, error) {
@@ -76,5 +75,6 @@ func (g *Grpc) Connect() error {
 }
 
 func (g *Grpc) Init() error {
+	g.Options = dialOptions
 	return nil
 }

@@ -6,6 +6,7 @@ require (
 	github.com/Shopify/sarama v1.30.0
 	github.com/cilium/ebpf v0.6.3-0.20210907154550-0ecbe1516910
 	github.com/golang/protobuf v1.5.2
+	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
