@@ -82,21 +82,26 @@ func handleReceive(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
 			zap.S().Error(err)
 			return
 		}
-		err = Check(cmd)
+		err = CheckAndLoad(cmd)
 		if err != nil {
 			continue
 		}
-
 	}
 }
 
-func Check(a *global.Command) error {
+func CheckAndLoad(a *global.Command) error {
 	if a.AgentCtrl < 1 || a.AgentCtrl > 3 {
 		return errors.New("AgentCtrl flag not valid")
 	}
 	switch a.AgentCtrl {
 	case 1:
+		os.Exit(0)
 	case 2:
+		// 这里自升级, 看一下 https://github.com/inconshreveable/go-update
+		// 参考 https://github.com/sanbornm/go-selfupdate/
+		// todo:
+
+		// 开始绑定参数
 		downloadConfig := &config.Download{}
 		err := utils.Bind(a.Message, downloadConfig)
 		if err != nil {
@@ -105,39 +110,29 @@ func Check(a *global.Command) error {
 		if downloadConfig.Version == global.Version {
 			return errors.New("No need to update")
 		}
-	case 3:
-		w := &config.WhiteListConfig{}
-		if a.Message == nil {
-			return errors.New("no whitelists")
-		}
-		// 解析
-		// 又做了一个中间转换? 感觉没必要, 后续代码简化了
-		var rules []config.Rule
-		for key, value := range a.Message {
-			rule := &config.Rule{
-				Field: key,
-				Raw:   value,
-			}
-			rules = append(rules, *rule)
-		}
-		w.Rules = rules
-		return w.Check()
-	}
-	return nil
-}
 
-func Load(a *global.Command) error {
-	switch a.AgentCtrl {
-	case 1:
-		os.Exit(0)
-	case 2:
-		// 这里自升级, 看一下 https://github.com/inconshreveable/go-update
-		// 参考 https://github.com/sanbornm/go-selfupdate/
-		// todo:
-		downloadConfig := &config.Download{}
-		utils.Bind(a.Message, downloadConfig)
-		err := Download([]string{downloadConfig.Url}, "Hades.tmp", downloadConfig.Sha256)
-		if err != nil {
+		// 下载
+		if err = Download([]string{downloadConfig.Url}, "Hades.tmp", downloadConfig.Sha256); err != nil {
+			return err
+		}
+		// 重命名 - 这个名字暂时还对不上, 后期直接改掉就行
+		err = os.Rename("Hades.tmp", "Hades")
+		// 直接推出, 由守护进程拉起
+		if err == nil {
+			os.Exit(0)
+		} else {
+			os.Remove("Hades")
+		}
+
+	case 3:
+		w := &config.WhiteList{}
+		if err := utils.Bind(a.Message, w); err != nil {
+			return err
+		}
+		if err := w.Check(); err != nil {
+			return err
+		}
+		if err := w.Load(); err != nil {
 			return err
 		}
 	}
