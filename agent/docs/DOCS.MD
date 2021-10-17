@@ -2,15 +2,23 @@
 
 ## 事件标记
 
+### Error 类型
+
 - 999  Error 事件
+
+### 事件类型
+
 - 1000 Process 事件
 - 1001 Socket  事件
-- 1002 Crontab 事件
+- 1002 User 事件
 - 1003 SSH 事件
 - 1004 Listening 事件
-- 1005 User 事件
-- 1006 System 事件
-- 1007 系统信息
+<!-- - 1005 User 事件
+- 1006 System 事件 -->
+
+### 文件监听类型
+
+- 2001 Crontab 事件
 
 ## 压测
 
