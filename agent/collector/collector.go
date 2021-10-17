@@ -3,8 +3,10 @@ package collector
 import (
 	"encoding/json"
 	"math/rand"
+	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 
 	"agent/global"
 
+	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 )
 
@@ -90,14 +93,12 @@ func Run() {
 			select {
 			case <-ticker.C:
 				if init {
-					ticker.Reset(time.Hour)
+					ticker.Reset(30 * time.Minute)
 					init = false
 				}
 				// 是否开启proc，统一关闭先
-				socks, err := GetSockets(false, network.TCP_ESTABLISHED)
-				if err == nil {
-					data, err := json.Marshal(socks)
-					if err == nil {
+				if socks, err := GetSockets(false, network.TCP_ESTABLISHED); err == nil {
+					if data, err := json.Marshal(socks); err == nil {
 						rawdata := make(map[string]string)
 						rawdata["time"] = strconv.Itoa(int(global.Time))
 						rawdata["data"] = string(data)
@@ -117,6 +118,68 @@ func Run() {
 			select {
 			case <-ticker.C:
 				global.Info()
+			}
+		}
+	}()
+
+	// crontab 信息采集
+	// 这里有个问题, 怎么知道更新哪些呢? 是否应该维护一个 List, 晚点看一下
+	// todo:
+	go func() {
+		init := true
+		ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(6)+1))
+
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			zap.S().Error(err)
+		}
+		defer watcher.Close()
+
+		// 这个不会递归监听, 是否需要递归监听呢? - 看了 osquery 的, 看起来是不需要
+		for _, path := range CronSearchDirs {
+			if err = watcher.Add(path); err != nil {
+				zap.S().Error()
+			}
+		}
+		watcher.Add("/etc/crontab")
+
+		for {
+			select {
+			case <-ticker.C:
+				if init {
+					ticker.Reset(time.Hour)
+					init = false
+				}
+				if crons, err := GetCron(); err == nil {
+					if data, err := utils.Marshal(crons); err == nil {
+						rawdata := make(map[string]string)
+						rawdata["data_type"] = "2001"
+						rawdata["data"] = string(data)
+						rawdata["time"] = strconv.Itoa(int(global.Time))
+						global.UploadChannel <- rawdata
+					}
+				}
+			case event := <-watcher.Events:
+				if event.Op == fsnotify.Create || event.Op == fsnotify.Write || event.Op == fsnotify.Chmod {
+					fs, err := os.Stat(event.Name)
+					if err != nil {
+						zap.S().Error(err)
+					}
+					if fs.Mode().IsRegular() {
+						f, err := os.Open(event.Name)
+						flag := strings.HasPrefix(event.Name, "/var/spool/cron")
+						if crons := Parse(flag, event.Name, f); err == nil {
+							if data, err := utils.Marshal(crons); err == nil {
+								rawdata := make(map[string]string)
+								rawdata["data_type"] = "2001"
+								rawdata["data"] = string(data)
+								rawdata["time"] = strconv.Itoa(int(global.Time))
+								global.UploadChannel <- rawdata
+							}
+						}
+						f.Close()
+					}
+				}
 			}
 		}
 	}()

@@ -60,6 +60,9 @@ func main() {
 			rd := <-global.UploadChannel
 			rd["AgentID"] = global.AgentID
 			rd["Hostname"] = global.Hostname
+			if rd["data_type"] != "2001" {
+				continue
+			}
 			_, err := json.Marshal(rd)
 			if err != nil {
 				continue
