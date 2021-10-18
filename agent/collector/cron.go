@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
 )
 
@@ -21,6 +22,13 @@ type Cron struct {
 	User       string `json:"user"`
 	Command    string `json:"command"`
 	Path       string `json:"path"`
+}
+
+// 时间不是我们关注的, 执行了什么才是比较关键的, 所以我们取cmd的hash作为关键值来去重
+var CronCache *lru.Cache
+
+func init() {
+	CronCache, _ = lru.New(240)
 }
 
 var CronSearchDirs = []string{
@@ -89,6 +97,7 @@ func Parse(withUser bool, path string, file *os.File) (crons []Cron) {
 					cron.Command = strings.Join(fields[6:], " ")
 				}
 				crons = append(crons, cron)
+				// flag, _ := CronCache.ContainsOrAdd(md5.Sum([]byte(cron.Command)), true)
 			}
 		}
 	}
@@ -128,6 +137,7 @@ func Parse(withUser bool, path string, file *os.File) (crons []Cron) {
                             bool recursive = false);
 	默认 false 了, 所以我们改用 fsnotify 吧, 反正 fsnotify 也是不支持递归的
 */
+
 func GetCron() (crons []Cron, err error) {
 	for _, dir := range CronSearchDirs {
 		err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {

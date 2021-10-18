@@ -60,6 +60,7 @@ func main() {
 			rd := <-global.UploadChannel
 			rd["AgentID"] = global.AgentID
 			rd["Hostname"] = global.Hostname
+			// 目前还在测试, 专门打印
 			if rd["data_type"] != "2001" {
 				continue
 			}
