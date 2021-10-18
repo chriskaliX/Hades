@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"math/rand"
 	"os"
@@ -123,7 +124,7 @@ func Run() {
 	}()
 
 	// crontab 信息采集
-	// 这里有个问题, 怎么知道更新哪些呢? 是否应该维护一个 List, 晚点看一下
+	// 换成了根据Cmdline作为去重, 合理嘛?
 	// todo:
 	go func() {
 		init := true
@@ -138,7 +139,7 @@ func Run() {
 		// 这个不会递归监听, 是否需要递归监听呢? - 看了 osquery 的, 看起来是不需要
 		for _, path := range CronSearchDirs {
 			if err = watcher.Add(path); err != nil {
-				zap.S().Error()
+				zap.S().Error(err)
 			}
 		}
 		watcher.Add("/etc/crontab")
@@ -146,14 +147,18 @@ func Run() {
 		for {
 			select {
 			case <-ticker.C:
+				// 只有第一次的时候, 会刷进去 Cache, 其他时候都不会
 				if init {
 					ticker.Reset(time.Hour)
 					init = false
 				}
 				if crons, err := GetCron(); err == nil {
+					for _, cron := range crons {
+						CronCache.Add(md5.Sum([]byte(cron.Command)), true)
+					}
 					if data, err := utils.Marshal(crons); err == nil {
 						rawdata := make(map[string]string)
-						rawdata["data_type"] = "2001"
+						rawdata["data_type"] = "3001"
 						rawdata["data"] = string(data)
 						rawdata["time"] = strconv.Itoa(int(global.Time))
 						global.UploadChannel <- rawdata
@@ -169,12 +174,22 @@ func Run() {
 						f, err := os.Open(event.Name)
 						flag := strings.HasPrefix(event.Name, "/var/spool/cron")
 						if crons := Parse(flag, event.Name, f); err == nil {
-							if data, err := utils.Marshal(crons); err == nil {
-								rawdata := make(map[string]string)
-								rawdata["data_type"] = "2001"
-								rawdata["data"] = string(data)
-								rawdata["time"] = strconv.Itoa(int(global.Time))
-								global.UploadChannel <- rawdata
+							tmp := crons[:0]
+							for _, cron := range crons {
+								sum := md5.Sum([]byte(cron.Command))
+								flag, _ := CronCache.ContainsOrAdd(sum, true)
+								if !flag {
+									tmp = append(tmp, cron)
+								}
+							}
+							if len(tmp) > 0 {
+								if data, err := utils.Marshal(tmp); err == nil {
+									rawdata := make(map[string]string)
+									rawdata["data_type"] = "2001"
+									rawdata["data"] = string(data)
+									rawdata["time"] = strconv.Itoa(int(global.Time))
+									global.UploadChannel <- rawdata
+								}
 							}
 						}
 						f.Close()
@@ -213,7 +228,6 @@ func Run() {
 			}
 			process.PidTree = global.GetPstree(uint32(process.PID))
 			// json 对 html 字符会转义, 转用下面方法是否会对性能有影响? 需要再看一下
-			// data, err := json.Marshal(process)
 			data, err := utils.Marshal(process)
 			if err == nil {
 				rawdata := make(map[string]string)
