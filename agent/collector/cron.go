@@ -1,14 +1,21 @@
 package collector
 
 import (
+	"agent/global"
+	"agent/utils"
 	"bufio"
+	"crypto/md5"
 	"errors"
 	"io"
 	"io/fs"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
 )
@@ -169,4 +176,77 @@ func GetCron() (crons []Cron, err error) {
 		err = errors.New("crontab is empty")
 	}
 	return
+}
+
+func CronJob() {
+	init := true
+	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(6)+1))
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		zap.S().Error(err)
+	}
+	defer watcher.Close()
+
+	// 这个不会递归监听, 是否需要递归监听呢? - 看了 osquery 的, 看起来是不需要
+	for _, path := range CronSearchDirs {
+		if err = watcher.Add(path); err != nil {
+			zap.S().Error(err)
+		}
+	}
+	watcher.Add("/etc/crontab")
+
+	for {
+		select {
+		case <-ticker.C:
+			// 只有第一次的时候, 会刷进去 Cache, 其他时候都不会
+			if init {
+				ticker.Reset(time.Hour)
+				init = false
+			}
+			if crons, err := GetCron(); err == nil {
+				for _, cron := range crons {
+					CronCache.Add(md5.Sum([]byte(cron.Command)), true)
+				}
+				if data, err := utils.Marshal(crons); err == nil {
+					rawdata := make(map[string]string)
+					rawdata["data_type"] = "3001"
+					rawdata["data"] = string(data)
+					rawdata["time"] = strconv.Itoa(int(global.Time))
+					global.UploadChannel <- rawdata
+				}
+			}
+		case event := <-watcher.Events:
+			if event.Op == fsnotify.Create || event.Op == fsnotify.Write || event.Op == fsnotify.Chmod {
+				fs, err := os.Stat(event.Name)
+				if err != nil {
+					zap.S().Error(err)
+				}
+				if fs.Mode().IsRegular() {
+					f, err := os.Open(event.Name)
+					flag := strings.HasPrefix(event.Name, "/var/spool/cron")
+					if crons := Parse(flag, event.Name, f); err == nil {
+						tmp := crons[:0]
+						for _, cron := range crons {
+							sum := md5.Sum([]byte(cron.Command))
+							flag, _ := CronCache.ContainsOrAdd(sum, true)
+							if !flag {
+								tmp = append(tmp, cron)
+							}
+						}
+						if len(tmp) > 0 {
+							if data, err := utils.Marshal(tmp); err == nil {
+								rawdata := make(map[string]string)
+								rawdata["data_type"] = "2001"
+								rawdata["data"] = string(data)
+								rawdata["time"] = strconv.Itoa(int(global.Time))
+								global.UploadChannel <- rawdata
+							}
+						}
+					}
+					f.Close()
+				}
+			}
+		}
+	}
 }

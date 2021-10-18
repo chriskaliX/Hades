@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"agent/global"
 	"agent/global/structs"
@@ -110,7 +111,6 @@ var ProcessPool = sync.Pool{
 
 // 获取单个 process 信息
 // 改造一下, 用于补足单个进程的完整信息
-
 func GetProcessInfo(pid uint32) (structs.Process, error) {
 	var (
 		err  error
@@ -218,4 +218,17 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	}
 
 	return proc, nil
+}
+
+func ProcessUpdateJob() {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			Singleton.FlushProcessCache()
+		case <-global.Context.Done():
+			return
+		}
+	}
 }

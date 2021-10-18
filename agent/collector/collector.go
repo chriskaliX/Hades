@@ -1,24 +1,17 @@
 package collector
 
 import (
-	"crypto/md5"
-	"encoding/json"
-	"math/rand"
-	"os"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"agent/config"
 	"agent/global/structs"
-	"agent/network"
 	"agent/utils"
 
 	"agent/global"
 
-	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 )
 
@@ -66,138 +59,20 @@ func Run() {
 	// 强制退出
 	err := CN_PROC_START()
 	if err != nil {
-		zap.S().Error(err)
-		return
+		zap.S().Panic(err)
 	}
 
 	// 定期刷新进程树, 一小时一次
-	go func() {
-		ticker := time.NewTicker(time.Hour)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				Singleton.FlushProcessCache()
-			case <-global.Context.Done():
-				return
-			}
-		}
-	}()
+	go ProcessUpdateJob()
 
 	// socket 定期采集
-	// 在同一时间突然流量激增导致丢弃，给一个初始随机值，再reset掉
-	go func() {
-		init := true
-		ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(600)+1))
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if init {
-					ticker.Reset(30 * time.Minute)
-					init = false
-				}
-				// 是否开启proc，统一关闭先
-				if socks, err := GetSockets(false, network.TCP_ESTABLISHED); err == nil {
-					if data, err := json.Marshal(socks); err == nil {
-						rawdata := make(map[string]string)
-						rawdata["time"] = strconv.Itoa(int(global.Time))
-						rawdata["data"] = string(data)
-						rawdata["data_type"] = "1001"
-						global.UploadChannel <- rawdata
-					}
-				}
-			}
-		}
-	}()
+	go SocketJob()
 
 	// 系统信息24小时上传一次
-	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				global.Info()
-			}
-		}
-	}()
+	go global.SystemInfoJob()
 
 	// crontab 信息采集
-	// 换成了根据Cmdline作为去重, 合理嘛?
-	// todo:
-	go func() {
-		init := true
-		ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(6)+1))
-
-		watcher, err := fsnotify.NewWatcher()
-		if err != nil {
-			zap.S().Error(err)
-		}
-		defer watcher.Close()
-
-		// 这个不会递归监听, 是否需要递归监听呢? - 看了 osquery 的, 看起来是不需要
-		for _, path := range CronSearchDirs {
-			if err = watcher.Add(path); err != nil {
-				zap.S().Error(err)
-			}
-		}
-		watcher.Add("/etc/crontab")
-
-		for {
-			select {
-			case <-ticker.C:
-				// 只有第一次的时候, 会刷进去 Cache, 其他时候都不会
-				if init {
-					ticker.Reset(time.Hour)
-					init = false
-				}
-				if crons, err := GetCron(); err == nil {
-					for _, cron := range crons {
-						CronCache.Add(md5.Sum([]byte(cron.Command)), true)
-					}
-					if data, err := utils.Marshal(crons); err == nil {
-						rawdata := make(map[string]string)
-						rawdata["data_type"] = "3001"
-						rawdata["data"] = string(data)
-						rawdata["time"] = strconv.Itoa(int(global.Time))
-						global.UploadChannel <- rawdata
-					}
-				}
-			case event := <-watcher.Events:
-				if event.Op == fsnotify.Create || event.Op == fsnotify.Write || event.Op == fsnotify.Chmod {
-					fs, err := os.Stat(event.Name)
-					if err != nil {
-						zap.S().Error(err)
-					}
-					if fs.Mode().IsRegular() {
-						f, err := os.Open(event.Name)
-						flag := strings.HasPrefix(event.Name, "/var/spool/cron")
-						if crons := Parse(flag, event.Name, f); err == nil {
-							tmp := crons[:0]
-							for _, cron := range crons {
-								sum := md5.Sum([]byte(cron.Command))
-								flag, _ := CronCache.ContainsOrAdd(sum, true)
-								if !flag {
-									tmp = append(tmp, cron)
-								}
-							}
-							if len(tmp) > 0 {
-								if data, err := utils.Marshal(tmp); err == nil {
-									rawdata := make(map[string]string)
-									rawdata["data_type"] = "2001"
-									rawdata["data"] = string(data)
-									rawdata["time"] = strconv.Itoa(int(global.Time))
-									global.UploadChannel <- rawdata
-								}
-							}
-						}
-						f.Close()
-					}
-				}
-			}
-		}
-	}()
+	go CronJob()
 
 	// 开启定期消费
 	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃
