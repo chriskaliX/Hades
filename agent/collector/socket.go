@@ -1,10 +1,14 @@
 package collector
 
 import (
+	"encoding/json"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"agent/global"
 	"agent/network"
 
 	"github.com/prometheus/procfs"
@@ -98,4 +102,30 @@ func GetSockets(disableProc bool, status uint8) (sockets []network.Socket, err e
 		}
 	}
 	return
+}
+
+// 在同一时间突然流量激增导致丢弃，给一个初始随机值，再reset掉
+func SocketJob() {
+	init := true
+	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(600)+1))
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if init {
+				ticker.Reset(30 * time.Minute)
+				init = false
+			}
+			// 是否开启proc，统一关闭先
+			if socks, err := GetSockets(false, network.TCP_ESTABLISHED); err == nil {
+				if data, err := json.Marshal(socks); err == nil {
+					rawdata := make(map[string]string)
+					rawdata["time"] = strconv.Itoa(int(global.Time))
+					rawdata["data"] = string(data)
+					rawdata["data_type"] = "1001"
+					global.UploadChannel <- rawdata
+				}
+			}
+		}
+	}
 }

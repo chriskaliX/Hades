@@ -61,3 +61,14 @@ func Info() {
 	Getuuid()
 	Getinterface()
 }
+
+func SystemInfoJob() {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			Info()
+		}
+	}
+}
