@@ -66,6 +66,7 @@ func (g *Grpc) Close() {
 }
 
 func (g *Grpc) Connect() error {
+	// 还有一个 DialPool 看一下
 	conn, err := grpc.Dial(g.Addr, g.Options...)
 	if err != nil {
 		return err
