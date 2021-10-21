@@ -139,7 +139,7 @@ func EbpfGather() {
 				rawdata := make(map[string]string)
 				rawdata["data"] = string(data)
 				rawdata["time"] = strconv.Itoa(int(global.Time))
-				rawdata["data_type"] = "1000"
+				rawdata["data_type"] = "1009"
 				global.UploadChannel <- rawdata
 			}
 			process.Reset()

@@ -42,6 +42,27 @@ struct bpf_map_def SEC("maps/execve_events") execve_events = {
         .max_entries = 1024,
 };
 
+int execve_count(char **argv, int max)
+{
+    int i = 0;
+
+    if (argv != NULL) {
+        for (;;) {
+            char *p;
+            if (smith_get_user(p, argv))
+                return -EFAULT;
+            if (!p)
+                break;
+            argv++;
+            if (++i >= max)
+                break;
+            if (fatal_signal_pending(current))
+                return -ERESTARTNOHAND;
+        }
+    }
+    return i;
+}
+
 // 参考 https://github.com/iovisor/bcc/blob/e83019bdf6c400b589e69c7d18092e38088f89a8/tools/execsnoop.py
 SEC("kprobe/sys_execve")
 int bpf_sys_execve(struct pt_regs *ctx)
@@ -67,31 +88,26 @@ int bpf_sys_execve(struct pt_regs *ctx)
     bpf_probe_read(&execve_data.file_name, sizeof(execve_data.file_name), filename);
 
     const char __user *const __user *argv = (void *)PT_REGS_PARM2(ctx);
-    // for (int i = 0;i < ARGV_LEN;i++) {
-    //     char *argp = NULL;
-    //     long res = bpf_probe_read(&argp, sizeof(&argp), (void *)argv);
-    //     if (res == 0) {
-    //         bpf_probe_read(execve_data.argv, sizeof(execve_data.argv), argp);
-    //         bpf_perf_event_output(ctx, &execve_events, cpu, &execve_data, sizeof(execve_data));
-    //         argv++;
-    //     } else {
-    //         break;
-    //     }
-    // }
 
-    /*
-        这个还是有问题的, 估计是因为libbpf的问题, 导致无法正确获取 bash 下的 argv
-    */
-    char *argp = NULL;
-    bpf_probe_read_user(&argp, sizeof(argp), (void *)&argv[0]);
-    bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argp);
+    int count = 0;
+    if (argv != NULL) {
+        for(int i=0;i<256;i++) {
+            char *p;
+            bpf_probe_read_user(&p, sizeof(p), (void *)argv);
+            if (!p) {
+                count = 5;
+                break;
+            }
+            argv++;
+        }
+    }
 
-    // if (argv) {
-    //     bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), argv);
-    // } else {
-    //     char nothing[] = "...";
-    //     bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), (void *)nothing);
-    // }
+    char *argv_res;
+    for(int i=0; i<count; i++) {
+        const char __user * p;
+        bpf_probe_read_user(&p, sizeof(p), (void *)argv);
+        bpf_probe_read(&execve_data.argv, sizeof(execve_data.argv), p);
+    }
 
     bpf_perf_event_output(ctx, &execve_events, cpu, &execve_data, sizeof(execve_data));
     return 0;
