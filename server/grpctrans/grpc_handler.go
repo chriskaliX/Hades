@@ -3,7 +3,10 @@ package grpctrans
 import (
 	"context"
 	"errors"
+	"fmt"
 	pb "hadeserver/grpctrans/protobuf"
+	"strconv"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/peer"
@@ -46,10 +49,125 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) error {
 		Ctx:         ctx,
 		CancelFunc:  cancelFunc,
 	}
+
 	err = GlobalGRPCPool.Add(agentID, &connection)
 	if err != nil {
 		return err
 	}
 
+	// 退出删除 agentID
+	defer GlobalGRPCPool.Delete(agentID)
+
+	// 接收到停止信号退出
+	<-connection.Ctx.Done()
 	return nil
+}
+
+func receiveData(stream pb.Transfer_TransferServer, conn *Connection) {
+	defer conn.CancelFunc()
+	for {
+		select {
+		case <-conn.Ctx.Done():
+			return
+		default:
+			data, err := stream.Recv()
+			if err != nil {
+				return
+			}
+			handleData(data)
+		}
+	}
+}
+
+func handleData(req *pb.RawData) {
+	timePkg := fmt.Sprintf("%d", req.Timestamp)
+	inIPv4List := strings.Join(req.IntranetIPv4, ",")
+	inIPv6List := strings.Join(req.IntranetIPv6, ",")
+
+	for k, v := range req.GetPkg() {
+		tmp, ok := v.Message["data_type"]
+		if !ok {
+			continue
+		}
+		dataType, err := strconv.Atoi(strings.TrimSpace(tmp))
+		if err != nil {
+			continue
+		}
+		fMessage := req.GetPkg()[k].Message
+		fMessage["agent_id"] = req.AgentID
+		fMessage["time_pkg"] = timePkg
+		fMessage["hostname"] = req.Hostname
+		fMessage["version"] = req.Version
+		fMessage["in_ipv4_list"] = inIPv4List
+		fMessage["in_ipv6_list"] = inIPv6List
+
+		switch dataType {
+		case 1:
+			//parse the heartbeat data
+			parseHeartBeat(fMessage, req)
+		}
+	}
+}
+
+func parseHeartBeat(hb map[string]string, req *pb.RawData) {
+	agentID := req.AgentID
+	conn, err := GlobalGRPCPool.Get(agentID)
+	if err != nil {
+		return
+	}
+
+	clearConn(conn)
+
+	strCPU, ok := hb["cpu"]
+	if ok {
+		if cpu, err := strconv.ParseFloat(strCPU, 64); err == nil {
+			conn.Cpu = cpu
+		}
+	}
+
+	strIO, ok := hb["io"]
+	if ok {
+		if io, err := strconv.ParseFloat(strIO, 64); err == nil {
+			conn.IO = io
+		}
+	}
+
+	strMem, ok := hb["memory"]
+	if ok {
+		if mem, err := strconv.ParseInt(strMem, 10, 64); err == nil {
+			conn.Memory = mem
+		}
+	}
+
+	strSlab, ok := hb["slab"]
+	if ok {
+		if slab, err := strconv.ParseInt(strSlab, 10, 64); err == nil {
+			conn.Slab = slab
+		}
+	}
+
+	conn.HostName = req.Hostname
+	conn.Version = req.Version
+	if req.IntranetIPv4 != nil {
+		conn.IntranetIPv4 = req.IntranetIPv4
+	}
+
+	if req.IntranetIPv6 != nil {
+		conn.IntranetIPv6 = req.IntranetIPv6
+	}
+
+	//last heartbeat time get from server
+	conn.LastHeartBeatTime = time.Now().Unix()
+}
+
+func clearConn(conn *Connection) {
+	conn.Cpu = 0
+	conn.IO = 0
+	conn.Memory = 0
+	conn.Slab = 0
+	conn.LastHeartBeatTime = 0
+	conn.Version = ""
+	conn.HostName = ""
+	conn.IntranetIPv4 = make([]string, 0)
+	conn.IntranetIPv6 = make([]string, 0)
 }

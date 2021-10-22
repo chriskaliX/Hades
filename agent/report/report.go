@@ -2,7 +2,6 @@ package report
 
 import (
 	"agent/global"
-	"encoding/json"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -60,8 +59,7 @@ func (h *Heart) Beat() {
 	report["platform"] = global.Platform
 	report["platform_version"] = global.PlatformVersion
 	report["memory"] = strconv.Itoa(stat.RSS * os.Getpagesize())
-	// report["net_type"] = transport.NetMode
-	report["data_type"] = "1000"
+	report["data_type"] = "1"
 	report["timestamp"] = strconv.FormatInt(time.Now().Unix(), 10)
 	if h.sys == 0 {
 		report["cpu"] = strconv.FormatFloat(0, 'f', 5, 64)
@@ -71,52 +69,6 @@ func (h *Heart) Beat() {
 	}
 	report["io"] = strconv.FormatUint(io.ReadBytes+io.WriteBytes-h.io, 10)
 	report["slab"] = strconv.FormatUint(*sysMem.Slab, 10)
-	plugins := []struct {
-		RSS     int     `json:"rss"`
-		IO      uint64  `json:"io"`
-		CPU     float64 `json:"cpu"`
-		Name    string  `json:"name"`
-		Version string  `json:"version"`
-		Pid     int     `json:"pid"`
-		QPS     float64 `json:"qps"`
-	}{}
-
-	/*搬运工*/
-	// s, err := plugin.GetServer()
-	// if err == nil {
-	// 	s.ForEach(func(k string, p *plugin.Plugin) {
-	// 		item := struct {
-	// 			RSS     int     `json:"rss"`
-	// 			IO      uint64  `json:"io"`
-	// 			CPU     float64 `json:"cpu"`
-	// 			Name    string  `json:"name"`
-	// 			Version string  `json:"version"`
-	// 			Pid     int     `json:"pid"`
-	// 			QPS     float64 `json:"qps"`
-	// 		}{Name: p.Name(), Version: p.Version(), Pid: p.PID()}
-	// 		proc, err := procfs.NewProc(p.PID())
-	// 		if err == nil {
-	// 			stat, err := proc.Stat()
-	// 			if err == nil {
-	// 				item.RSS = stat.RSS * os.Getpagesize()
-	// 			}
-	// 			if p.CPU != 0 {
-	// 				item.CPU = float64(runtime.NumCPU()) * (stat.CPUTime() - p.CPU) / (getTotal(sysStat) - h.sys)
-	// 			}
-	// 			io, err := proc.IO()
-	// 			if err == nil {
-	// 				item.IO = io.ReadBytes + io.WriteBytes - p.IO
-	// 			}
-	// 			item.QPS = float64(p.Counter.Swap(0)) / 30.0
-	// 			p.CPU = stat.CPUTime()
-	// 			p.IO = io.ReadBytes + io.WriteBytes
-	// 		}
-	// 		plugins = append(plugins, item)
-	// 	})
-	// }
-
-	encodedPlugins, err := json.Marshal(plugins)
-	report["plugins"] = string(encodedPlugins)
 	zap.S().Infof("%+v", report)
 	select {
 	case global.GrpcChannel <- []*global.Record{{Message: report}}:
@@ -128,6 +80,7 @@ func (h *Heart) Beat() {
 	h.io = io.ReadBytes + io.WriteBytes
 }
 
+// 这个不用关闭, 因为如果有问题, 就直接 panic?
 func Run() {
 	defer func() {
 		if err := recover(); err != nil {
