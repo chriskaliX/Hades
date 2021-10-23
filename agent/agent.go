@@ -9,6 +9,7 @@ import (
 	"agent/collector"
 	"agent/global"
 	"agent/log"
+	"agent/report"
 	"agent/transport"
 
 	"go.uber.org/zap"
@@ -51,6 +52,7 @@ func main() {
 	// go collector.EbpfGather()
 	go collector.Run()
 	go transport.Run()
+	go report.Run()
 
 	ticker := time.NewTicker(time.Millisecond)
 	defer ticker.Stop()

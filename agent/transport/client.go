@@ -7,30 +7,31 @@ import (
 	"agent/utils"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 	"time"
+
+	_ "agent/transport/compressor"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 // 这里的写法是错误直接Panic
+// 但是我认为, 应该和 osquery 一样, 一直等着回连, 这个进程不能退出, 作为主要的守护进程
 func Run() {
 	for {
 		conn, err := connection.New()
 		if err != nil {
-			// zap.S().Panic("No network is available")
-			// test
 			zap.S().Error("No network is available")
 			continue
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		client, err := global.NewTransferClient(conn).Transfer(ctx, grpc.UseCompressor("snappy"))
 		if err != nil {
-			// zap.S().Panic(err)
-			// 先err来debug
 			zap.S().Error(err)
+			fmt.Println(err)
 		}
 		wg := sync.WaitGroup{}
 		wg.Add(2)
@@ -39,7 +40,9 @@ func Run() {
 		wg.Wait()
 		cancel()
 		conn.Close()
-		time.Sleep(10 * time.Minute)
+		// 断线重连
+		time.Sleep(1 * time.Minute)
+		fmt.Println("Connection failed...")
 	}
 }
 

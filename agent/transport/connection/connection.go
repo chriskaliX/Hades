@@ -22,6 +22,7 @@ var (
 func New() (*grpc.ClientConn, error) {
 	grpcConn := &network.Context{}
 	grpcInstance := &Grpc{}
+	grpcInstance.Init()
 	err := grpcConn.IRetry(grpcInstance)
 	if err != nil {
 		return nil, err
@@ -77,5 +78,6 @@ func (g *Grpc) Connect() error {
 
 func (g *Grpc) Init() error {
 	g.Options = dialOptions
+	g.Addr = "127.0.0.1:8888"
 	return nil
 }
