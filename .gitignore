@@ -5,3 +5,4 @@ agent/collector/collector
 .vscode/
 agent/log/Hades*
 cert/
+server/hadeserver

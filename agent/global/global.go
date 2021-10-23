@@ -23,6 +23,7 @@ var (
 	// pid 管道
 	PidChannel chan uint32
 
+	// Grpc 上传数据
 	GrpcChannel chan []*Record
 )
 

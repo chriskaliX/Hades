@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"time"
@@ -14,6 +13,8 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
+	_ "hadeserver/grpctrans/compressor"
+	"hadeserver/grpctrans/conf"
 	pb "hadeserver/grpctrans/protobuf"
 )
 
@@ -36,14 +37,10 @@ const (
 )
 
 // Get the encryption certificate
-func credential(crtFile, keyFile, caFile string) credentials.TransportCredentials {
-	cert, err := tls.LoadX509KeyPair(crtFile, keyFile)
+func credential(crtFile, keyFile, caBytes []byte) credentials.TransportCredentials {
+	cert, err := tls.X509KeyPair(crtFile, keyFile)
 	if err != nil {
-		return nil
-	}
-
-	caBytes, err := ioutil.ReadFile(caFile)
-	if err != nil {
+		fmt.Println(err.Error())
 		return nil
 	}
 
@@ -59,7 +56,7 @@ func credential(crtFile, keyFile, caFile string) credentials.TransportCredential
 	})
 }
 
-func runServer(enableCA bool, port int, crtFile, keyFile, caFile string) {
+func runServer(enableCA bool, port int, crtFile, keyFile, caFile []byte) {
 	// Handling client timeout
 	kaep := keepalive.EnforcementPolicy{
 		MinTime:             defaultMinPingTime,
@@ -104,4 +101,8 @@ func runServer(enableCA bool, port int, crtFile, keyFile, caFile string) {
 		fmt.Println("RunServer", "####GRPC_SERVER_ERROR: %v", err)
 		os.Exit(-1)
 	}
+}
+
+func Run() {
+	runServer(true, 8888, conf.ServerCert, conf.ServerKey, conf.CaCert)
 }

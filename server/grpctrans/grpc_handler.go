@@ -37,6 +37,7 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) error {
 	}
 	addr := p.Addr.String()
 	// 到这真正连接成功了, 没有问题, 再进行下一步的数据交互
+	fmt.Printf("get connection %s from %s\n", agentID, addr)
 
 	// 开始创建 Connection
 	createAt := time.Now().UnixNano() / (1000 * 1000 * 1000)
@@ -57,10 +58,32 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) error {
 
 	// 退出删除 agentID
 	defer GlobalGRPCPool.Delete(agentID)
+	go receiveData(stream, &connection)
+	go sendData(stream, &connection)
+	go TestCpu(&connection)
 
 	// 接收到停止信号退出
 	<-connection.Ctx.Done()
 	return nil
+}
+
+func sendData(stream pb.Transfer_TransferServer, conn *Connection) {
+	defer conn.CancelFunc()
+
+	for {
+		select {
+		case <-conn.Ctx.Done():
+			return
+		case cmd := <-conn.CommandChan:
+			if cmd == nil {
+				return
+			}
+			err := stream.Send(cmd)
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 func receiveData(stream pb.Transfer_TransferServer, conn *Connection) {
@@ -103,7 +126,6 @@ func handleData(req *pb.RawData) {
 
 		switch dataType {
 		case 1:
-			//parse the heartbeat data
 			parseHeartBeat(fMessage, req)
 		}
 	}
@@ -170,4 +192,14 @@ func clearConn(conn *Connection) {
 	conn.HostName = ""
 	conn.IntranetIPv4 = make([]string, 0)
 	conn.IntranetIPv6 = make([]string, 0)
+}
+
+func TestCpu(conn *Connection) {
+	for {
+		if conn == nil {
+			return
+		}
+		fmt.Printf("%f, %d\n", conn.Cpu, conn.Memory)
+		time.Sleep(30 * time.Second)
+	}
 }
