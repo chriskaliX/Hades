@@ -83,10 +83,11 @@ func Run() {
 	go SshdConfigJob(ctx)
 
 	// 开启定期消费
-	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃
+	// 控制消费速率, 多余的事件会被丢弃。之前读取为一毫秒一次, 导致 CPU 最高占用过 40%
+	// 目前控制后, 最高 10% 左右, 速率控制问题
 	// 防止打开过多 fd 造成资源占用问题
 	// go func() {
-	ticker := time.NewTicker(time.Millisecond)
+	ticker := time.NewTicker(time.Millisecond * 4)
 	defer ticker.Stop()
 	for {
 		select {

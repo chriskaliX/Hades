@@ -125,7 +125,8 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	proc = structs.ProcessPool.Get().(structs.Process)
 	proc.PID = process.PID
 
-	// 这里有点问题, 压测了一下观察火焰图, 这里耗时非常高, 占比 Collector 的近 40%
+	// 优化点 1:
+	// 这里有点问题, 压测了一下观察火焰图, 这里耗时非常高, 占比 Collector 的近 40%, 更改后占 20% 多
 	// 我们跟进去看一下, 是一次性读取之后全部 load 进来, 由于我们只需要获取部分数据
 	// 不需要全部读取, 读取到特定行之后退出即可
 
@@ -225,12 +226,13 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	return proc, nil
 }
 
+// 因为我们不需要读取全部信息, 读取到需要的行之后直接退出
 func pidUid(process *structs.Process) {
 	if process != nil {
 		path := "/proc/" + strconv.Itoa(process.PID) + "/status"
 		if file, err := os.Open(path); err == nil {
 			defer file.Close()
-			s := bufio.NewScanner(io.LimitReader(file, 1024*1024))
+			s := bufio.NewScanner(io.LimitReader(file, 1024*512))
 			for s.Scan() {
 				if strings.HasPrefix(s.Text(), "Name:") {
 					process.Name = strings.Fields(s.Text())[1]
