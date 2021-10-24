@@ -88,7 +88,9 @@ func Run() {
 			panic(err)
 		}
 	}()
-	ticker := time.NewTicker(time.Second * 30)
+
+	// 默认 30 秒, 测试先转成 3 秒
+	ticker := time.NewTicker(time.Second * 1)
 	h := &Heart{}
 	h.Beat()
 	for {
@@ -98,6 +100,7 @@ func Run() {
 		}
 	}
 }
+
 func getTotal(sysStat procfs.Stat) float64 {
 	return sysStat.CPUTotal.Idle + sysStat.CPUTotal.IRQ + sysStat.CPUTotal.Iowait + sysStat.CPUTotal.Nice + sysStat.CPUTotal.SoftIRQ + sysStat.CPUTotal.System + sysStat.CPUTotal.User
 }

@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"math/rand"
 	"strconv"
@@ -105,7 +106,7 @@ func GetSockets(disableProc bool, status uint8) (sockets []network.Socket, err e
 }
 
 // 在同一时间突然流量激增导致丢弃，给一个初始随机值，再reset掉
-func SocketJob() {
+func SocketJob(ctx context.Context) {
 	init := true
 	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(600)+1))
 	defer ticker.Stop()
@@ -126,6 +127,8 @@ func SocketJob() {
 					global.UploadChannel <- rawdata
 				}
 			}
+		case <- ctx.Done():
+			return
 		}
 	}
 }
