@@ -151,10 +151,12 @@ func (netlink *Netlink) StopCN() error {
 	return syscall.Close(netlink.sock)
 }
 
+var pageSize = syscall.Getpagesize()
+
 // netlink : 跳过错误信息
 // 接收回调 callback 来处理
 func (netlink *Netlink) Receive(HandleFunc func([]byte)) {
-	buf := make([]byte, syscall.Getpagesize())
+	buf := make([]byte, pageSize)
 	for {
 		nr, _, err := syscall.Recvfrom(netlink.sock, buf, 0)
 		if err != nil {

@@ -2,12 +2,18 @@ package collector
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
+	"agent/config"
 	"agent/global"
+	"agent/global/structs"
 	"agent/network"
+	"agent/utils"
 )
 
 var (
@@ -138,7 +144,7 @@ func handleProcEvent(data []byte) {
 	case network.PROC_EVENT_SID:
 
 	// ptrace 事件监听
-	// todo: 
+	// todo:
 	case network.PROC_EVENT_PTRACE:
 	case network.PROC_EVENT_COMM:
 	case network.PROC_EVENT_COREDUMP:
@@ -146,7 +152,7 @@ func handleProcEvent(data []byte) {
 	}
 }
 
-func CN_PROC_START() error {
+func cn_proc_start() error {
 	var err error
 	netlinkContext = &network.Context{}
 	netlink = &network.Netlink{}
@@ -159,4 +165,53 @@ func CN_PROC_START() error {
 	}
 	go netlink.Receive(handleProcEvent)
 	return nil
+}
+
+// 开启定期消费
+// 控制消费速率, 多余的事件会被丢弃。之前读取为一毫秒一次, 导致 CPU 最高占用过 40%
+// 目前控制后, 最高 10% 左右, 速率控制问题
+// 防止打开过多 fd 造成资源占用问题
+func NetlinkCNProcJob(ctx context.Context) {
+	if err := cn_proc_start(); err != nil {
+		return
+	}
+	ticker := time.NewTicker(time.Millisecond * 4)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			pid := <-global.PidChannel
+			process, err := GetProcessInfo(pid)
+			if err != nil {
+				process.Reset()
+				structs.ProcessPool.Put(process)
+				continue
+			}
+			// 白名单校验
+			if config.WhiteListCheck(process) {
+				process.Reset()
+				structs.ProcessPool.Put(process)
+				continue
+			}
+
+			global.ProcessCmdlineCache.Add(pid, process.Cmdline)
+			if ppid, ok := global.ProcessCache.Get(pid); ok {
+				process.PPID = int(ppid.(uint32))
+			}
+			process.PidTree = global.GetPstree(uint32(process.PID))
+			// json 对 html 字符会转义, 转用下面方法是否会对性能有影响? 需要再看一下
+			data, err := utils.Marshal(process)
+			if err == nil {
+				rawdata := make(map[string]string)
+				rawdata["data"] = string(data)
+				rawdata["time"] = strconv.Itoa(int(global.Time))
+				rawdata["data_type"] = "1000"
+				global.UploadChannel <- rawdata
+			}
+			process.Reset()
+			structs.ProcessPool.Put(process)
+		case <-ctx.Done():
+			return
+		}
+	}
 }

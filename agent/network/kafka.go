@@ -47,7 +47,7 @@ func (k *Kafka) String() string {
 }
 
 func (k *Kafka) GetHashMod() uint {
-	return 1
+	return 2
 }
 
 func (k *Kafka) Close() {
