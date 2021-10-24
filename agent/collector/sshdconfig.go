@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Elkeid 只有 system 级别的 Config, User 级别没有获取
+// Elkeid 只有 system 级别的 Config, User 级别没有获取...不对, 我看错了
 // 参考 https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/osquery/tables/system/ssh_configs.cpp
 // 在我的机器上还有一个 Include /etc/ssh/sshd_config.d/*.conf
 
