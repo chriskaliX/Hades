@@ -4,6 +4,7 @@ import (
 	"agent/global"
 	"agent/utils"
 	"bufio"
+	"context"
 	"crypto/md5"
 	"errors"
 	"io"
@@ -178,7 +179,7 @@ func GetCron() (crons []Cron, err error) {
 	return
 }
 
-func CronJob() {
+func CronJob(ctx context.Context) {
 	init := true
 	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(6)+1))
 
@@ -247,6 +248,8 @@ func CronJob() {
 					f.Close()
 				}
 			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }

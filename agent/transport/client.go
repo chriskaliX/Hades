@@ -19,7 +19,7 @@ import (
 )
 
 // 这里的写法是错误直接Panic
-// 但是我认为, 应该和 osquery 一样, 一直等着回连, 这个进程不能退出, 作为主要的守护进程
+// 但是我认为, 应该和 osquery 一样, 一直等着
 func Run() {
 	for {
 		conn, err := connection.New()
@@ -40,9 +40,8 @@ func Run() {
 		wg.Wait()
 		cancel()
 		conn.Close()
-		// 断线重连
+		// 事件后面在考虑
 		time.Sleep(1 * time.Minute)
-		fmt.Println("Connection failed...")
 	}
 }
 

@@ -1,14 +1,15 @@
 package collector
 
 import (
+	"bufio"
+	"context"
 	"errors"
-	"fmt"
+	"io"
 	"sync"
 	"time"
 
 	"agent/global"
 	"agent/global/structs"
-	"agent/network"
 
 	"math/rand"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"agent/utils"
 
 	"github.com/prometheus/procfs"
-	"golang.org/x/sys/unix"
 )
 
 const MaxProcess = 5000
@@ -125,12 +125,17 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	proc = structs.ProcessPool.Get().(structs.Process)
 	proc.PID = process.PID
 
-	status, err := process.NewStatus()
-	if err == nil {
-		proc.UID = status.UIDs[0]
-		proc.EUID = status.UIDs[1]
-		proc.Name = status.Name
-	}
+	// 这里有点问题, 压测了一下观察火焰图, 这里耗时非常高, 占比 Collector 的近 40%
+	// 我们跟进去看一下, 是一次性读取之后全部 load 进来, 由于我们只需要获取部分数据
+	// 不需要全部读取, 读取到特定行之后退出即可
+
+	// status, err := process.NewStatus()
+	// if err == nil {
+	// 	proc.UID = status.UIDs[0]
+	// 	proc.EUID = status.UIDs[1]
+	// 	proc.Name = status.Name
+	// }
+	pidUid(&proc)
 
 	state, err := process.Stat()
 	if err == nil {
@@ -141,9 +146,7 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	}
 
 	proc.Cwd, err = process.Cwd()
-	cmdline, err := process.CmdLine()
-	if err != nil {
-	} else {
+	if cmdline, err := process.CmdLine(); err == nil {
 		if len(cmdline) > 32 {
 			cmdline = cmdline[:32]
 		}
@@ -189,45 +192,67 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	}
 
 	// inodes 于 fd 关联, 获取 remote_ip
-	inodes := make(map[uint32]string)
-	if sockets, err := network.ParseProcNet(unix.AF_INET, unix.IPPROTO_TCP, "/proc/"+fmt.Sprint(pid)+"/net/tcp", network.TCP_ESTABLISHED); err == nil {
-		for _, socket := range sockets {
-			if socket.Inode != 0 {
-				if socket.DIP.String() == "0.0.0.0" {
-					continue
-				}
-				inodes[socket.Inode] = string(socket.DIP.String()) + ":" + fmt.Sprint(socket.DPort)
-			}
-		}
-	}
+	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点
 
-	fds, _ := process.FileDescriptorTargets()
-	for _, fd := range fds {
-		if strings.HasPrefix(fd, "socket:[") {
-			inode, _ := strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
-			d, ok := inodes[uint32(inode)]
-			if ok {
-				if proc.RemoteAddrs == "" {
-					proc.RemoteAddrs = d
-				} else if strings.Contains(proc.RemoteAddrs, d) {
-					continue
-				}
-				proc.RemoteAddrs = proc.RemoteAddrs + "," + d
-			}
-		}
-	}
+	// inodes := make(map[uint32]string)
+	// if sockets, err := network.ParseProcNet(unix.AF_INET, unix.IPPROTO_TCP, "/proc/"+fmt.Sprint(pid)+"/net/tcp"); err == nil {
+	// 	for _, socket := range sockets {
+	// 		if socket.Inode != 0 {
+	// 			if socket.DIP.String() == "0.0.0.0" {
+	// 				continue
+	// 			}
+	// 			inodes[socket.Inode] = string(socket.DIP.String()) + ":" + fmt.Sprint(socket.DPort)
+	// 		}
+	// 	}
+	// }
+
+	// fds, _ := process.FileDescriptorTargets()
+	// for _, fd := range fds {
+	// 	if strings.HasPrefix(fd, "socket:[") {
+	// 		inode, _ := strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
+	// 		d, ok := inodes[uint32(inode)]
+	// 		if ok {
+	// 			if proc.RemoteAddrs == "" {
+	// 				proc.RemoteAddrs = d
+	// 			} else if strings.Contains(proc.RemoteAddrs, d) {
+	// 				continue
+	// 			}
+	// 			proc.RemoteAddrs = proc.RemoteAddrs + "," + d
+	// 		}
+	// 	}
+	// }
 
 	return proc, nil
 }
 
-func ProcessUpdateJob() {
+func pidUid(process *structs.Process) {
+	if process != nil {
+		path := "/proc/" + strconv.Itoa(process.PID) + "/status"
+		if file, err := os.Open(path); err == nil {
+			defer file.Close()
+			s := bufio.NewScanner(io.LimitReader(file, 1024*1024))
+			for s.Scan() {
+				if strings.HasPrefix(s.Text(), "Name:") {
+					process.Name = strings.Fields(s.Text())[1]
+				} else if strings.HasPrefix(s.Text(), "Uid:") {
+					fields := strings.Fields(s.Text())
+					process.UID = fields[1]
+					process.EUID = fields[2]
+					break
+				}
+			}
+		}
+	}
+}
+
+func ProcessUpdateJob(ctx context.Context) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			Singleton.FlushProcessCache()
-		case <-global.Context.Done():
+		case <-ctx.Done():
 			return
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	_ "net/http/pprof"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
@@ -55,25 +58,32 @@ func main() {
 	go report.Run()
 
 	ticker := time.NewTicker(time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			rd := <-global.UploadChannel
-			rd["AgentID"] = global.AgentID
-			rd["Hostname"] = global.Hostname
-			// 目前还在测试, 专门打印
-			if rd["data_type"] != "2001" {
-				continue
-			}
-			_, err := json.Marshal(rd)
-			if err != nil {
-				continue
-			}
-			fmt.Println(rd)
-			// network.KafkaSingleton.Send(string(m))
-		}
-	}
 
+	sshd, _ := collector.GetSshdConfig()
+	fmt.Println(sshd)
+
+	defer ticker.Stop()
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				rd := <-global.UploadChannel
+				rd["AgentID"] = global.AgentID
+				rd["Hostname"] = global.Hostname
+				// 目前还在测试, 专门打印
+				if rd["data_type"] != "2001" {
+					continue
+				}
+				_, err := json.Marshal(rd)
+				if err != nil {
+					continue
+				}
+				fmt.Println(rd)
+				// network.KafkaSingleton.Send(string(m))
+			}
+		}
+	}()
+
+	http.ListenAndServe("0.0.0.0:6060", nil)
 	// 指令回传在这里
 }

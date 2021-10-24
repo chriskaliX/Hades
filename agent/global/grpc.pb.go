@@ -152,9 +152,10 @@ func (m *Record) GetMessage() map[string]string {
 
 type Command struct {
 	//
-	//1 关闭
-	//2 自更新
-	//3 配置
+	//1 关闭(Agent自身)
+	//2 自更新(URL 下载)
+	//3 白名单操作
+	//4 主动查询模式
 	AgentCtrl            int32             `protobuf:"varint,1,opt,name=AgentCtrl,proto3" json:"AgentCtrl,omitempty"`
 	Message              map[string]string `protobuf:"bytes,2,rep,name=message,proto3" json:"message,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`

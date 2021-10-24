@@ -12,7 +12,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func ParseProcNet(family, protocol uint8, path string, status int) (sockets []Socket, err error) {
+// 解析 tcp/udp 文件中的信息
+func ParseProcNet(family, protocol uint8, path string) (sockets []Socket, err error) {
 	var file *os.File
 	file, err = os.Open(path)
 	if err != nil {
@@ -80,19 +81,7 @@ func ParseProcNet(family, protocol uint8, path string, status int) (sockets []So
 					if err != nil {
 						continue
 					}
-
-					// 更改程 LISTEN 和建立
-					if status == LISTEN {
-						if (protocol == unix.IPPROTO_UDP && st != 7) || (protocol == unix.IPPROTO_TCP && st != 10) {
-							droped = true
-							break
-						}
-					} else if status == TCP_ESTABLISHED {
-						if protocol == unix.IPPROTO_TCP && st != 1 {
-							droped = true
-							break
-						}
-					} else {
+					if (protocol == unix.IPPROTO_UDP && st != 7) || (protocol == unix.IPPROTO_TCP && st != 10) {
 						droped = true
 						break
 					}
@@ -119,7 +108,6 @@ func ParseProcNet(family, protocol uint8, path string, status int) (sockets []So
 				sockets = append(sockets, socket)
 			}
 		}
-
 	}
 	return
 }

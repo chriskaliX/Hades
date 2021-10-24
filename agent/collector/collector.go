@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"runtime"
 	"strconv"
 	"sync"
@@ -54,6 +55,10 @@ func Run() {
 	// 初始采集, 刷一批进内存, 能构建初步的进程树
 	Singleton.FlushProcessCache()
 
+	// 上下文控制, 有点不统一, 待会更新
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// 开启生产进程
 	// 必须 netlink 连接上, 否则没有进程采集功能了
 	// 强制退出
@@ -63,16 +68,19 @@ func Run() {
 	}
 
 	// 定期刷新进程树, 一小时一次
-	go ProcessUpdateJob()
+	go ProcessUpdateJob(ctx)
 
 	// socket 定期采集
-	go SocketJob()
+	go SocketJob(ctx)
 
 	// 系统信息24小时上传一次
 	go global.SystemInfoJob()
 
 	// crontab 信息采集
-	go CronJob()
+	go CronJob(ctx)
+
+	// sshd 信息
+	go SshdConfigJob(ctx)
 
 	// 开启定期消费
 	// 控制消费速率, 上限为一秒 1000 次, 多余的事件会被丢弃

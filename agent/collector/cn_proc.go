@@ -136,6 +136,9 @@ func handleProcEvent(data []byte) {
 	case network.PROC_EVENT_UID:
 	case network.PROC_EVENT_GID:
 	case network.PROC_EVENT_SID:
+
+	// ptrace 事件监听
+	// todo: 
 	case network.PROC_EVENT_PTRACE:
 	case network.PROC_EVENT_COMM:
 	case network.PROC_EVENT_COREDUMP:
