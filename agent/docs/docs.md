@@ -26,6 +26,7 @@
 
 - 3001 Crontab 信息
 - 3002 SshConfig 信息
+- 3003 yum 信息
 
 ## 压测
 
