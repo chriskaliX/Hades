@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"agent/collector"
@@ -71,6 +72,16 @@ func main() {
 				rd["AgentID"] = global.AgentID
 				rd["Hostname"] = global.Hostname
 				// 目前还在测试, 专门打印
+				if rd["data_type"] == "1000" {
+					if strings.Contains(rd["data"], ".vscode") {
+						continue
+					}
+					if strings.Contains(rd["data"], "ssh") {
+						fmt.Println(rd["data"])
+					}
+					// fmt.Println(rd["data"])
+				}
+
 				if rd["data_type"] != "2001" {
 					continue
 				}
