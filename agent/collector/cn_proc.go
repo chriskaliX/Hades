@@ -137,7 +137,11 @@ func handleProcEvent(data []byte) {
 		default:
 			// drop here
 		}
-	case network.PROC_EVENT_NS:
+	// 文件里没有这个, 看来借鉴的不对, 以 Linux 下的文件为准
+	// case network.PROC_EVENT_NS:
+
+	// 考虑获取 exit 事件, 用来捕获退出后从 LRU 里面剔除, 减小内存占用
+	// 但是会让 LRU 里面的增多, 
 	case network.PROC_EVENT_EXIT:
 	case network.PROC_EVENT_UID:
 	case network.PROC_EVENT_GID:
@@ -175,7 +179,7 @@ func NetlinkCNProcJob(ctx context.Context) {
 	if err := cn_proc_start(); err != nil {
 		return
 	}
-	ticker := time.NewTicker(time.Millisecond * 4)
+	ticker := time.NewTicker(time.Millisecond * 5)
 	defer ticker.Stop()
 	for {
 		select {
