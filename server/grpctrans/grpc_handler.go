@@ -104,7 +104,7 @@ func receiveData(stream pb.Transfer_TransferServer, conn *Connection) {
 }
 
 func handleData(req *pb.RawData) {
-	timePkg := fmt.Sprintf("%d", req.Timestamp)
+	timeStamp := fmt.Sprintf("%d", req.Timestamp)
 	inIPv4List := strings.Join(req.IntranetIPv4, ",")
 	inIPv6List := strings.Join(req.IntranetIPv6, ",")
 
@@ -119,7 +119,7 @@ func handleData(req *pb.RawData) {
 		}
 		fMessage := req.GetPkg()[k].Message
 		fMessage["agent_id"] = req.AgentID
-		fMessage["time_pkg"] = timePkg
+		fMessage["timestamp"] = timeStamp
 		fMessage["hostname"] = req.Hostname
 		fMessage["version"] = req.Version
 		fMessage["in_ipv4_list"] = inIPv4List
@@ -132,6 +132,7 @@ func handleData(req *pb.RawData) {
 	}
 }
 
+// 2021-10-28 增加心跳检测阈值判定
 func parseHeartBeat(hb map[string]string, req *pb.RawData) {
 
 	agentID := req.AgentID
@@ -182,7 +183,10 @@ func parseHeartBeat(hb map[string]string, req *pb.RawData) {
 
 	//last heartbeat time get from server
 	conn.LastHeartBeatTime = time.Now().Unix()
-	// 测试
+
+	// 传输时间检测
+
+	// TODO: 测试
 	fmt.Printf("%f, %d\n", conn.Cpu, conn.Memory)
 }
 
