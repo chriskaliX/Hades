@@ -40,7 +40,7 @@ func main() {
 	grpcWriter := zapcore.AddSync(&log.LoggerWriter{})
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "log/Hades.log",
+		Filename:   "log/hades.log",
 		MaxSize:    1, // megabytes
 		MaxBackups: 10,
 		MaxAge:     10,   //days

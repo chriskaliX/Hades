@@ -62,6 +62,7 @@ type ProcEventExec struct {
 	ProcessTgid uint32
 }
 
+// exit 事件
 type ProcEventExit struct {
 	ProcessPid  uint32
 	ProcessTgid uint32
@@ -69,11 +70,21 @@ type ProcEventExit struct {
 	ExitSignal  uint32
 }
 
+// ptrace
+type ProcEventPtrace struct {
+	ProcessPid  int32
+	ProcessTgid int32
+	TracerPid   int32
+	TracerTgid  int32
+}
+
 var (
 	ProcEventForkPool   *sync.Pool
 	ProcEventExecPool   *sync.Pool
-	cnMsgPool           *sync.Pool
+	ProcEventPtracePool *sync.Pool
 	procEventHeaderPool *sync.Pool
+	cnMsgPool           *sync.Pool
+	bufPool             *sync.Pool
 )
 
 func init() {
@@ -88,27 +99,53 @@ func init() {
 			return new(ProcEventExec)
 		},
 	}
+
+	// cnMsg 对象池
 	cnMsgPool = &sync.Pool{
 		New: func() interface{} {
 			return new(cnMsg)
 		},
 	}
+
+	// 事件头对象池
 	procEventHeaderPool = &sync.Pool{
 		New: func() interface{} {
 			return new(procEventHeader)
 		},
 	}
+
+	// ptrace 对象池
+	ProcEventPtracePool = &sync.Pool{
+		New: func() interface{} {
+			return new(ProcEventPtrace)
+		},
+	}
+
+	bufPool = &sync.Pool{
+		New: func() interface{} {
+			return &bytes.Buffer{}
+		},
+	}
 }
 
 func handleProcEvent(data []byte) {
-	buf := bytes.NewBuffer(data)
+	// 这里对象池? pprof 一下看占用
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf = bytes.NewBuffer(data)
+
 	msg := cnMsgPool.Get().(*cnMsg)
-	defer cnMsgPool.Put(msg)
-	hdr := procEventHeaderPool.Get().(*procEventHeader)
-	defer procEventHeaderPool.Put(hdr)
 	binary.Read(buf, network.BYTE_ORDER, msg)
+
+	hdr := procEventHeaderPool.Get().(*procEventHeader)
 	binary.Read(buf, network.BYTE_ORDER, hdr)
-	// 重点关注 Fork & Exec
+
+	defer func() {
+		bufPool.Put(buf)
+		cnMsgPool.Put(msg)
+		procEventHeaderPool.Put(hdr)
+	}()
+
+	// 关注 fork, exec,
 	switch hdr.What {
 	case network.PROC_EVENT_NONE:
 	case network.PROC_EVENT_FORK:
@@ -141,14 +178,14 @@ func handleProcEvent(data []byte) {
 	// case network.PROC_EVENT_NS:
 
 	// 考虑获取 exit 事件, 用来捕获退出后从 LRU 里面剔除, 减小内存占用
-	// 但是会让 LRU 里面的增多, 
+	// 但是会让 LRU 里面的增多,
 	case network.PROC_EVENT_EXIT:
 	case network.PROC_EVENT_UID:
 	case network.PROC_EVENT_GID:
 	case network.PROC_EVENT_SID:
 
 	// ptrace 事件监听
-	// todo:
+	// TODO:
 	case network.PROC_EVENT_PTRACE:
 	case network.PROC_EVENT_COMM:
 	case network.PROC_EVENT_COREDUMP:
