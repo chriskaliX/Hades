@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/Shopify/sarama v1.30.0
-	github.com/cilium/ebpf v0.6.3-0.20210907154550-0ecbe1516910
+	github.com/cilium/ebpf v0.7.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
