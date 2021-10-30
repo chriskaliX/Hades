@@ -4,5 +4,6 @@ agent/collector/collector
 .VSCodeCounter/
 .vscode/
 agent/log/Hades*
+agent/log/hades*
 cert/
 server/hadeserver
