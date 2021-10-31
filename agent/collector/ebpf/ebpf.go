@@ -15,7 +15,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 bpf ./src/kprobe_example.c -- -nostdinc -g -O2 -target bpf -D__x86_64__ -D__KERNEL__ -Wno-address-of-packed-member -I headers/ -I /usr/include/ -Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-gnu-variable-sized-type-not-at-end -Wno-address-of-packed-member -Wno-tautological-compare -Wno-unknown-warning-option -fno-stack-protector
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 bpf ./src/kprobe_example.c -- -nostdinc -g -O2 -target bpf -D__x86_64__ -D__KERNEL__ -Wno-address-of-packed-member -I headers/ -I /usr/src/linux-headers-5.4.0-89/arch/x86/include/ -I /usr/src/linux-headers-5.4.0-89/include/ -I /usr/include/ -Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-gnu-variable-sized-type-not-at-end -Wno-address-of-packed-member -Wno-tautological-compare -Wno-unknown-warning-option -fno-stack-protector  -D___TARGET_ARCH_x86
 
 // ebpf 的采集 - test1
 // osquery 的 ebpf 相关地址 https://github.com/osquery/osquery/tree/d2be385d71f401c85872f00d479df8f499164c5a/osquery/events/linux/bpf
@@ -56,7 +56,7 @@ func Test() {
 	// pre-compiled program. Each time the kernel function enters, the program
 	// will increment the execution counter by 1. The read loop below polls this
 	// map value once per second.
-	kp, err := link.Kprobe(fn, objs.BpfSysExecve)
+	kp, err := link.Kprobe(fn, objs.ProbeSysExecve)
 	if err != nil {
 		log.Fatalf("opening kprobe: %s", err)
 	}
@@ -102,7 +102,7 @@ func Test() {
 				continue
 			}
 
-			fmt.Println(string(event.Comm[:]), string(event.Filename[:]), string(event.Argv[:]))
+			fmt.Printf("comm:%s, filename:%s, argv: %s\n", string(event.Comm[:]), string(event.Filename[:]), string(event.Argv[:]))
 
 		case <-stopper:
 			panic("return")
