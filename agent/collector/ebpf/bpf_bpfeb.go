@@ -54,7 +54,7 @@ type bpfSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfProgramSpecs struct {
-	BpfSysExecve *ebpf.ProgramSpec `ebpf:"bpf_sys_execve"`
+	ProbeSysExecve *ebpf.ProgramSpec `ebpf:"probe_sys_execve"`
 }
 
 // bpfMapSpecs contains maps before they are loaded into the kernel.
@@ -96,12 +96,12 @@ func (m *bpfMaps) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfPrograms struct {
-	BpfSysExecve *ebpf.Program `ebpf:"bpf_sys_execve"`
+	ProbeSysExecve *ebpf.Program `ebpf:"probe_sys_execve"`
 }
 
 func (p *bpfPrograms) Close() error {
 	return _BpfClose(
-		p.BpfSysExecve,
+		p.ProbeSysExecve,
 	)
 }
 

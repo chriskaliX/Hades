@@ -25,7 +25,8 @@ import (
 
 // 默认 agent 仅仅保留和server段通信功能, 通信失败就不开启
 func main() {
-	ebpf.Test()
+	// ebpf.Test()
+	ebpf.Tracepoint()
 
 	defer func() {
 		if err := recover(); err != nil {
