@@ -1535,3 +1535,8 @@
 2021-10-31T15:53:42.424+0800	INFO	report/report.go:72	map[cpu:0.23232 data_type:1 io:4096 kernel_version:5.4.0-89-generic memory:18407424 platform:ubuntu platform_version:20.04 slab:476616 timestamp:1635666822]
 2021-10-31T15:53:43.425+0800	INFO	report/report.go:72	map[cpu:0.02010 data_type:1 io:4096 kernel_version:5.4.0-89-generic memory:18767872 platform:ubuntu platform_version:20.04 slab:476624 timestamp:1635666823]
 2021-10-31T15:53:44.424+0800	INFO	report/report.go:72	map[cpu:0.03030 data_type:1 io:0 kernel_version:5.4.0-89-generic memory:18595840 platform:ubuntu platform_version:20.04 slab:476660 timestamp:1635666824]
+2021-10-31T23:55:20.847+0800	INFO	report/report.go:72	map[cpu:0.00000 data_type:1 io:0 kernel_version:5.4.0-89-generic memory:12042240 platform:ubuntu platform_version:20.04 slab:438808 timestamp:1635695720]
+2021-10-31T23:55:21.848+0800	INFO	report/report.go:72	map[cpu:0.24242 data_type:1 io:4259840 kernel_version:5.4.0-89-generic memory:18350080 platform:ubuntu platform_version:20.04 slab:438956 timestamp:1635695721]
+2021-10-31T23:55:22.848+0800	INFO	report/report.go:72	map[cpu:0.02020 data_type:1 io:0 kernel_version:5.4.0-89-generic memory:18579456 platform:ubuntu platform_version:20.04 slab:438956 timestamp:1635695722]
+2021-10-31T23:55:23.847+0800	INFO	report/report.go:72	map[cpu:0.02030 data_type:1 io:0 kernel_version:5.4.0-89-generic memory:18579456 platform:ubuntu platform_version:20.04 slab:438956 timestamp:1635695723]
+2021-10-31T23:55:24.848+0800	INFO	report/report.go:72	map[cpu:0.01000 data_type:1 io:0 kernel_version:5.4.0-89-generic memory:18579456 platform:ubuntu platform_version:20.04 slab:438936 timestamp:1635695724]
