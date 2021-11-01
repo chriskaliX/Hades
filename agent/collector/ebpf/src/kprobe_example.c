@@ -1,24 +1,26 @@
-#include "vmlinux.h" /*在 vmlinux.h里只取了 pt_regs(或者ptrace.h) 和一些其他定义*/
-#include "bpf_helpers.h"
-#include "bpf_tracing.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include <linux/bpf.h>
+#include <linux/ptrace.h>
 
 /*
     Besides, Kernel Version needs to be compared
     https://github.com/iovisor/bcc/issues/3232 --- CO-RE libbpf Ubuntu vmlinux.h
+    看了一点点 osquery 的, 还是先用 libbpf
 */
 
-char __license[] SEC("license") = "Dual MIT/GPL";
+char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define TASK_COMM_LEN 16
 #define ARGV_LEN 128
 #define FILE_NAME_LEN 128
 #define MAXARG 20
 
-struct data {
-    u32 pid;
-    u32 uid;
-    u32 gid;
-    u32 ppid;
+struct data_t {
+    __u32 pid;
+    __u32 uid;
+    __u32 gid;
+    __u32 ppid;
     char filename[FILE_NAME_LEN];
     char comm[TASK_COMM_LEN];
     char argv[ARGV_LEN];
@@ -27,7 +29,7 @@ struct data {
 struct bpf_map_def SEC("maps") exe_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(int),
-    .value_size = sizeof(u32),
+    .value_size = sizeof(__u32),
     .max_entries = 1024,
 };
 
@@ -35,25 +37,17 @@ SEC("kprobe/sys_execve")
 int BPF_KPROBE(probe_sys_execve, const char *filename, 
     const char *const *argv, 
     const char *const *envp) {
-		
-	struct data data = {
-		.pid = 0,
+	struct data_t data = {
+		.pid = 0
 	};
-	u32 cpu = bpf_get_smp_processor_id();
 	bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
-	// void *fn;
-	// fn = ___bpf_kprobe_args2(ctx);
+    // filename还是有问题...
 
-	// bpf_probe_read_user_str(&data.filename, sizeof(data.filename), filename);
-	// const char * filename_t = (const char *)PT_REGS_PARM1(ctx);
-	// bpf_probe_read_user_str( &data.filename, sizeof( data.filename ), filename_t );
+	const char * filename_t = (const char *)PT_REGS_PARM1(ctx);
+	bpf_probe_read_user_str( &data.filename, sizeof( data.filename ), filename_t );
 
-	// struct pt_regs *ctx1 = (struct pt_regs *)(PT_REGS_PARM1(ctx));
-	// bpf_probe_read(&filename, sizeof(filename), &PT_REGS_PARM1(ctx1));
-	// bpf_probe_read(&data.filename, sizeof(data.filename), fn);
-
-	bpf_perf_event_output(ctx, &exe_events, cpu, &data, sizeof(data));
+	bpf_perf_event_output(ctx, &exe_events, BPF_F_CURRENT_CPU, &data, sizeof(data));
 	return 0;
 }
 
