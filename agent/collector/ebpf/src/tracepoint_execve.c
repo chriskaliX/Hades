@@ -1,4 +1,5 @@
-#include "common.h"
+// #include "common.h"
+#include "vmlinux.h"
 #include "bpf_helpers.h"
 
 #define TASK_COMM_LEN 16
@@ -24,7 +25,7 @@ struct bpf_map_def SEC("maps") perf_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
-    .max_entries = 128,
+    // .max_entries = 128,
 };
 
 /* /sys/kernel/debug/tracing/events/syscalls/sys_enter_execve/format */
@@ -47,11 +48,11 @@ int enter_execve(struct execve_entry_args_t *ctx)
     bpf_get_current_comm(exec_data.comm, sizeof(exec_data.comm));
 
     // 获取 ppid, task_struct 的问题
-    // struct task_struct *task;
-    // task = (struct task_struct*)bpf_get_current_task();
-	// struct task_struct* real_parent_task;
-	// bpf_probe_read(&real_parent_task, sizeof( real_parent_task ), &task->real_parent );
-	// bpf_probe_read(&exec_data.ppid, sizeof( exec_data.ppid ), &real_parent_task->pid );
+    struct task_struct *task;
+    task = (struct task_struct*)bpf_get_current_task();
+	struct task_struct* real_parent_task;
+	bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
+	bpf_probe_read(&exec_data.ppid, sizeof(exec_data.ppid), &real_parent_task->pid );
     
     // 参数地址
 	const char* argp = NULL;
