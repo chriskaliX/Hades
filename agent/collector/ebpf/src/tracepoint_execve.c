@@ -20,37 +20,42 @@ struct exec_data_t {
     u32 arg_size;
 };
 
-// For Rust libbpf-rs only
-struct exec_data_t _edt = {0};
+struct bpf_map_def SEC("maps") perf_events = {
+    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(u32),
+    .max_entries = 128,
+};
 
-struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-} execve_perf_map SEC(".maps");
-
+/* /sys/kernel/debug/tracing/events/syscalls/sys_enter_execve/format */
 struct execve_entry_args_t {
-        u64 _unused; //8 bytes
-        u64 _unused1; //8 bytes
-        const char* filename; //offset:16;	size:8;
-        // u64 _unused2;
-        const char* const* argv; //offset:24;	size:8;
-        const char* const* envp; //offset:32;   size:8;
+    __u64 unused;
+	int syscall_nr;
+	const char *filename;
+    const char *const * argv;
+    const char *const * envp;
 };
 
 SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
-
 	struct exec_data_t exec_data = {};
+	exec_data.pid = bpf_get_current_pid_tgid();
+    exec_data.tgid = bpf_get_current_pid_tgid() >> 32;
+    exec_data.uid = bpf_get_current_uid_gid();
+    exec_data.gid = bpf_get_current_uid_gid() >> 32;
+    bpf_get_current_comm(exec_data.comm, sizeof(exec_data.comm));
+
+    // 获取 ppid, task_struct 的问题
+    // struct task_struct *task;
+    // task = (struct task_struct*)bpf_get_current_task();
+	// struct task_struct* real_parent_task;
+	// bpf_probe_read(&real_parent_task, sizeof( real_parent_task ), &task->real_parent );
+	// bpf_probe_read(&exec_data.ppid, sizeof( exec_data.ppid ), &real_parent_task->pid );
+    
     // 参数地址
 	const char* argp = NULL;
-	exec_data.pid = bpf_get_current_pid_tgid();
-    
 	// https://stackoverflow.com/questions/67188440/ebpf-cannot-read-argv-and-envp-from-tracepoint-sys-enter-execve
-    // bpf_probe_read(&argp, sizeof(argp), &ctx->argv[0]);
-	// bpf_probe_read_user_str(exec_data.args, ARGSIZE, argp);
-    // bpf_perf_event_output(ctx, &execve_perf_map, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
 	#pragma unroll
     for (__s32 i = 0; i < DEFAULT_MAXARGS; i++)
     {
@@ -59,18 +64,12 @@ int enter_execve(struct execve_entry_args_t *ctx)
 			goto finish;
 		}
         exec_data.arg_size = bpf_probe_read_str(exec_data.args, ARGSIZE, argp);
-        bpf_perf_event_output(ctx, &execve_perf_map, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
+        bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
     }
 	finish:
     exec_data.type = 1;
-    exec_data.tgid = bpf_get_current_pid_tgid() >> 32;
-    exec_data.uid = bpf_get_current_uid_gid();
-    exec_data.gid = bpf_get_current_uid_gid() >> 32;
 	bpf_probe_read_str(exec_data.fname, sizeof(exec_data.fname), ctx->filename);
-
-	bpf_get_current_comm(exec_data.comm, sizeof(exec_data.comm));
-    bpf_perf_event_output(ctx, &execve_perf_map, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
-	
+    bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
 	return 0;
 }
 
