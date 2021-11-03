@@ -61,7 +61,7 @@ type sysExecveProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type sysExecveMapSpecs struct {
-	ExecvePerfMap *ebpf.MapSpec `ebpf:"execve_perf_map"`
+	PerfEvents *ebpf.MapSpec `ebpf:"perf_events"`
 }
 
 // sysExecveObjects contains all objects after they have been loaded into the kernel.
@@ -83,12 +83,12 @@ func (o *sysExecveObjects) Close() error {
 //
 // It can be passed to loadSysExecveObjects or ebpf.CollectionSpec.LoadAndAssign.
 type sysExecveMaps struct {
-	ExecvePerfMap *ebpf.Map `ebpf:"execve_perf_map"`
+	PerfEvents *ebpf.Map `ebpf:"perf_events"`
 }
 
 func (m *sysExecveMaps) Close() error {
 	return _SysExecveClose(
-		m.ExecvePerfMap,
+		m.PerfEvents,
 	)
 }
 

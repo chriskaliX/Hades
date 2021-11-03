@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
+	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 )
 
@@ -34,7 +34,7 @@ func setlimit() {
 			Cur: unix.RLIM_INFINITY,
 			Max: unix.RLIM_INFINITY,
 		}); err != nil {
-		log.Fatalf("failed to set temporary rlimit: %v", err)
+		zap.S().Panic(fmt.Sprintf("failed to set temporary rlimit: %v", err))
 	}
 }
 
@@ -48,19 +48,21 @@ func Tracepoint2() {
 	loadSysExecveObjects(&objs, nil)
 	link.Tracepoint("syscalls", "sys_enter_execve", objs.EnterExecve)
 
-	rd, err := perf.NewReader(objs.ExecvePerfMap, os.Getpagesize())
+	rd, err := perf.NewReader(objs.PerfEvents, os.Getpagesize())
 	if err != nil {
-		log.Fatalf("reader err")
+		zap.S().Panic(fmt.Sprintf("read error"))
 	}
 
+	// 在运行一段时间后直接卡住了, 目测是卡在 Read 这里, 和我做的小修改有关?
+	// TODO: 需要 debug
 	for {
 		ev, err := rd.Read()
 		if err != nil {
-			log.Fatalf("Read fail")
+			fmt.Printf("Read fail")
 		}
 
 		if ev.LostSamples != 0 {
-			log.Printf("perf event ring buffer full, dropped %d samples", ev.LostSamples)
+			fmt.Printf("perf event ring buffer full, dropped %d samples", ev.LostSamples)
 			continue
 		}
 
@@ -68,7 +70,7 @@ func Tracepoint2() {
 
 		var data exec_data_t
 		if err := binary.Read(b_arr, binary.LittleEndian, &data); err != nil {
-			log.Printf("parsing perf event: %s", err)
+			fmt.Printf("parsing perf event: %s", err)
 			continue
 		}
 
