@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"agent/collector"
-	"agent/collector/ebpf"
 	"agent/global"
 	"agent/log"
 	"agent/report"
@@ -26,7 +25,7 @@ import (
 // 默认 agent 仅仅保留和server段通信功能, 通信失败就不开启
 func main() {
 	// ebpf.Test()
-	ebpf.Tracepoint2()
+	// ebpf.Tracepoint2()
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -77,13 +76,9 @@ func main() {
 				rd["Hostname"] = global.Hostname
 				// 目前还在测试, 专门打印
 				if rd["data_type"] == "1000" {
-					// if strings.Contains(rd["data"], ".vscode") {
-					// 	continue
-					// }
-					if strings.Contains(rd["data"], "1.1.1.1") {
+					if strings.Contains(rd["data"], "python") {
 						fmt.Println(rd["data"])
 					}
-					// fmt.Println(rd["data"])
 				}
 
 				if rd["data_type"] != "2001" {

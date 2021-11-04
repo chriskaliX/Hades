@@ -1,10 +1,8 @@
 package collector
 
 import (
-	"bufio"
 	"context"
 	"errors"
-	"io"
 	"sync"
 	"time"
 
@@ -13,7 +11,6 @@ import (
 
 	"math/rand"
 	"os"
-	"os/user"
 	"strconv"
 	"strings"
 
@@ -29,12 +26,10 @@ const MaxProcess = 5000
 func GetProcess() (procs []structs.Process, err error) {
 	var allProc procfs.Procs
 	var sys procfs.Stat
-	allProc, err = procfs.AllProcs()
-	if err != nil {
+	if allProc, err = procfs.AllProcs(); err != nil {
 		return
 	}
-	sys, err = procfs.NewStat()
-	if err != nil {
+	if sys, err = procfs.NewStat(); err != nil {
 		return
 	}
 
@@ -48,24 +43,21 @@ func GetProcess() (procs []structs.Process, err error) {
 	for _, p := range allProc {
 		var err error
 		proc := structs.Process{PID: p.PID}
-		proc.Exe, err = p.Executable()
-		if err != nil {
+		if proc.Exe, err = p.Executable(); err != nil {
 			continue
 		}
-		_, err = os.Stat(proc.Exe)
-		if err != nil {
+		if _, err = os.Stat(proc.Exe); err != nil {
 			continue
 		}
-		status, err := p.NewStatus()
-		if err == nil {
+		if status, err := p.NewStatus(); err == nil {
 			proc.UID = status.UIDs[0]
 			proc.EUID = status.UIDs[1]
 			proc.Name = status.Name
 		} else {
 			continue
 		}
-		state, err := p.Stat()
-		if err == nil {
+
+		if state, err := p.Stat(); err == nil {
 			proc.PPID = state.PPID
 			proc.Session = state.Session
 			proc.TTY = state.TTY
@@ -73,12 +65,10 @@ func GetProcess() (procs []structs.Process, err error) {
 		} else {
 			continue
 		}
-		proc.Cwd, err = p.Cwd()
-		if err != nil {
+		if proc.Cwd, err = p.Cwd(); err != nil {
 			continue
 		}
-		cmdline, err := p.CmdLine()
-		if err != nil {
+		if cmdline, err := p.CmdLine(); err != nil {
 			continue
 		} else {
 			if len(cmdline) > 32 {
@@ -90,14 +80,8 @@ func GetProcess() (procs []structs.Process, err error) {
 			}
 		}
 		proc.Sha256, _ = utils.GetSha256ByPath("/proc/" + strconv.Itoa(proc.PID) + "/exe")
-		u, err := user.LookupId(proc.UID)
-		if err == nil {
-			proc.Username = u.Username
-		}
-		eu, err := user.LookupId(proc.EUID)
-		if err == nil {
-			proc.Eusername = eu.Username
-		}
+		proc.Username = global.GetUsername(proc.UID)
+		proc.Eusername = global.GetUsername(proc.EUID)
 		procs = append(procs, proc)
 	}
 	return
@@ -111,12 +95,8 @@ var ProcessPool = sync.Pool{
 
 // 获取单个 process 信息
 // 改造一下, 用于补足单个进程的完整信息
-func GetProcessInfo(pid uint32) (structs.Process, error) {
-	var (
-		err  error
-		proc structs.Process
-	)
-
+// 这里其实会有一个问题, 频繁创建了, 需要用对象池
+func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 	process, err := procfs.NewProc(int(pid))
 	if err != nil {
 		return proc, errors.New("no process found")
@@ -124,28 +104,15 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 
 	proc = structs.ProcessPool.Get().(structs.Process)
 	proc.PID = process.PID
-
-	// 优化点 1:
-	// 这里有点问题, 压测了一下观察火焰图, 这里耗时非常高, 占比 Collector 的近 40%, 更改后占 20% 多
-	// 我们跟进去看一下, 是一次性读取之后全部 load 进来, 由于我们只需要获取部分数据
-	// 不需要全部读取, 读取到特定行之后退出即可
-
-	// status, err := process.NewStatus()
-	// if err == nil {
-	// 	proc.UID = status.UIDs[0]
-	// 	proc.EUID = status.UIDs[1]
-	// 	proc.Name = status.Name
-	// }
-	pidUid(&proc)
-
-	state, err := process.Stat()
-	if err == nil {
+	proc.NameUidEuid()
+	if state, err := process.Stat(); err == nil {
 		proc.PPID = state.PPID
 		proc.Session = state.Session
 		proc.TTY = state.TTY
 		proc.StartTime = uint64(global.Time)
 	}
 
+	// 这里看一下限制
 	proc.Cwd, err = process.Cwd()
 	if cmdline, err := process.CmdLine(); err == nil {
 		if len(cmdline) > 32 {
@@ -157,40 +124,17 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 		}
 	}
 
-	proc.Exe, err = process.Executable()
-	if err == nil {
-		_, err = os.Stat(proc.Exe)
-		if err == nil {
+	if proc.Exe, err = process.Executable(); err == nil {
+		if _, err = os.Stat(proc.Exe); err == nil {
 			proc.Sha256, _ = utils.GetSha256ByPath(proc.Exe)
 		}
 	}
 
 	// 修改本地缓存加速
-	username, ok := global.UsernameCache.Load(proc.UID)
-	if ok {
-		proc.Username = username.(string)
-	} else {
-		u, err := user.LookupId(proc.UID)
-		if err == nil {
-			proc.Username = u.Username
-			global.UsernameCache.Store(proc.UID, u.Username)
-		}
-	}
+	proc.Username = global.GetUsername(proc.UID)
 
 	// 修改本地缓存加速
-	eusername, ok := global.UsernameCache.Load(proc.EUID)
-
-	if ok {
-		proc.Eusername = eusername.(string)
-	} else {
-		eu, err := user.LookupId(proc.EUID)
-		if err == nil {
-			proc.Eusername = eu.Username
-			if euid, err := strconv.Atoi(proc.EUID); err == nil {
-				global.UsernameCache.Store(euid, eu.Username)
-			}
-		}
-	}
+	proc.Eusername = global.GetUsername(proc.EUID)
 
 	// inodes 于 fd 关联, 获取 remote_ip
 	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点
@@ -224,27 +168,6 @@ func GetProcessInfo(pid uint32) (structs.Process, error) {
 	// }
 
 	return proc, nil
-}
-
-// 因为我们不需要读取全部信息, 读取到需要的行之后直接退出
-func pidUid(process *structs.Process) {
-	if process != nil {
-		path := "/proc/" + strconv.Itoa(process.PID) + "/status"
-		if file, err := os.Open(path); err == nil {
-			defer file.Close()
-			s := bufio.NewScanner(io.LimitReader(file, 1024*512))
-			for s.Scan() {
-				if strings.HasPrefix(s.Text(), "Name:") {
-					process.Name = strings.Fields(s.Text())[1]
-				} else if strings.HasPrefix(s.Text(), "Uid:") {
-					fields := strings.Fields(s.Text())
-					process.UID = fields[1]
-					process.EUID = fields[2]
-					break
-				}
-			}
-		}
-	}
 }
 
 func ProcessUpdateJob(ctx context.Context) {

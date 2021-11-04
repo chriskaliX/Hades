@@ -235,7 +235,7 @@ func NetlinkCNProcJob(ctx context.Context) {
 				continue
 			}
 
-			global.ProcessCmdlineCache.Add(pid, process.Cmdline)
+			global.ProcessCmdlineCache.Add(pid, process.Exe)
 			if ppid, ok := global.ProcessCache.Get(pid); ok {
 				process.PPID = int(ppid.(uint32))
 			}
