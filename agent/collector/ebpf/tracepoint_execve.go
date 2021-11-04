@@ -98,7 +98,7 @@ func Tracepoint2() {
 				delete(errMap, data.Pid)
 			}
 
-			fmt.Printf("[INFO] Pid: %d <Cmdline> %s\n", data.Pid, strings.TrimSpace(strings.Replace(strings.Join(argv, " "), "\n", "\\n", -1)))
+			fmt.Printf("[INFO] Pid: %d %s\n", data.Pid, strings.TrimSpace(strings.Replace(strings.Join(argv, " "), "\n", "\\n", -1)))
 			delete(args, data.Pid)
 		}
 	}

@@ -38,7 +38,7 @@ func (c *Collector) FlushProcessCache() {
 	}
 	for _, process := range processes {
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Cmdline)
+		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 	}
 }
 
