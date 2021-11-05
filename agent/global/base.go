@@ -6,12 +6,12 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 )
 
+// 字节这里改用了 atomic.Value 看一下为啥
 var (
 	PrivateIPv4     []string
 	PrivateIPv6     []string
@@ -29,6 +29,8 @@ const (
 )
 
 func Getinterface() error {
+	// hostname 获取
+	Hostname, _ = os.Hostname()
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can't get interfaces:%v", err)
@@ -43,28 +45,33 @@ func Getinterface() error {
 		if err != nil {
 			continue
 		}
-		for _, j := range addr {
-			ip, _, err := net.ParseCIDR(j.String())
-			if err != nil {
+		for _, addr := range addr {
+			// 解析 ip 地址
+			ip, _, err := net.ParseCIDR(addr.String())
+			// 增加了一个过滤
+			if err != nil || !ip.IsGlobalUnicast() {
 				continue
 			}
-			if ip.To4() == nil {
-				if strings.HasPrefix(ip.String(), "fe80") {
-					continue
+
+			if ip4 := ip.To4(); ip4 != nil {
+				// 具体看下,位运算比较快
+				if (ip4[0] == 10) || (ip4[0] == 192 && ip4[1] == 168) || (ip4[0] == 172 && ip4[1]&0x10 == 0x10) {
+					PrivateIPv4 = append(PrivateIPv4, ip4.String())
 				}
-				if strings.HasPrefix(ip.String(), "fd") {
+			} else if len(ip) == net.IPv6len {
+				if ip[0] == 0xfd {
 					PrivateIPv6 = append(PrivateIPv6, ip.String())
-				}
-			} else {
-				// 保留地址过滤
-				if strings.HasPrefix(ip.String(), "169.254.") {
-					continue
-				}
-				if strings.HasPrefix(ip.String(), "10.") || strings.HasPrefix(ip.String(), "192.168.") || regexp.MustCompile(`^172\.([1][6-9]|[2]\d|[3][0-1])\.`).MatchString(ip.String()) {
-					PrivateIPv4 = append(PrivateIPv4, ip.String())
 				}
 			}
 		}
+	}
+
+	// 新增 IP 阻隔, 防止过大. 这里都参考字节 Elkeid v1.7-rc
+	if len(PrivateIPv4) > 5 {
+		PrivateIPv4 = PrivateIPv4[:5]
+	}
+	if len(PrivateIPv6) > 5 {
+		PrivateIPv6 = PrivateIPv6[:5]
 	}
 	return nil
 }
