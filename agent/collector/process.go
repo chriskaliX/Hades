@@ -21,8 +21,26 @@ import (
 
 const MaxProcess = 5000
 
-// 获取进程
-// 直接搬运，写的很好
+var (
+	processPool *sync.Pool
+	statPool    *sync.Pool
+)
+
+func init() {
+	processPool = &sync.Pool{
+		New: func() interface{} {
+			return procfs.Proc{}
+		},
+	}
+	statPool = &sync.Pool{
+		New: func() interface{} {
+			return procfs.ProcStat{}
+		},
+	}
+}
+
+// 获取进程, 这里也得改造一下
+// TODO: 如果是5000个, 内存占用还是不小的, 共享一下对象池做回收
 func GetProcess() (procs []structs.Process, err error) {
 	var allProc procfs.Procs
 	var sys procfs.Stat
@@ -87,34 +105,37 @@ func GetProcess() (procs []structs.Process, err error) {
 	return
 }
 
-var ProcessPool = sync.Pool{
-	New: func() interface{} {
-		return new(structs.Process)
-	},
-}
-
 // 获取单个 process 信息
 // 改造一下, 用于补足单个进程的完整信息
 // 这里其实会有一个问题, 频繁创建了, 需要用对象池
 // 2021-11-06, 开始对这里进行优化
 func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
-	process, err := procfs.NewProc(int(pid))
-	if err != nil {
+	// proc 对象池
+	process := processPool.Get().(procfs.Proc)
+	defer processPool.Put(process)
+
+	if process, err = procfs.NewProc(int(pid)); err != nil {
 		return proc, errors.New("no process found")
 	}
 
+	// 对象池获取
 	proc = structs.ProcessPool.Get().(structs.Process)
+
 	proc.PID = process.PID
 	proc.NameUidEuid()
-	if state, err := process.Stat(); err == nil {
-		proc.PPID = state.PPID
-		proc.Session = state.Session
-		proc.TTY = state.TTY
+
+	// 改成对象池
+	stat := statPool.Get().(procfs.ProcStat)
+	defer statPool.Put(stat)
+
+	if stat, err = process.Stat(); err == nil {
+		proc.PPID = stat.PPID
+		proc.Session = stat.Session
+		proc.TTY = stat.TTY
 		proc.StartTime = uint64(global.Time)
 	}
 
-	// 这里看一下限制
-	proc.Cwd, err = process.Cwd()
+	proc.Cwd, _ = process.Cwd()
 	if cmdline, err := process.CmdLine(); err == nil {
 		if len(cmdline) > 32 {
 			cmdline = cmdline[:32]
