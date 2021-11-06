@@ -96,6 +96,7 @@ var ProcessPool = sync.Pool{
 // 获取单个 process 信息
 // 改造一下, 用于补足单个进程的完整信息
 // 这里其实会有一个问题, 频繁创建了, 需要用对象池
+// 2021-11-06, 开始对这里进行优化
 func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 	process, err := procfs.NewProc(int(pid))
 	if err != nil {
@@ -138,34 +139,7 @@ func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 
 	// inodes 于 fd 关联, 获取 remote_ip
 	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点
-
-	// inodes := make(map[uint32]string)
-	// if sockets, err := network.ParseProcNet(unix.AF_INET, unix.IPPROTO_TCP, "/proc/"+fmt.Sprint(pid)+"/net/tcp"); err == nil {
-	// 	for _, socket := range sockets {
-	// 		if socket.Inode != 0 {
-	// 			if socket.DIP.String() == "0.0.0.0" {
-	// 				continue
-	// 			}
-	// 			inodes[socket.Inode] = string(socket.DIP.String()) + ":" + fmt.Sprint(socket.DPort)
-	// 		}
-	// 	}
-	// }
-
-	// fds, _ := process.FileDescriptorTargets()
-	// for _, fd := range fds {
-	// 	if strings.HasPrefix(fd, "socket:[") {
-	// 		inode, _ := strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
-	// 		d, ok := inodes[uint32(inode)]
-	// 		if ok {
-	// 			if proc.RemoteAddrs == "" {
-	// 				proc.RemoteAddrs = d
-	// 			} else if strings.Contains(proc.RemoteAddrs, d) {
-	// 				continue
-	// 			}
-	// 			proc.RemoteAddrs = proc.RemoteAddrs + "," + d
-	// 		}
-	// 	}
-	// }
+	// 剔除了这部分对于 inodes 的关联, 默认不检测 socket 了
 
 	return proc, nil
 }

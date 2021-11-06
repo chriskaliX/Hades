@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,19 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
+func init() {
+	// 跟进去看一下, 默认值为 100, 策略大致为每次更新会扩大内存
+	// 应该是有必要的, 如果以默认的值, 会导致不断的变大, 最终触发外在的内存限制导致 panic 问题
+	/*https://gocn.vip/topics/9822*/
+	/*https://wudaijun.com/2019/09/go-performance-optimization/*/
+	debug.SetGCPercent(50)
+}
+
 // 默认 agent 仅仅保留和server段通信功能, 通信失败就不开启
+/*
+	字节更新后, 基本移除了所有 panic 的代码
+	Agent 自身应该只保留与 server 通讯功能, 其余的功能由服务端控制开启
+*/
 func main() {
 	// ebpf.Test()
 	// ebpf.Tracepoint2()
@@ -52,8 +65,7 @@ func main() {
 	core := zapcore.NewTee(zapcore.NewCore(grpcEncoder, grpcWriter, zap.ErrorLevel), zapcore.NewCore(fileEncoder, fileWriter, zap.InfoLevel))
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
-	undo := zap.ReplaceGlobals(logger)
-	defer undo()
+	zap.ReplaceGlobals(logger)
 
 	// 默认collector也不开, 接收server指令后再开
 	// go collector.EbpfGather()
@@ -61,11 +73,10 @@ func main() {
 	go transport.Run()
 	go report.Run()
 
+	// 下面都是测试代码, 后面这里应该为走 kafka 渠道上传
+	// 可以理解为什么字节要先走 grpc 到 server 端, 可以压缩, 统计, 更加灵活
+	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
 	ticker := time.NewTicker(time.Millisecond)
-
-	sshd, _ := collector.GetSshdConfig()
-	fmt.Println(sshd)
-
 	defer ticker.Stop()
 	go func() {
 		for {

@@ -84,7 +84,7 @@ func (nl *Netlink) GetHashMod() uint {
 }
 
 func (nl *Netlink) Close() {
-	// 直接关闭还是需要发送 stop 信号再关闭
+	// TODO: 直接关闭还是需要发送 stop 信号再关闭
 	syscall.Close(nl.sock)
 }
 
