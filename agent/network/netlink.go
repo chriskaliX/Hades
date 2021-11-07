@@ -7,6 +7,11 @@ import (
 	"errors"
 	"os"
 	"syscall"
+	"time"
+
+	"sync/atomic"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -56,7 +61,7 @@ type netlinkProcMessage struct {
 
 type Netlink struct {
 	addr *syscall.SockaddrNetlink // Netlink socket address
-	sock int                      // The syscall.Socket() file descriptor
+	sock int32                    // The syscall.Socket() file descriptor
 	seq  uint32                   // struct cn_msg.seq
 }
 
@@ -85,11 +90,15 @@ func (nl *Netlink) GetHashMod() uint {
 
 func (nl *Netlink) Close() {
 	// TODO: 直接关闭还是需要发送 stop 信号再关闭
-	syscall.Close(nl.sock)
+	syscall.Close(nl.Getfd())
+}
+
+func (nl *Netlink) Getfd() int {
+	return int(atomic.LoadInt32(&nl.sock))
 }
 
 func (netlink *Netlink) bind() error {
-	sock, err := syscall.Socket(
+	sock, err := unix.Socket(
 		syscall.AF_NETLINK,
 		syscall.SOCK_DGRAM,
 		syscall.NETLINK_CONNECTOR)
@@ -97,14 +106,14 @@ func (netlink *Netlink) bind() error {
 	if err != nil {
 		return err
 	}
-	netlink.sock = sock
+	netlink.sock = int32(sock)
 	addr := &syscall.SockaddrNetlink{
 		Family: syscall.AF_NETLINK,
 		Groups: CN_IDX_PROC,
 	}
 	netlink.addr = addr
-	if err = syscall.Bind(netlink.sock, netlink.addr); err != nil {
-		syscall.Close(netlink.sock)
+	if err = syscall.Bind(netlink.Getfd(), netlink.addr); err != nil {
+		syscall.Close(netlink.Getfd())
 		return err
 	}
 	return nil
@@ -128,7 +137,7 @@ func (netlink *Netlink) send(op uint32) error {
 	binary.Write(buf, BYTE_ORDER, pr)
 	binary.Write(buf, BYTE_ORDER, op)
 
-	err := syscall.Sendto(netlink.sock, buf.Bytes(), 0, netlink.addr)
+	err := syscall.Sendto(netlink.Getfd(), buf.Bytes(), 0, netlink.addr)
 	return err
 }
 
@@ -148,27 +157,56 @@ func (netlink *Netlink) StopCN() error {
 	if err := netlink.send(PROC_CN_MCAST_IGNORE); err != nil {
 		return err
 	}
-	return syscall.Close(netlink.sock)
+	return syscall.Close(netlink.Getfd())
 }
 
 var pageSize = syscall.Getpagesize()
+var MsgChannel = make(chan []byte, 512)
 
-// netlink : 跳过错误信息
-// 接收回调 callback 来处理
-func (netlink *Netlink) Receive(HandleFunc func([]byte)) {
+/*
+	2021-11-06 TODO: 回想了一下, drop 操作是不是应该在这里
+	压测了一下还是没有解决高占用的问题, 因为 syscall 不会降低的
+	之前理解有误, 应该在这里做丢弃动作
+	转换成队列, 超过丢弃, 参考美团的文章内容
+	内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
+	导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
+	对于这个问题，我们在用户态做了队列控制
+
+	看一下具体的sock满了的问题, 因为 Recvfrom 还是会导致高占用
+*/
+func (netlink *Netlink) Receive() {
 	buf := make([]byte, pageSize)
 	for {
-		nr, _, err := syscall.Recvfrom(netlink.sock, buf, 0)
+		// 保证 Recvefrom 运行, 防止 netlink 堵塞
+		// 但是 receive 还是很高? 需要继续看一下
+		nr, _, err := unix.Recvfrom(netlink.Getfd(), buf, 0)
 		if err != nil {
 			continue
 		}
 		if nr < syscall.NLMSG_HDRLEN {
 			continue
 		}
-		msgs, _ := syscall.ParseNetlinkMessage(buf[:nr])
-		for _, m := range msgs {
-			if m.Header.Type == syscall.NLMSG_DONE {
-				HandleFunc(m.Data)
+
+		// TODO:[]byte 用轻量的对象池
+		select {
+		case MsgChannel <- buf[:nr]:
+		default:
+			// drop here
+		}
+	}
+}
+
+func (netlink *Netlink) Handle(HandleFunc func([]byte)) {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for msg := range MsgChannel {
+		msgs, _ := syscall.ParseNetlinkMessage(msg)
+		select {
+		case <-ticker.C:
+			for _, m := range msgs {
+				if m.Header.Type == syscall.NLMSG_DONE {
+					HandleFunc(m.Data)
+				}
 			}
 		}
 	}

@@ -2,12 +2,10 @@ package collector
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"strconv"
 	"sync"
 	"syscall"
-	"time"
 
 	"agent/config"
 	"agent/global"
@@ -129,7 +127,6 @@ func init() {
 }
 
 func handleProcEvent(data []byte) {
-	// 这里对象池? pprof 一下看占用
 	buf := bufPool.Get().(*bytes.Buffer)
 	buf = bytes.NewBuffer(data)
 
@@ -160,23 +157,35 @@ func handleProcEvent(data []byte) {
 		defer ProcEventExecPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
 		pid := event.ProcessPid
-		/*
-			转换成队列, 超过丢弃, 参考美团的文章内容
-			内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
-			导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
-			对于这个问题，我们在用户态做了队列控制
-
-			采用 PidChannel 作为缓冲池, 完全读取或者丢弃 pid,
-			防止 netlink 阻塞, 控制 fd 打开频率, 防止瞬时打开多个
-		*/
-		select {
-		case global.PidChannel <- pid:
-		default:
-			// drop here
+		process, err := GetProcessInfo(pid)
+		if err != nil {
+			process.Reset()
+			structs.ProcessPool.Put(process)
+			return
 		}
-	// 文件里没有这个, 看来借鉴的不对, 以 Linux 下的文件为准
-	// case network.PROC_EVENT_NS:
+		// 白名单校验
+		if config.WhiteListCheck(process) {
+			process.Reset()
+			structs.ProcessPool.Put(process)
+			return
+		}
 
+		global.ProcessCmdlineCache.Add(pid, process.Exe)
+		if ppid, ok := global.ProcessCache.Get(pid); ok {
+			process.PPID = int(ppid.(uint32))
+		}
+		process.PidTree = global.GetPstree(uint32(process.PID))
+		// TODO:json 对 html 字符会转义, 转用下面方法是否会对性能有影响? 需要再看一下
+		data, err := utils.Marshal(process)
+		if err == nil {
+			rawdata := make(map[string]string)
+			rawdata["data"] = string(data)
+			rawdata["time"] = strconv.Itoa(int(global.Time))
+			rawdata["data_type"] = "1000"
+			global.UploadChannel <- rawdata
+		}
+		process.Reset()
+		structs.ProcessPool.Put(process)
 	// 考虑获取 exit 事件, 用来捕获退出后从 LRU 里面剔除, 减小内存占用
 	// 但是会让 LRU 里面的增多,
 	case network.PROC_EVENT_EXIT:
@@ -204,55 +213,7 @@ func cn_proc_start() error {
 	if err = netlink.StartCN(); err != nil {
 		return err
 	}
-	go netlink.Receive(handleProcEvent)
+	go netlink.Receive()
+	go netlink.Handle(handleProcEvent)
 	return nil
-}
-
-// 开启定期消费
-// 控制消费速率, 多余的事件会被丢弃。之前读取为一毫秒一次, 导致 CPU 最高占用过 40%
-// 目前控制后, 最高 10% 左右, 速率控制问题
-// 防止打开过多 fd 造成资源占用问题
-func NetlinkCNProcJob(ctx context.Context) {
-	if err := cn_proc_start(); err != nil {
-		return
-	}
-	ticker := time.NewTicker(time.Millisecond * 5)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			pid := <-global.PidChannel
-			process, err := GetProcessInfo(pid)
-			if err != nil {
-				process.Reset()
-				structs.ProcessPool.Put(process)
-				continue
-			}
-			// 白名单校验
-			if config.WhiteListCheck(process) {
-				process.Reset()
-				structs.ProcessPool.Put(process)
-				continue
-			}
-
-			global.ProcessCmdlineCache.Add(pid, process.Exe)
-			if ppid, ok := global.ProcessCache.Get(pid); ok {
-				process.PPID = int(ppid.(uint32))
-			}
-			process.PidTree = global.GetPstree(uint32(process.PID))
-			// json 对 html 字符会转义, 转用下面方法是否会对性能有影响? 需要再看一下
-			data, err := utils.Marshal(process)
-			if err == nil {
-				rawdata := make(map[string]string)
-				rawdata["data"] = string(data)
-				rawdata["time"] = strconv.Itoa(int(global.Time))
-				rawdata["data_type"] = "1000"
-				global.UploadChannel <- rawdata
-			}
-			process.Reset()
-			structs.ProcessPool.Put(process)
-		case <-ctx.Done():
-			return
-		}
-	}
 }

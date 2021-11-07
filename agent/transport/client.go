@@ -7,7 +7,6 @@ import (
 	"agent/utils"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -31,7 +30,6 @@ func Run() {
 		client, err := global.NewTransferClient(conn).Transfer(ctx, grpc.UseCompressor("snappy"))
 		if err != nil {
 			zap.S().Error(err)
-			fmt.Println(err)
 		}
 		wg := sync.WaitGroup{}
 		wg.Add(2)

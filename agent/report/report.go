@@ -89,8 +89,8 @@ func Run() {
 		}
 	}()
 
-	// 默认 30 秒, 测试先转成 3 秒
-	ticker := time.NewTicker(time.Second * 1)
+	// 默认 30 秒
+	ticker := time.NewTicker(time.Second * 30)
 	h := &Heart{}
 	h.Beat()
 	for {
