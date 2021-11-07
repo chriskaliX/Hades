@@ -20,9 +20,6 @@ var (
 	// 进程管道
 	ProcessChannel chan structs.Process
 
-	// pid 管道
-	PidChannel chan uint32
-
 	// Grpc 上传数据
 	GrpcChannel chan []*Record
 )
@@ -47,7 +44,6 @@ func init() {
 	// 初始化全局的上传管道
 	UploadChannel = make(chan map[string]string, 1000)
 	ProcessChannel = make(chan structs.Process, 1000)
-	PidChannel = make(chan uint32, 100)
 	GrpcChannel = make(chan []*Record, 1000)
 	// 开启的时候采集一次
 	Info()

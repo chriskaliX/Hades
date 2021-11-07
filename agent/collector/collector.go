@@ -67,9 +67,8 @@ func Run() {
 	// sshd 信息
 	go SshdConfigJob(ctx)
 
-	// yum 信息
-	go GetYumJob(ctx)
+	cn_proc_start()
 
-	// cn_proc 采集, 后续 ebpf 在这里做判断就行
-	NetlinkCNProcJob(ctx)
+	// yum 信息
+	GetYumJob(ctx)
 }

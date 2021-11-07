@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -18,6 +18,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"net/http"
 	_ "net/http/pprof"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -28,6 +29,7 @@ func init() {
 	// 应该是有必要的, 如果以默认的值, 会导致不断的变大, 最终触发外在的内存限制导致 panic 问题
 	/*https://gocn.vip/topics/9822*/
 	/*https://wudaijun.com/2019/09/go-performance-optimization/*/
+	runtime.GOMAXPROCS(8)
 	debug.SetGCPercent(50)
 }
 
@@ -76,7 +78,8 @@ func main() {
 	// 下面都是测试代码, 后面这里应该为走 kafka 渠道上传
 	// 可以理解为什么字节要先走 grpc 到 server 端, 可以压缩, 统计, 更加灵活
 	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
-	ticker := time.NewTicker(time.Millisecond)
+	// TODO: 2021-11-06 这里考虑一下, kafka 批量上传, ticker 时间过段导致切换频繁
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	go func() {
 		for {
@@ -106,5 +109,6 @@ func main() {
 	}()
 
 	http.ListenAndServe("0.0.0.0:6060", nil)
+	// time.Sleep(1000 * time.Second)
 	// 指令回传在这里
 }
