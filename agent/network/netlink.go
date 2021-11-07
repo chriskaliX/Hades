@@ -2,10 +2,12 @@ package network
 
 // 自实现的 netlink
 import (
+	"agent/global"
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 
@@ -66,7 +68,21 @@ type Netlink struct {
 }
 
 func (nl *Netlink) Connect() error {
-	if err := nl.bind(); err != nil {
+	sock, err := unix.Socket(
+		syscall.AF_NETLINK,
+		syscall.SOCK_DGRAM,
+		syscall.NETLINK_CONNECTOR)
+	if err != nil {
+		return err
+	}
+	nl.sock = int32(sock)
+	addr := &syscall.SockaddrNetlink{
+		Family: syscall.AF_NETLINK,
+		Groups: CN_IDX_PROC,
+	}
+	nl.addr = addr
+	if err = syscall.Bind(nl.Getfd(), nl.addr); err != nil {
+		syscall.Close(nl.Getfd())
 		return err
 	}
 	return nil
@@ -81,7 +97,7 @@ func (nl *Netlink) String() string {
 }
 
 func (nl *Netlink) GetMaxRetry() uint {
-	return 2
+	return 3
 }
 
 func (nl *Netlink) GetHashMod() uint {
@@ -89,7 +105,9 @@ func (nl *Netlink) GetHashMod() uint {
 }
 
 func (nl *Netlink) Close() {
-	// TODO: 直接关闭还是需要发送 stop 信号再关闭
+	if nl == nil {
+		return
+	}
 	syscall.Close(nl.Getfd())
 }
 
@@ -97,37 +115,15 @@ func (nl *Netlink) Getfd() int {
 	return int(atomic.LoadInt32(&nl.sock))
 }
 
-func (netlink *Netlink) bind() error {
-	sock, err := unix.Socket(
-		syscall.AF_NETLINK,
-		syscall.SOCK_DGRAM,
-		syscall.NETLINK_CONNECTOR)
-
-	if err != nil {
-		return err
-	}
-	netlink.sock = int32(sock)
-	addr := &syscall.SockaddrNetlink{
-		Family: syscall.AF_NETLINK,
-		Groups: CN_IDX_PROC,
-	}
-	netlink.addr = addr
-	if err = syscall.Bind(netlink.Getfd(), netlink.addr); err != nil {
-		syscall.Close(netlink.Getfd())
-		return err
-	}
-	return nil
-}
-
-func (netlink *Netlink) send(op uint32) error {
-	netlink.seq++
+func (nl *Netlink) send(op uint32) error {
+	nl.seq++
 
 	pr := &netlinkProcMessage{}
 	plen := binary.Size(pr.Data) + binary.Size(op)
 	pr.Header.Len = syscall.NLMSG_HDRLEN + uint32(plen)
 	pr.Header.Type = uint16(syscall.NLMSG_DONE)
 	pr.Header.Flags = 0
-	pr.Header.Seq = netlink.seq
+	pr.Header.Seq = nl.seq
 	pr.Header.Pid = uint32(os.Getpid())
 	pr.Data.Id.Idx = CN_IDX_PROC
 	pr.Data.Id.Val = CN_VAL_PROC
@@ -137,30 +133,18 @@ func (netlink *Netlink) send(op uint32) error {
 	binary.Write(buf, BYTE_ORDER, pr)
 	binary.Write(buf, BYTE_ORDER, op)
 
-	err := syscall.Sendto(netlink.Getfd(), buf.Bytes(), 0, netlink.addr)
+	err := syscall.Sendto(nl.Getfd(), buf.Bytes(), 0, nl.addr)
 	return err
 }
 
 // 开始监听 cn_proc
-func (netlink *Netlink) StartCN() error {
-	if netlink == nil {
+func (nl *Netlink) StartCN() error {
+	if nl == nil {
 		return errors.New("netlink is nil")
 	}
-	return netlink.send(PROC_CN_MCAST_LISTEN)
+	return nl.send(PROC_CN_MCAST_LISTEN)
 }
 
-// netlink : 关闭 netlink 监听, 发送 IGNORE 指令, 并且关闭对应 Listen 的 socket
-func (netlink *Netlink) StopCN() error {
-	if netlink == nil {
-		return errors.New("netlink is nil")
-	}
-	if err := netlink.send(PROC_CN_MCAST_IGNORE); err != nil {
-		return err
-	}
-	return syscall.Close(netlink.Getfd())
-}
-
-var pageSize = syscall.Getpagesize()
 var MsgChannel = make(chan []byte, 512)
 
 /*
@@ -171,23 +155,20 @@ var MsgChannel = make(chan []byte, 512)
 	内核返回数据太快，用户态ParseNetlinkMessage解析读取太慢，
 	导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
 	对于这个问题，我们在用户态做了队列控制
-
 	看一下具体的sock满了的问题, 因为 Recvfrom 还是会导致高占用
 */
-func (netlink *Netlink) Receive() {
-	buf := make([]byte, pageSize)
+func (nl *Netlink) Receive() {
+	buf := global.BytePool.Get().([]byte)
 	for {
 		// 保证 Recvefrom 运行, 防止 netlink 堵塞
 		// 但是 receive 还是很高? 需要继续看一下
-		nr, _, err := unix.Recvfrom(netlink.Getfd(), buf, 0)
+		nr, _, err := unix.Recvfrom(nl.Getfd(), buf, 0)
 		if err != nil {
 			continue
 		}
 		if nr < syscall.NLMSG_HDRLEN {
 			continue
 		}
-
-		// TODO:[]byte 用轻量的对象池
 		select {
 		case MsgChannel <- buf[:nr]:
 		default:
@@ -196,11 +177,18 @@ func (netlink *Netlink) Receive() {
 	}
 }
 
+// 频繁创建对象的全部用 sync.Pool
+var (
+	netlinkMessagePool *sync.Pool
+)
+
 func (netlink *Netlink) Handle(HandleFunc func([]byte)) {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 	for msg := range MsgChannel {
-		msgs, _ := syscall.ParseNetlinkMessage(msg)
+		msgs := netlinkMessagePool.Get().([]syscall.NetlinkMessage)
+		msgs, _ = syscall.ParseNetlinkMessage(msg)
+		global.BytePool.Put(msg)
 		select {
 		case <-ticker.C:
 			for _, m := range msgs {
@@ -209,5 +197,15 @@ func (netlink *Netlink) Handle(HandleFunc func([]byte)) {
 				}
 			}
 		}
+		netlinkMessagePool.Put(msgs)
+	}
+}
+
+func init() {
+	// 正常情况下长度为 1
+	netlinkMessagePool = &sync.Pool{
+		New: func() interface{} {
+			return make([]syscall.NetlinkMessage, 1)
+		},
 	}
 }

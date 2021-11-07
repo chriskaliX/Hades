@@ -175,7 +175,6 @@ func handleProcEvent(data []byte) {
 			process.PPID = int(ppid.(uint32))
 		}
 		process.PidTree = global.GetPstree(uint32(process.PID))
-		// TODO:json 对 html 字符会转义, 转用下面方法是否会对性能有影响? 需要再看一下
 		data, err := utils.Marshal(process)
 		if err == nil {
 			rawdata := make(map[string]string)
