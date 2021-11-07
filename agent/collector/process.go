@@ -41,9 +41,12 @@ func init() {
 
 // 获取进程, 这里也得改造一下
 // TODO: 如果是5000个, 内存占用还是不小的, 共享一下对象池做回收
+// 另外需要稍微限速一下
 func GetProcess() (procs []structs.Process, err error) {
-	var allProc procfs.Procs
-	var sys procfs.Stat
+	var (
+		allProc procfs.Procs
+		sys     procfs.Stat
+	)
 	if allProc, err = procfs.AllProcs(); err != nil {
 		return
 	}

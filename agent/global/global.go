@@ -3,6 +3,8 @@ package global
 import (
 	"context"
 	"os"
+	"sync"
+	"syscall"
 	"time"
 
 	"agent/global/structs"
@@ -11,6 +13,8 @@ import (
 )
 
 var (
+	pageSize = syscall.Getpagesize()
+
 	// 全局上下文
 	Context context.Context
 
@@ -22,9 +26,19 @@ var (
 
 	// Grpc 上传数据
 	GrpcChannel chan []*Record
+
+	// 全局 byte 对象池
+	BytePool *sync.Pool
 )
 
 func init() {
+	// bytepool 要有初始长度, 因为扩容也有消耗
+	BytePool = &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, pageSize)
+		},
+	}
+
 	Context = context.Context(context.Background())
 	// 全局时间
 	go func() {
