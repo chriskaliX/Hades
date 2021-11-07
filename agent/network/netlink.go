@@ -64,7 +64,7 @@ type netlinkProcMessage struct {
 type Netlink struct {
 	addr *syscall.SockaddrNetlink // Netlink socket address
 	sock int32                    // The syscall.Socket() file descriptor
-	seq  uint32                   // struct cn_msg.seq
+	seq  uint32                   // struct cn_msg.seq; TODO?
 }
 
 func (nl *Netlink) Connect() error {
@@ -104,6 +104,7 @@ func (nl *Netlink) GetHashMod() uint {
 	return 1
 }
 
+// maybe error?
 func (nl *Netlink) Close() {
 	if nl == nil {
 		return
@@ -117,7 +118,6 @@ func (nl *Netlink) Getfd() int {
 
 func (nl *Netlink) send(op uint32) error {
 	nl.seq++
-
 	pr := &netlinkProcMessage{}
 	plen := binary.Size(pr.Data) + binary.Size(op)
 	pr.Header.Len = syscall.NLMSG_HDRLEN + uint32(plen)
@@ -128,11 +128,9 @@ func (nl *Netlink) send(op uint32) error {
 	pr.Data.Id.Idx = CN_IDX_PROC
 	pr.Data.Id.Val = CN_VAL_PROC
 	pr.Data.Len = uint16(binary.Size(op))
-
 	buf := bytes.NewBuffer(make([]byte, 0, pr.Header.Len))
 	binary.Write(buf, BYTE_ORDER, pr)
 	binary.Write(buf, BYTE_ORDER, op)
-
 	err := syscall.Sendto(nl.Getfd(), buf.Bytes(), 0, nl.addr)
 	return err
 }
