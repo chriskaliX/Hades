@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent/collector"
+	"agent/collector/ebpf"
 	"agent/global"
 	"agent/log"
 	"agent/report"
@@ -40,7 +41,7 @@ func init() {
 */
 func main() {
 	// ebpf.Test()
-	// ebpf.Tracepoint2()
+	ebpf.Tracepoint3()
 
 	defer func() {
 		if err := recover(); err != nil {

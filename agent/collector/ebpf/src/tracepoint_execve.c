@@ -45,9 +45,12 @@ int enter_execve(struct execve_entry_args_t *ctx)
     struct task_struct *task;
     task = (struct task_struct*)bpf_get_current_task();
 	struct task_struct* real_parent_task;
-	bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
+    exec_data.pid = bpf_get_current_pid_tgid();
+    exec_data.type = 1;
+    bpf_get_current_comm(&exec_data.comm, sizeof(exec_data.comm));
+    bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
 	bpf_probe_read(&exec_data.ppid, sizeof(exec_data.ppid), &real_parent_task->pid );
-    bpf_probe_read(&exec_data.pid, sizeof(exec_data.pid), &task->pid);
+    bpf_probe_read_str(exec_data.fname, sizeof(exec_data.fname), ctx->filename);
     
     // 参数地址
 	const char* argp = NULL;
@@ -57,14 +60,15 @@ int enter_execve(struct execve_entry_args_t *ctx)
     {
 		bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
 		if (!argp) {
-			goto finish;
+			// goto finish;
+            return 0;
 		}
         exec_data.arg_size = bpf_probe_read_str(exec_data.args, ARGSIZE, argp);
         bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
     }
-	finish:
-    exec_data.type = 1;
-	bpf_probe_read_str(exec_data.fname, sizeof(exec_data.fname), ctx->filename);
+	// finish:
+    char ellipse[] = "...";
+    bpf_probe_read(exec_data.args, sizeof(exec_data.args), (void*)ellipse);
     bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
 	return 0;
 }
