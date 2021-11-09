@@ -21,11 +21,12 @@ struct exec_data_t {
     u32 arg_size;
 };
 
+// 开始看 perf_events, 更正一下对 max_entries 的认识, 是存储用户态传输给内核的 fd, 而不是误认为的 array 队列长度之类
 struct bpf_map_def SEC("maps") perf_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
-    .max_entries = 128,
+    .max_entries = 512,
 };
 
 /* /sys/kernel/debug/tracing/events/syscalls/sys_enter_execve/format */
@@ -67,8 +68,8 @@ int enter_execve(struct execve_entry_args_t *ctx)
         bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
     }
 	// finish:
-    char ellipse[] = "...";
-    bpf_probe_read(exec_data.args, sizeof(exec_data.args), (void*)ellipse);
+    // char ellipse[] = "...";
+    // bpf_probe_read(exec_data.args, sizeof(exec_data.args), (void*)ellipse);
     bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &exec_data, sizeof(exec_data));
 	return 0;
 }
