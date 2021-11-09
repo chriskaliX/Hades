@@ -22,6 +22,7 @@ struct exec_data_t {
 };
 
 // 开始看 perf_events, 更正一下对 max_entries 的认识, 是存储用户态传输给内核的 fd, 而不是误认为的 array 队列长度之类
+// 从用户态透传给用户态的, 是每个 cpu 一个 buffer
 struct bpf_map_def SEC("maps") perf_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
