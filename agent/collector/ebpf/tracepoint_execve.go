@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
+	_ "strings"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
@@ -55,6 +55,7 @@ func Tracepoint3() {
 	log.Println("Waiting for events..")
 	var args string
 	var pid uint32
+	var count int
 	for {
 		record, err := rd.Read()
 		if err != nil {
@@ -86,9 +87,11 @@ func Tracepoint3() {
 			args = args + string(event.Args[:event.Arg_size]) + " "
 
 		} else {
-			fmt.Printf("[INFO] pid: %d, comm: %s, argv: %s\n", event.Pid, string(event.Comm[:]), strings.Trim(args, " "))
+			// fmt.Printf("[INFO] pid: %d, comm: %s, argv: %s\n", event.Pid, string(event.Comm[:]), strings.Trim(args, " "))
+			count = count+1
 			pid = event.Pid
 			args = string(event.Args[:]) + " "
+			// fmt.Println(count)
 		}
 
 		// fmt.Println(event.Args)
