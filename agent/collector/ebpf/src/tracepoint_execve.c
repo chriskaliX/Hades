@@ -27,7 +27,6 @@ struct bpf_map_def SEC("maps") perf_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
-    .max_entries = 512,
 };
 
 /* /sys/kernel/debug/tracing/events/syscalls/sys_enter_execve/format */
@@ -43,6 +42,7 @@ SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
 	struct exec_data_t exec_data = {};
+    // 获取当前 cpu, 指定 perf_event 的 cpu
     // 获取 ppid, task_struct 的问题
     struct task_struct *task;
     task = (struct task_struct*)bpf_get_current_task();
