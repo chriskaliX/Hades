@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	_ "strings"
+	"strings"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
@@ -16,17 +16,17 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 sysExecve ./src/tracepoint_execve.c -- -nostdinc -I headers/
 
-type exec_data_t struct {
+type enter_execve_t struct {
 	Type     uint32
 	Pid      uint32
 	Tgid     uint32
 	Uid      uint32
 	Gid      uint32
 	Ppid     uint32
-	F_name   [32]byte
+	Filename [32]byte
 	Comm     [16]byte
 	Args     [128]byte
-	Arg_size uint32
+	Argsize  uint32
 }
 
 // 今天继续读 perf_events, 发现这么写是有一些问题的, 加到 todo 里后续改进
@@ -45,19 +45,21 @@ func Tracepoint3() {
 		log.Fatalf("loading objects: %v", err)
 	}
 	defer objs.Close()
-	kp, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.EnterExecve)
+	tp, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.EnterExecve)
 	if err != nil {
 		log.Fatalf("opening tracepoint: %s", err)
 	}
-	defer kp.Close()
+	defer tp.Close()
 
-	// test for todo-2
+	// 第二个参数为每一个 CPU 对应的 buffer 大小
 	rd, err := perf.NewReader(objs.PerfEvents, 2*os.Getpagesize())
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer rd.Close()
-	var event exec_data_t
+
+	var event enter_execve_t
+
 	log.Println("Waiting for events..")
 	var args string
 	var pid uint32
@@ -90,16 +92,13 @@ func Tracepoint3() {
 
 		// 相等则拼接
 		if pid == event.Pid {
-			args = args + string(event.Args[:event.Arg_size]) + " "
-
+			args = args + string(event.Args[:event.Argsize]) + " "
 		} else {
-			// fmt.Printf("[INFO] pid: %d, comm: %s, argv: %s\n", event.Pid, string(event.Comm[:]), strings.Trim(args, " "))
+			fmt.Printf("[INFO] pid: %d, comm: %s, argv: %s\n", event.Pid, string(event.Comm[:]), strings.Trim(args, " "))
+
 			count = count + 1
 			pid = event.Pid
 			args = string(event.Args[:]) + " "
-			// fmt.Println(count)
 		}
-
-		// fmt.Println(event.Args)
 	}
 }
