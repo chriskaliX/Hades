@@ -37,8 +37,6 @@ struct execve_entry_args_t {
     const char *const * envp;
 };
 
-// 后续 TODO: 读取文件 exe, 进程树等, 都在这里实现, 不在用户态做了
-
 SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
