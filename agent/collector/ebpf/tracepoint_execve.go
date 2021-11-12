@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
@@ -92,9 +91,9 @@ func Tracepoint3() {
 
 		// 相等则拼接
 		if pid == event.Pid {
-			args = args + string(event.Args[:event.Argsize]) + " "
+			args = args + string(event.Args[:event.Argsize-1]) + " "
 		} else {
-			fmt.Printf("[INFO] pid: %d, comm: %s, argv: %s\n", event.Pid, string(event.Comm[:]), strings.Trim(args, " "))
+			// fmt.Printf("[INFO] pid: %d, comm: %s, argv: %s\n", event.Pid, string(event.Comm[:]), strings.Trim(args, " "))
 
 			count = count + 1
 			pid = event.Pid

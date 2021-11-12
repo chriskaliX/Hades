@@ -40,8 +40,8 @@ func init() {
 	Agent 自身应该只保留与 server 通讯功能, 其余的功能由服务端控制开启
 */
 func main() {
-	// ebpf.Test()
-	ebpf.Tracepoint3()
+	ebpf.Tracepoint_sockets()
+	// ebpf.Tracepoint3()
 
 	defer func() {
 		if err := recover(); err != nil {
