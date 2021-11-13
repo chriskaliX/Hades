@@ -10,25 +10,22 @@ struct bpf_map_def SEC("maps") perf_events = {
 };
 
 struct netevent_t {
-    uint64_t pid;
-    uint64_t ts;
+    u32 pid;
     char comm[TASK_COMM_LEN];
-    uint64_t fd;
-    uint64_t uid;
-    uint16_t port;
-    uint32_t address;
-    uint32_t family;
+    u64 fd;
+    u32 uid;
+    u16 port;
+    u32 address;
+    u32 family;
+    u64 addrlen;
 };
 
 // /sys/kernel/debug/tracing/events/syscalls/sys_enter_connect/format
 struct enter_connect_t {
-    unsigned short common_type;
-    unsigned char common_flags;
-    unsigned char common_preempt_count;
-    int common_pid;
-    int __syscall_nr;
+    __u64 unused;
+    int syscall_nr;
     int fd;
-    struct sockaddr * uservaddr;
+    struct sockaddr* uservaddr;
     int addrlen;
 };
 
@@ -38,12 +35,14 @@ int enter_connect(struct enter_connect_t *ctx) {
     // 定义返回数据
     struct netevent_t netevent = {};
     bpf_get_current_comm(&netevent.comm, sizeof(netevent.comm));
+    bpf_probe_read_user(&netevent.addrlen, sizeof(netevent.addrlen), &ctx->addrlen);
 
-    struct sockaddr address;
-    bpf_probe_read(&address, sizeof(address), &ctx->uservaddr);
-    bpf_probe_read_user(&netevent.family, sizeof(netevent.family), &address.sa_family);
+    struct sockaddr* address = NULL;
+    address = (struct sockaddr *) ctx->uservaddr;
+    // bpf_probe_read_user(&address, sizeof(address), &ctx->uservaddr);
+    bpf_probe_read_user(&netevent.family, sizeof(netevent.family), &address->sa_family);
 
-    struct sockaddr_in *addr = (struct sockaddr_in *) &address;
+    struct sockaddr_in *addr = (struct sockaddr_in *) address;
     bpf_probe_read_user(&netevent.address, sizeof(netevent.address), &addr->sin_addr.s_addr);
     bpf_probe_read_user(&netevent.port, sizeof(netevent.port), &addr->sin_port);
     bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &netevent, sizeof(netevent));
