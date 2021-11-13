@@ -66,7 +66,7 @@ func Tracepoint_execve() error {
 
 	var event enter_execve_t
 
-	args := make([]string, 64)
+	args := make([]string, 0)
 	var pid uint32
 
 	for {
