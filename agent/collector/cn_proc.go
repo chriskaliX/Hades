@@ -176,6 +176,8 @@ func handleProcEvent(data []byte) {
 		}
 		process.PidTree = global.GetPstree(uint32(process.PID))
 		data, err := utils.Marshal(process)
+
+		// map 对象池
 		if err == nil {
 			rawdata := make(map[string]string)
 			rawdata["data"] = string(data)
