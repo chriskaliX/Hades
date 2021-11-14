@@ -11,35 +11,39 @@ struct bpf_map_def SEC("maps") perf_events = {
 
 struct netevent_t {
     u32 pid;
-    char comm[TASK_COMM_LEN];
-    u64 fd;
     u32 uid;
-    u16 port;
     u32 address;
-    u32 family;
-    u64 addrlen;
+    u32 addrlen;
+    u16 family;
+    u16 port;
+    char comm[TASK_COMM_LEN];
 };
 
 // /sys/kernel/debug/tracing/events/syscalls/sys_enter_connect/format
+/*
+    前面一直都照抄写成int...导致debug了很久
+    参考一下 linux 项目里带的 example
+    https://github.com/torvalds/linux/tree/418baf2c28f3473039f2f7377760bd8f6897ae18/samples/bpf
+*/
 struct enter_connect_t {
-    __u64 unused;
-    int syscall_nr;
-    int fd;
-    struct sockaddr* uservaddr;
-    int addrlen;
+    unsigned long long unused;
+    long syscall_nr;
+    long fd;
+    // struct sockaddr* uservaddr;
+    long uservaddr;
+    long addrlen;
 };
-
 
 SEC("tracepoint/syscalls/sys_enter_connect")
 int enter_connect(struct enter_connect_t *ctx) {
     // 定义返回数据
     struct netevent_t netevent = {};
-    bpf_get_current_comm(&netevent.comm, sizeof(netevent.comm));
-    bpf_probe_read_user(&netevent.addrlen, sizeof(netevent.addrlen), &ctx->addrlen);
 
-    struct sockaddr* address = NULL;
+    bpf_get_current_comm(&netevent.comm, sizeof(netevent.comm));
+    // bpf_probe_read(&netevent.addrlen, sizeof(netevent.addrlen), &ctx->addrlen);
+
+    struct sockaddr* address;
     address = (struct sockaddr *) ctx->uservaddr;
-    // bpf_probe_read_user(&address, sizeof(address), &ctx->uservaddr);
     bpf_probe_read_user(&netevent.family, sizeof(netevent.family), &address->sa_family);
 
     struct sockaddr_in *addr = (struct sockaddr_in *) address;
