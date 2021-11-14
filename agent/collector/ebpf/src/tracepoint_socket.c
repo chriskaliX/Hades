@@ -38,9 +38,8 @@ SEC("tracepoint/syscalls/sys_enter_connect")
 int enter_connect(struct enter_connect_t *ctx) {
     // 定义返回数据
     struct netevent_t netevent = {};
-
     bpf_get_current_comm(&netevent.comm, sizeof(netevent.comm));
-    // bpf_probe_read(&netevent.addrlen, sizeof(netevent.addrlen), &ctx->addrlen);
+    bpf_probe_read(&netevent.addrlen, sizeof(netevent.addrlen), &ctx->addrlen);
 
     struct sockaddr* address;
     address = (struct sockaddr *) ctx->uservaddr;
@@ -48,6 +47,7 @@ int enter_connect(struct enter_connect_t *ctx) {
 
     struct sockaddr_in *addr = (struct sockaddr_in *) address;
     bpf_probe_read_user(&netevent.address, sizeof(netevent.address), &addr->sin_addr.s_addr);
+    // TODO: 这个 port 一直有问题, 需要debug
     bpf_probe_read_user(&netevent.port, sizeof(netevent.port), &addr->sin_port);
     bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &netevent, sizeof(netevent));
     return 0;

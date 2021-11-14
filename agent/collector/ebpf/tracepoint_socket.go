@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
@@ -69,8 +70,8 @@ func Tracepoint_sockets() {
 			continue
 		}
 
-		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.Address)+":"+InetNtoA_test16(event.Port), string(event.Comm[:]))
-		fmt.Println(htons(event.Port))
+		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.Address)+":"+strconv.Itoa(int(event.Port)), string(event.Comm[:]))
+		// fmt.Println(htons(event.Port))
 	}
 }
 
