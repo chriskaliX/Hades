@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
@@ -70,15 +69,8 @@ func Tracepoint_sockets() {
 			continue
 		}
 
-		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.Address)+":"+strconv.Itoa(int(event.Port)), string(event.Comm[:]))
-		// fmt.Println(htons(event.Port))
+		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.Address)+":"+InetNtoA_test16(event.Port), string(event.Comm[:]))
 	}
-}
-
-// 暂时随便copy
-func InetNtoA(ip uint32) string {
-	return fmt.Sprintf("%d.%d.%d.%d",
-		byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip))
 }
 
 func InetNtoA_test(ip uint32) string {
@@ -86,9 +78,9 @@ func InetNtoA_test(ip uint32) string {
 		byte(ip), byte(ip>>8), byte(ip>>16), byte(ip>>24))
 }
 
+// 理解的不够深刻, 抽空看一下
 func InetNtoA_test16(ip uint16) string {
-	return fmt.Sprintf("%d.%d",
-		byte(ip), byte(ip>>8))
+	return fmt.Sprintf("%d", int(byte(ip))*256+int(byte(ip>>8)))
 }
 
 func htons(val uint16) []byte {
