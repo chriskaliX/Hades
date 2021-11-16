@@ -34,6 +34,10 @@ struct enter_connect_t {
     long addrlen;
 };
 
+// osquery 的项目里, hook socket 相关的是
+// connect, bind, accept, accept4
+// 数据格式按照 https://osquery.io/schema/5.0.1/#bpf_socket_events 补全
+// 代码参考仓库 https://github.com/trailofbits/ebpfpub/blob/abfe933dca88ffcdf1b0d6503f45476c86d11f1b/examples/socketevents/src/main.cpp
 SEC("tracepoint/syscalls/sys_enter_connect")
 int enter_connect(struct enter_connect_t *ctx) {
     // 定义返回数据
