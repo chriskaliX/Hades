@@ -16,13 +16,16 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 sockets ./src/tracepoint_socket.c -- -nostdinc -I headers/
 
 type netevent_t struct {
-	Pid     uint32
-	Uid     uint32
-	Address uint32
-	AddrLen uint32
-	Family  uint16
-	Port    uint16
-	Comm    [16]byte
+	Cid           uint64
+	Tid           uint32
+	Pid           uint32
+	PPid          uint32
+	Uid           uint32
+	Gid           uint32
+	RemoteAddress uint32
+	RemotePort    uint16
+	Family        uint16
+	Comm          [16]byte
 }
 
 func Tracepoint_sockets() {
@@ -68,8 +71,7 @@ func Tracepoint_sockets() {
 			log.Printf("parsing perf event: %s", err)
 			continue
 		}
-
-		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.Address)+":"+InetNtoA_test16(event.Port), string(event.Comm[:]))
+		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.RemoteAddress)+":"+InetNtoA_test16(event.RemotePort), string(event.Comm[:]))
 	}
 }
 
