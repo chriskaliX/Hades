@@ -10,7 +10,7 @@
 struct enter_execve_t {
     u32 type;
 	u32 pid;
-    u32 tgid;
+    u32 tid;
     u32 uid;
     u32 gid;
     u32 ppid;
@@ -37,6 +37,8 @@ struct execve_entry_args_t {
     const char *const * envp;
 };
 
+// what SEC means?
+// https://stackoverflow.com/questions/67553794/what-is-variable-attribute-sec-means
 SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
@@ -54,7 +56,7 @@ int enter_execve(struct execve_entry_args_t *ctx)
     // 获取 pid & tgid
     id = bpf_get_current_pid_tgid();
     enter_execve_data.pid = id;
-    enter_execve_data.tgid = id >> 32; // 线程 id
+    enter_execve_data.tid = id >> 32; // 线程 id
 	
     // 通过 task_struct 获取父进程 id, 这个可能会有 bug 的, 比如 kernel 4.19(?) 的时候会是 0(TODO: check 这个问题!)
     // task_struct, 用于获取进程id, 线程id, 以及父进程id
