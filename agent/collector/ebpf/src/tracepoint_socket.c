@@ -13,6 +13,7 @@ struct bpf_map_def SEC("maps") perf_events = {
 // 借鉴 osquery 的表把数据补全
 struct netevent_t {
     u64 cid;
+    u32 type;
     u32 tid;
     u32 pid;
     u32 ppid;
@@ -34,7 +35,6 @@ struct enter_connect_t {
     unsigned long long unused;
     long syscall_nr;
     long fd;
-    // struct sockaddr* uservaddr;
     long uservaddr;
     long addrlen;
 };
@@ -53,7 +53,8 @@ int enter_connect(struct enter_connect_t *ctx) {
     id = bpf_get_current_pid_tgid();
     netevent.pid = id;
     netevent.tid = id >> 32;
-    netevent.cid = bpf_get_current_cgroup_id();
+
+    netevent.cid = bpf_get_current_cgroup_id(); // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     // ppid 需要在用户层有一个 fallback, 从status里面取
     struct task_struct * task;

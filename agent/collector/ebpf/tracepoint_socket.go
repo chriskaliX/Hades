@@ -17,6 +17,7 @@ import (
 
 type netevent_t struct {
 	Cid           uint64
+	Type          uint32
 	Tid           uint32
 	Pid           uint32
 	PPid          uint32
