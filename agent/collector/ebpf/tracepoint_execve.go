@@ -19,6 +19,7 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 sysExecve ./src/tracepoint_execve.c -- -nostdinc -I headers/
 
 type enter_execve_t struct {
+	Cid      uint64
 	Type     uint32
 	Pid      uint32
 	Tgid     uint32

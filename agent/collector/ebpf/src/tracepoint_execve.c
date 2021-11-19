@@ -1,13 +1,14 @@
 #include "vmlinux.h"
 #include "bpf_helpers.h"
+#include "process.h"
 
-#define TASK_COMM_LEN 16
 #define FNAME_LEN 32
 #define ARGSIZE 128
 #define DEFAULT_MAXARGS 20 // 有些启动参数,会十分的长
 
 // enter_execve
 struct enter_execve_t {
+    u64 cid;
     u32 type;
 	u32 pid;
     u32 tid;
@@ -57,6 +58,8 @@ int enter_execve(struct execve_entry_args_t *ctx)
     id = bpf_get_current_pid_tgid();
     enter_execve_data.pid = id;
     enter_execve_data.tid = id >> 32; // 线程 id
+
+    enter_execve_data.cid = bpf_get_current_cgroup_id();
 	
     // 通过 task_struct 获取父进程 id, 这个可能会有 bug 的, 比如 kernel 4.19(?) 的时候会是 0(TODO: check 这个问题!)
     // task_struct, 用于获取进程id, 线程id, 以及父进程id
@@ -74,7 +77,7 @@ int enter_execve(struct execve_entry_args_t *ctx)
     
 	const char* argp = NULL;
 
-    for (__s32 i = 0; i < DEFAULT_MAXARGS; i++)
+    for (int i = 0; i < DEFAULT_MAXARGS; i++)
     {
 		bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
 		if (!argp) {
