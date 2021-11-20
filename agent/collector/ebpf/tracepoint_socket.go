@@ -23,7 +23,9 @@ type netevent_t struct {
 	PPid          uint32
 	Uid           uint32
 	Gid           uint32
+	LocalAddress  uint32
 	RemoteAddress uint32
+	LocalPort     uint16
 	RemotePort    uint16
 	Family        uint16
 	Comm          [16]byte
@@ -39,11 +41,27 @@ func Tracepoint_sockets() {
 	}
 
 	defer objs.Close()
-	tp, err := link.Tracepoint("syscalls", "sys_enter_connect", objs.EnterConnect)
+	tp1, err := link.Tracepoint("syscalls", "sys_enter_connect", objs.EnterConnect)
 	if err != nil {
 		log.Fatalf("opening tracepoint: %s", err)
 	}
-	defer tp.Close()
+	defer tp1.Close()
+	tp2, err := link.Tracepoint("syscalls", "sys_enter_bind", objs.EnterBind)
+	if err != nil {
+		log.Fatalf("opening tracepoint: %s", err)
+	}
+	defer tp2.Close()
+	tp3, err := link.Tracepoint("syscalls", "sys_enter_accept", objs.EnterAccept)
+	if err != nil {
+		log.Fatalf("opening tracepoint: %s", err)
+	}
+	defer tp3.Close()
+	tp4, err := link.Tracepoint("syscalls", "sys_enter_accept4", objs.EnterAccept4)
+	if err != nil {
+		log.Fatalf("opening tracepoint: %s", err)
+	}
+	defer tp4.Close()
+
 	rd, err := perf.NewReader(objs.PerfEvents, 2*os.Getpagesize())
 	if err != nil {
 		fmt.Println(err)
@@ -72,7 +90,11 @@ func Tracepoint_sockets() {
 			log.Printf("parsing perf event: %s", err)
 			continue
 		}
-		fmt.Printf("[INFO] pid: %d, family: %d, addr: %s, comm: %s\n", event.Pid, event.Family, InetNtoA_test(event.RemoteAddress)+":"+InetNtoA_test16(event.RemotePort), string(event.Comm[:]))
+		if event.Type == 9 {
+			fmt.Printf("[INFO] type:%d, pid: %d, family: %d, addr: %s, comm: %s\n", event.Type, event.Pid, event.Family, InetNtoA_test(event.LocalAddress)+":"+InetNtoA_test16(event.LocalPort), string(event.Comm[:]))
+		} else {
+			fmt.Printf("[INFO] type:%d, pid: %d, family: %d, addr: %s, comm: %s\n", event.Type, event.Pid, event.Family, InetNtoA_test(event.RemoteAddress)+":"+InetNtoA_test16(event.RemotePort), string(event.Comm[:]))
+		}
 	}
 }
 

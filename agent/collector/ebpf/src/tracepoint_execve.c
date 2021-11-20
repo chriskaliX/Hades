@@ -6,6 +6,9 @@
 #define ARGSIZE 128
 #define DEFAULT_MAXARGS 20 // 有些启动参数,会十分的长
 
+// osquery 里 hook 的好像比较少
+// 只有 execve|execveat
+
 // enter_execve
 struct enter_execve_t {
     u64 cid;
@@ -40,6 +43,7 @@ struct execve_entry_args_t {
 
 // what SEC means?
 // https://stackoverflow.com/questions/67553794/what-is-variable-attribute-sec-means
+// limit of 512 bytes
 SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
