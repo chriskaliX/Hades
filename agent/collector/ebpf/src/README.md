@@ -21,3 +21,5 @@ initializeParameterListForOpenAt2(param_list_map);
 initializeParameterListForOpenByHandleAt(param_list_map);
 initializeParameterListForChdir(param_list_map);
 initializeParameterListForFchdir(param_list_map);
+
+# Hook 检测, Rootkit 检测?

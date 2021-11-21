@@ -112,6 +112,7 @@ func GetProcess() (procs []structs.Process, err error) {
 // 改造一下, 用于补足单个进程的完整信息
 // 这里其实会有一个问题, 频繁创建了, 需要用对象池
 // 2021-11-06, 开始对这里进行优化
+// 函数应该对已有值跳过 TODO 优化
 func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 	// proc 对象池
 	process := processPool.Get().(procfs.Proc)
