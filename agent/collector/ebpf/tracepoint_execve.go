@@ -137,6 +137,7 @@ func Tracepoint_execve() error {
 			process.Name = string(bytes.Trim(event.Comm[:], "\x00"))
 			process.PID = int(event.Pid) // tid?
 			process.CID = int(event.Cid)
+			process.TID = int(event.Tid)
 			process.PPID = int(event.Ppid)
 
 			global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)

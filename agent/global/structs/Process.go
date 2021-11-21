@@ -14,6 +14,7 @@ var ProcessPool *sync.Pool
 type Process struct {
 	CID         int    `json:"cid"`
 	PID         int    `json:"pid"`
+	TID         int    `json:"tid,omitempty"`
 	PPID        int    `json:"ppid"`
 	Name        string `json:"name"`
 	Cmdline     string `json:"cmdline"`
@@ -29,6 +30,10 @@ type Process struct {
 	StartTime   uint64 `json:"starttime"`
 	RemoteAddrs string `json:"remoteaddrs"`
 	PidTree     string `json:"pidtree"`
+	// Only valid when processes ticker collector
+	ResMem string `json:"resmem,omitempty"`
+	VirMem string `json:"virmem,omitempty"`
+	Cpu    string `json:"cpu,omitempty"`
 }
 
 /*
