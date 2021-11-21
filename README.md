@@ -40,6 +40,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 > 基本照搬的比较多, 很多东西看完了觉得没必要重写。但是所有搬来的代码都是人工看过的, 有些地方有问题的也反馈给社区, 我用不到的字段也被剔除, 部分优化的地方小范围重写。
 
 - [x] 参考 美团|字节 的 Agent 以及文章, 设计良好稳定的 Agent 架构
+  - [ ] 20211121 - 重构需要提上日程, 目前能体会到自己写的时候, 有些地方比较混乱。到时候新开一个 branch 更新吧
 - [ ] 完成信息采集部分
   - [x] ncp 信息采集, 补齐进程树信息
   - [x] socket 采集 (LISTEN状态以及TCP_ESTABLISHED状态)
@@ -49,10 +50,12 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
   - [ ] 启动项采集
   - [x] ssh 信息采集 - 配置信息
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
-  - [ ] ebpf 先看 tracepoint 的
-    - [x] tracepoint sys_enter_execve (进度 80% - 参考 osquery)
+  - [x] ebpf 先看 tracepoint 的
+    - [x] tracepoint sys_enter_execve (LRU 解决了问题)
     - [x] tracepoint sys_enter_connect (完毕)
-    - [ ] tracepoint hook 进 (connect bind accept accept4)
+    - [x] tracepoint hook (done, 但是未测试)
+    - [ ] ebpf 程序提高 channel 消费速度
+  - [ ] ssh 日志采集 (journalctl)
 - [x] 完成日志部分 (搬字节的, 需要再仔细看一下)
   - [x] 日志设计
   - [x] 日志存储 & 配置 & 分割
@@ -63,6 +66,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 - [ ] yara 扫描模块
 - [ ] **蜜罐模式** | 这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
   - [ ] 调研
+  - [ ] 本身日志采集的好, 也是一个好蜜罐( SSH等日志 )
 
 ## 框架设计
 
