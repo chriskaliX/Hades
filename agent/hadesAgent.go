@@ -6,11 +6,9 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strconv"
-	"strings"
 	"time"
 
 	"agent/collector"
-	"agent/collector/ebpf"
 	"agent/global"
 	"agent/log"
 	"agent/report"
@@ -39,8 +37,11 @@ func init() {
 	字节更新后, 基本移除了所有 panic 的代码
 	Agent 自身应该只保留与 server 通讯功能, 其余的功能由服务端控制开启
 */
+
+// plugin的模式，我思考了一下还是有必要的，又因为偷看了 osquery 的, 功能开放
+// 后期蜜罐之类的这种还是以 plugin 模式，年底之前的目标是跑起来
 func main() {
-	ebpf.Tracepoint_sockets()
+	// ebpf.Tracepoint_sockets()
 	// ebpf.Tracepoint_execve()
 
 	defer func() {
@@ -81,6 +82,7 @@ func main() {
 	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
 	// TODO: 2021-11-06 这里考虑一下, kafka 批量上传, ticker 时间过段导致切换频繁
 	ticker := time.NewTicker(100 * time.Millisecond)
+	fmt.Println("start")
 	defer ticker.Stop()
 	go func() {
 		for {
@@ -91,12 +93,8 @@ func main() {
 				rd["Hostname"] = global.Hostname
 				// 目前还在测试, 专门打印
 				if rd["data_type"] == "1000" {
-					if strings.Contains(rd["data"], "python") {
-						fmt.Println(rd["data"])
-					}
-				}
-
-				if rd["data_type"] != "2001" {
+					fmt.Println(rd["data"])
+				} else {
 					continue
 				}
 				_, err := json.Marshal(rd)

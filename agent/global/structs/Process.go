@@ -12,6 +12,7 @@ import (
 var ProcessPool *sync.Pool
 
 type Process struct {
+	CID         int    `json:"cid"`
 	PID         int    `json:"pid"`
 	PPID        int    `json:"ppid"`
 	Name        string `json:"name"`
