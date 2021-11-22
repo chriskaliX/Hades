@@ -81,7 +81,7 @@ func main() {
 	// 可以理解为什么字节要先走 grpc 到 server 端, 可以压缩, 统计, 更加灵活
 	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
 	// TODO: 2021-11-06 这里考虑一下, kafka 批量上传, ticker 时间过段导致切换频繁
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	fmt.Println("start")
 	defer ticker.Stop()
 	go func() {
@@ -101,7 +101,6 @@ func main() {
 				if err != nil {
 					continue
 				}
-				fmt.Println(rd)
 				// network.KafkaSingleton.Send(string(m))
 			}
 		}

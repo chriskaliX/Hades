@@ -47,8 +47,15 @@ func Tracepoint_execve() error {
 		zap.S().Error(err)
 		return err
 	}
-
 	defer objs.Close()
+
+	tp2, err := link.Tracepoint("sched", "sched_process_fork", objs.ProcessFork)
+	if err != nil {
+		zap.S().Error(fmt.Sprintf("opening tracepoint: %s", err))
+		return err
+	}
+	defer tp2.Close()
+
 	tp, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.EnterExecve)
 	if err != nil {
 		zap.S().Error(fmt.Sprintf("opening tracepoint: %s", err))
@@ -64,13 +71,6 @@ func Tracepoint_execve() error {
 	}
 	defer tp1.Close()
 
-	tp2, err := link.Tracepoint("sched", "sched_process_fork", objs.ProcessFork)
-	if err != nil {
-		zap.S().Error(fmt.Sprintf("opening tracepoint: %s", err))
-		return err
-	}
-	defer tp2.Close()
-
 	// 第二个参数为每一个 CPU 对应的 buffer 大小, 搜索了一下, 最大貌似只能是 64KB, 我们先定在 16
 	rd, err := perf.NewReader(objs.PerfEvents, 4*os.Getpagesize())
 	if err != nil {
@@ -82,7 +82,15 @@ func Tracepoint_execve() error {
 	var event enter_execve_t
 
 	args := make([]string, 0)
+
 	var pid uint32
+
+	var filename string
+	var comm string
+	var lastpid int
+	var lastppid int
+	var lastcid int
+	var lasttid int
 
 	for {
 		record, err := rd.Read()
@@ -122,6 +130,12 @@ func Tracepoint_execve() error {
 				continue
 			}
 			args = append(args, string(bytes.Trim(event.Args[:event.Argsize-1], "\x00")))
+			filename = string(bytes.Trim(event.Filename[:], "\x00"))
+			comm = string(bytes.Trim(event.Comm[:], "\x00"))
+			lastpid = int(event.Pid)
+			lastppid = int(event.Ppid)
+			lastcid = int(event.Cid)
+			lasttid = int(event.Tid)
 			// pid 不同了, 代表一个新的: 这个貌似也会有乱序的问题?
 			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
 		} else {
@@ -133,13 +147,14 @@ func Tracepoint_execve() error {
 			rawdata["time"] = strconv.Itoa(int(global.Time))
 			process := structs.ProcessPool.Get().(structs.Process)
 			process.Cmdline = strings.Join(args, " ")
-			process.Exe = string(bytes.Trim(event.Filename[:], "\x00"))
-			process.Name = string(bytes.Trim(event.Comm[:], "\x00"))
-			process.PID = int(event.Pid) // tid?
-			process.CID = int(event.Cid)
-			process.TID = int(event.Tid)
-			process.PPID = int(event.Ppid)
+			process.Exe = filename
+			process.Name = comm
+			process.PID = lastpid
+			process.CID = lastcid
+			process.TID = lasttid
+			process.PPID = lastppid
 
+			// TODO: 这个 LRU 其实可以合并的
 			global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 			global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 

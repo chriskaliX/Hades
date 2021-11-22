@@ -48,7 +48,6 @@ void execve_common(struct enter_execve_t* execve_event) {
     if (execve_event->ppid == 0) {
         void * ppid = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
         if( ppid ) {
-            // execve_event->ppid = ppid;
             bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), ppid );
         }
     }
