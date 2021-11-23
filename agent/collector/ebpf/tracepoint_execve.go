@@ -22,6 +22,7 @@ import (
 
 // syncpool
 type enter_execve_t struct {
+	Ts       uint64
 	Cid      uint64
 	Type     uint32
 	Pid      uint32
@@ -49,27 +50,27 @@ func Tracepoint_execve() error {
 	}
 	defer objs.Close()
 
-	tp2, err := link.Tracepoint("sched", "sched_process_fork", objs.ProcessFork)
+	sched_process_fork, err := link.Tracepoint("sched", "sched_process_fork", objs.ProcessFork)
 	if err != nil {
 		zap.S().Error(fmt.Sprintf("opening tracepoint: %s", err))
 		return err
 	}
-	defer tp2.Close()
+	defer sched_process_fork.Close()
 
-	tp, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.EnterExecve)
+	sys_enter_execve, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.EnterExecve)
 	if err != nil {
 		zap.S().Error(fmt.Sprintf("opening tracepoint: %s", err))
 		return err
 	}
-	defer tp.Close()
+	defer sys_enter_execve.Close()
 
 	// TODO: under test
-	tp1, err := link.Tracepoint("syscalls", "sys_enter_execveat", objs.EnterExecveat)
+	sys_enter_execveat, err := link.Tracepoint("syscalls", "sys_enter_execveat", objs.EnterExecveat)
 	if err != nil {
 		zap.S().Error(fmt.Sprintf("opening tracepoint: %s", err))
 		return err
 	}
-	defer tp1.Close()
+	defer sys_enter_execveat.Close()
 
 	// 第二个参数为每一个 CPU 对应的 buffer 大小, 搜索了一下, 最大貌似只能是 64KB, 我们先定在 16
 	rd, err := perf.NewReader(objs.PerfEvents, 4*os.Getpagesize())
@@ -92,6 +93,10 @@ func Tracepoint_execve() error {
 	var lastcid int
 	var lasttid int
 
+	// 用户态 reordering 问题, 如果不 reorder,  pstree 有问题
+	// 感觉实现类似于 Flink WaterMark order 问题, 目前考虑是: 优先队列缓冲 + 根据 ts 排序
+	// https://github.com/iovisor/bcc/issues/2299
+	// https://kinvolk.io/blog/2018/02/timing-issues-when-using-bpf-with-virtual-cpus/
 	for {
 		record, err := rd.Read()
 		if err != nil {

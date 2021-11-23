@@ -9,6 +9,7 @@
 
 // enter_execve
 struct enter_execve_t {
+    u64 ts;
     u64 cid;
     u32 type;
 	u32 pid;
@@ -30,6 +31,7 @@ struct bpf_map_def SEC("maps") pid_cache_lru = {
 };
 
 void execve_common(struct enter_execve_t* execve_event) {
+    execve_event->ts = bpf_ktime_get_ns();
     // 填充 id 相关字段, 这里后面抽象一下防止重复
     u64 id = bpf_get_current_uid_gid();
     execve_event->uid = id;

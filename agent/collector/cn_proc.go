@@ -12,6 +12,8 @@ import (
 	"agent/global/structs"
 	"agent/network"
 	"agent/utils"
+
+	"go.uber.org/zap"
 )
 
 var (
@@ -213,6 +215,7 @@ func cn_proc_start() error {
 		return err
 	}
 	if err = netlink.StartCN(); err != nil {
+		zap.S().Error(err)
 		return err
 	}
 	go netlink.Receive()
