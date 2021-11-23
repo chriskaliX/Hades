@@ -154,6 +154,10 @@ var MsgChannel = make(chan []byte, 512)
 	导致用户态网络Buff占满，内核不再发送数据给用户态，进程空闲。
 	对于这个问题，我们在用户态做了队列控制
 	看一下具体的sock满了的问题, 因为 Recvfrom 还是会导致高占用
+
+	同样的, 因为异步且限制了消费速度, 导致瞬时丢的概率非常大。能想到的就是做加速,
+	观察一下大部分都是 exit, 可以不消费完整的 msg 而优先判断 header 增快速度
+	TODO: 看一下上述方案的可行性
 */
 func (nl *Netlink) Receive() {
 	buf := global.BytePool.Get().([]byte)

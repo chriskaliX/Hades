@@ -12,6 +12,7 @@ struct bpf_map_def SEC("maps") perf_events = {
 
 // 借鉴 osquery 的表把数据补全
 struct netevent_t {
+    u64 ts;
     u64 cid;
     u32 type;
     u32 tid;
@@ -28,6 +29,7 @@ struct netevent_t {
 };
 
 void netevent_common(struct netevent_t* netevent) {
+    netevent->ts = bpf_ktime_get_ns();
     // 填充 id 相关字段, 这里后面抽象一下防止重复
     u64 id = bpf_get_current_uid_gid();
     netevent->uid = id;

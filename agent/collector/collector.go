@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"sync"
 
-	"agent/collector/ebpf"
 	"agent/global"
 
 	"go.uber.org/zap"
@@ -70,8 +69,8 @@ func Run() {
 	// sshd 信息
 	go SshdConfigJob(ctx)
 
-	// cn_proc_start()
-	go ebpf.Tracepoint_execve()
+	cn_proc_start()
+	// go ebpf.Tracepoint_execve()
 
 	// yum 信息
 	GetYumJob(ctx)

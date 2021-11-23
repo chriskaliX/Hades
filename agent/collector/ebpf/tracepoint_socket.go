@@ -16,6 +16,7 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang-12 sockets ./src/tracepoint_socket.c -- -nostdinc -I headers/
 
 type netevent_t struct {
+	Ts            uint64
 	Cid           uint64
 	Type          uint32
 	Tid           uint32
