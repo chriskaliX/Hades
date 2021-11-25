@@ -44,7 +44,7 @@ void netevent_common(struct netevent_t* netevent) {
     struct task_struct * real_parent_task;
     task = (struct task_struct*)bpf_get_current_task();
     bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
-	bpf_probe_read(&netevent->ppid, sizeof(netevent->ppid), &real_parent_task->pid );
+    bpf_probe_read(&netevent->ppid, sizeof(netevent->ppid), &real_parent_task->pid );
     bpf_get_current_comm(&netevent->comm, sizeof(netevent->comm));
 }
 

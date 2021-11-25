@@ -12,14 +12,14 @@ struct enter_execve_t {
     u64 ts;
     u64 cid;
     u32 type;
-	u32 pid;
+    u32 pid;
     u32 tid;
     u32 uid;
     u32 gid;
     u32 ppid;
     u32 argsize;
-	char filename[FNAME_LEN];
-	char comm[TASK_COMM_LEN];
+    char filename[FNAME_LEN];
+    char comm[TASK_COMM_LEN];
     char args[ARGSIZE];
 };
 
@@ -46,7 +46,7 @@ void execve_common(struct enter_execve_t* execve_event) {
     struct task_struct * real_parent_task;
     task = (struct task_struct*)bpf_get_current_task();
     bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
-	bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &real_parent_task->tgid );
+    bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &real_parent_task->tgid );
     if (execve_event->ppid == 0) {
         void * ppid = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
         if( ppid ) {
@@ -68,8 +68,8 @@ struct bpf_map_def SEC("maps") perf_events = {
 /* /sys/kernel/debug/tracing/events/syscalls/sys_enter_execve/format */
 struct execve_entry_args_t {
     __u64 unused;
-	int syscall_nr;
-	const char *filename;
+    int syscall_nr;
+    const char *filename;
     const char *const * argv;
     const char *const * envp;
 };
@@ -87,18 +87,18 @@ int enter_execve(struct execve_entry_args_t *ctx)
     execve_common(&enter_execve_data);
     bpf_probe_read_str(enter_execve_data.filename, sizeof(enter_execve_data.filename), ctx->filename);
 
-	const char* argp = NULL;
+    const char* argp = NULL;
     #pragma unroll
     for (int i = 0; i < DEFAULT_MAXARGS; i++)
     {
-		bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
-		if (!argp) {
+        bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
+        if (!argp) {
             return 0;
-		}
+        }
         enter_execve_data.argsize = bpf_probe_read_str(enter_execve_data.args, ARGSIZE, argp);
         bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &enter_execve_data, sizeof(enter_execve_data));
     }
-	return 0;
+    return 0;
 }
 
 SEC("tracepoint/syscalls/sys_enter_execveat")
@@ -110,22 +110,22 @@ int enter_execveat(struct execve_entry_args_t *ctx)
     enter_execve_data.type = 2;
     execve_common(&enter_execve_data);
     bpf_probe_read_str(enter_execve_data.filename, sizeof(enter_execve_data.filename), ctx->filename);
-	const char* argp = NULL;
+    const char* argp = NULL;
     for (int i = 0; i < DEFAULT_MAXARGS; i++)
     {
-		bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
-		if (!argp) {
+        bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
+        if (!argp) {
             return 0;
-		}
+        }
         enter_execve_data.argsize = bpf_probe_read_str(enter_execve_data.args, ARGSIZE, argp);
         bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &enter_execve_data, sizeof(enter_execve_data));
     }
-	return 0;
+    return 0;
 }
 
 struct _tracepoint_sched_process_fork {
     __u64 unused;
-	char parent_comm[16];
+    char parent_comm[16];
     pid_t parent_pid;
     char child_comm[16];
     pid_t child_pid;
