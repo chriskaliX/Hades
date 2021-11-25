@@ -46,6 +46,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
   - [x] ncp 信息采集, 补齐进程树信息
   - [x] socket 采集 (LISTEN状态以及TCP_ESTABLISHED状态)
   - [x] process 采集 (启动阶段以及定期刷新)
+    - [ ] process 包采集问题, 目前写法 getAll 有问题, 考虑自实现
   - [x] yum 包采集
   - [x] crontab 采集
   - [ ] 启动项采集
@@ -56,6 +57,11 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
     - [x] tracepoint sys_enter_connect (完毕)
     - [x] tracepoint hook (done, 但是未测试)
     - [ ] ebpf 程序提高 channel 消费速度
+    - [ ] ebpf uprobe
+    - [ ] 解决三个问题
+      - [ ] /bin/sh 采集问题
+      - [ ] argv 部分情况重复
+      - [ ] 多 cpu 乱序, 导致消费程序需要做 reordering | 或者看一下如何直接发送一个完整的 argv( 不能 perf 有limit? )
   - [ ] ssh 日志采集 (journalctl)
 - [x] 完成日志部分 (搬字节的, 需要再仔细看一下)
   - [x] 日志设计
