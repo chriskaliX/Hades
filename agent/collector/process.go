@@ -9,7 +9,6 @@ import (
 	"agent/global"
 	"agent/global/structs"
 
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -50,25 +49,41 @@ func init() {
 // 干脆重写这一部分 - 周末的时候思考一下, 然后重写
 func GetProcess() (procs []structs.Process, err error) {
 	var (
-		allProc procfs.Procs
-		sys     procfs.Stat
+		sys   procfs.Stat
+		count int
 	)
-	if allProc, err = procfs.AllProcs(); err != nil {
+
+	d, err := os.Open("/proc")
+	if err != nil {
+		return procs, err
+	}
+	defer d.Close()
+	// 这里数字上可能会有一些对不上
+	// 因为 /proc 下可能包含别的文件夹, 如 sys tty 等, 所以我们加大一些, 然后计数
+	names, err := d.Readdirnames(MaxProcess + 20)
+	if err != nil {
 		return
 	}
+
 	if sys, err = procfs.NewStat(); err != nil {
 		return
 	}
 
-	// 如果超出最大进程数, 则shuffle打乱后获取 MaxProcess 大小
-	if len(allProc) > MaxProcess {
-		rand.Shuffle(len(allProc), func(i, j int) {
-			allProc[i], allProc[j] = allProc[j], allProc[i]
-		})
-		allProc = allProc[:MaxProcess]
-	}
-	for _, p := range allProc {
-		var err error
+	for _, name := range names {
+		if count > MaxProcess {
+			return
+		}
+		count++
+
+		pid, err := strconv.ParseInt(name, 10, 64)
+		if err != nil {
+			continue
+		}
+		p, err := procfs.NewProc(int(pid))
+		if err != nil {
+			continue
+		}
+
 		proc := structs.Process{PID: p.PID}
 		if proc.Exe, err = p.Executable(); err != nil {
 			continue
