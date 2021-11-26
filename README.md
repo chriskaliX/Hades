@@ -58,6 +58,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
     - [x] tracepoint hook (done, 但是未测试)
     - [ ] ebpf 程序提高 channel 消费速度
     - [ ] ebpf uprobe
+    - [ ] ebpf 进程监控
     - [ ] 解决三个问题
       - [ ] /bin/sh 采集问题
       - [ ] argv 部分情况重复
