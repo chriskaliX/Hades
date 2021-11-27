@@ -1,6 +1,7 @@
 package ebpf
 
 import (
+	"agent/collector/tools"
 	"agent/global"
 	"agent/global/structs"
 	"agent/utils"
@@ -174,7 +175,7 @@ func Tracepoint_execve() error {
 			global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 
 			process.PidTree = global.GetPstree(uint32(process.PID))
-			process.Sha256, _ = utils.GetSha256ByPath(process.Exe)
+			process.Sha256, _ = tools.GetFileHash(process.Exe)
 			process.UID = strconv.Itoa(int(event.Uid))
 			process.Username = global.GetUsername(process.UID)
 			process.StartTime = uint64(event.Ts) // TODO: 时间范围格式
