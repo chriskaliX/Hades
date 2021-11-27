@@ -7,6 +7,9 @@
 #define DEFAULT_MAXARGS 16 // 有些启动参数,会十分的长
 #define BUFSIZE 4096
 
+// 2021-11-27
+// filter 部分可能无法直接引入, 因为 perf_event 发送的时候是分段发送的
+
 // enter_execve
 struct enter_execve_t {
     u64 ts;

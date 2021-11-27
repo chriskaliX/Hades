@@ -52,6 +52,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
   - [ ] 启动项采集
   - [x] ssh 信息采集 - 配置信息
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
+  - [ ] bash_history采集, 弥补 cn_proc 下丢失的问题
   - [x] ebpf 先看 tracepoint 的
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
     - [x] tracepoint sys_enter_connect (完毕)
