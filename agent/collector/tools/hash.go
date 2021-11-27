@@ -1,10 +1,11 @@
-package collector
+package tools
 
 import (
 	"agent/global"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"sync"
@@ -14,6 +15,22 @@ import (
 )
 
 // 2021-11-27 - 重写文件 hash 部分
+
+/*
+TODO: FileHashCache 应该要定时淘汰, 例如我给 /usr/bin/ps 加白, 但是文件被替换
+TODO: osquery 支持多种 hash, 看是否有必要
+
+TODO: 其他的 id 同理, 看一下是否有问题
+osquery 的处理方法在源码 https://github.com/osquery/osquery/blob/a540d73cbb687aa36e7562b7dcca0cd0e567ca6d/osquery/tables/system/hash.cpp
+里面有一句注释是:
+ * @brief Checks the current stat output against the cached view.
+ *
+ * If the modified/altered time or the file's inode has changed then the hash
+ * should be recalculated.
+我看了一下 osquery 的代码, 每次来 get 的时候, 都会去 stat 0x200 长度
+还有一个 ssdeep
+TODO: ssdeep
+*/
 
 // mtime 或者 size 变更, 则重新获取文件 hash
 // Q: how about change
@@ -28,6 +45,7 @@ type FileHash struct {
 var (
 	fileHashCache *lru.ARCCache
 	fileHashPool  *sync.Pool
+	hasherPool    *sync.Pool
 )
 
 const freq = 60
@@ -114,7 +132,9 @@ func fileInfo(path string) (FileHash, error) {
 		return fh, err
 	}
 	defer f.Close()
-	hash := sha256.New()
+	hash := hasherPool.Get().(hash.Hash)
+	defer hash.Reset()
+	defer hasherPool.Put(hash)
 	_, err = io.Copy(hash, f)
 	if err != nil {
 		return fh, err
@@ -129,6 +149,12 @@ func init() {
 	fileHashPool = &sync.Pool{
 		New: func() interface{} {
 			return new(FileHash)
+		},
+	}
+
+	hasherPool = &sync.Pool{
+		New: func() interface{} {
+			return sha256.New()
 		},
 	}
 }
