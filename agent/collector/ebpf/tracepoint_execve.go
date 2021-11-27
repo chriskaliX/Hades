@@ -85,7 +85,6 @@ func Tracepoint_execve() error {
 	args := make([]string, 0)
 
 	var pid uint32
-
 	var filename string
 	var comm string
 	var lastpid int
@@ -130,6 +129,7 @@ func Tracepoint_execve() error {
 		}
 
 		// TODO: bugs - 这里有一个问题, 有些时候会出现 repeat 的情况
+		// Patch the reordering stuff
 		if pid == event.Pid {
 			if event.Argsize > 128 {
 				continue
@@ -141,12 +141,22 @@ func Tracepoint_execve() error {
 			lastppid = int(event.Ppid)
 			lastcid = int(event.Cid)
 			lasttid = int(event.Tid)
-			// pid 不同了, 代表一个新的: 这个貌似也会有乱序的问题?
 			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
 		} else {
 			// TODO: 字段不全的, 需要补
 			// syscall, fd, source(cnproc or ebpf), timestamp
-			// TODO:偶尔有进程树不全的问题, 看一下 pid , tid
+			// TODO: 偶尔有进程树不全的问题, 看一下 pid , tid
+
+			// 临时的 patch, 先 run 起来, 后面会优雅一点解决
+			if len(args) == 1 {
+				filename = string(bytes.Trim(event.Filename[:], "\x00"))
+				comm = string(bytes.Trim(event.Comm[:], "\x00"))
+				lastpid = int(event.Pid)
+				lastppid = int(event.Ppid)
+				lastcid = int(event.Cid)
+				lasttid = int(event.Tid)
+			}
+
 			rawdata := make(map[string]string)
 			rawdata["data_type"] = "1000"
 			rawdata["time"] = strconv.Itoa(int(global.Time))
@@ -167,7 +177,7 @@ func Tracepoint_execve() error {
 			process.Sha256, _ = utils.GetSha256ByPath(process.Exe)
 			process.UID = strconv.Itoa(int(event.Uid))
 			process.Username = global.GetUsername(process.UID)
-			process.StartTime = uint64(global.Time) // TODO:不应该这个, 应该从执行时间拿(ts)
+			process.StartTime = uint64(event.Ts) // TODO: 时间范围格式
 			data, err := utils.Marshal(process)
 			if err == nil {
 				rawdata["data"] = string(data)
