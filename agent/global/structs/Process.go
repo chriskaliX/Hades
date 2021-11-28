@@ -13,10 +13,12 @@ var ProcessPool *sync.Pool
 
 type Process struct {
 	CID         int    `json:"cid,omitempty"`
+	Pns         int    `json:"pns"`
 	PID         int    `json:"pid"`
 	TID         int    `json:"tid,omitempty"`
 	PPID        int    `json:"ppid"`
 	Name        string `json:"name"`
+	PName       string `json:"pname"`
 	Cmdline     string `json:"cmdline"`
 	Exe         string `json:"exe"`
 	Sha256      string `json:"sha256"`

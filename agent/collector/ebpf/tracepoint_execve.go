@@ -24,6 +24,7 @@ import (
 // syncpool
 type enter_execve_t struct {
 	Ts       uint64
+	Pns      uint64
 	Cid      uint64
 	Type     uint32
 	Pid      uint32
@@ -34,6 +35,7 @@ type enter_execve_t struct {
 	Argsize  uint32
 	Filename [32]byte
 	Comm     [16]byte
+	PComm    [16]byte
 	Args     [128]byte
 	Nodename [65]byte
 }
@@ -89,11 +91,13 @@ func Tracepoint_execve() error {
 	var pid uint32
 	var filename string
 	var comm string
+	var pcomm string
 	var lastpid int
 	var lastppid int
 	var lastcid int
 	var lasttid int
 	var lastnodename string
+	var lastpns int
 
 	// 用户态 reordering 问题, 如果不 reorder,  pstree 有问题
 	// 感觉实现类似于 Flink WaterMark order 问题, 目前考虑是: 优先队列缓冲 + 根据 ts 排序
@@ -139,11 +143,13 @@ func Tracepoint_execve() error {
 			}
 			args = append(args, string(bytes.Trim(event.Args[:event.Argsize-1], "\x00")))
 			filename = string(bytes.Trim(event.Filename[:], "\x00"))
-			comm = string(bytes.Trim(event.Comm[:], "\x00"))
+			comm = formatByte(event.Comm[:])
+			pcomm = formatByte(event.PComm[:])
 			lastpid = int(event.Pid)
 			lastppid = int(event.Ppid)
 			lastcid = int(event.Cid)
 			lasttid = int(event.Tid)
+			lastpns = int(event.Pns)
 			lastnodename = string(bytes.Trim(event.Nodename[:], "\x00"))
 			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
 		} else {
@@ -154,11 +160,13 @@ func Tracepoint_execve() error {
 			// 临时的 patch, 先 run 起来, 后面会优雅一点解决
 			if len(args) == 1 {
 				filename = string(bytes.Trim(event.Filename[:], "\x00"))
-				comm = string(bytes.Trim(event.Comm[:], "\x00"))
+				comm = formatByte(event.Comm[:])
+				pcomm = formatByte(event.PComm[:])
 				lastpid = int(event.Pid)
 				lastppid = int(event.Ppid)
 				lastcid = int(event.Cid)
 				lasttid = int(event.Tid)
+				lastpns = int(event.Pns)
 				lastnodename = string(string(bytes.Trim(event.Nodename[:], "\x00")))
 			}
 
@@ -174,6 +182,9 @@ func Tracepoint_execve() error {
 			process.TID = lasttid
 			process.PPID = lastppid
 			process.NodeName = lastnodename
+			process.Source = "ebpf"
+			process.PName = pcomm
+			process.Pns = lastpns
 
 			// TODO: 这个 LRU 其实可以合并的
 			global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
@@ -183,7 +194,7 @@ func Tracepoint_execve() error {
 			process.Sha256, _ = common.GetFileHash(process.Exe)
 			process.UID = strconv.Itoa(int(event.Uid))
 			process.Username = global.GetUsername(process.UID)
-			process.StartTime = uint64(event.Ts) // TODO: 时间范围格式
+			process.StartTime = uint64(global.Time)
 			data, err := utils.Marshal(process)
 			if err == nil {
 				rawdata["data"] = string(data)
@@ -193,7 +204,11 @@ func Tracepoint_execve() error {
 			structs.ProcessPool.Put(process)
 			pid = event.Pid
 			args = args[0:0]
-			args = append(args, string(bytes.Trim(event.Args[:event.Argsize-1], "\x00")))
+			args = append(args, formatByte(event.Args[:]))
 		}
 	}
+}
+
+func formatByte(b []byte) string {
+	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }

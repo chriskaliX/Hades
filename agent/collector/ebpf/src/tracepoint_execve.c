@@ -14,6 +14,7 @@
 // enter_execve
 struct enter_execve_t {
     u64 ts;
+    u64 pns;
     u64 cid;
     u32 type;
     u32 pid;
@@ -24,14 +25,20 @@ struct enter_execve_t {
     u32 argsize;
     char filename[FNAME_LEN];
     char comm[TASK_COMM_LEN];
+    char pcomm[TASK_COMM_LEN];
     char args[ARGSIZE];
     char nodename[65];
+};
+
+struct pid_cache_t {
+    u32 ppid;
+    char pcomm[16];
 };
 
 struct bpf_map_def SEC("maps") pid_cache_lru = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = sizeof(u32),
-    .value_size = sizeof(u32),
+    .value_size = sizeof(struct pid_cache_t),
     .max_entries = 1024,
 };
 
@@ -56,6 +63,10 @@ void execve_common(struct enter_execve_t* execve_event) {
         @note: namespace
         在 task_struct->nsproxy 下有很多 namespace
         uts(unix time sharing) namespace isolates the hostname & the NIS domain name; 
+
+        TODO: 
+        nodename, pns 目前为空的问题, 怀疑是 task_struct vminux relocation?
+        所以 ppid 可能也是同一个问题
     */
     struct nsproxy *nsp;
     struct uts_namespace *uts_ns;
@@ -63,18 +74,17 @@ void execve_common(struct enter_execve_t* execve_event) {
     bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_probe_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
 
-    // struct uts_namespace *uns = (struct uts_namespace *)task->nsproxy->uts_ns;
-    // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename), &uns->name.nodename);
-
-    // struct pid_namespace *pns = (struct pid_namespace *)task->nsproxy->pid_ns_for_children;
-    // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename), &uns->name.nodename);
+    struct pid_namespace *pns;
+    bpf_probe_read(&pns, sizeof(pns), &nsp->pid_ns_for_children);
+    bpf_probe_read(&execve_event->pns, sizeof(execve_event->pns), &pns->ns.inum);
 
     bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
     bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &real_parent_task->tgid );
     if (execve_event->ppid == 0) {
-        void * ppid = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
-        if( ppid ) {
-            bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), ppid );
+        struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
+        if( parent ) {
+            bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &parent->ppid );
+            bpf_probe_read(&execve_event->pcomm, sizeof(execve_event->pcomm), &parent->pcomm );
         }
     }
     bpf_get_current_comm(&execve_event->comm, sizeof(execve_event->comm));
@@ -133,11 +143,11 @@ int enter_execveat(struct execve_entry_args_t *ctx)
 {
     // 定义返回数据
     struct enter_execve_t enter_execve_data = {};
-    // 用来标识 sys_enter_execve, 供用户态区分
     enter_execve_data.type = 2;
     execve_common(&enter_execve_data);
     bpf_probe_read_str(enter_execve_data.filename, sizeof(enter_execve_data.filename), ctx->filename);
     const char* argp = NULL;
+    #pragma unroll
     for (int i = 0; i < DEFAULT_MAXARGS; i++)
     {
         bpf_probe_read(&argp, sizeof(argp), &ctx->argv[i]);
@@ -145,7 +155,9 @@ int enter_execveat(struct execve_entry_args_t *ctx)
             return 0;
         }
         enter_execve_data.argsize = bpf_probe_read_str(enter_execve_data.args, ARGSIZE, argp);
-        bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &enter_execve_data, sizeof(enter_execve_data));
+        if (enter_execve_data.argsize <= ARGSIZE) {
+            bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &enter_execve_data, sizeof(enter_execve_data));
+        };
     }
     return 0;
 }
@@ -159,21 +171,16 @@ struct _tracepoint_sched_process_fork {
 };
 
 // 为了缓解 ppid 的问题, 需要 hook 到 fork 上面, 在本地维护一个 map
-// TODO: pidtree 内核态维护
-// 目前先全员 tracepoint, kprobe 后面再看
-// https://github.com/Gui774ume/ebpfkit/blob/387dba934ac9ad6d5b4a57315e3d6acb9cfecfc2/ebpf/ebpfkit/pipe.h
-// 参考一下, 有一点没看懂这个为什么这么写, TODO: 看一下为什么要 token
 SEC("tracepoint/sched/sched_process_fork")
 int process_fork( struct _tracepoint_sched_process_fork *ctx ) {
     u32 pid = 0;
     u32 ppid = 0;
     bpf_probe_read(&pid, sizeof(pid), &ctx->child_pid);
     bpf_probe_read(&ppid, sizeof(ppid), &ctx->parent_pid);
-
-    void * ptr = bpf_map_lookup_elem(&pid_cache_lru, &pid);
-    if(!ptr) {
-        bpf_map_update_elem(&pid_cache_lru, &pid, &ppid, BPF_ANY);
-    };
+    struct pid_cache_t cache = {};
+    cache.ppid = ppid;
+    bpf_probe_read(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
+    bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
     return 0;
 }
 
