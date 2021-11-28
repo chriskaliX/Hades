@@ -9,6 +9,7 @@
 
 // 2021-11-27
 // filter 部分可能无法直接引入, 因为 perf_event 发送的时候是分段发送的
+// TODO: trace_event_raw_sys_enter
 
 // enter_execve
 struct enter_execve_t {
@@ -24,6 +25,7 @@ struct enter_execve_t {
     char filename[FNAME_LEN];
     char comm[TASK_COMM_LEN];
     char args[ARGSIZE];
+    char nodename[65];
 };
 
 struct bpf_map_def SEC("maps") pid_cache_lru = {
@@ -47,7 +49,26 @@ void execve_common(struct enter_execve_t* execve_event) {
     // ppid 需要在用户层有一个 fallback, 从status里面取
     struct task_struct * task;
     struct task_struct * real_parent_task;
-    task = (struct task_struct*)bpf_get_current_task();
+    task = (struct task_struct *)bpf_get_current_task();
+
+    // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename),&task->nsproxy->uts_ns->name.nodename);
+    /* 
+        @note: namespace
+        在 task_struct->nsproxy 下有很多 namespace
+        uts(unix time sharing) namespace isolates the hostname & the NIS domain name; 
+    */
+    struct nsproxy *nsp;
+    struct uts_namespace *uts_ns;
+    bpf_probe_read(&nsp, sizeof(nsp), &task->nsproxy);
+    bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
+    bpf_probe_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
+
+    // struct uts_namespace *uns = (struct uts_namespace *)task->nsproxy->uts_ns;
+    // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename), &uns->name.nodename);
+
+    // struct pid_namespace *pns = (struct pid_namespace *)task->nsproxy->pid_ns_for_children;
+    // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename), &uns->name.nodename);
+
     bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
     bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &real_parent_task->tgid );
     if (execve_event->ppid == 0) {
@@ -99,7 +120,10 @@ int enter_execve(struct execve_entry_args_t *ctx)
             return 0;
         }
         enter_execve_data.argsize = bpf_probe_read_str(enter_execve_data.args, ARGSIZE, argp);
-        bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &enter_execve_data, sizeof(enter_execve_data));
+        // TODO: 有时候会出现读错误的情况, 后续 follow, 在用户态可以移除掉校验
+        if (enter_execve_data.argsize <= ARGSIZE) {
+            bpf_perf_event_output(ctx, &perf_events, BPF_F_CURRENT_CPU, &enter_execve_data, sizeof(enter_execve_data));
+        };
     }
     return 0;
 }

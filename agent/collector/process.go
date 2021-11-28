@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"agent/collector/tools"
+	"agent/collector/common"
 	"agent/global"
 	"agent/global/structs"
 
@@ -125,7 +125,7 @@ func GetProcess() (procs []structs.Process, err error) {
 				proc.Cmdline = proc.Cmdline[:64]
 			}
 		}
-		proc.Sha256, _ = tools.GetFileHash("/proc/" + strconv.Itoa(proc.PID) + "/exe")
+		proc.Sha256, _ = common.GetFileHash("/proc/" + strconv.Itoa(proc.PID) + "/exe")
 		proc.Username = global.GetUsername(proc.UID)
 		proc.Eusername = global.GetUsername(proc.EUID)
 		procs = append(procs, proc)
@@ -177,7 +177,7 @@ func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 
 	if proc.Exe, err = process.Executable(); err == nil {
 		if _, err = os.Stat(proc.Exe); err == nil {
-			proc.Sha256, _ = tools.GetFileHash(proc.Exe)
+			proc.Sha256, _ = common.GetFileHash(proc.Exe)
 		}
 	}
 

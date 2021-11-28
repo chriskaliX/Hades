@@ -1,7 +1,7 @@
 package ebpf
 
 import (
-	"agent/collector/tools"
+	"agent/collector/common"
 	"agent/global"
 	"agent/global/structs"
 	"agent/utils"
@@ -35,6 +35,7 @@ type enter_execve_t struct {
 	Filename [32]byte
 	Comm     [16]byte
 	Args     [128]byte
+	Nodename [65]byte
 }
 
 func Tracepoint_execve() error {
@@ -92,6 +93,7 @@ func Tracepoint_execve() error {
 	var lastppid int
 	var lastcid int
 	var lasttid int
+	var lastnodename string
 
 	// 用户态 reordering 问题, 如果不 reorder,  pstree 有问题
 	// 感觉实现类似于 Flink WaterMark order 问题, 目前考虑是: 优先队列缓冲 + 根据 ts 排序
@@ -142,6 +144,7 @@ func Tracepoint_execve() error {
 			lastppid = int(event.Ppid)
 			lastcid = int(event.Cid)
 			lasttid = int(event.Tid)
+			lastnodename = string(bytes.Trim(event.Nodename[:], "\x00"))
 			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
 		} else {
 			// TODO: 字段不全的, 需要补
@@ -156,6 +159,7 @@ func Tracepoint_execve() error {
 				lastppid = int(event.Ppid)
 				lastcid = int(event.Cid)
 				lasttid = int(event.Tid)
+				lastnodename = string(string(bytes.Trim(event.Nodename[:], "\x00")))
 			}
 
 			rawdata := make(map[string]string)
@@ -169,13 +173,14 @@ func Tracepoint_execve() error {
 			process.CID = lastcid
 			process.TID = lasttid
 			process.PPID = lastppid
+			process.NodeName = lastnodename
 
 			// TODO: 这个 LRU 其实可以合并的
 			global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 			global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 
 			process.PidTree = global.GetPstree(uint32(process.PID))
-			process.Sha256, _ = tools.GetFileHash(process.Exe)
+			process.Sha256, _ = common.GetFileHash(process.Exe)
 			process.UID = strconv.Itoa(int(event.Uid))
 			process.Username = global.GetUsername(process.UID)
 			process.StartTime = uint64(event.Ts) // TODO: 时间范围格式
