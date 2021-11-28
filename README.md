@@ -46,20 +46,22 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
   - [x] ncp 信息采集, 补齐进程树信息
   - [x] socket 采集 (LISTEN状态以及TCP_ESTABLISHED状态)
   - [x] process 采集 (启动阶段以及定期刷新)
-    - [ ] process 包采集问题, 目前写法 getAll 有问题, 考虑自实现
+    - [x] process 包采集问题, ~~目前写法 getAll 有问题, 考虑自实现~~ 先用这个方式
+    - [x] sha256sum 部分, 认为字节的实现不够完美, 参考 osquery 先 patch 了一版。已经提交给 Elkeid 开发, 等待回复
   - [x] yum 包采集
   - [x] crontab 采集
   - [ ] 启动项采集
   - [x] ssh 信息采集 - 配置信息
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
   - [ ] bash_history采集, 弥补 cn_proc 下丢失的问题
-  - [x] ebpf 先看 tracepoint 的
+  - [x] **ebpf 采集进程和外连事件**
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
     - [x] tracepoint sys_enter_connect (完毕)
     - [x] tracepoint hook (done, 但是未测试)
-    - [ ] ebpf 程序提高 channel 消费速度
+    - [x] ~~ebpf 程序提高 channel 消费速度~~ channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [ ] ebpf uprobe
     - [ ] ebpf 进程监控
+    - [ ] **CO-RE** 看来是不行的，先编译 core 来解决 vmlinux.h 的问题
     - [ ] 解决三个问题
       - [ ] /bin/sh 采集问题
       - [ ] argv 部分情况重复

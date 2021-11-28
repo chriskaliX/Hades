@@ -54,9 +54,8 @@ void execve_common(struct enter_execve_t* execve_event) {
     execve_event->cid = bpf_get_current_cgroup_id(); // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     // ppid 需要在用户层有一个 fallback, 从status里面取
-    struct task_struct * task;
+    struct task_struct * task = (struct task_struct *)bpf_get_current_task();
     struct task_struct * real_parent_task;
-    task = (struct task_struct *)bpf_get_current_task();
 
     // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename),&task->nsproxy->uts_ns->name.nodename);
     /* 
@@ -108,9 +107,12 @@ struct execve_entry_args_t {
     const char *const * envp;
 };
 
-// what SEC means?
-// https://stackoverflow.com/questions/67553794/what-is-variable-attribute-sec-means
-// limit of 512 bytes
+/*
+    @reference: https://stackoverflow.com/questions/67553794/what-is-variable-attribute-sec-means
+
+    @note: This is for declaring the structure of the object (in this case, the keys for the map) for BTF.
+        SEC() is the same as __attribute__((section("name"), used)) so what it does is putting the defined object into the given ELF section.
+*/
 SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
