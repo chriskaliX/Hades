@@ -32,6 +32,7 @@ type Process struct {
 	PidTree     string `json:"pidtree"`
 	Source      string `json:"source"`
 	Syscall     string `json:"syscall,omitempty"`
+	NodeName    string `json:"nodename"`
 	// Only valid when processes ticker collector
 	ResMem string `json:"resmem,omitempty"`
 	VirMem string `json:"virmem,omitempty"`
