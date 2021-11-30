@@ -1,6 +1,10 @@
 #include "vmlinux.h"
 #include "bpf_helpers.h"
 #include "process.h"
+// #include <linux/sched.h>
+// #include <linux/nsproxy.h>
+// #include <linux/utsname.h>
+// #include "common.h"
 
 #define FNAME_LEN 32
 #define ARGSIZE 128
@@ -10,6 +14,8 @@
 // 2021-11-27
 // filter 部分可能无法直接引入, 因为 perf_event 发送的时候是分段发送的
 // TODO: trace_event_raw_sys_enter
+// TODO(important): 可能需要参考 BCC 的, 去掉对 vmlinux.h 的依赖(或者有无导出已经兼容的?), 转而为在每个平台上编译, 走 elf 模式
+// osquery 的 toolchains 编译之后理论上兼容了主流的 ubuntu 和 centos, 也要看一下
 
 // enter_execve
 struct enter_execve_t {
@@ -54,9 +60,9 @@ void execve_common(struct enter_execve_t* execve_event) {
     execve_event->cid = bpf_get_current_cgroup_id(); // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     // ppid 需要在用户层有一个 fallback, 从status里面取
-    struct task_struct * task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct * task;
     struct task_struct * real_parent_task;
-
+    task = (struct task_struct *)bpf_get_current_task();
     // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename),&task->nsproxy->uts_ns->name.nodename);
     /* 
         @note: namespace
@@ -69,12 +75,17 @@ void execve_common(struct enter_execve_t* execve_event) {
     */
     struct nsproxy *nsp;
     struct uts_namespace *uts_ns;
-    bpf_probe_read(&nsp, sizeof(nsp), &task->nsproxy);
-    bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
+    if (bpf_probe_read(&nsp, sizeof(nsp), &task->nsproxy) != 0) {
+        return;
+    };
+    // 排查到这里读取失败了
+    if (bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns) != 0) {
+        return;
+    };
     bpf_probe_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
 
     struct pid_namespace *pns;
-    bpf_probe_read(&pns, sizeof(pns), &nsp->pid_ns_for_children);
+    bpf_probe_read_kernel(&pns, sizeof(pns), &nsp->pid_ns_for_children);
     bpf_probe_read(&execve_event->pns, sizeof(execve_event->pns), &pns->ns.inum);
 
     bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );

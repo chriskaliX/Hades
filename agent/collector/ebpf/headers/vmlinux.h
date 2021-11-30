@@ -7403,8 +7403,12 @@ struct nsproxy {
 	struct mnt_namespace *mnt_ns;
 	struct pid_namespace *pid_ns_for_children;
 	struct net *net_ns;
+	/*
+		@start: 这里 ubuntu 18.04 下不一样
+	*/
 	struct time_namespace *time_ns;
 	struct time_namespace *time_ns_for_children;
+	//  @end
 	struct cgroup_namespace *cgroup_ns;
 };
 
