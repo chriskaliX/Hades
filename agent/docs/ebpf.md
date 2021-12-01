@@ -48,3 +48,7 @@ It does rely on kernel to be built with BTF type information, though. Some major
 确实, 和 issue 里说的一样, 如果内核版本比较固定, 不如还是 ELF 得了。看一下其他开源项目, Falco 和 Cilium 的实现
 
 看到 osquery 支持 eBPF 的内核版本为 >= 4.18, 看了一下因为在 4.18 之后支持了 BTF... 加上 libbpf
+
+## 学习参考
+
+- [ ] https://github.com/cfc4n/ehids

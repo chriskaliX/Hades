@@ -1,6 +1,7 @@
 #include "vmlinux.h"
 #include "bpf_helpers.h"
 #include "process.h"
+#include "bpf_core_read.h"
 // #include <linux/sched.h>
 // #include <linux/nsproxy.h>
 // #include <linux/utsname.h>
@@ -60,9 +61,9 @@ void execve_common(struct enter_execve_t* execve_event) {
     execve_event->cid = bpf_get_current_cgroup_id(); // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     // ppid 需要在用户层有一个 fallback, 从status里面取
-    struct task_struct * task;
+    struct task_struct * task = (void *)bpf_get_current_task();
     struct task_struct * real_parent_task;
-    task = (struct task_struct *)bpf_get_current_task();
+    
     // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename),&task->nsproxy->uts_ns->name.nodename);
     /* 
         @note: namespace
@@ -75,14 +76,12 @@ void execve_common(struct enter_execve_t* execve_event) {
     */
     struct nsproxy *nsp;
     struct uts_namespace *uts_ns;
-    if (bpf_probe_read(&nsp, sizeof(nsp), &task->nsproxy) != 0) {
-        return;
-    };
+    bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
+
     // 排查到这里读取失败了
-    if (bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns) != 0) {
-        return;
-    };
-    bpf_probe_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
+    bpf_core_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
+
+    bpf_core_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
 
     struct pid_namespace *pns;
     bpf_probe_read_kernel(&pns, sizeof(pns), &nsp->pid_ns_for_children);
