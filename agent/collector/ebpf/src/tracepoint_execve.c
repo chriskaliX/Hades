@@ -2,23 +2,12 @@
 #include "bpf_helpers.h"
 #include "process.h"
 #include "bpf_core_read.h"
-// #include <linux/sched.h>
-// #include <linux/nsproxy.h>
-// #include <linux/utsname.h>
-// #include "common.h"
 
 #define FNAME_LEN 32
 #define ARGSIZE 128
-#define DEFAULT_MAXARGS 16 // 有些启动参数,会十分的长
+#define DEFAULT_MAXARGS 16
 #define BUFSIZE 4096
 
-// 2021-11-27
-// filter 部分可能无法直接引入, 因为 perf_event 发送的时候是分段发送的
-// TODO: trace_event_raw_sys_enter
-// TODO(important): 可能需要参考 BCC 的, 去掉对 vmlinux.h 的依赖(或者有无导出已经兼容的?), 转而为在每个平台上编译, 走 elf 模式
-// osquery 的 toolchains 编译之后理论上兼容了主流的 ubuntu 和 centos, 也要看一下
-
-// enter_execve
 struct enter_execve_t {
     u64 ts;
     u64 pns;
@@ -58,37 +47,17 @@ void execve_common(struct enter_execve_t* execve_event) {
     id = bpf_get_current_pid_tgid();
     execve_event->pid = id;
     execve_event->tid = id >> 32;
-    execve_event->cid = bpf_get_current_cgroup_id(); // kernel version 4.18, 需要加一个判断, 加强代码健壮性
-    // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
-    // ppid 需要在用户层有一个 fallback, 从status里面取
-    struct task_struct * task = (void *)bpf_get_current_task();
-    struct task_struct * real_parent_task;
+    execve_event->cid = bpf_get_current_cgroup_id();
     
-    // bpf_probe_read(&execve_event->nodename, sizeof(execve_event->nodename),&task->nsproxy->uts_ns->name.nodename);
-    /* 
-        @note: namespace
-        在 task_struct->nsproxy 下有很多 namespace
-        uts(unix time sharing) namespace isolates the hostname & the NIS domain name; 
+    // kernel version 4.18, 需要加一个判断, 加强代码健壮性
+    // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
+    struct task_struct * task = (void *)bpf_get_current_task();
 
-        TODO: 
-        nodename, pns 目前为空的问题, 怀疑是 task_struct vminux relocation?
-        所以 ppid 可能也是同一个问题
-    */
-    struct nsproxy *nsp;
-    struct uts_namespace *uts_ns;
-    bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
+    // nodename 和 inum 区分容器
+    BPF_CORE_READ_STR_INTO(&execve_event->nodename ,task, nsproxy, uts_ns, name.nodename);
+    execve_event->pns = BPF_CORE_READ(task, nsproxy, uts_ns, ns).inum;
 
-    // 排查到这里读取失败了
-    bpf_core_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
-
-    bpf_core_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
-
-    struct pid_namespace *pns;
-    bpf_probe_read_kernel(&pns, sizeof(pns), &nsp->pid_ns_for_children);
-    bpf_probe_read(&execve_event->pns, sizeof(execve_event->pns), &pns->ns.inum);
-
-    bpf_probe_read(&real_parent_task, sizeof(real_parent_task), &task->real_parent );
-    bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &real_parent_task->tgid );
+    execve_event->ppid = BPF_CORE_READ(task, real_parent, pid);
     if (execve_event->ppid == 0) {
         struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
         if( parent ) {
@@ -99,8 +68,6 @@ void execve_common(struct enter_execve_t* execve_event) {
     bpf_get_current_comm(&execve_event->comm, sizeof(execve_event->comm));
 }
 
-// 开始看 perf_events, 更正一下对 max_entries 的认识, 是存储用户态传输给内核的 fd, 而不是误认为的 array 队列长度之类
-// 从内户态透传给用户态的, 是每个 cpu 一个 buffer, perf_events 可以是这些 ringbuf 的一个集合
 struct bpf_map_def SEC("maps") perf_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
@@ -117,12 +84,6 @@ struct execve_entry_args_t {
     const char *const * envp;
 };
 
-/*
-    @reference: https://stackoverflow.com/questions/67553794/what-is-variable-attribute-sec-means
-
-    @note: This is for declaring the structure of the object (in this case, the keys for the map) for BTF.
-        SEC() is the same as __attribute__((section("name"), used)) so what it does is putting the defined object into the given ELF section.
-*/
 SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {

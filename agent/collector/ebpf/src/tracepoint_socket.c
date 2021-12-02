@@ -37,7 +37,8 @@ void netevent_common(struct netevent_t* netevent) {
     id = bpf_get_current_pid_tgid();
     netevent->pid = id;
     netevent->tid = id >> 32;
-    netevent->cid = bpf_get_current_cgroup_id(); // kernel version 4.18, 需要加一个判断, 加强代码健壮性
+    netevent->cid = bpf_get_current_cgroup_id();
+    // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     // ppid 需要在用户层有一个 fallback, 从status里面取
     struct task_struct * task;
@@ -49,11 +50,6 @@ void netevent_common(struct netevent_t* netevent) {
 }
 
 // /sys/kernel/debug/tracing/events/syscalls/sys_enter_connect/format
-/*
-    前面一直都照抄写成int...导致debug了很久
-    参考一下 linux 项目里带的 example
-    https://github.com/torvalds/linux/tree/418baf2c28f3473039f2f7377760bd8f6897ae18/samples/bpf
-*/
 struct enter_connect_t {
     unsigned long long unused;
     long syscall_nr;
