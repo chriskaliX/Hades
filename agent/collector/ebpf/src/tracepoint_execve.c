@@ -48,16 +48,15 @@ void execve_common(struct enter_execve_t* execve_event) {
     execve_event->pid = id;
     execve_event->tid = id >> 32;
     execve_event->cid = bpf_get_current_cgroup_id();
-    
+
     // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     struct task_struct * task = (void *)bpf_get_current_task();
 
     // nodename 和 inum 区分容器
     BPF_CORE_READ_STR_INTO(&execve_event->nodename ,task, nsproxy, uts_ns, name.nodename);
-    execve_event->pns = BPF_CORE_READ(task, nsproxy, uts_ns, ns).inum;
-
-    execve_event->ppid = BPF_CORE_READ(task, real_parent, pid);
+    BPF_CORE_READ_INTO(&execve_event->pns,task, nsproxy, uts_ns, ns.inum);
+    BPF_CORE_READ_INTO(&execve_event->ppid, task, real_parent, pid);
     if (execve_event->ppid == 0) {
         struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
         if( parent ) {
