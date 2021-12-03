@@ -23,6 +23,39 @@ struct my_kernel_type {
 
 [ 注 ]: 原话为 except it records CO-RE relocation information of the source character array field, which contains a zero-terminated C string. 多了一个结束符注意一下
 
-## BPF_CORE_READ()
+## BPF_CORE_READ(大写)
 
+好处是，对于长链式的读取，方便。比如我们在读取 inum 的时候路径为
+task_struct -> nsproxy -> uts_ns -> ns.inum
+如果之前读取的话, 需要定义多次变量, 多次读取。BPF_CORE_READ 简化这一操作
+BPF_CORE_READ(task, nsproxy, uts_ns, ns.inum), 返回值为读取值
+当然如果对每一次的读取错误需要处理的，还是用 bpf_core_read 即可
+
+## BPF_CORE_READ_INTO
+
+类似, 只是第一个值为 dst, 返回值为 error
+
+## BPF_CORE_READ_STR_INTO
+
+和上面 read 和 read_str 例子相同, 跳过
+
+## BTF-enabled BPF 程序直接读取内存
+
+作者没统计全, 某些特殊的程序点不用 bpf_core_read 或者 bpf_probe_read_kernel 也能直接读取到
+例如:
+
+- SEC("tp_btf/...")
+- fentry/fexit/fmod_ret
+- LSM (google 分享的, 5.8 以上的可用的 Linux Security Module)
+
+但是呢只能读取指针, 上述例子中的 type, 还是得 bpf_probe_read_kernel_str()
+
+## 读取大小不同的 bitfields 和 integers
+
+主要是两种方法: BPF_CORE_READ_BITFIELD 和 BPF_CORE_READ_BITFIELD_PROBED
 ...
+
+## Kconfig extern variable
+
+## Advanced Topic
+
