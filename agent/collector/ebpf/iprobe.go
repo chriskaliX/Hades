@@ -1,73 +1,80 @@
 package ebpf
 
-// cfc4n/ehids, 学习一下
-// type IBPFProbe interface {
-// 	// Init 初始化
-// 	Init(context.Context) error
+import (
+	"bytes"
+	"context"
+	"errors"
 
-// 	// GetProbeBytes  获取当前加载器的probebytes
-// 	GetProbeBytes() []byte
+	"github.com/cilium/ebpf"
+	"go.uber.org/zap"
+)
 
-// 	// ProbeName 获取当前probe的名字
-// 	ProbeName() string
+type IEBPFProbe interface {
+	// 统一实现
+	Init(context.Context) error
+	LoadKernel() error
+	AttachProbe() error
+	Run() error
+	Close() error
+}
 
-// 	// ProbeObjects ProbeObjects设置
-// 	// ProbeObjects() IClose
+type EBPFProbe struct {
+	probeBytes  []byte
+	opts        *ebpf.CollectionOptions
+	probeObject IBPFProbeObject
+	ctx         context.Context
+	name        string
+}
 
-// 	// LoadToKernel load bpf字节码到内核
-// 	LoadToKernel() error
+func (e *EBPFProbe) Init(ctx context.Context) error {
+	e.ctx = ctx
+	return nil
+}
 
-// 	// AttachProbe hook到对应probe
-// 	AttachProbe() error
+func (e *EBPFProbe) LoadKernel() error {
+	reader := bytes.NewReader(e.probeBytes)
+	spec, err := ebpf.LoadCollectionSpecFromReader(reader)
+	if err != nil {
+		return err
+	}
+	err = spec.LoadAndAssign(e.probeObject, e.opts)
+	if err != nil {
+		zap.S().Error(err)
+		return err
+	}
+	return nil
+}
 
-// 	// Run 事件监听感知
-// 	Run() error
+// Object 对应的 Attach
+func (e *EBPFProbe) AttachProbe() error {
+	if e.probeObject == nil {
+		return errors.New("probeObject nil")
+	}
+	return e.probeObject.AttachProbe()
+}
 
-// 	// Reader
-// 	// Reader() []IClose
+func (e *EBPFProbe) Run() error {
+	if err := e.LoadKernel(); err != nil {
+		zap.S().Error(err.Error())
+		return err
+	}
+	if err := e.AttachProbe(); err != nil {
+		zap.S().Error(err.Error())
+		return err
+	}
 
-// 	//OutPut 输出上报
-// 	//OutPut() bool
+	if e.probeObject == nil {
+		zap.S().Error(errors.New("probeObject nil"))
+		return errors.New("probeObject nil")
+	}
 
-// 	// Decode 解码，输出或发送到消息队列等
-// 	Decode(*ebpf.Map, []byte) (string, error)
+	if err := e.probeObject.Read(); err != nil {
+		zap.S().Error(err.Error())
+		return err
+	}
+	return nil
+}
 
-// 	// Close 关闭退出
-// 	Close() error
-// }
-
-// type EBPFProbe struct {
-// 	probeBytes []byte
-// 	opts       *ebpf.CollectionOptions
-// 	// probeObjects IEBPFProbeObject
-// 	// reader       []IClose
-// 	ctx   context.Context
-// 	child IBPFProbe
-
-// 	// probe的名字
-// 	name string
-
-// 	// probe的类型，uprobe,kprobe等
-// 	probeType string
-// }
-
-// func (e *EBPFProbe) Init(ctx context.Context) error {
-// 	e.ctx = ctx
-// 	return nil
-// }
-
-// func (e *EBPFProbe) LoadToKernel() error {
-// 	reader := bytes.NewReader(e.probeBytes)
-// 	// 从 elf 中 load, 不走原先的 bpf2cmd
-// 	spec, err := ebpf.LoadCollectionSpecFromReader(reader)
-// 	if err != nil {
-// 		return fmt.Errorf("can't load Probe: %w, eBPF bytes length:%d", err, len(e.probeBytes))
-// 	}
-
-// 	err = spec.LoadAndAssign(e.probeObjects, e.opts)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	e.reader = append(e.reader, e.probeObjects)
-// 	return nil
-// }
+func (e *EBPFProbe) Close() error {
+	return e.probeObject.Close()
+}

@@ -1,3 +1,4 @@
+# TODO: 需要做几件事情, 版本 CMD 版本 check; kernel version check; header download
 # tools
 CMD_LLC ?= llc
 CMD_CLANG ?= clang-12

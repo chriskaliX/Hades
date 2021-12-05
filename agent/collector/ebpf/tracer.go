@@ -6,6 +6,8 @@ import (
 	"agent/global/structs"
 	"agent/utils"
 	"bytes"
+	"context"
+	_ "embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -16,60 +18,56 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
-	"github.com/cilium/ebpf/rlimit"
 	"go.uber.org/zap"
 )
 
-type Objs struct {
-	TracerPrograms
-	Readers
+// EBPFProbe
+type TracerProbe struct {
+	EBPFProbe
 }
 
-type TracerPrograms struct {
-	TpExecve   *ebpf.Program `ebpf:"enter_execve"`
-	TpExecveat *ebpf.Program `ebpf:"enter_execveat"`
-	TpFork     *ebpf.Program `ebpf:"process_fork"`
+// 重写 Init
+func (t *TracerProbe) Init(ctx context.Context) error {
+	t.EBPFProbe.Init(ctx)
+	t.probeObject = &TracerObject{
+		links: make([]link.Link, 0),
+	}
+	t.probeBytes = TracerProgByte
+	return nil
 }
 
-type Readers struct {
-	PerfEvents *ebpf.Map `ebpf:"perf_events"`
+// --- Objects ---
+// 对象, 用于映射
+type TracerObject struct {
+	TracerProgs
+	TracerMaps
+	links []link.Link
 }
 
-func Tracer() error {
-	if err := rlimit.RemoveMemlock(); err != nil {
-		zap.S().Error(err)
-		return err
-	}
-	// 测试, 先写死
-	sepc, err := ebpf.LoadCollectionSpec("/root/projects/Hades/agent/collector/ebpf/tracer/tracer.o")
+func (t *TracerObject) AttachProbe() error {
+	forkLink, err := link.Tracepoint("sched", "sched_process_fork", t.TracerProgs.TracepointFork)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-
-	object := Objs{}
-
-	err = sepc.LoadAndAssign(&object, nil)
+	t.links = append(t.links, forkLink)
+	execveLink, err := link.Tracepoint("syscalls", "sys_enter_execve", t.TracerProgs.TracepointExecve)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-
-	sched_process_fork, err := link.Tracepoint("sched", "sched_process_fork", object.TpFork)
+	t.links = append(t.links, execveLink)
+	execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.TracerProgs.TracepointExecveat)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	defer sched_process_fork.Close()
+	t.links = append(t.links, execveatLink)
+	return nil
+}
 
-	execve, err := link.Tracepoint("syscalls", "sys_enter_execve", object.TpExecve)
-	if err != nil {
-		zap.S().Error(err)
-		return err
-	}
-	defer execve.Close()
-
-	rd, err := perf.NewReader(object.PerfEvents, 4*os.Getpagesize())
+func (t *TracerObject) Read() error {
+	rd, err := perf.NewReader(t.TracerMaps.Perfevents, 4*os.Getpagesize())
 	if err != nil {
 		zap.S().Error(err)
 		return err
@@ -99,7 +97,6 @@ func Tracer() error {
 			continue
 		}
 
-		// drop 信息很重要, 上传
 		if record.LostSamples != 0 {
 			rawdata := make(map[string]string)
 			rawdata["data"] = fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples)
@@ -109,20 +106,15 @@ func Tracer() error {
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
 			continue
 		}
-
 		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
 			zap.S().Error(err)
 			continue
 		}
 
-		// 如果 pid 为 0, 赋值
-		// TODO: 兼容性, 这里这么写有问题, 有些特殊情况下, 取回来的数据有问题,本身就是 0
 		if pid == 0 {
 			pid = event.Pid
 		}
 
-		// TODO: bugs - 这里有一个问题, 有些时候会出现 repeat 的情况
-		// Patch the reordering stuff
 		if pid == event.Pid {
 			if event.Argsize > 128 {
 				continue
@@ -139,10 +131,6 @@ func Tracer() error {
 			lastnodename = string(bytes.Trim(event.Nodename[:], "\x00"))
 			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
 		} else {
-			// TODO: 字段不全的, 需要补
-			// syscall, fd, source(cnproc or ebpf), timestamp
-			// TODO: 偶尔有进程树不全的问题, 看一下 pid , tid
-
 			// 临时的 patch, 先 run 起来, 后面会优雅一点解决
 			if len(args) == 1 {
 				filename = string(bytes.Trim(event.Filename[:], "\x00"))
@@ -193,4 +181,51 @@ func Tracer() error {
 			args = append(args, formatByte(event.Args[:]))
 		}
 	}
+}
+
+// TODO: 逻辑有点问题
+func (t *TracerObject) Close() error {
+	for _, link := range t.links {
+		if err := link.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// 程序对应函数名
+type TracerProgs struct {
+	TracepointExecve   *ebpf.Program `ebpf:"enter_execve"`
+	TracepointExecveat *ebpf.Program `ebpf:"enter_execveat"`
+	TracepointFork     *ebpf.Program `ebpf:"process_fork"`
+}
+
+// 对应 reader 函数名
+type TracerMaps struct {
+	Perfevents *ebpf.Map `ebpf:"perf_events"`
+}
+
+//go:embed tracer/tracer.o
+var TracerProgByte []byte
+
+type enter_execve_t struct {
+	Ts       uint64
+	Pns      uint64
+	Cid      uint64
+	Type     uint32
+	Pid      uint32
+	Tid      uint32
+	Uid      uint32
+	Gid      uint32
+	Ppid     uint32
+	Argsize  uint32
+	Filename [32]byte
+	Comm     [16]byte
+	PComm    [16]byte
+	Args     [128]byte
+	Nodename [65]byte
+}
+
+func formatByte(b []byte) string {
+	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
