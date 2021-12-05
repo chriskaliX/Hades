@@ -77,13 +77,10 @@ void execve_common(struct enter_execve_t* execve_event) {
     // struct task_struct * realparent;
     struct nsproxy * nsp;
     struct uts_namespace * uts_ns;
-    // struct ns_common * ns;
     bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
     bpf_core_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_core_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
 
-    // bpf_core_read(&ns, sizeof(ns), &uts_ns->ns);
-    // bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &ns->inum);
     bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &uts_ns->ns.inum);
     if (execve_event->ppid == 0) {
         struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
