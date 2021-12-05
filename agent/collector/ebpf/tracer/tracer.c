@@ -3,8 +3,8 @@
 #include <linux/nsproxy.h>
 #include <linux/utsname.h>
 #include <linux/types.h>
+#include <linux/ns_common.h>
 
-// 后定义, 有 redefine 校验
 #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -73,17 +73,23 @@ void execve_common(struct enter_execve_t* execve_event) {
 
     // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
-    struct task_struct * task = (void *)bpf_get_current_task();
+    struct task_struct * task = (struct task_struct *)bpf_get_current_task();
+    // struct task_struct * realparent;
+    struct nsproxy * nsp;
+    struct uts_namespace * uts_ns;
+    // struct ns_common * ns;
+    bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
+    bpf_core_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
+    bpf_core_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
 
-    // nodename 和 inum 区分容器
-    BPF_CORE_READ_STR_INTO(&execve_event->nodename ,task, nsproxy, uts_ns, name.nodename);
-    BPF_CORE_READ_INTO(&execve_event->pns,task, nsproxy, uts_ns, ns.inum);
-    BPF_CORE_READ_INTO(&execve_event->ppid, task, real_parent, pid);
+    // bpf_core_read(&ns, sizeof(ns), &uts_ns->ns);
+    // bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &ns->inum);
+    bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &uts_ns->ns.inum);
     if (execve_event->ppid == 0) {
         struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
         if( parent ) {
-            bpf_probe_read(&execve_event->ppid, sizeof(execve_event->ppid), &parent->ppid );
-            bpf_probe_read(&execve_event->pcomm, sizeof(execve_event->pcomm), &parent->pcomm );
+            bpf_core_read(&execve_event->ppid, sizeof(execve_event->ppid), &parent->ppid );
+            bpf_core_read(&execve_event->pcomm, sizeof(execve_event->pcomm), &parent->pcomm );
         }
     }
     bpf_get_current_comm(&execve_event->comm, sizeof(execve_event->comm));

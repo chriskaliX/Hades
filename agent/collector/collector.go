@@ -71,7 +71,8 @@ func Run() {
 	go SshdConfigJob(ctx)
 
 	// cn_proc_start()
-	go ebpf.Tracepoint_execve()
+	// go ebpf.Tracepoint_execve()
+	go ebpf.Tracer()
 
 	// yum 信息
 	GetYumJob(ctx)
