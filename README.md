@@ -118,6 +118,6 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 > [参考文章](https://programmer.group/grpc-service-discovery-amp-load-balancing.html)
 
-## 性能优化
+## 交流群
 
-1. 很多地方替换成了 atomic
+![agent](https://github.com/chriskaliX/Hades/blob/main/feishu.png)
