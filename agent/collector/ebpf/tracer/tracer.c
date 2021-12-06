@@ -4,6 +4,8 @@
 #include <linux/utsname.h>
 #include <linux/types.h>
 #include <linux/ns_common.h>
+#include <linux/sched/signal.h>
+#include <linux/tty.h>
 
 #include "common.h"
 #include "bpf_helpers.h"
@@ -61,6 +63,7 @@ struct bpf_map_def SEC("maps") pid_cache_lru = {
     .max_entries = 1024,
 };
 
+// 所有信息全部在内核态补齐! 减少用户态 read IO
 void execve_common(struct enter_execve_t* execve_event) {
     execve_event->ts = bpf_ktime_get_ns();
     // 填充 id 相关字段, 这里后面抽象一下防止重复
@@ -75,12 +78,26 @@ void execve_common(struct enter_execve_t* execve_event) {
     // kernel version 4.18, 需要加一个判断, 加强代码健壮性
     // https://android.googlesource.com/platform/external/bcc/+/HEAD/tools/execsnoop.py
     struct task_struct * task = (struct task_struct *)bpf_get_current_task();
-    // struct task_struct * realparent;
+    struct task_struct * realparent;
+    bpf_core_read(&realparent, sizeof(realparent), &task->real_parent);
+    bpf_core_read(&execve_event->ppid, sizeof(execve_event->ppid), &realparent->pid);
+
+    // 容器相关信息
+    // 父节点的 nsproxy, 检测容器逃逸? TODO: 看一下
     struct nsproxy * nsp;
     struct uts_namespace * uts_ns;
     bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
     bpf_core_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_core_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
+
+    // ssh 相关信息, tty
+    // 参考 https://github.com/Gui774ume/ssh-probe/blob/26b6f0b38bf7707a5f7f21444917ed2760766353/ebpf/utils/process.h
+    // TODO: unfinished
+    struct signal_struct *signal;
+    bpf_probe_read(&signal, sizeof(signal), &task->signal);
+    struct tty_struct *tty;
+    bpf_probe_read(&tty, sizeof(tty), &signal->tty);
+    // TODO: session
 
     bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &uts_ns->ns.inum);
     if (execve_event->ppid == 0) {
