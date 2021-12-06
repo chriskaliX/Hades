@@ -86,6 +86,8 @@ func (t *TracerObject) Read() error {
 	var lasttid int
 	var lastnodename string
 	var lastpns int
+	var lastttyname string
+	var lastcwd string
 
 	for {
 		record, err := rd.Read()
@@ -129,6 +131,8 @@ func (t *TracerObject) Read() error {
 			lasttid = int(event.Tid)
 			lastpns = int(event.Pns)
 			lastnodename = string(bytes.Trim(event.Nodename[:], "\x00"))
+			lastttyname = string(bytes.Trim(event.TTYName[:], "\x00"))
+			lastcwd = string(bytes.Trim(event.Cwd[:], "\x00"))
 			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
 		} else {
 			// 临时的 patch, 先 run 起来, 后面会优雅一点解决
@@ -142,6 +146,8 @@ func (t *TracerObject) Read() error {
 				lasttid = int(event.Tid)
 				lastpns = int(event.Pns)
 				lastnodename = string(string(bytes.Trim(event.Nodename[:], "\x00")))
+				lastttyname = string(bytes.Trim(event.TTYName[:], "\x00"))
+				lastcwd = string(bytes.Trim(event.Cwd[:], "\x00"))
 			}
 
 			rawdata := make(map[string]string)
@@ -159,6 +165,8 @@ func (t *TracerObject) Read() error {
 			process.Source = "ebpf"
 			process.PName = pcomm
 			process.Pns = lastpns
+			process.TTYName = lastttyname
+			process.Cwd = lastcwd
 
 			// TODO: 这个 LRU 其实可以合并的
 			global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
@@ -224,6 +232,8 @@ type enter_execve_t struct {
 	PComm    [16]byte
 	Args     [128]byte
 	Nodename [65]byte
+	TTYName  [64]byte
+	Cwd      [40]byte
 }
 
 func formatByte(b []byte) string {

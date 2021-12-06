@@ -29,6 +29,7 @@ tracer.o: tracer.c
 		-I $(KERN_BLD_PATH)/include/generated \
 		-I $(KERN_BLD_PATH)/include/generated/uapi \
 		-I $(BPF_HEADERS) \
+		-I /usr/include/ \
 		-Wunused \
 		-Wall \
 		-Wno-frame-address \

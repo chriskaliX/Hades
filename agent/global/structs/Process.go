@@ -11,6 +11,7 @@ import (
 
 var ProcessPool *sync.Pool
 
+// process 定期采集的进程, cn_proc/ebpf 采集的进程, 共用这个结构体
 type Process struct {
 	CID         int    `json:"cid,omitempty"`
 	Pns         int    `json:"pns"`
@@ -28,7 +29,8 @@ type Process struct {
 	Eusername   string `json:"eusername"`
 	Cwd         string `json:"cwd"`
 	Session     int    `json:"session"`
-	TTY         int    `json:"tty"`
+	TTY         int    `json:"tty,omitempty"`
+	TTYName     string `json:"ttyname"`
 	StartTime   uint64 `json:"starttime"`
 	RemoteAddrs string `json:"remoteaddrs"`
 	PidTree     string `json:"pidtree"`

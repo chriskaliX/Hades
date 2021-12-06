@@ -6,6 +6,9 @@
 #include <linux/ns_common.h>
 #include <linux/sched/signal.h>
 #include <linux/tty.h>
+#include <linux/fs_struct.h>
+#include <linux/path.h>
+#include <linux/dcache.h>
 
 #include "common.h"
 #include "bpf_helpers.h"
@@ -17,8 +20,8 @@
 #define DEFAULT_MAXARGS 16
 #define BUFSIZE 4096
 
-// TODO: 其余字段的补齐, cwd
-struct enter_execve_t {
+// tracepoint execve/execveat struct
+struct tc_execve_t {
     u64 ts;
     u64 pns;
     u64 cid;
@@ -34,28 +37,17 @@ struct enter_execve_t {
     char pcomm[TASK_COMM_LEN];
     char args[ARGSIZE];
     char nodename[65];
+    char ttyname[64]; // char name[64];
+    char cwd[40]; // TODO: 合适的 length
 };
 
-struct process_cache_t {
-    u64 cid;
-    u32 pid;
-    u32 ppid;
-    u32 tid;
-    char comm[TASK_COMM_LEN];
-};
-
-struct bpf_map_def SEC("maps/pid_cache") pid_cache = {
-    .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(struct process_cache_t),
-    .max_entries = 4096,
-};
 
 struct pid_cache_t {
     u32 ppid;
     char pcomm[16];
 };
 
+// process cache for real_parent->pid fallback
 struct bpf_map_def SEC("maps") pid_cache_lru = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = sizeof(u32),
@@ -64,7 +56,7 @@ struct bpf_map_def SEC("maps") pid_cache_lru = {
 };
 
 // 所有信息全部在内核态补齐! 减少用户态 read IO
-void execve_common(struct enter_execve_t* execve_event) {
+void execve_common(struct tc_execve_t* execve_event) {
     execve_event->ts = bpf_ktime_get_ns();
     // 填充 id 相关字段, 这里后面抽象一下防止重复
     u64 id = bpf_get_current_uid_gid();
@@ -84,22 +76,40 @@ void execve_common(struct enter_execve_t* execve_event) {
 
     // 容器相关信息
     // 父节点的 nsproxy, 检测容器逃逸? TODO: 看一下
-    struct nsproxy * nsp;
-    struct uts_namespace * uts_ns;
+    struct nsproxy *nsp;
+    struct uts_namespace *uts_ns;
     bpf_core_read(&nsp, sizeof(nsp), &task->nsproxy);
     bpf_core_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_core_read_str(&execve_event->nodename, sizeof(execve_event->nodename), &uts_ns->name.nodename);
+    bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &uts_ns->ns.inum);
 
     // ssh 相关信息, tty
     // 参考 https://github.com/Gui774ume/ssh-probe/blob/26b6f0b38bf7707a5f7f21444917ed2760766353/ebpf/utils/process.h
-    // TODO: unfinished
+    // ttyname
     struct signal_struct *signal;
     bpf_probe_read(&signal, sizeof(signal), &task->signal);
     struct tty_struct *tty;
     bpf_probe_read(&tty, sizeof(tty), &signal->tty);
+    bpf_probe_read_str(&execve_event->ttyname, sizeof(execve_event->ttyname), &tty->name);
     // TODO: session
 
-    bpf_core_read(&execve_event->pns, sizeof(execve_event->pns), &uts_ns->ns.inum);
+    // 参考:https://pretagteam.com/question/current-directory-of-a-process-in-linuxkernel
+    // TODO: cwd 获取有问题
+    // 这里要看一下几个, 第一个 path -> root/path, 第二 hash 和 name, length
+    // 这个实现方式是错误的, 我们在 bcc 的 issue 里也能找到类似的问题, 貌似还没有解决
+    // https://github.com/iovisor/bpftrace/issues/29
+    struct fs_struct *fs;
+    struct path *path;
+    struct dentry *dentry;
+    // 这里获取 cwd 在内核看到的函数为 dentry_path_raw, 但是似乎不好实现
+    // 也没有 fd -> path 的
+    bpf_probe_read(&fs, sizeof(fs), &task->fs);
+    bpf_probe_read(&path, sizeof(path), &fs->pwd);
+    bpf_probe_read(&dentry, sizeof(dentry), &path->dentry);
+    bpf_probe_read_str(&execve_event->cwd, sizeof(execve_event->cwd), &dentry->d_iname);
+
+    // 防止未知的 fallback 情况, 参考 issue 提问
+    // TODO: pcomm 外置
     if (execve_event->ppid == 0) {
         struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
         if( parent ) {
@@ -130,7 +140,7 @@ SEC("tracepoint/syscalls/sys_enter_execve")
 int enter_execve(struct execve_entry_args_t *ctx)
 {
     // 定义返回数据
-    struct enter_execve_t enter_execve_data = {};
+    struct tc_execve_t enter_execve_data = {};
     // 用来标识 sys_enter_execve, 供用户态区分
     enter_execve_data.type = 1;
     execve_common(&enter_execve_data);
@@ -157,7 +167,7 @@ SEC("tracepoint/syscalls/sys_enter_execveat")
 int enter_execveat(struct execve_entry_args_t *ctx)
 {
     // 定义返回数据
-    struct enter_execve_t enter_execve_data = {};
+    struct tc_execve_t enter_execve_data = {};
     enter_execve_data.type = 2;
     execve_common(&enter_execve_data);
     bpf_probe_read_str(enter_execve_data.filename, sizeof(enter_execve_data.filename), ctx->filename);
