@@ -17,10 +17,25 @@
 #define TASK_COMM_LEN 16
 #define FNAME_LEN 32
 #define ARGSIZE 128
-#define DEFAULT_MAXARGS 16
+#define DEFAULT_MAXARGS 32
 #define BUFSIZE 4096
+#define MAX_PERCPU_BUFSIZE 1<<12
+
+// 很多问题, 发现都在 https://github.com/aquasecurity/tracee/blob/main/tracee-ebpf/tracee/tracee.bpf.c 解决了
+// 已经发现能解决的有, 且包含了 CO-RE 和 从kernel header 编译的情况
+/*
+    kernel version 之间的差异性
+    解决传输 execve 数据的时候, 因为 stack limitation of 512 导致需要拆分(buf ? PERCPU_ARRAY)
+    cwd dentry->d_name.name trace problem...
+    用户态传输 filter
+*/
+// 预计后面的一个月左右, 我会先看完这个代码, 移植过来并修改我需要的地方
 
 // tracepoint execve/execveat struct
+// 因为有一个 512 byte 的 stacksize, 之前的处理方式是在用户态做, 太多的 perf event了
+// https://stackoverflow.com/questions/53627094/ebpf-track-values-longer-than-stack-size
+// 用 PERCPU 来处理这个问题
+// TODO: try to fix 
 struct tc_execve_t {
     u64 ts;
     u64 pns;
@@ -40,7 +55,6 @@ struct tc_execve_t {
     char ttyname[64]; // char name[64];
     char cwd[40]; // TODO: 合适的 length
 };
-
 
 struct pid_cache_t {
     u32 ppid;
@@ -87,10 +101,10 @@ void execve_common(struct tc_execve_t* execve_event) {
     // 参考 https://github.com/Gui774ume/ssh-probe/blob/26b6f0b38bf7707a5f7f21444917ed2760766353/ebpf/utils/process.h
     // ttyname
     struct signal_struct *signal;
-    bpf_probe_read(&signal, sizeof(signal), &task->signal);
+    bpf_core_read(&signal, sizeof(signal), &task->signal);
     struct tty_struct *tty;
-    bpf_probe_read(&tty, sizeof(tty), &signal->tty);
-    bpf_probe_read_str(&execve_event->ttyname, sizeof(execve_event->ttyname), &tty->name);
+    bpf_core_read(&tty, sizeof(tty), &signal->tty);
+    bpf_core_read_str(&execve_event->ttyname, sizeof(execve_event->ttyname), &tty->name);
     // TODO: session
 
     // 参考:https://pretagteam.com/question/current-directory-of-a-process-in-linuxkernel
@@ -98,24 +112,37 @@ void execve_common(struct tc_execve_t* execve_event) {
     // 这里要看一下几个, 第一个 path -> root/path, 第二 hash 和 name, length
     // 这个实现方式是错误的, 我们在 bcc 的 issue 里也能找到类似的问题, 貌似还没有解决
     // https://github.com/iovisor/bpftrace/issues/29
-    struct fs_struct *fs;
-    struct path *path;
-    struct dentry *dentry;
-    // 这里获取 cwd 在内核看到的函数为 dentry_path_raw, 但是似乎不好实现
-    // 也没有 fd -> path 的
-    bpf_probe_read(&fs, sizeof(fs), &task->fs);
-    bpf_probe_read(&path, sizeof(path), &fs->pwd);
-    bpf_probe_read(&dentry, sizeof(dentry), &path->dentry);
-    bpf_probe_read_str(&execve_event->cwd, sizeof(execve_event->cwd), &dentry->d_iname);
+    // struct fs_struct *fs;
+    // struct path *path;
+    // struct dentry *dentry;
+    // struct qstr d_name;
+    // // 这里获取 cwd 在内核看到的函数为 dentry_path_raw, 但是似乎不好实现
+    // // 也没有 fd -> path 的
+    // bpf_core_read(&fs, sizeof(fs), &task->fs);
+    // bpf_core_read(&path, sizeof(path), &fs->pwd);
+    // bpf_core_read(&dentry, sizeof(dentry), &path->dentry);
+    // check_max_stack_depth
+    // 要追溯到最上层的 dentry
+    // #pragma unroll
+    // for (int i=0; i < 30; i++) {
+    //     struct dentry *d_parent;
+    //     bpf_core_read(&d_parent,sizeof(d_parent), &dentry->d_parent);
+    //     if (dentry == d_parent) {
+    //         break;
+    //     }
+    //     // bpf_core_read(&dentry, sizeof(dentry), &d_parent);
+    //     dentry = d_parent;
+    // }
+    // bpf_core_read(name, sizeof(name), dentry->d_name);
+    // bpf_core_read_str(&execve_event->cwd, len, (void *)d_name.name);
 
-    // 防止未知的 fallback 情况, 参考 issue 提问
-    // TODO: pcomm 外置
-    if (execve_event->ppid == 0) {
-        struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
-        if( parent ) {
+    struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &execve_event->pid);
+    if( parent ) {
+        // 防止未知的 fallback 情况, 参考 issue 提问
+        if (execve_event->ppid == 0) {
             bpf_core_read(&execve_event->ppid, sizeof(execve_event->ppid), &parent->ppid );
-            bpf_core_read(&execve_event->pcomm, sizeof(execve_event->pcomm), &parent->pcomm );
         }
+        bpf_core_read(&execve_event->pcomm, sizeof(execve_event->pcomm), &parent->pcomm );
     }
     bpf_get_current_comm(&execve_event->comm, sizeof(execve_event->comm));
 }
