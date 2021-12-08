@@ -117,6 +117,7 @@ SEC("raw_tracepoint/sys_execve")
 int syscall__execve(void *ctx)
 {
     event_data_t data = {};
+    // 这里预留了 context_t 的 size, 这样到后面的时候不会搞混
     if (!init_event_data(&data, ctx))
         return 0;
     ...
@@ -233,4 +234,62 @@ static __always_inline int events_perf_submit(event_data_t *data, u32 id, long r
     // events 为定义的 PERF_EVENT_ARRAY, 直接将 buf 中的数据输出
     return bpf_perf_event_output(data->ctx, &events, BPF_F_CURRENT_CPU, output_data, size);
 }
+```
+
+所以最后总结一下: 最终发送的数据直接从 per-cpu array 当中获取。BUF 的数据结构如下：
+
+```
+|init_event_data||重复的数量||        ||   |
+[   context_t   ][str count][str size][str]...(repeat)
+```
+
+对于我们来说, 有几个地方需要魔改一下。首先是 context_t ，tracee 中定义点为：
+
+```C
+typedef struct event_context {
+    u64 ts;                        // Timestamp
+    u64 cgroup_id;
+    u32 pid;                       // PID as in the userspace term
+    u32 tid;                       // TID as in the userspace term
+    u32 ppid;                      // Parent PID as in the userspace term
+    u32 host_pid;                  // PID in host pid namespace
+    u32 host_tid;                  // TID in host pid namespace
+    u32 host_ppid;                 // Parent PID in host pid namespace
+    u32 uid;
+    u32 mnt_id;
+    u32 pid_id;
+    char comm[TASK_COMM_LEN];
+    char uts_name[TASK_COMM_LEN];
+    u32 eventid;
+    s64 retval;
+    u32 stack_id;
+    u8 argnum;
+} context_t;
+```
+
+在 execve 的场景中, 我们还需要: cwd, parent command, exe, exehash, parent exe, parent exe hash, ttyname, stdin, stdout
+
+
+TODO: 这里还没写完, 明天下班回来接着写, 先睡觉了
+
+```C
+typedef struct event_context {
+    u64 ts;     // Timestamp
+    u64 pns;    //
+    u64 cid;
+    u32 type;
+    u32 pid;
+    u32 tid;
+    u32 uid;
+    u32 gid;
+    u32 ppid;
+    u32 argsize;
+    char filename[FNAME_LEN];
+    char comm[TASK_COMM_LEN];
+    char pcomm[TASK_COMM_LEN];
+    char args[ARGSIZE];
+    char nodename[65];
+    char ttyname[64]; // char name[64];
+    char cwd[40]; // TODO: 合适的 length
+} context_t;
 ```
