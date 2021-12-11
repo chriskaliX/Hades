@@ -267,29 +267,71 @@ typedef struct event_context {
 } context_t;
 ```
 
+字节的 data.png
+
+```
+uid
+data_type
+exe
+pid
+ppid
+pgid
+tgid
+comm
+sid
+nodename
+sessionid
+pns
+root_pns
+argv
+run_path
+stdin
+stdout
+dip
+dport
+sip
+sport
+sa_family
+pid_tree
+tty
+socket_pid
+ld_preload
+res
+socket_argv
+pgid_argv
+username
+exe_hash
+ppid_argv
+```
+
 在 execve 的场景中, 我们还需要: cwd, parent command, exe, exehash, parent exe, parent exe hash, ttyname, stdin, stdout
 
-
-TODO: 这里还没写完, 明天下班回来接着写, 先睡觉了
+要考虑到便捷性。比如 uid 变化到 root 的检测，
 
 ```C
 typedef struct event_context {
     u64 ts;     // Timestamp
-    u64 pns;    //
-    u64 cid;
-    u32 type;
-    u32 pid;
-    u32 tid;
-    u32 uid;
-    u32 gid;
-    u32 ppid;
-    u32 argsize;
-    char filename[FNAME_LEN];
-    char comm[TASK_COMM_LEN];
-    char pcomm[TASK_COMM_LEN];
-    char args[ARGSIZE];
+    u64 pns;    // uts_namesapce->ns_common->inum inode number
+    u64 root_pns; // parent inum
+    u64 cid;    // cid
+    u32 pid;    // process id
+    u32 tid;    // thread id
+    u32 uid;    // uid
+    u32 gid;    // group id
+    u32 ppid;   // parent pid
+    u32 sessionid;          // sessionid
+    u8 type;                // hook type
+    char exe[FILENAME_LEN]; // exe
+    char exe_hash[];        // exe_hash
+    char comm[TASK_COMM_LEN];   // command line
+    char pcomm[TASK_COMM_LEN];  // parent command line
+    char argv[ARGV_SIZE];
     char nodename[65];
-    char ttyname[64]; // char name[64];
-    char cwd[40]; // TODO: 合适的 length
+    char ttyname[64];           // tty name
+    char cwd[40];               // 
+    char stdin[];               // input
+    char stdout[];              // output
+    char pid_tree[];            // 可以在内核态做
+    char ld_preload[];          // hook 点从 envp 里取
 } context_t;
 ```
