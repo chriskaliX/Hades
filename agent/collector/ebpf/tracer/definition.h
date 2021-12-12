@@ -18,8 +18,8 @@
 #define TASK_COMM_LEN 16
 #define FILENAME_LEN 32
 #define ARGV_LEN 128
-#define BUFSIZE 4096
-#define MAX_STRING_SIZE 1 << 12
+// #define MAX_STRING_SIZE 1 << 9
+#define MAX_STRING_SIZE 512
 #define MAX_PERCPU_BUFSIZE 1 << 14
 #define MAX_BUFFERS 3
 #define MAX_STR_ARR_ELEM 32
