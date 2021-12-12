@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -102,7 +103,6 @@ func (t *TracerObject) Read() error {
 			zap.S().Error(err.Error())
 			continue
 		}
-		fmt.Println("read one")
 
 		rawdata := make(map[string]string)
 		rawdata["data_type"] = "1000"
@@ -122,14 +122,41 @@ func (t *TracerObject) Read() error {
 		process.Parent_uts_inum = int(ctx.Parent_uts_inum)
 		process.TTYName = formatByte(ctx.TTYName[:])
 		// 再消费
-		var size uint32
+		// index 暂时不区分
+		var index uint8
+		err = binary.Read(buffers, binary.LittleEndian, &index)
+
+		var size uint8
 		err = binary.Read(buffers, binary.LittleEndian, &size)
 		if err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Println(size)
+			zap.S().Error(err.Error())
+			continue
 		}
 
+		argv := make([]string, 0)
+		for i := 0; i < int(size); i++ {
+			var strsize uint32
+			if err = binary.Read(buffers, binary.LittleEndian, &strsize); err == nil {
+				if strsize > 512 {
+					break
+				}
+				res := make([]byte, strsize-1)
+				if err = binary.Read(buffers, binary.LittleEndian, &res); err == nil {
+					argv = append(argv, string(res))
+					// 结尾 drop
+					var dummy int8
+					binary.Read(buffers, binary.LittleEndian, &dummy)
+				} else {
+					zap.S().Error(err.Error())
+					break
+				}
+			} else {
+				zap.S().Error(err.Error())
+				break
+			}
+		}
+
+		process.Cmdline = strings.Join(argv, " ")
 		process.PidTree = global.GetPstree(uint32(process.PID))
 		process.Sha256, _ = common.GetFileHash(process.Exe)
 		process.Username = global.GetUsername(process.UID)
@@ -139,7 +166,6 @@ func (t *TracerObject) Read() error {
 		if err == nil {
 			rawdata["data"] = string(data)
 			global.UploadChannel <- rawdata
-			fmt.Println("send")
 		}
 		process.Reset()
 		structs.ProcessPool.Put(process)
@@ -190,7 +216,7 @@ type ctx struct {
 	TTYName         [64]byte
 	Cwd             [40]byte
 	Argnum          uint8
-	_               [3]byte // padding - mark
+	_               [2]byte // padding - mark
 }
 
 func formatByte(b []byte) string {

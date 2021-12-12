@@ -40,7 +40,7 @@ int enter_execve(struct execve_entry_args_t *ctx)
         return 0;
     data.context.type = 1;
     bpf_probe_read_str(data.context.exe, sizeof(data.context.exe), ctx->filename);
-    save_str_arr_to_buf(&data, ctx->argv, 1);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 1);
     // events_perf_submit(&data);
 
     bpf_probe_read(&(data.submit_p->buf[0]), sizeof(context_t), &data.context);
