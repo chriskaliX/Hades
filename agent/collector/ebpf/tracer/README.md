@@ -306,7 +306,7 @@ ppid_argv
 
 在 execve 的场景中, 我们还需要: cwd, parent command, exe, exehash, parent exe, parent exe hash, ttyname, stdin, stdout
 
-要考虑到便捷性。比如 uid 变化到 root 的检测，
+要考虑到便捷性。比如父 uid 和 子 uid 的变化来检测提权
 
 ```C
 typedef struct event_context {
@@ -322,16 +322,16 @@ typedef struct event_context {
     u32 sessionid;          // sessionid
     u8 type;                // hook type
     char exe[FILENAME_LEN]; // exe
-    char exe_hash[];        // exe_hash
+    // char exe_hash[];        // exe_hash(在用户态?)
     char comm[TASK_COMM_LEN];   // command line
     char pcomm[TASK_COMM_LEN];  // parent command line
-    char argv[ARGV_SIZE];
-    char nodename[65];
+    char argv[ARGV_SIZE];       // 参数
+    char nodename[65];          // 主机名
     char ttyname[64];           // tty name
     char cwd[40];               // 
     char stdin[];               // input
     char stdout[];              // output
-    char pid_tree[];            // 可以在内核态做
+    char pid_tree[];            // 可以在内核态做 => 思路: parent 递归溯源, 放在全局 LRU(和用户态一样做), 同时要有最大读取的限制
     char ld_preload[];          // hook 点从 envp 里取
 } context_t;
 ```

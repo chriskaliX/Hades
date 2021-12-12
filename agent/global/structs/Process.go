@@ -13,30 +13,31 @@ var ProcessPool *sync.Pool
 
 // process 定期采集的进程, cn_proc/ebpf 采集的进程, 共用这个结构体
 type Process struct {
-	CID         int    `json:"cid,omitempty"`
-	Pns         int    `json:"pns"`
-	PID         int    `json:"pid"`
-	TID         int    `json:"tid,omitempty"`
-	PPID        int    `json:"ppid"`
-	Name        string `json:"name"`
-	PName       string `json:"pname"`
-	Cmdline     string `json:"cmdline"`
-	Exe         string `json:"exe"`
-	Sha256      string `json:"sha256"`
-	UID         string `json:"uid"`
-	Username    string `json:"username"`
-	EUID        string `json:"euid"`
-	Eusername   string `json:"eusername"`
-	Cwd         string `json:"cwd"`
-	Session     int    `json:"session"`
-	TTY         int    `json:"tty,omitempty"`
-	TTYName     string `json:"ttyname"`
-	StartTime   uint64 `json:"starttime"`
-	RemoteAddrs string `json:"remoteaddrs"`
-	PidTree     string `json:"pidtree"`
-	Source      string `json:"source"`
-	Syscall     string `json:"syscall,omitempty"`
-	NodeName    string `json:"nodename"`
+	CID             int    `json:"cid,omitempty"`
+	Uts_inum        int    `json:"uts_inum"`
+	Parent_uts_inum int    `json:"parent_uts_inum"`
+	PID             int    `json:"pid"`
+	TID             int    `json:"tid,omitempty"`
+	PPID            int    `json:"ppid"`
+	Name            string `json:"name"`
+	PName           string `json:"pname"`
+	Cmdline         string `json:"cmdline"`
+	Exe             string `json:"exe"`
+	Sha256          string `json:"sha256"`
+	UID             string `json:"uid"`
+	Username        string `json:"username"`
+	EUID            string `json:"euid"`
+	Eusername       string `json:"eusername"`
+	Cwd             string `json:"cwd"`
+	Session         int    `json:"session"`
+	TTY             int    `json:"tty,omitempty"`
+	TTYName         string `json:"ttyname"`
+	StartTime       uint64 `json:"starttime"`
+	RemoteAddrs     string `json:"remoteaddrs"`
+	PidTree         string `json:"pidtree"`
+	Source          string `json:"source"`
+	Syscall         string `json:"syscall,omitempty"`
+	NodeName        string `json:"nodename"`
 	// Only valid when processes ticker collector
 	ResMem string `json:"resmem,omitempty"`
 	VirMem string `json:"virmem,omitempty"`

@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -57,37 +56,24 @@ func (t *TracerObject) AttachProbe() error {
 		return err
 	}
 	t.links = append(t.links, execveLink)
-	execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.TracerProgs.TracepointExecveat)
-	if err != nil {
-		zap.S().Error(err)
-		return err
-	}
-	t.links = append(t.links, execveatLink)
+	// execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.TracerProgs.TracepointExecveat)
+	// if err != nil {
+	// 	zap.S().Error(err)
+	// 	return err
+	// }
+	// t.links = append(t.links, execveatLink)
 	return nil
 }
 
 func (t *TracerObject) Read() error {
-	rd, err := perf.NewReader(t.TracerMaps.Perfevents, 4*os.Getpagesize())
+	rd, err := perf.NewReader(t.TracerMaps.Perfevents, 8*os.Getpagesize())
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Error(err.Error())
 		return err
 	}
 	defer rd.Close()
 
-	var event enter_execve_t
-	args := make([]string, 0)
-	var pid uint32
-	var filename string
-	var comm string
-	var pcomm string
-	var lastpid int
-	var lastppid int
-	var lastcid int
-	var lasttid int
-	var lastnodename string
-	var lastpns int
-	var lastttyname string
-	var lastcwd string
+	var ctx ctx
 
 	for {
 		record, err := rd.Read()
@@ -108,86 +94,55 @@ func (t *TracerObject) Read() error {
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
 			continue
 		}
-		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
-			zap.S().Error(err)
+
+		var buffers = bytes.NewBuffer(record.RawSample)
+
+		// 先消费 context_t
+		if err := binary.Read(buffers, binary.LittleEndian, &ctx); err != nil {
+			zap.S().Error(err.Error())
 			continue
 		}
+		fmt.Println("read one")
 
-		if pid == 0 {
-			pid = event.Pid
-		}
-
-		if pid == event.Pid {
-			if event.Argsize > 128 {
-				continue
-			}
-			args = append(args, string(bytes.Trim(event.Args[:event.Argsize-1], "\x00")))
-			filename = string(bytes.Trim(event.Filename[:], "\x00"))
-			comm = formatByte(event.Comm[:])
-			pcomm = formatByte(event.PComm[:])
-			lastpid = int(event.Pid)
-			lastppid = int(event.Ppid)
-			lastcid = int(event.Cid)
-			lasttid = int(event.Tid)
-			lastpns = int(event.Pns)
-			lastnodename = string(bytes.Trim(event.Nodename[:], "\x00"))
-			lastttyname = string(bytes.Trim(event.TTYName[:], "\x00"))
-			lastcwd = string(bytes.Trim(event.Cwd[:], "\x00"))
-			// TODO: 好好看一下这个问题, 暂时先当没有来写（或者拼接部分我们在 eBPF 中做? 看一下）
+		rawdata := make(map[string]string)
+		rawdata["data_type"] = "1000"
+		rawdata["time"] = strconv.Itoa(int(global.Time))
+		process := structs.ProcessPool.Get().(structs.Process)
+		process.Cmdline = formatByte(ctx.Comm[:])
+		process.Exe = formatByte(ctx.Exe[:])
+		process.CID = int(ctx.CgroupId)
+		process.UID = strconv.Itoa(int(ctx.Uid))
+		process.PID = int(ctx.Pid)
+		process.PPID = int(ctx.Ppid)
+		process.NodeName = formatByte(ctx.Nodename[:])
+		process.TID = int(ctx.Tid)
+		process.Source = "ebpf"
+		process.PName = formatByte(ctx.PComm[:])
+		process.Uts_inum = int(ctx.Uts_inum)
+		process.Parent_uts_inum = int(ctx.Parent_uts_inum)
+		process.TTYName = formatByte(ctx.TTYName[:])
+		// 再消费
+		var size uint32
+		err = binary.Read(buffers, binary.LittleEndian, &size)
+		if err != nil {
+			fmt.Println(err)
 		} else {
-			// 临时的 patch, 先 run 起来, 后面会优雅一点解决
-			if len(args) == 1 {
-				filename = string(bytes.Trim(event.Filename[:], "\x00"))
-				comm = formatByte(event.Comm[:])
-				pcomm = formatByte(event.PComm[:])
-				lastpid = int(event.Pid)
-				lastppid = int(event.Ppid)
-				lastcid = int(event.Cid)
-				lasttid = int(event.Tid)
-				lastpns = int(event.Pns)
-				lastnodename = string(string(bytes.Trim(event.Nodename[:], "\x00")))
-				lastttyname = string(bytes.Trim(event.TTYName[:], "\x00"))
-				lastcwd = string(bytes.Trim(event.Cwd[:], "\x00"))
-			}
-
-			rawdata := make(map[string]string)
-			rawdata["data_type"] = "1000"
-			rawdata["time"] = strconv.Itoa(int(global.Time))
-			process := structs.ProcessPool.Get().(structs.Process)
-			process.Cmdline = strings.Join(args, " ")
-			process.Exe = filename
-			process.Name = comm
-			process.PID = lastpid
-			process.CID = lastcid
-			process.TID = lasttid
-			process.PPID = lastppid
-			process.NodeName = lastnodename
-			process.Source = "ebpf"
-			process.PName = pcomm
-			process.Pns = lastpns
-			process.TTYName = lastttyname
-			process.Cwd = lastcwd
-
-			// TODO: 这个 LRU 其实可以合并的
-			global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
-			global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-
-			process.PidTree = global.GetPstree(uint32(process.PID))
-			process.Sha256, _ = common.GetFileHash(process.Exe)
-			process.UID = strconv.Itoa(int(event.Uid))
-			process.Username = global.GetUsername(process.UID)
-			process.StartTime = uint64(global.Time)
-			data, err := utils.Marshal(process)
-			if err == nil {
-				rawdata["data"] = string(data)
-				global.UploadChannel <- rawdata
-			}
-			process.Reset()
-			structs.ProcessPool.Put(process)
-			pid = event.Pid
-			args = args[0:0]
-			args = append(args, formatByte(event.Args[:]))
+			fmt.Println(size)
 		}
+
+		process.PidTree = global.GetPstree(uint32(process.PID))
+		process.Sha256, _ = common.GetFileHash(process.Exe)
+		process.Username = global.GetUsername(process.UID)
+		process.StartTime = uint64(global.Time)
+		data, err := utils.Marshal(process)
+
+		if err == nil {
+			rawdata["data"] = string(data)
+			global.UploadChannel <- rawdata
+			fmt.Println("send")
+		}
+		process.Reset()
+		structs.ProcessPool.Put(process)
 	}
 }
 
@@ -203,37 +158,39 @@ func (t *TracerObject) Close() error {
 
 // 程序对应函数名
 type TracerProgs struct {
-	TracepointExecve   *ebpf.Program `ebpf:"enter_execve"`
-	TracepointExecveat *ebpf.Program `ebpf:"enter_execveat"`
-	TracepointFork     *ebpf.Program `ebpf:"process_fork"`
+	TracepointExecve *ebpf.Program `ebpf:"enter_execve"`
+	// TracepointExecveat *ebpf.Program `ebpf:"enter_execveat"`
+	TracepointFork *ebpf.Program `ebpf:"process_fork"`
 }
 
 // 对应 reader 函数名
 type TracerMaps struct {
-	Perfevents *ebpf.Map `ebpf:"perf_events"`
+	Perfevents *ebpf.Map `ebpf:"exec_events"`
 }
 
 //go:embed tracer/tracer.o
 var TracerProgByte []byte
 
-type enter_execve_t struct {
-	Ts       uint64
-	Pns      uint64
-	Cid      uint64
-	Type     uint32
-	Pid      uint32
-	Tid      uint32
-	Uid      uint32
-	Gid      uint32
-	Ppid     uint32
-	Argsize  uint32
-	Filename [32]byte
-	Comm     [16]byte
-	PComm    [16]byte
-	Args     [128]byte
-	Nodename [65]byte
-	TTYName  [64]byte
-	Cwd      [40]byte
+type ctx struct {
+	Ts              uint64
+	Uts_inum        uint64
+	Parent_uts_inum uint64
+	CgroupId        uint64
+	Type            uint32
+	Pid             uint32
+	Tid             uint32
+	Uid             uint32
+	Gid             uint32
+	Ppid            uint32
+	Sessionid       uint32
+	Exe             [32]byte
+	Comm            [16]byte
+	PComm           [16]byte
+	Nodename        [65]byte
+	TTYName         [64]byte
+	Cwd             [40]byte
+	Argnum          uint8
+	_               [3]byte // padding - mark
 }
 
 func formatByte(b []byte) string {
