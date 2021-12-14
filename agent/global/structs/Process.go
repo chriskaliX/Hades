@@ -13,7 +13,7 @@ var ProcessPool *sync.Pool
 
 // process 定期采集的进程, cn_proc/ebpf 采集的进程, 共用这个结构体
 type Process struct {
-	CID             int    `json:"cid,omitempty"`
+	CgroupId        int    `json:"cgroupid,omitempty"`
 	Uts_inum        int    `json:"uts_inum"`
 	Parent_uts_inum int    `json:"parent_uts_inum"`
 	PID             int    `json:"pid"`

@@ -9,6 +9,8 @@
 #include <linux/fs_struct.h>
 #include <linux/path.h>
 #include <linux/dcache.h>
+#include <linux/cred.h>
+#include <linux/mount.h>
 
 #include "common.h"
 #include "bpf_helpers.h"
@@ -27,11 +29,35 @@
 #define SUBMIT_BUF_IDX 0
 #define NODENAME_SIZE 65
 #define TTY_SIZE 64
+#define MAX_PATH_COMPONENTS 20
 
 // ==== 内核版本 ====
 // #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
 // #error Minimal required kernel version is 4.18
 // #endif
+
+#define READ_KERN(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
+        _val;                                                           \
+    })
+
+// TODO: CORE判断, vmlinux
+struct mnt_namespace {
+    atomic_t        count;
+    struct ns_common    ns;
+    // ...
+};
+
+struct mount {
+    struct hlist_node mnt_hash;
+    struct mount *mnt_parent;
+    struct dentry *mnt_mountpoint;
+    struct vfsmount mnt;
+    // ...
+};
 
 // ==== 结构体定义 ====
 // context
@@ -44,10 +70,11 @@ typedef struct event_context {
     u32 pid;    // processid
     u32 tid;    // thread id
     u32 uid;    // user id
+    u32 euid;   // effective user id
     u32 gid;    // group id
     u32 ppid;   // parent pid
     u32 sessionid;
-    char exe[FILENAME_LEN];   // file name
+    char exe[FILENAME_LEN];   // TODO: file name => 转移到 submit_p, 突破 string 类读取长度
     char comm[TASK_COMM_LEN];   // command
     char pcomm[TASK_COMM_LEN];  // parent command
     char nodename[65];          // uts_name
@@ -55,6 +82,7 @@ typedef struct event_context {
     char cwd[40];               // TODO: 合适的 length
     // stdin
     // stout
+    // TODO: ld_preload from envp
     u8  argnum; // argnum
 } context_t;
 
@@ -66,7 +94,7 @@ typedef struct simple_buf {
 typedef struct event_data {
     struct task_struct *task;
     context_t context;
-    buf_t *submit_p;
+    buf_t *submit_p; // pid_tree, from kernel
     u32 buf_off;
 } event_data_t;
 
@@ -125,6 +153,11 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     context->pid = id;
     context->tid = id >> 32;
     context->cgroup_id = bpf_get_current_cgroup_id();
+    // 读取 cred 下, 填充 id
+    struct cred *cred;
+    // 有三个 ptracer_cred, real_cred, cred, 看kernel代码即可
+    bpf_probe_read(&cred, sizeof(cred), &task->real_cred);
+    bpf_probe_read(&context->euid, sizeof(context->euid), &cred->euid);
 
     // 容器相关信息
     struct nsproxy *nsp;
@@ -148,42 +181,14 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
-    // 参考:https://pretagteam.com/question/current-directory-of-a-process-in-linuxkernel
-    // TODO: cwd 获取有问题
-    // 这里要看一下几个, 第一个 path -> root/path, 第二 hash 和 name, length
-    // 这个实现方式是错误的, 我们在 bcc 的 issue 里也能找到类似的问题, 貌似还没有解决
-    // https://github.com/iovisor/bpftrace/issues/29
-    // struct fs_struct *fs;
-    // struct path *path;
-    // struct dentry *dentry;
-    // struct qstr d_name;
-    // // 这里获取 cwd 在内核看到的函数为 dentry_path_raw, 但是似乎不好实现
-    // // 也没有 fd -> path 的
-    // bpf_core_read(&fs, sizeof(fs), &task->fs);
-    // bpf_core_read(&path, sizeof(path), &fs->pwd);
-    // bpf_core_read(&dentry, sizeof(dentry), &path->dentry);
-    // check_max_stack_depth
-    // 要追溯到最上层的 dentry
-    // #pragma unroll
-    // for (int i=0; i < 30; i++) {
-    //     struct dentry *d_parent;
-    //     bpf_core_read(&d_parent,sizeof(d_parent), &dentry->d_parent);
-    //     if (dentry == d_parent) {
-    //         break;
-    //     }
-    //     // bpf_core_read(&dentry, sizeof(dentry), &d_parent);
-    //     dentry = d_parent;
-    // }
-    // bpf_core_read(name, sizeof(name), dentry->d_name);
-    // bpf_core_read_str(&execve_event->cwd, len, (void *)d_name.name);
 
     struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
     if( parent ) {
         // 防止未知的 fallback 情况, 参考 issue 提问
         if (context->ppid == 0) {
-            bpf_core_read(&context->ppid, sizeof(context->ppid), &parent->ppid );
+            bpf_probe_read(&context->ppid, sizeof(context->ppid), &parent->ppid );
         }
-        bpf_core_read(&context->pcomm, sizeof(context->pcomm), &parent->pcomm );
+        bpf_probe_read(&context->pcomm, sizeof(context->pcomm), &parent->pcomm );
     }
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
@@ -292,4 +297,102 @@ out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
     data->context.argnum++;
     return 1;
+}
+
+static inline struct mount *real_mount(struct vfsmount *mnt)
+{
+    return container_of(mnt, struct mount, mnt);
+}
+
+static __always_inline buf_t* get_buf(int idx)
+{
+    return bpf_map_lookup_elem(&bufs, &idx);
+}
+
+// 获取 path
+static __always_inline void* get_path_str(struct path *path)
+{
+    struct path f_path;
+    bpf_probe_read(&f_path, sizeof(struct path), path);
+    char slash = '/';
+    int zero = 0;
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+    struct mount *mnt_parent_p;
+
+    struct mount *mnt_p = real_mount(vfsmnt);
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+
+    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
+    struct dentry *mnt_root;
+    struct dentry *d_parent;
+    struct qstr d_name;
+    unsigned int len;
+    unsigned int off;
+    int sz;
+
+    // Get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+    #pragma unroll
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+        bpf_probe_read(&mnt_root, sizeof(mnt_root), &vfsmnt->mnt_root);
+        bpf_probe_read(&d_parent, sizeof(d_parent), &dentry->d_parent);
+        if (dentry == mnt_root || dentry == d_parent) {
+            if (dentry != mnt_root) {
+                // We reached root, but not mount root - escaped?
+                break;
+            }
+            if (mnt_p != mnt_parent_p) {
+                // We reached root, but not global root - continue with mount point path
+                bpf_probe_read(&dentry, sizeof(struct dentry*), &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                vfsmnt = &mnt_p->mnt;
+                continue;
+            }
+            // Global root - path fully parsed
+            break;
+        }
+        // Add this dentry name to path
+        bpf_probe_read(&d_name, sizeof(d_name), &dentry->d_name);
+        len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        off = buf_off - len;
+
+        // Is string buffer big enough for dentry name?
+        sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & ((MAX_PERCPU_BUFSIZE >> 1)-1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1)-1)]), len, (void *)d_name.name);
+        }
+        else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+        // memfd files have no path in the filesystem -> extract their name
+        buf_off = 0;
+        bpf_probe_read(&d_name, sizeof(d_name), &dentry->d_name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[(MAX_PERCPU_BUFSIZE >> 1)-1]), 1, &zero);
+    }
+
+    // set_buf_off(STRING_BUF_IDX, buf_off);
+    return &string_p->buf[buf_off];
 }
