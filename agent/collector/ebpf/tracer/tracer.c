@@ -44,11 +44,12 @@ int enter_execve(struct execve_entry_args_t *ctx)
     struct fs_struct *fs = NULL;
     bpf_probe_read(&fs, sizeof(fs), &data.task->fs);
     struct path *path = NULL;
-    bpf_probe_read(&path, sizeof(path), &fs->pwd);
+    bpf_probe_read(&path, sizeof(path), &fs->root);
     void *cwd = get_path_str(path);
     save_str_to_buf(&data, cwd, 0);
     // filename
     // save_str_to_buf(&data, (void *)ctx->filename, 0);
+
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 1);
     bpf_probe_read(&(data.submit_p->buf[0]), sizeof(context_t), &data.context);
 

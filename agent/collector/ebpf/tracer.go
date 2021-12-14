@@ -219,7 +219,6 @@ func parseExecve(buf io.Reader) (file, args string) {
 	if fnamesize > 512 {
 		return
 	}
-
 	filebyte := make([]byte, fnamesize-1)
 	err = binary.Read(buf, binary.LittleEndian, &filebyte)
 	file = string(filebyte)
@@ -227,7 +226,10 @@ func parseExecve(buf io.Reader) (file, args string) {
 	var dummy int8
 	binary.Read(buf, binary.LittleEndian, &dummy)
 
+	// 开始读 argv
+	// 读 index
 	err = binary.Read(buf, binary.LittleEndian, &index)
+	// 读 size
 	var size uint8
 	err = binary.Read(buf, binary.LittleEndian, &size)
 	if err != nil {
