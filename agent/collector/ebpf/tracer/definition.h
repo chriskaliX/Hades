@@ -20,7 +20,6 @@
 #define TASK_COMM_LEN 16
 #define FILENAME_LEN 32
 #define ARGV_LEN 128
-// #define MAX_STRING_SIZE 1 << 9
 #define MAX_STRING_SIZE 512
 #define MAX_PERCPU_BUFSIZE 1 << 14
 #define MAX_BUFFERS 3
@@ -74,12 +73,10 @@ typedef struct event_context {
     u32 gid;    // group id
     u32 ppid;   // parent pid
     u32 sessionid;
-    char exe[FILENAME_LEN];   // TODO: file name => 转移到 submit_p, 突破 string 类读取长度
     char comm[TASK_COMM_LEN];   // command
     char pcomm[TASK_COMM_LEN];  // parent command
     char nodename[65];          // uts_name
     char ttyname[64];           // char name[64];
-    char cwd[40];               // TODO: 合适的 length
     // stdin
     // stout
     // TODO: ld_preload from envp

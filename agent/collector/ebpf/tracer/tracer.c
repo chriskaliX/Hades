@@ -39,18 +39,12 @@ int enter_execve(struct execve_entry_args_t *ctx)
     if (!init_event_data(&data))
         return 0;
     data.context.type = 1;
-    bpf_probe_read_str(data.context.exe, sizeof(data.context.exe), ctx->filename);
-    // 获取文件, TODO: 这里有问题
-    struct fs_struct *fs = NULL;
-    bpf_probe_read(&fs, sizeof(fs), &data.task->fs);
-    struct path *path = NULL;
-    bpf_probe_read(&path, sizeof(path), &fs->root);
-    void *cwd = get_path_str(path);
-    save_str_to_buf(&data, cwd, 0);
-    // filename
-    // save_str_to_buf(&data, (void *)ctx->filename, 0);
-
+    // filename, 改为获取 filename
+    save_str_to_buf(&data, (void *)ctx->filename, 0);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 1);
+    // 环境变量, 获取如 LD_PRELOAD 等信息
+    // 先不在内核态做 envp 的过滤, 全部传递至用户态来? env 数据太多了
+    save_str_arr_to_buf(&data, (const char *const *)ctx->envp, 2);
     bpf_probe_read(&(data.submit_p->buf[0]), sizeof(context_t), &data.context);
 
     // satisfy validator by setting buffer bounds
