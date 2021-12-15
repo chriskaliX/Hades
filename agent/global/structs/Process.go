@@ -38,6 +38,7 @@ type Process struct {
 	Source          string `json:"source"`
 	Syscall         string `json:"syscall,omitempty"`
 	NodeName        string `json:"nodename"`
+	LD_Preload      string `json:"ld_preload"`
 	// Only valid when processes ticker collector
 	ResMem string `json:"resmem,omitempty"`
 	VirMem string `json:"virmem,omitempty"`

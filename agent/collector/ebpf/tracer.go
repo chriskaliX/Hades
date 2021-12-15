@@ -110,7 +110,7 @@ func (t *TracerObject) Read() error {
 		rawdata["time"] = strconv.Itoa(int(global.Time))
 		process := structs.ProcessPool.Get().(structs.Process)
 		process.Name = formatByte(ctx.Comm[:])
-		process.Exe = formatByte(ctx.Exe[:])
+		// process.Exe = formatByte(ctx.Exe[:])
 		process.CgroupId = int(ctx.CgroupId)
 		process.UID = strconv.Itoa(int(ctx.Uid))
 		process.PID = int(ctx.Pid)
@@ -126,8 +126,9 @@ func (t *TracerObject) Read() error {
 		process.Eusername = global.GetUsername(process.EUID)
 		// 再消费
 		// index 暂时不区分
-		file, argv := parseExecve(buffers)
-		fmt.Println("path", file)
+		file, argv, envp := parseExecve(buffers)
+		process.Exe = file
+		fmt.Println(envp)
 
 		// type 添加
 		switch int(ctx.Type) {
@@ -193,12 +194,10 @@ type ctx struct {
 	Gid             uint32
 	Ppid            uint32
 	Sessionid       uint32
-	Exe             [32]byte
 	Comm            [16]byte
 	PComm           [16]byte
 	Nodename        [65]byte
 	TTYName         [64]byte
-	Cwd             [40]byte
 	Argnum          uint8
 	_               [6]byte // padding - 结构体修改后要修改 padding
 }
@@ -208,7 +207,7 @@ func formatByte(b []byte) string {
 }
 
 // file or path
-func parseExecve(buf io.Reader) (file, args string) {
+func parseExecve(buf io.Reader) (file, args, envp string) {
 	var index uint8
 	err := binary.Read(buf, binary.LittleEndian, &index)
 	if err != nil {
@@ -259,5 +258,39 @@ func parseExecve(buf io.Reader) (file, args string) {
 		}
 	}
 	args = strings.Join(argv, " ")
+
+	// 开始读 argv
+	// 读 index
+	err = binary.Read(buf, binary.LittleEndian, &index)
+	// 读 size
+	err = binary.Read(buf, binary.LittleEndian, &size)
+	if err != nil {
+		zap.S().Error(err.Error())
+		return
+	}
+	envs := make([]string, 0)
+	for i := 0; i < int(size); i++ {
+		var strsize uint32
+		if err = binary.Read(buf, binary.LittleEndian, &strsize); err == nil {
+			if strsize > 512 {
+				break
+			}
+			res := make([]byte, strsize-1)
+			if err = binary.Read(buf, binary.LittleEndian, &res); err == nil {
+				envs = append(envs, string(res))
+				// 结尾 drop
+				var dummy int8
+				binary.Read(buf, binary.LittleEndian, &dummy)
+			} else {
+				zap.S().Error(err.Error())
+				break
+			}
+		} else {
+			zap.S().Error(err.Error())
+			break
+		}
+	}
+	envp = strings.Join(envs, " ")
+
 	return
 }
