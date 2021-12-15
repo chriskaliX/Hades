@@ -39,6 +39,12 @@ int enter_execve(struct execve_entry_args_t *ctx)
     if (!init_event_data(&data))
         return 0;
     data.context.type = 1;
+
+    // struct files_struct *files;
+    // bpf_probe_read(&files, sizeof(files), &data.task->files);
+
+    // TODO: 这里 filter
+
     // filename, 改为获取 filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 1);

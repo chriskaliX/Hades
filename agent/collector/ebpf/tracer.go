@@ -126,9 +126,19 @@ func (t *TracerObject) Read() error {
 		process.Eusername = global.GetUsername(process.EUID)
 		// 再消费
 		// index 暂时不区分
-		file, argv, envp := parseExecve(buffers)
+		file, argv, ssh, ld, pwd := parseExecve(buffers)
 		process.Exe = file
-		fmt.Println(envp)
+		process.Cwd = pwd
+		process.LD_Preload = ld
+
+		// 目前只包含了, envp 的信息, 后面会改的
+		if len(ssh) > 0 {
+			sshlist := strings.Split(ssh, " ")
+			if len(sshlist) == 4 {
+				process.RemoteAddr = sshlist[0] + ":" + sshlist[1]
+				process.LocalAddr = sshlist[2] + ":" + sshlist[3]
+			}
+		}
 
 		// type 添加
 		switch int(ctx.Type) {
@@ -206,8 +216,8 @@ func formatByte(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
-// file or path
-func parseExecve(buf io.Reader) (file, args, envp string) {
+// 详细拆分, envp 只取 SSH_CONNECTION LD_PRELOAD PWD
+func parseExecve(buf io.Reader) (file, args, ssh, ld, pwd string) {
 	var index uint8
 	err := binary.Read(buf, binary.LittleEndian, &index)
 	if err != nil {
@@ -268,7 +278,7 @@ func parseExecve(buf io.Reader) (file, args, envp string) {
 		zap.S().Error(err.Error())
 		return
 	}
-	envs := make([]string, 0)
+	// envs := make([]string, 0)
 	for i := 0; i < int(size); i++ {
 		var strsize uint32
 		if err = binary.Read(buf, binary.LittleEndian, &strsize); err == nil {
@@ -278,9 +288,15 @@ func parseExecve(buf io.Reader) (file, args, envp string) {
 			res := make([]byte, strsize-1)
 			if err = binary.Read(buf, binary.LittleEndian, &res); err == nil {
 				resstr := string(res)
-				if strings.HasPrefix(resstr, "SSH") || strings.HasPrefix(resstr, "LD_PRELOAD") || strings.HasPrefix(resstr, "PWD") {
-					envs = append(envs, string(res))
+				// http://www.wenqujingdian.com/Public/editor/attached/file/20180425/20180425140836_60902.pdf
+				if strings.HasPrefix(resstr, "SSH_CONNECTION=") {
+					ssh = strings.Trim(resstr, "SSH_CONNECTION=")
+				} else if strings.HasPrefix(resstr, "LD_PRELOAD=") {
+					ld = strings.Trim(resstr, "LD_PRELOAD=")
+				} else if strings.HasPrefix(resstr, "PWD=") {
+					pwd = strings.Trim(resstr, "PWD=")
 				}
+
 				// 结尾 drop
 				var dummy int8
 				binary.Read(buf, binary.LittleEndian, &dummy)
@@ -293,7 +309,7 @@ func parseExecve(buf io.Reader) (file, args, envp string) {
 			break
 		}
 	}
-	envp = strings.Join(envs, " ")
+	// envp = strings.Join(envs, " ")
 
 	return
 }

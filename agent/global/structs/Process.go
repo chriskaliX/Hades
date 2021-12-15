@@ -33,7 +33,8 @@ type Process struct {
 	TTY             int    `json:"tty,omitempty"`
 	TTYName         string `json:"ttyname"`
 	StartTime       uint64 `json:"starttime"`
-	RemoteAddrs     string `json:"remoteaddrs"`
+	RemoteAddr     string `json:"remoteaddr"`
+	LocalAddr      string `json:"localaddr"`
 	PidTree         string `json:"pidtree"`
 	Source          string `json:"source"`
 	Syscall         string `json:"syscall,omitempty"`
