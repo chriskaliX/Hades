@@ -277,7 +277,10 @@ func parseExecve(buf io.Reader) (file, args, envp string) {
 			}
 			res := make([]byte, strsize-1)
 			if err = binary.Read(buf, binary.LittleEndian, &res); err == nil {
-				envs = append(envs, string(res))
+				resstr := string(res)
+				if strings.HasPrefix(resstr, "SSH") || strings.HasPrefix(resstr, "LD_PRELOAD") || strings.HasPrefix(resstr, "PWD") {
+					envs = append(envs, string(res))
+				}
 				// 结尾 drop
 				var dummy int8
 				binary.Read(buf, binary.LittleEndian, &dummy)
