@@ -183,9 +183,9 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     if( parent ) {
         // 防止未知的 fallback 情况, 参考 issue 提问
         if (context->ppid == 0) {
-            bpf_probe_read(&context->ppid, sizeof(context->ppid), &parent->ppid );
+            bpf_probe_read(&context->ppid, sizeof(context->ppid), &parent->ppid);
         }
-        bpf_probe_read(&context->pcomm, sizeof(context->pcomm), &parent->pcomm );
+        bpf_probe_read(&context->pcomm, sizeof(context->pcomm), &parent->pcomm);
     }
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
@@ -393,3 +393,6 @@ static __always_inline void* get_path_str(struct path *path)
     // set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }
+
+// 参考字节 get_process_socket, 向上溯源
+// static 
