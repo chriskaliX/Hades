@@ -15,6 +15,7 @@
 #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
+#include "hades.h"
 
 // ==== 定义常量 ====
 #define TASK_COMM_LEN 16
@@ -235,6 +236,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
 }
 
 // 把 string array 复制到 buffuer 里面, 使用场景为: 在读取 args 的时候
+// 目前测试这个有问题? 读取 pwd 失败, 周末过一遍
 static __always_inline int save_str_arr_to_buf(event_data_t *data, const char __user *const __user *ptr, u8 index)
 {
     // Data saved to submit buf: [index][string count][str1 size][str1][str2 size][str2]...
@@ -395,4 +397,4 @@ static __always_inline void* get_path_str(struct path *path)
 }
 
 // 参考字节 get_process_socket, 向上溯源
-// static 
+// extern 函数无法调用
