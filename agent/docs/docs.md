@@ -73,3 +73,6 @@ func AddMetricCreator(name string, creator MetricCreator) {
 	MetricInputs[name] = creator
 }
 
+## Rootkit with ebpf
+
+[ebpfkit](https://github.com/Gui774ume/ebpfkit)
