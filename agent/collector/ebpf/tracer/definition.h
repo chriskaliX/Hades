@@ -12,11 +12,10 @@
 #include <linux/cred.h>
 #include <linux/mount.h>
 
+// #include "string_utils.h"
 #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
-#include "hades.h"
-
 // ==== 定义常量 ====
 #define TASK_COMM_LEN 16
 #define FILENAME_LEN 32
@@ -76,7 +75,7 @@ typedef struct event_context {
     u32 sessionid;
     char comm[TASK_COMM_LEN];   // command
     char pcomm[TASK_COMM_LEN];  // parent command
-    char nodename[65];          // uts_name
+    char nodename[65];          // uts_name => 64
     char ttyname[64];           // char name[64];
     // stdin
     // stout
@@ -135,6 +134,13 @@ struct bpf_map_def SEC("maps") net_events = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(int),
     .value_size = sizeof(u32),
+};
+// ==== 过滤 filters ====
+// this is for test
+struct bpf_map_def SEC("maps") envp_allows = {
+    .key_size = sizeof(struct simple_buf),
+    .value_size = sizeof(u32),
+    .max_entries = MAX_BUFFERS,
 };
 
 static __always_inline int init_context(context_t *context, struct task_struct *task) {
@@ -398,3 +404,91 @@ static __always_inline void* get_path_str(struct path *path)
 
 // 参考字节 get_process_socket, 向上溯源
 // extern 函数无法调用
+
+// this is for test 
+static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, const char __user *const __user *ptr,u8 index)
+{
+    // Data saved to submit buf: [index][string count][str1 size][str1][str2 size][str2]...
+
+    u8 elem_num = 0;
+
+    // Save argument index
+    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
+
+    // Save space for number of elements (1 byte)
+    u32 orig_off = data->buf_off+1;
+    data->buf_off += 2;
+
+    #pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
+        char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
+        if (!argp)
+            goto out;
+
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+            // not enough space - return
+            goto out;
+
+        // before read into the buffers, test for the allowers
+        // but in the bpf prog, we can not use libc function, strsep is not the right option
+        // and I start to understand why the filters are implied in a simple way
+        // I want to achieve this in a gentle way, so some time would be cost...
+
+        // char *sbegin = argp;
+	    // char *end;
+        // if (sbegin == NULL)
+        //     continue;
+        // end = __builtin_strpbrk(sbegin, "=");
+        // if (end)
+        //     *end++ = '\0';
+        // argp = end;
+        // if (sbegin) {
+        // }
+        // char *argp_copy = NULL;
+        // bpf_probe_read(&argp, sizeof(argp), argp);
+        // __builtin_strpbrk()
+
+        // if (temp) {
+        //     u32 * value = bpf_map_lookup_elem(&envp_allows, &temp);
+        //     if (!value) {
+        //         continue;
+        //     }
+        // }
+
+        // Read into buffer
+        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
+        if (sz > 0) {
+            if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+                // Satisfy validator
+                goto out;
+            bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
+            data->buf_off += sz + sizeof(int);
+            elem_num++;
+            continue;
+        } else {
+            goto out;
+        }
+    }
+    // handle truncated argument list
+    char ellipsis[] = "...";
+    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+        // not enough space - return
+        goto out;
+
+    // Read into buffer
+    int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, ellipsis);
+    if (sz > 0) {
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+            // Satisfy validator
+            goto out;
+        bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
+        data->buf_off += sz + sizeof(int);
+        elem_num++;
+    }
+out:
+    // save number of elements in the array
+    data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
+    data->context.argnum++;
+    return 1;
+}
