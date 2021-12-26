@@ -39,7 +39,6 @@ int enter_execve(struct execve_entry_args_t *ctx)
     if (!init_event_data(&data))
         return 0;
     data.context.type = 1;
-
     // struct files_struct *files;
     // bpf_probe_read(&files, sizeof(files), &data.task->files);
 
@@ -50,7 +49,8 @@ int enter_execve(struct execve_entry_args_t *ctx)
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 1);
     // 环境变量, 获取如 LD_PRELOAD 等信息
     // 先不在内核态做 envp 的过滤, 全部传递至用户态来? env 数据太多了, 思考一下
-    save_str_arr_to_buf(&data, (const char *const *)ctx->envp, 2);
+    // save_str_arr_to_buf(&data, (const char *const *)ctx->envp, 2);
+    save_str_arr_to_buf_with_allows(&data, (const char *const *)ctx->envp, 2);
     bpf_probe_read(&(data.submit_p->buf[0]), sizeof(context_t), &data.context);
 
     // satisfy validator by setting buffer bounds
