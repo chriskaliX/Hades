@@ -29,6 +29,7 @@
 #define NODENAME_SIZE 65
 #define TTY_SIZE 64
 #define MAX_PATH_COMPONENTS 20
+#define MAX_STR_FILTER_SIZE 32
 
 // ==== 内核版本 ====
 // #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
@@ -95,6 +96,10 @@ typedef struct event_data {
     u32 buf_off;
 } event_data_t;
 
+typedef struct string_filter {
+    char str[MAX_STR_FILTER_SIZE];
+} string_filter_t;
+
 struct pid_cache_t {
     u32 ppid;
     char pcomm[16];
@@ -137,8 +142,10 @@ struct bpf_map_def SEC("maps") net_events = {
 };
 // ==== 过滤 filters ====
 // this is for test
+// key size has a limitation
 struct bpf_map_def SEC("maps") envp_allows = {
-    .key_size = sizeof(struct simple_buf),
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(string_filter_t),
     .value_size = sizeof(u32),
     .max_entries = MAX_BUFFERS,
 };
@@ -421,7 +428,7 @@ static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, c
 
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        char *argp = NULL;
+        const char *argp = NULL;
         bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
         if (!argp)
             goto out;
@@ -434,23 +441,23 @@ static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, c
         // but in the bpf prog, we can not use libc function, strsep is not the right option
         // and I start to understand why the filters are implied in a simple way
         // I want to achieve this in a gentle way, so some time would be cost...
+        // 1. hard code the things we need.
+        // 2. pass allows in one big string, and split this into a array, then use __builtin_strpbrk
+        // 3. split first
 
-        // char *sbegin = argp;
-	    // char *end;
-        // if (sbegin == NULL)
+        // first '='
+        // * TODO (BUG): reference to missing symbol "strchr", I don't know it's a bug or I write in a wrong way...
+        // * in cilium source code, it's fixupJumpsAndCalls =>
+        // * return fmt.Errorf("%s at %d: reference to missing symbol %q", ins.OpCode, i, ins.Reference)
+        // * I'll debug & dig the source code somehow, or create a issue for help :-(
+        // char *ret, *q;
+        // bpf_probe_read(&ret, sizeof(ret), (void *)(__builtin_strchr(argp, '=') - argp));
+        // if (!ret)
         //     continue;
-        // end = __builtin_strpbrk(sbegin, "=");
-        // if (end)
-        //     *end++ = '\0';
-        // argp = end;
-        // if (sbegin) {
-        // }
-        // char *argp_copy = NULL;
-        // bpf_probe_read(&argp, sizeof(argp), argp);
-        // __builtin_strpbrk()
-
-        // if (temp) {
-        //     u32 * value = bpf_map_lookup_elem(&envp_allows, &temp);
+        // bpf_probe_read(&q, sizeof(q), (void *)(__builtin_strndup(argp, *ret)));
+        // // q = (ret > 0)? __builtin_strndup(argp, ret):__builtin_strdup(argp);
+        // if (q) {
+        //     u32 * value = bpf_map_lookup_elem(&envp_allows, &q);
         //     if (!value) {
         //         continue;
         //     }
