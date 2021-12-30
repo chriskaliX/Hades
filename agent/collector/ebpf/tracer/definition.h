@@ -412,6 +412,25 @@ static __always_inline void* get_path_str(struct path *path)
 // 参考字节 get_process_socket, 向上溯源
 // extern 函数无法调用
 
+static char *strchr_(const char *p, int ch)
+{
+	char c;
+    char *copy;
+    bpf_probe_read(&copy, sizeof(copy), &p);
+
+	c = ch;
+    #pragma unroll
+    for (int i = 0; i < 20; i++) {
+        ++copy;
+		if (*copy == c)
+			return ((char *)copy);
+		if (*copy == '\0')
+			return (NULL);
+	}
+	/* NOTREACHED */
+    return NULL;
+}
+
 // this is for test 
 static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, const char __user *const __user *ptr,u8 index)
 {
@@ -450,8 +469,9 @@ static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, c
         // * in cilium source code, it's fixupJumpsAndCalls =>
         // * return fmt.Errorf("%s at %d: reference to missing symbol %q", ins.OpCode, i, ins.Reference)
         // * I'll debug & dig the source code somehow, or create a issue for help :-(
+        // something related: https://github.com/iovisor/bpftrace/issues/1886 nothing helpful...
         // char *ret, *q;
-        // bpf_probe_read(&ret, sizeof(ret), (void *)(__builtin_strchr(argp, '=') - argp));
+        // bpf_probe_read(&ret, sizeof(ret), (void *)(strchr_(argp, '=') - argp));
         // if (!ret)
         //     continue;
         // bpf_probe_read(&q, sizeof(q), (void *)(__builtin_strndup(argp, *ret)));
