@@ -12,7 +12,6 @@
 #include <linux/cred.h>
 #include <linux/mount.h>
 
-// #include "string_utils.h"
 #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -482,6 +481,9 @@ static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, c
         //         continue;
         //     }
         // }
+
+        // 2022-01-01: 
+        // Do not implements filters with strtok, but with bpf_array and go range for that...(tracee)
 
         // Read into buffer
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
