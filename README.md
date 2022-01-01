@@ -63,7 +63,8 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
     - [x] tracepoint hook (done, 但是未测试)
     - [x] ~~ebpf 程序提高 channel 消费速度~~ channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [ ] ebpf uprobe
-    - [ ] ebpf 进程监控
+    - [x] ebpf 进程监控
+    - [ ] 整理 ebpf 初版, 预备 release version
     - [x] ~~编译|CORE~~  重要更新点: 能看到的程序大部分方式为: bpftool 导出 vmlinux.h, 但是在没有 vmlinux 的机器上, 需要 pahole 等等, 开启 BTF 重新编译, 比较麻烦。在看了 tracee 的方法后, 选择直接根据当前机器的 kernel header 去编译, 这样不能 CO-RE, 但是因为目的本身是跑在容器宿主机上, 其版本相对来讲比较固定, 可以先这么操作, 不过 kernel 版本还是要求 4.18+
     - [x] 解决三个问题
       - [x] ~~/bin/sh 采集问题~~ percpu fix
@@ -86,7 +87,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 > 好的框架设计, 会让开发的时候不再迷茫, 总图
 
-稍微看了一下 osquery 的, 应该不用做分离的 socket 通信, 独立线程就行, watchdog 守护。后续 systemd 守护
+改成主进程和 server 通信，其余进程由主进程 fork，并且学习一下 linux 下进程通信的方式...
 
 ### Agent端设计
 
