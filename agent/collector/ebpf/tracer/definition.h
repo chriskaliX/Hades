@@ -11,6 +11,7 @@
 #include <linux/dcache.h>
 #include <linux/cred.h>
 #include <linux/mount.h>
+#include <linux/string.h>
 
 #include "common.h"
 #include "bpf_helpers.h"
@@ -91,7 +92,7 @@ typedef struct simple_buf {
 typedef struct event_data {
     struct task_struct *task;
     context_t context;
-    buf_t *submit_p; // pid_tree, from kernel
+    buf_t *submit_p;
     u32 buf_off;
 } event_data_t;
 
@@ -411,25 +412,6 @@ static __always_inline void* get_path_str(struct path *path)
 // 参考字节 get_process_socket, 向上溯源
 // extern 函数无法调用
 
-static char *strchr_(const char *p, int ch)
-{
-	char c;
-    char *copy;
-    bpf_probe_read(&copy, sizeof(copy), &p);
-
-	c = ch;
-    #pragma unroll
-    for (int i = 0; i < 20; i++) {
-        ++copy;
-		if (*copy == c)
-			return ((char *)copy);
-		if (*copy == '\0')
-			return (NULL);
-	}
-	/* NOTREACHED */
-    return NULL;
-}
-
 // this is for test 
 static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, const char __user *const __user *ptr,u8 index)
 {
@@ -446,7 +428,7 @@ static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, c
 
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        const char *argp = NULL;
+        char *argp = NULL;
         bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
         if (!argp)
             goto out;
@@ -481,6 +463,7 @@ static __always_inline int save_str_arr_to_buf_with_allows(event_data_t *data, c
         //         continue;
         //     }
         // }
+        
 
         // 2022-01-01: 
         // Do not implements filters with strtok, but with bpf_array and go range for that...(tracee)
