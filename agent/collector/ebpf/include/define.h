@@ -1,10 +1,31 @@
+#include <linux/kconfig.h>
+#include <linux/sched.h>
+#include <linux/nsproxy.h>
+#include <linux/utsname.h>
+#include <linux/types.h>
+#include <linux/ns_common.h>
+#include <linux/sched/signal.h>
+#include <linux/tty.h>
+#include <linux/fs_struct.h>
+#include <linux/path.h>
+#include <linux/dcache.h>
+#include <linux/cred.h>
+#include <linux/mount.h>
+#include <linux/string.h>
 #include "common.h"
+#include "bpf_helpers.h"
+#include "bpf_core_read.h"
 
 #define TASK_COMM_LEN 16
 #define MAX_STR_FILTER_SIZE 128
 #define MAX_PERCPU_BUFSIZE 1 << 14
 #define MAX_STRING_SIZE 256
 #define MAX_STR_ARR_ELEM 32
+#define MAX_PID_LEN 7       // (up to 2^22 = 4194304) 
+
+#define MAX_BUFFERS 3
+#define SUBMIT_BUF_IDX 0
+#define TMP_BUF_IDX 1
 
 /* ========== MAP MICRO DEFINATION ========== */
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries)     \
@@ -87,12 +108,19 @@ struct pid_cache_t {
 };
 
 /* filters that communicate with user_space prog */
-BPF_ARRAY(path_filter, string_t, u32, 32);
+BPF_ARRAY(path_filter, string_t, 32);
 BPF_HASH(pid_filter, u32, u32, 32);
 BPF_HASH(cgroup_id_filter, u64, u32, 32);
 /* for pid tree */
-BPF_LRU_HASH(pid_cache_lru, u32, pid_cache_t, 1024);
+BPF_LRU_HASH(pid_cache_lru, u32, struct pid_cache_t, 1024);
 /* BPF_PERF_OUTPUT */
-BPF_PERF_OUTPUT(exec_events, int, u32, 1024);
-BPF_PERF_OUTPUT(file_events, int, u32, 1024);
-BPF_PERF_OUTPUT(net_events, int, u32, 1024);
+BPF_PERF_OUTPUT(exec_events, 1024);
+BPF_PERF_OUTPUT(file_events, 1024);
+BPF_PERF_OUTPUT(net_events, 1024);
+BPF_PERCPU_ARRAY(bufs, buf_t, 3);
+
+/* array related function */
+static __always_inline buf_t* get_buf(int idx)
+{
+    return bpf_map_lookup_elem(&bufs, &idx);
+}

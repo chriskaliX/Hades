@@ -2,6 +2,7 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "define.h"
+#include "helpers.h"
 #include <linux/sched.h>
 
 /* save envp to buf (with specific fields) */
@@ -13,15 +14,20 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
     /* flags for envs */
-    int ssh_connection_flag, ld_preload_flag, ld_library_path_flag, tmp_flag;
+    int ssh_connection_flag = 0, ld_preload_flag = 0, ld_library_path_flag = 0, tmp_flag = 0;
     // Save space for number of elements (1 byte): [string count]
     u32 orig_off = data->buf_off+1;
     // update the buf_off
     data->buf_off += 2;
+    // get tmp buf
+    buf_t *string_p = get_buf(TMP_BUF_IDX);
+    if (string_p == NULL)
+        return 0;
+    
     /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        const char *argp = NULL;
+        char *argp = NULL;
         /* read to argp and check */
         bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
         if (!argp)
@@ -30,32 +36,8 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
         /* out if all envs are collected */
-        if (ld_library_path_flag && ld_preload_flag && ssh_connection_flag) {
+        if (ld_library_path_flag == 1 && ld_preload_flag == 1 && ssh_connection_flag == 1) {
             goto out;
-        }
-        /* TODO: implements the strtok to make this configurable */
-        if (!ssh_connection_flag) {
-            if has_prefix(argp, "SSH_CONNECTION=", 15) {
-                ssh_connection_flag = 1;
-                tmp_flag = 1;
-            }
-        }
-        if (!ld_preload_flag) {
-            if has_prefix(argp, "LD_PRELOAD=", 11) {
-                ld_preload_flag = 1;
-                tmp_flag = 1;
-            }
-        }
-        if (!ld_library_path_flag) {
-            if has_prefix(argp, "LD_LIBRARY_PATH=", 16) {
-                ld_library_path_flag = 1;
-                tmp_flag = 1;
-            }
-        }
-        if (!tmp_flag) {
-            continue;
-        } else {
-            tmp_flag = 0;
         }
         /* read into buf & update the elem_num */
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
@@ -73,8 +55,6 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     char ellipsis[] = "...";
     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
         goto out;
-
-    // Read into buffer
     int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, ellipsis);
     if (sz > 0) {
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
@@ -84,7 +64,6 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         elem_num++;
     }
 out:
-    // save number of elements in the array
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
     data->context.argnum++;
     return 1;
@@ -133,17 +112,69 @@ out:
     return 1;
 }
 
-static __always_inline int get_pid_tree(struct task_struct *task, int limit) {
-    /* Data structure: [count][str1 len][str1][str2 len][str2]... */
-    struct task_struct *task;
-    struct task_struct *old_task;
-    char * pid_tree;
+static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 index)
+{
+    // Data saved to submit buf: [index][size][ ... string ... ]
 
-    #pragma unroll
-    for ( int i = 0; i < limit; i++ ) {
-        
+    // If we don't have enough space - return
+    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+        return 0;
+
+    // Save argument index
+    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
+
+    // Satisfy validator for probe read
+    if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
+        // Read into buffer
+        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off+1+sizeof(int)]), MAX_STRING_SIZE, ptr);
+        if (sz > 0) {
+            // Satisfy validator for probe read
+            if ((data->buf_off+1) > (MAX_PERCPU_BUFSIZE) - sizeof(int)) {
+                return 0;
+            }
+            __builtin_memcpy(&(data->submit_p->buf[data->buf_off+1]), &sz, sizeof(int));
+            data->buf_off += sz + sizeof(int) + 1;
+            data->context.argnum++;
+            return 1;
+        }
     }
+
+    return 0;
 }
+
+// static __always_inline int get_pid_tree(event_data_t *data, int limit, u8 index) {
+//     /* Data structure: [index][size][str]... */
+//     /* For str, the format: pid.comm<pid.comm... */
+//     /* save index */
+//     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN + MAX_PID_LEN + 1) - sizeof(int))
+//         return 0;
+//     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
+
+//     struct task_struct *task;
+//     struct task_struct *old_task;
+
+//     #pragma unroll
+//     for ( int i = 0; i < limit; i++ ) {
+//         u32 pid;
+//         const char *comm = NULL;
+//         bpf_probe_read_str(&comm, sizeof(comm), (void *)task->comm);
+//         bpf_probe_read(&pid, sizeof(pid), (void *)task->tgid);
+//         if( !comm || !pid ) {
+//             break;
+//         }
+//         /* precheck for the length */
+//         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN + MAX_PID_LEN + 1) - sizeof(int))
+//             break;
+//         // Read into buffer
+//         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), TASK_COMM_LEN, comm);
+//         if (sz > 0) {
+//             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+//                 break;
+//             __builtin_memcpy(&(data->submit_p->buf[data->buf_off+1]), &sz, sizeof(int));
+//             data->buf_off += sz + sizeof(int) + 1;
+//         }
+//     }
+// }
 
 /* init_context */
 static __always_inline int init_context(context_t *context, struct task_struct *task) {
@@ -200,4 +231,16 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
     return 0;
+}
+
+static __always_inline int init_event_data(event_data_t *data)
+{
+    data->task = (struct task_struct *)bpf_get_current_task();
+    init_context(&data->context, data->task);
+    data->buf_off = sizeof(context_t);
+    int buf_idx = SUBMIT_BUF_IDX;
+    data->submit_p = bpf_map_lookup_elem(&bufs, &buf_idx);
+    if (data->submit_p == NULL)
+        return 0;
+    return 1;
 }

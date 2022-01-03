@@ -72,7 +72,8 @@ func Run() {
 
 	// cn_proc_start()
 	// go ebpf.Tracepoint_execve()
-	go ebpf.Tracer()
+	// go ebpf.Tracer()
+	go ebpf.Hades()
 
 	// yum 信息
 	GetYumJob(ctx)
