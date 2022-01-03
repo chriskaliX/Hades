@@ -1,0 +1,3 @@
+[submodule "agent/collector/ebpf/libbpf"]
+	path = agent/collector/ebpf/libbpf
+	url = https://github.com/libbpf/libbpf
