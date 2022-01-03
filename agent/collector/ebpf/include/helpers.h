@@ -11,3 +11,13 @@ static __always_inline int has_prefix(char *prefix, char *str, int n)
     // prefix is too long
     return 0;
 }
+
+static int has_prefix_new(const char *prefix, const char *str, int n)
+{
+    #pragma unroll
+    for (int i = 0; i < n; i++) {
+        if (prefix[i] != str[i])
+            return 0;
+    }
+    return 1;
+}

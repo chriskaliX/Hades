@@ -19,15 +19,10 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     u32 orig_off = data->buf_off+1;
     // update the buf_off
     data->buf_off += 2;
-    // get tmp buf
-    buf_t *string_p = get_buf(TMP_BUF_IDX);
-    if (string_p == NULL)
-        return 0;
-    
     /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        char *argp = NULL;
+        const char *argp = NULL;
         /* read to argp and check */
         bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
         if (!argp)
@@ -42,6 +37,14 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         /* read into buf & update the elem_num */
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
         if (sz > 0) {
+            /* precheck for the size */
+            if (sz < 17) {
+                continue;
+            }
+            // test for filters
+            // if (has_prefix_new("CHRISSSH_CONNECTION=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 1) == 0)
+            //     continue;
+
             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
                 goto out;
             bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
@@ -141,40 +144,6 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
 
     return 0;
 }
-
-// static __always_inline int get_pid_tree(event_data_t *data, int limit, u8 index) {
-//     /* Data structure: [index][size][str]... */
-//     /* For str, the format: pid.comm<pid.comm... */
-//     /* save index */
-//     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN + MAX_PID_LEN + 1) - sizeof(int))
-//         return 0;
-//     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
-
-//     struct task_struct *task;
-//     struct task_struct *old_task;
-
-//     #pragma unroll
-//     for ( int i = 0; i < limit; i++ ) {
-//         u32 pid;
-//         const char *comm = NULL;
-//         bpf_probe_read_str(&comm, sizeof(comm), (void *)task->comm);
-//         bpf_probe_read(&pid, sizeof(pid), (void *)task->tgid);
-//         if( !comm || !pid ) {
-//             break;
-//         }
-//         /* precheck for the length */
-//         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN + MAX_PID_LEN + 1) - sizeof(int))
-//             break;
-//         // Read into buffer
-//         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), TASK_COMM_LEN, comm);
-//         if (sz > 0) {
-//             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
-//                 break;
-//             __builtin_memcpy(&(data->submit_p->buf[data->buf_off+1]), &sz, sizeof(int));
-//             data->buf_off += sz + sizeof(int) + 1;
-//         }
-//     }
-// }
 
 /* init_context */
 static __always_inline int init_context(context_t *context, struct task_struct *task) {
