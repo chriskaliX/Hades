@@ -13,12 +13,16 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     /* init the elem num */
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
-    /* flags for envs */
-    int ssh_connection_flag = 0, ld_preload_flag = 0, ld_library_path_flag = 0, tmp_flag = 0;
     // Save space for number of elements (1 byte): [string count]
     u32 orig_off = data->buf_off+1;
     // update the buf_off
     data->buf_off += 2;
+
+    buf_t *string_p = get_buf(1);
+    if (string_p == NULL)
+        return -1;
+    u32 offset = 0;
+
     /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
@@ -30,21 +34,19 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         /* check the available size */
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
-        /* out if all envs are collected */
-        if (ld_library_path_flag == 1 && ld_preload_flag == 1 && ssh_connection_flag == 1) {
-            goto out;
-        }
         /* read into buf & update the elem_num */
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
+        bpf_probe_read_str(&(string_p->buf[offset]), MAX_STRING_SIZE, argp);
         if (sz > 0) {
             /* precheck for the size */
-            if (sz < 17) {
+            if (sz <= 11) {
                 continue;
             }
-            // test for filters
-            // if (has_prefix_new("CHRISSSH_CONNECTION=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 1) == 0)
-            //     continue;
-
+            // test code
+            if(!has_prefix("SSH_CONNECTION=", (char*)&string_p->buf[offset], MAX_STRING_SIZE)){
+                continue;
+            }
+                
             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
                 goto out;
             bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
