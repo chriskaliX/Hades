@@ -39,7 +39,6 @@ func (e *EBPFProbe) LoadKernel() error {
 	}
 	err = spec.LoadAndAssign(e.probeObject, e.opts)
 	if err != nil {
-		zap.S().Error(err)
 		return err
 	}
 	return nil

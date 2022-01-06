@@ -17,12 +17,9 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     u32 orig_off = data->buf_off+1;
     // update the buf_off
     data->buf_off += 2;
-
-    buf_t *string_p = get_buf(1);
-    if (string_p == NULL)
-        return -1;
-    u32 offset = 0;
-
+    // flags for collection
+    int ssh_connection_flag = 0, ld_preload_flag = 0, ld_library_path_flag = 0, tmp_flag = 0;
+    // u32 offset = 0;
     /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
@@ -36,19 +33,32 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
             goto out;
         /* read into buf & update the elem_num */
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
-        bpf_probe_read_str(&(string_p->buf[offset]), MAX_STRING_SIZE, argp);
         if (sz > 0) {
-            /* precheck for the size */
-            if (sz <= 11) {
-                continue;
-            }
-            // test code
-            if(!has_prefix("SSH_CONNECTION=", (char*)&string_p->buf[offset], MAX_STRING_SIZE)){
-                continue;
-            }
-                
-            if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+            /* R3 max value is outside of the array range */
+            if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - (MAX_STRING_SIZE))
                 goto out;
+            // Add & ((MAX_PERCPU_BUFSIZE)-1)] for verifier if the index is not checked
+            if (ld_preload_flag == 0 && sz > 11 && prefix("LD_PRELOAD=",(char*)&data->submit_p->buf[data->buf_off + sizeof(int)], 11)) {
+                ld_preload_flag = 1;
+                tmp_flag = 1;
+            }
+
+            if (ssh_connection_flag == 0 && sz > 15 && prefix("SSH_CONNECTION=",(char*)&data->submit_p->buf[data->buf_off + sizeof(int)], 15)) {
+                ssh_connection_flag = 1;
+                tmp_flag = 1;
+            }
+
+            if (ld_library_path_flag == 0 && sz > 16 && prefix("LD_LIBRARY_PATH=",(char*)&data->submit_p->buf[data->buf_off + sizeof(int)], 16)) {
+                ld_library_path_flag = 1;
+                tmp_flag = 1;
+            }
+
+            if (tmp_flag == 0) {
+                continue;
+            } else {
+                tmp_flag = 0;
+            }
+
             bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
             data->buf_off += sz + sizeof(int);
             elem_num++;
