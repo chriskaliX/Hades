@@ -34,7 +34,12 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         /* read into buf & update the elem_num */
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
         if (sz > 0) {
+            // TODO: 后期改成动态的
             /* R3 max value is outside of the array range */
+            // 这个地方非常非常的坑，都因为 bpf_verifier 机制, 之前 buf_off > MAX_PERCPU_BUFSIZE - sizeof(int) 本身都是成立的
+            // 前面明明有一个更为严格的 data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)，但是不行
+            // 在每次调 index 之前都需要 check 一下，所以看源码的时候很多地方会写：To satisfied the verifier...
+            // TODO: 写一个文章记录一下这个...
             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - (MAX_STRING_SIZE))
                 goto out;
             // Add & ((MAX_PERCPU_BUFSIZE)-1)] for verifier if the index is not checked
