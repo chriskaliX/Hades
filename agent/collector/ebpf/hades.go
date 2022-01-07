@@ -76,9 +76,9 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 	t.probeBytes = HadesProgByte
 	t.opts = &ebpf.CollectionOptions{
 		Programs: ebpf.ProgramOptions{
-			LogSize: 1024 * 1024, // the size of verifier log
+			LogSize: 1024 * 1024, // the size of verifier log !!!
 		},
-	} 
+	}
 	return nil
 }
 
@@ -146,30 +146,31 @@ func (t *HadesObject) Read() error {
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
 
-		file, argv, envp := parseExecve(buffers)
-		process.Exe = file
-		process.Cwd = ""
-		process.LD_Preload = envp
-
-		// 目前只包含了, envp 的信息, 后面会改的
-		// if len(ssh) > 0 {
-		// 	sshlist := strings.Split(ssh, " ")
-		// 	if len(sshlist) == 4 {
-		// 		process.RemoteAddr = sshlist[0] + ":" + sshlist[1]
-		// 		process.LocalAddr = sshlist[2] + ":" + sshlist[3]
-		// 	}
-		// }
-
-		// type 添加
-		switch int(ctx.Type) {
-		case TRACEPOINT_SYSCALLS_EXECVE:
-			process.Syscall = "execve"
+		file, args, envs, err := parseExecve_(buffers)
+		if err == nil {
+			process.Cmdline = args
+			process.Exe = file
+			// type 添加
+			switch int(ctx.Type) {
+			case TRACEPOINT_SYSCALLS_EXECVE:
+				for _, env := range envs {
+					if strings.HasPrefix(env, "SSH_CONNECTION=") {
+						process.SSH_connection = env
+					} else if strings.HasPrefix(env, "LD_PRELOAD=") {
+						process.LD_Preload = env
+					} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
+						process.LD_Library_Path = env
+					}
+				}
+			}
+		} else {
+			zap.S().Error(err.Error())
 		}
+		process.Cwd = ""
 
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 
-		process.Cmdline = argv
 		process.PidTree = global.GetPstree(uint32(process.PID))
 		process.Sha256, _ = common.GetFileHash(process.Exe)
 		process.Username = global.GetUsername(process.UID)
@@ -199,92 +200,18 @@ func formatByte_(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
-func parseExecve_(buf io.Reader) (file, args, envp string) {
-	envs := make([]string, 2)
-
-	var index uint8
-	err := binary.Read(buf, binary.LittleEndian, &index)
-	if err != nil {
+func parseExecve_(buf io.Reader) (file, args string, envs []string, err error) {
+	// files
+	if file, err = parseStr(buf); err != nil {
 		return
 	}
-	var fnamesize uint32
-	err = binary.Read(buf, binary.LittleEndian, &fnamesize)
-	if fnamesize > 512 {
-		return
-	}
-	filebyte := make([]byte, fnamesize-1)
-	err = binary.Read(buf, binary.LittleEndian, &filebyte)
-	file = string(filebyte)
-
-	var dummy int8
-	binary.Read(buf, binary.LittleEndian, &dummy)
-
 	// 开始读 argv
-	// 读 index
-	err = binary.Read(buf, binary.LittleEndian, &index)
-	// 读 size
-	var size uint8
-	err = binary.Read(buf, binary.LittleEndian, &size)
-	if err != nil {
-		zap.S().Error(err.Error())
+	argsArr, err := parseStrArray(buf)
+	// defer strArrPool.Put(argsArr)
+	args = strings.Join(argsArr, " ")
+	// 开始读 envs
+	if envs, err = parseStrArray(buf); err != nil {
 		return
 	}
-	argv := make([]string, 0)
-	for i := 0; i < int(size); i++ {
-		var strsize uint32
-		if err = binary.Read(buf, binary.LittleEndian, &strsize); err == nil {
-			if strsize > 512 {
-				break
-			}
-			res := make([]byte, strsize-1)
-			if err = binary.Read(buf, binary.LittleEndian, &res); err == nil {
-				argv = append(argv, string(res))
-				// 结尾 drop
-				var dummy int8
-				binary.Read(buf, binary.LittleEndian, &dummy)
-			} else {
-				zap.S().Error(err.Error())
-				break
-			}
-		} else {
-			zap.S().Error(err.Error())
-			break
-		}
-	}
-	args = strings.Join(argv, " ")
-
-	// 开始读 argv
-	// 读 index
-	err = binary.Read(buf, binary.LittleEndian, &index)
-	// 读 size
-	err = binary.Read(buf, binary.LittleEndian, &size)
-	if err != nil {
-		zap.S().Error(err.Error())
-		return
-	}
-	// envs := make([]string, 0)
-	for i := 0; i < int(size); i++ {
-		var strsize uint32
-		if err = binary.Read(buf, binary.LittleEndian, &strsize); err == nil {
-			if strsize > 512 {
-				break
-			}
-			res := make([]byte, strsize-1)
-			if err = binary.Read(buf, binary.LittleEndian, &res); err == nil {
-				resstr := string(res)
-				envs = append(envs, resstr)
-				// 结尾 drop
-				var dummy int8
-				binary.Read(buf, binary.LittleEndian, &dummy)
-			} else {
-				zap.S().Error(err.Error())
-				break
-			}
-		} else {
-			zap.S().Error(err.Error())
-			break
-		}
-	}
-	envp = strings.Join(envs, " ")
 	return
 }
