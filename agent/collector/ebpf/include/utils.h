@@ -135,14 +135,11 @@ out:
 static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 index)
 {
     // Data saved to submit buf: [index][size][ ... string ... ]
-
     // If we don't have enough space - return
     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
         return 0;
-
     // Save argument index
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
-
     // Satisfy validator for probe read
     if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
         // Read into buffer
@@ -159,6 +156,42 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
         }
     }
 
+    return 0;
+}
+
+static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index) {
+    // Data saved to submit buf: [index][size][ ... string ... ]
+    char sparate = '<';
+    char connector = '.';
+    struct task_struct *task = data->task;
+    int length = TASK_COMM_LEN + sizeof(char) + sizeof(u32);
+    // we read pid+connector+pid_comm firstly
+    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int))
+        return 0;
+    // Save argument index
+    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
+    if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int)){
+        int flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off+1+sizeof(int)]), sizeof(u32), &task->tgid);
+        if (flag != 0) 
+            return 0;
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int))
+            return 0;
+        flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)]), sizeof(char), &connector);
+        if (flag != 0)
+            return 0;
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int))
+            return 0;
+        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)]), TASK_COMM_LEN, &task->comm);
+        if (sz > 0) {
+            if ((data->buf_off+1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+                return 0;
+            sz = sz + sizeof(u32) + sizeof(char);
+            __builtin_memcpy(&(data->submit_p->buf[data->buf_off+1]), &sz, sizeof(int));
+            data->buf_off += sz + sizeof(int) + 1;
+            data->context.argnum++;
+            return 1;
+        }
+    }
     return 0;
 }
 

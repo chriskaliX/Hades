@@ -76,7 +76,7 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 	t.probeBytes = HadesProgByte
 	t.opts = &ebpf.CollectionOptions{
 		Programs: ebpf.ProgramOptions{
-			LogSize: 1024 * 1024, // the size of verifier log !!!
+			LogSize: 40 * 1024 * 1024, // the size of verifier log !!!
 		},
 	}
 	return nil
@@ -164,6 +164,7 @@ func (t *HadesObject) Read() error {
 				}
 			}
 		} else {
+			fmt.Println("read error!!!")
 			zap.S().Error(err.Error())
 		}
 		process.Cwd = ""
@@ -196,7 +197,7 @@ func (t *HadesObject) Close() error {
 	return nil
 }
 
-func formatByte_(b []byte) string {
+func formatByte(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
@@ -205,8 +206,17 @@ func parseExecve_(buf io.Reader) (file, args string, envs []string, err error) {
 	if file, err = parseStr(buf); err != nil {
 		return
 	}
+	// pid_tree
+	if _, err = parseStr(buf, 1); err != nil {
+		fmt.Println(err)
+		return
+	}
 	// 开始读 argv
 	argsArr, err := parseStrArray(buf)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	// defer strArrPool.Put(argsArr)
 	args = strings.Join(argsArr, " ")
 	// 开始读 envs
