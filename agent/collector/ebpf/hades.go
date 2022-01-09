@@ -146,7 +146,7 @@ func (t *HadesObject) Read() error {
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
 
-		file, args, envs, err := parseExecve_(buffers)
+		file, args, pids, envs, err := parseExecve_(buffers)
 		if err == nil {
 			process.Cmdline = args
 			process.Exe = file
@@ -172,7 +172,7 @@ func (t *HadesObject) Read() error {
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 
-		process.PidTree = global.GetPstree(uint32(process.PID))
+		process.PidTree = pids
 		process.Sha256, _ = common.GetFileHash(process.Exe)
 		process.Username = global.GetUsername(process.UID)
 		process.StartTime = uint64(global.Time)
@@ -201,16 +201,17 @@ func formatByte(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
-func parseExecve_(buf io.Reader) (file, args string, envs []string, err error) {
+func parseExecve_(buf io.Reader) (file, args, pids string, envs []string, err error) {
 	// files
 	if file, err = parseStr(buf); err != nil {
 		return
 	}
 	// pid_tree
-	if _, err = parsePidTree(buf); err != nil {
-		fmt.Println(err)
+	pid_tree := make([]string, 0)
+	if pid_tree, err = parsePidTree(buf); err != nil {
 		return
 	}
+	pids = strings.Join(pid_tree, "<")
 	// 开始读 argv
 	argsArr, err := parseStrArray(buf)
 	if err != nil {

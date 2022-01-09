@@ -25,7 +25,7 @@ int enter_execve(struct tp_execve_t *ctx)
     // filename, 改为获取 filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 1, 1);
+    save_pid_tree_new_to_buf(&data, 8, 1);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 2);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 3);
     bpf_probe_read(&(data.submit_p->buf[0]), sizeof(context_t), &data.context);
