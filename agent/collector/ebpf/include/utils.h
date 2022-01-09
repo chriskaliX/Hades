@@ -161,8 +161,10 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
 
 static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index) {
     // Data saved to submit buf: [index][size][ ... string ... ]
+    // 2022-01-09: change to array -> [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
     char sparate = '<';
-    char connector = '.';
+    const char connector = '.';
+    // save 1 length for \0
     struct task_struct *task = data->task;
     int length = TASK_COMM_LEN + sizeof(char) + sizeof(u32);
     // we read pid+connector+pid_comm firstly
@@ -171,6 +173,7 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     // Save argument index
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
     if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int)){
+        // according to bcc's markdown, the mininum kernel version for bpf_snprintf is 5.13...not a good choice I think
         int flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off+1+sizeof(int)]), sizeof(u32), &task->tgid);
         if (flag != 0) 
             return 0;
@@ -179,9 +182,9 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
         flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)]), sizeof(char), &connector);
         if (flag != 0)
             return 0;
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int))
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int) - 1)
             return 0;
-        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)]), TASK_COMM_LEN, &task->comm);
+        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)+sizeof(char)]), TASK_COMM_LEN, &task->comm);
         if (sz > 0) {
             if ((data->buf_off+1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
                 return 0;
@@ -193,6 +196,42 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
         }
     }
     return 0;
+}
+
+static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limit, u8 index) {
+    // data: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
+    u8 elem_num = 0;
+    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
+    u32 orig_off = data->buf_off+1;
+    data->buf_off += 2;
+    if (limit < 1 || limit >= 32) {
+        return 0;
+    }
+    struct task_struct *task = data->task;
+    // read pid firstly
+    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int)) {
+        goto out;
+    }
+    int flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &task->tgid);
+    if (flag != 0)
+        goto out;
+    // read comm
+    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN) - sizeof(int) - sizeof(int))
+        goto out;
+    int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int) + sizeof(int)]), TASK_COMM_LEN, &task->comm);
+    if (sz > 0) {
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - sizeof(int))
+            goto out;
+        bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]), sizeof(int), &sz);
+        data->buf_off += sz + sizeof(int) + sizeof(int);
+        elem_num++;
+    } else {
+        goto out;
+    }
+out:
+    data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
+    data->context.argnum++;
+    return 1;
 }
 
 /* init_context */

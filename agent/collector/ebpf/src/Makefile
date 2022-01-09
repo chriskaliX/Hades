@@ -51,5 +51,5 @@ hades.o: hades.c
 		-nostdinc \
 		-O2 -emit-llvm -c -g -o $(@:.o=.ll)
 	$(CMD_LLC) -march=bpf -filetype=obj -o $@ $(@:.o=.ll)
-	-$(CMD_LLVM_STRIP) $@ --no-strip-all -R .BTF
+	# -$(CMD_LLVM_STRIP) $@ --no-strip-all -R .BTF
 	rm $(@:.o=.ll)
