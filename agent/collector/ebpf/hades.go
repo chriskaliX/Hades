@@ -43,10 +43,11 @@ type HadesMaps struct {
 	Perfevents *ebpf.Map `ebpf:"exec_events"`
 }
 
+//TODO: 动态加载
 //go:embed src/hades.o
 var HadesProgByte []byte
 
-type ctx_ struct {
+type eventCtx struct {
 	Ts              uint64
 	Uts_inum        uint64
 	Parent_uts_inum uint64
@@ -76,7 +77,7 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 	t.probeBytes = HadesProgByte
 	t.opts = &ebpf.CollectionOptions{
 		Programs: ebpf.ProgramOptions{
-			LogSize: 40 * 1024 * 1024, // the size of verifier log !!!
+			LogSize: 1 * 1024 * 1024, // the size of verifier log !!!
 		},
 	}
 	return nil
@@ -93,23 +94,30 @@ func (t *HadesObject) AttachProbe() error {
 }
 
 func (t *HadesObject) Read() error {
-	rd, err := perf.NewReader(t.HadesMaps.Perfevents, 8*os.Getpagesize())
-	if err != nil {
+	var (
+		reader  *perf.Reader
+		err     error
+		ctx     eventCtx
+		record  perf.Record
+		buffers *bytes.Buffer
+	)
+
+	if reader, err = perf.NewReader(t.HadesMaps.Perfevents, 4*os.Getpagesize()); err != nil {
 		zap.S().Error(err.Error())
 		return err
 	}
-	defer rd.Close()
+	defer reader.Close()
 
-	var ctx ctx_
 	for {
-		record, err := rd.Read()
-		if err != nil {
+		// read first
+		if record, err = reader.Read(); err != nil {
 			if errors.Is(err, perf.ErrClosed) {
 				return err
 			}
 			zap.S().Info(fmt.Sprintf("reading from perf event reader: %s", err))
 			continue
 		}
+		// think about samples
 		if record.LostSamples != 0 {
 			rawdata := make(map[string]string)
 			rawdata["data"] = fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples)
@@ -119,9 +127,7 @@ func (t *HadesObject) Read() error {
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
 			continue
 		}
-
-		var buffers = bytes.NewBuffer(record.RawSample)
-
+		buffers = bytes.NewBuffer(record.RawSample)
 		// 先消费 context_t
 		if err := binary.Read(buffers, binary.LittleEndian, &ctx); err != nil {
 			zap.S().Error(err.Error())
@@ -146,7 +152,7 @@ func (t *HadesObject) Read() error {
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
 
-		file, args, pids, envs, err := parseExecve_(buffers)
+		file, args, pids, cwd, envs, err := parseExecve_(buffers)
 		if err == nil {
 			process.Cmdline = args
 			process.Exe = file
@@ -164,21 +170,16 @@ func (t *HadesObject) Read() error {
 				}
 			}
 		} else {
-			fmt.Println("read error!!!")
 			zap.S().Error(err.Error())
 		}
-		process.Cwd = ""
-
+		process.Cwd = cwd
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-
 		process.PidTree = pids
 		process.Sha256, _ = common.GetFileHash(process.Exe)
 		process.Username = global.GetUsername(process.UID)
 		process.StartTime = uint64(global.Time)
-
 		data, err := utils.Marshal(process)
-
 		if err == nil {
 			rawdata["data"] = string(data)
 			global.UploadChannel <- rawdata
@@ -201,9 +202,12 @@ func formatByte(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
-func parseExecve_(buf io.Reader) (file, args, pids string, envs []string, err error) {
+func parseExecve_(buf io.Reader) (file, args, pids, cwd string, envs []string, err error) {
 	// files
 	if file, err = parseStr(buf); err != nil {
+		return
+	}
+	if cwd, err = parseStr(buf); err != nil {
 		return
 	}
 	// pid_tree
