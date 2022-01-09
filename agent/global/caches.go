@@ -44,7 +44,7 @@ func GetPstree(pid uint32) string {
 	for {
 		cmdline, ok := ProcessCmdlineCache.Get(pid)
 		if ok {
-			pstree = pstree + fmt.Sprint(pid) + "(" + cmdline.(string) + ")" + "<"
+			pstree = pstree + fmt.Sprint(pid) + "." + cmdline.(string) + "<"
 		} else {
 			break
 		}

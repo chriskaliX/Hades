@@ -198,7 +198,8 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     return 0;
 }
 
-static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limit, u8 index) {
+static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limit, u8 index)
+{
     // data: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
@@ -207,26 +208,43 @@ static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limi
     if (limit < 1 || limit >= 32) {
         return 0;
     }
+
     struct task_struct *task = data->task;
-    // read pid firstly
-    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int)) {
-        goto out;
-    }
-    int flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &task->tgid);
-    if (flag != 0)
-        goto out;
-    // read comm
-    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN) - sizeof(int) - sizeof(int))
-        goto out;
-    int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int) + sizeof(int)]), TASK_COMM_LEN, &task->comm);
-    if (sz > 0) {
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - sizeof(int))
+    u32 pid;
+
+    #pragma unroll
+    for (int i = 0; i < limit; i++) {
+        // check pid
+        int flag = bpf_probe_read(&pid, sizeof(pid), &task->tgid);
+        if (flag != 0)
             goto out;
-        bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]), sizeof(int), &sz);
-        data->buf_off += sz + sizeof(int) + sizeof(int);
-        elem_num++;
-    } else {
-        goto out;
+        if (pid == 0)
+            goto out;
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int)) {
+            goto out;
+        }
+        // read pid firstly
+        flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &pid);
+        if (flag != 0)
+            goto out;
+        // read comm
+        if (data->buf_off >= (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN) - sizeof(int) - sizeof(int))
+            goto out;
+        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int) + sizeof(int)]), TASK_COMM_LEN, &task->comm);
+        if (sz > 0) {
+            if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - sizeof(int))
+                goto out;
+            bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]), sizeof(int), &sz);
+            data->buf_off += sz + sizeof(int) + sizeof(int);
+            elem_num++;
+            // task = task->real_parent;
+            flag = bpf_probe_read(&task, sizeof(task), &task->real_parent);
+            if (flag != 0)
+                goto out;
+            continue;
+        } else {
+            goto out;
+        }
     }
 out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;

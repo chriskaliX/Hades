@@ -72,7 +72,6 @@ func parsePidTree(buf io.Reader) (strArr []string, err error) {
 		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
 			break
 		}
-		fmt.Println(strconv.Itoa(int(pid)) + "." + string(res))
 		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(res))
 		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
