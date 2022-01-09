@@ -155,11 +155,11 @@ func (t *HadesObject) Read() error {
 			case TRACEPOINT_SYSCALLS_EXECVE:
 				for _, env := range envs {
 					if strings.HasPrefix(env, "SSH_CONNECTION=") {
-						process.SSH_connection = env
+						process.SSH_connection = strings.TrimLeft(env, "SSH_CONNECTION=")
 					} else if strings.HasPrefix(env, "LD_PRELOAD=") {
-						process.LD_Preload = env
+						process.LD_Preload = strings.TrimLeft(env, "LD_PRELOAD=")
 					} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
-						process.LD_Library_Path = env
+						process.LD_Library_Path = strings.TrimLeft(env, "LD_LIBRARY_PATH")
 					}
 				}
 			}
@@ -207,7 +207,7 @@ func parseExecve_(buf io.Reader) (file, args string, envs []string, err error) {
 		return
 	}
 	// pid_tree
-	if _, err = parseStr(buf, 1); err != nil {
+	if _, err = parsePidTree(buf); err != nil {
 		fmt.Println(err)
 		return
 	}

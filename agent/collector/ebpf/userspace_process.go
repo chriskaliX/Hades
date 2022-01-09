@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 )
 
@@ -43,6 +44,37 @@ func parseStrArray(buf io.Reader) (strArr []string, err error) {
 		strArr = append(strArr, string(res))
 		binary.Read(buf, binary.LittleEndian, &dummy)
 		// bufPool.Put(res)
+	}
+	return
+}
+
+func parsePidTree(buf io.Reader) (strArr []string, err error) {
+	var index uint8
+	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+		return
+	}
+	var size uint8
+	if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
+		return
+	}
+	strArr = make([]string, 0)
+	var sz uint32
+	var pid uint32
+	var dummy uint8
+	for i := 0; i < int(size); i++ {
+		if err = binary.Read(buf, binary.LittleEndian, &pid); err != nil {
+			break
+		}
+		if err = binary.Read(buf, binary.LittleEndian, &sz); err != nil {
+			break
+		}
+		res := make([]byte, sz-1)
+		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
+			break
+		}
+		fmt.Println(strconv.Itoa(int(pid)) + "." + string(res))
+		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(res))
+		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
 	return
 }
