@@ -58,7 +58,7 @@ func main() {
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "log/hades.log",
-		MaxSize:    50, // megabytes - 1 default, 50 for test
+		MaxSize:    2, // megabytes - 1 default, 50 for test
 		MaxBackups: 10,
 		MaxAge:     10,   //days
 		Compress:   true, // disabled by default
@@ -79,7 +79,6 @@ func main() {
 	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
 	// TODO: 2021-11-06 这里考虑一下, kafka 批量上传, ticker 时间过段导致切换频繁
 	ticker := time.NewTicker(10 * time.Millisecond)
-	fmt.Println("start")
 	defer ticker.Stop()
 	go func() {
 		for {

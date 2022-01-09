@@ -3,7 +3,6 @@ package ebpf
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"strconv"
 	"sync"
@@ -78,7 +77,7 @@ func parsePidTree(buf io.Reader) (strArr []string, err error) {
 	return
 }
 
-func parseStr(buf io.Reader, test ...int) (str string, err error) {
+func parseStr(buf io.Reader) (str string, err error) {
 	var index uint8
 	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
 		return
@@ -94,9 +93,6 @@ func parseStr(buf io.Reader, test ...int) (str string, err error) {
 		return
 	}
 	str = string(res)
-	if len(test) > 0 {
-		fmt.Println(str)
-	}
 	// bufPool.Put(res)
 	var dummy int8
 	binary.Read(buf, binary.LittleEndian, &dummy)

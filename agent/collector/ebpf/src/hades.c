@@ -5,6 +5,8 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 
+// All this is based on tracee
+// TODO: 1. 网络、进程、文件等事件采集 2. CO-RE 3. 判断 kernel version, use ringbuf
 char LICENSE[] SEC("license") = "GPL";
 
 struct tp_execve_t {
@@ -22,21 +24,18 @@ int enter_execve(struct tp_execve_t *ctx)
     if (!init_event_data(&data))
         return 0;
     data.context.type = 1;
-    // filename, 改为获取 filename
+    // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
+    // cwd
+    struct fs_struct *file;
+    bpf_probe_read(&file, sizeof(file), &data.task->fs);
+    void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
+    save_str_to_buf(&data, file_path, 1);
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 8, 1);
-    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 2);
-    save_envp_to_buf(&data, (const char *const *)ctx->envp, 3);
+    save_pid_tree_new_to_buf(&data, 8, 2);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 3);
+    save_envp_to_buf(&data, (const char *const *)ctx->envp, 4);
     bpf_probe_read(&(data.submit_p->buf[0]), sizeof(context_t), &data.context);
-
-    // 对于 cwd 的获取实现, tracee 上有一个很好的 issue
-    // https://github.com/aquasecurity/tracee/issues/852
-    // 简单来说目前读取的时候没有办法对 dentry tree & mount point 添加锁, 所以会导致读取的时候可能会出现数据不准确的情况
-    // 在目前的 Hades 中, 我们可以在 execve 中变相的从 envp 中读取(也是不可靠的, 但是能用...)。但是长期来看，应该还是要按照 tracee 的方法来满足其他 hook 点的需求
-    // 另外也提到了 https://github.com/Gui774ume/fsprobe 中的读取方式
-    // TODO: take a look
-
     // satisfy validator by setting buffer bounds
     int size = data.buf_off & ((MAX_PERCPU_BUFSIZE)-1);
     void *output_data = data.submit_p->buf;

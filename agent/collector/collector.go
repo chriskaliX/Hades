@@ -2,7 +2,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"sync"
 
@@ -35,7 +34,6 @@ func GetCollectorSingleton() *Collector {
 // 定期执行, 进程采集
 func (c *Collector) FlushProcessCache() {
 	processes, err := GetProcess()
-	fmt.Println(len(processes))
 	if err != nil {
 		zap.S().Error("get process failed")
 	}

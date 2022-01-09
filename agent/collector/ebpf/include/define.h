@@ -12,6 +12,7 @@
 #include <linux/cred.h>
 #include <linux/mount.h>
 #include <linux/string.h>
+#include <linux/fs.h>
 #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -22,10 +23,12 @@
 #define MAX_STRING_SIZE 256
 #define MAX_STR_ARR_ELEM 32
 #define MAX_PID_LEN 7       // (up to 2^22 = 4194304) 
+#define MAX_PATH_COMPONENTS 20
 
 #define MAX_BUFFERS 3
-#define SUBMIT_BUF_IDX 0
 #define TMP_BUF_IDX 1
+#define SUBMIT_BUF_IDX 0
+#define STRING_BUF_IDX 1
 
 /* ========== MAP MICRO DEFINATION ========== */
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries)     \
@@ -118,9 +121,31 @@ BPF_PERF_OUTPUT(exec_events, 1024);
 BPF_PERF_OUTPUT(file_events, 1024);
 BPF_PERF_OUTPUT(net_events, 1024);
 BPF_PERCPU_ARRAY(bufs, buf_t, 3);
+BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
+
+/* read micro */
+#define READ_KERN(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
+        _val;                                                           \
+    })
 
 /* array related function */
 static __always_inline buf_t* get_buf(int idx)
 {
     return bpf_map_lookup_elem(&bufs, &idx);
 }
+static __always_inline void set_buf_off(int buf_idx, u32 new_off)
+{
+    bpf_map_update_elem(&bufs_off, &buf_idx, &new_off, BPF_ANY);
+}
+
+// mount
+static inline struct mount *real_mount(struct vfsmount *mnt)
+{
+    return container_of(mnt, struct mount, mnt);
+}
+
+#define GET_FIELD_ADDR(field) &field

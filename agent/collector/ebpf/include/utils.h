@@ -6,11 +6,18 @@
 #include <linux/sched.h>
 
 /* save envp to buf (with specific fields) */
+// TODO: 后期改成动态的
+/* R3 max value is outside of the array range */
+// 这个地方非常非常的坑，都因为 bpf_verifier 机制, 之前 buf_off > MAX_PERCPU_BUFSIZE - sizeof(int) 本身都是成立的
+// 前面明明有一个更为严格的 data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)，但是不行
+// 在每次调 index 之前都需要 check 一下，所以看源码的时候很多地方会写：To satisfied the verifier...
+// TODO: 写一个文章记录一下这个...
+
+// TODO: 判断 kernel version, 使用 ringbuf, 传输优化
+
 static __always_inline int save_envp_to_buf(event_data_t *data, const char __user *const __user *ptr, u8 index)
 {
     // Data saved to submit buf: [index][string count][str1 size][str1][str2 size][str2]...
-    /* if we want to limited size of buf_t to 1 << 13, we have to do a precheck before every save_(*)_to_buf function */
-    /* init the elem num */
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
     // Save space for number of elements (1 byte): [string count]
@@ -19,7 +26,6 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     data->buf_off += 2;
     // flags for collection
     int ssh_connection_flag = 0, ld_preload_flag = 0, ld_library_path_flag = 0, tmp_flag = 0;
-    // u32 offset = 0;
     /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
@@ -34,12 +40,6 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         /* read into buf & update the elem_num */
         int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
         if (sz > 0) {
-            // TODO: 后期改成动态的
-            /* R3 max value is outside of the array range */
-            // 这个地方非常非常的坑，都因为 bpf_verifier 机制, 之前 buf_off > MAX_PERCPU_BUFSIZE - sizeof(int) 本身都是成立的
-            // 前面明明有一个更为严格的 data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)，但是不行
-            // 在每次调 index 之前都需要 check 一下，所以看源码的时候很多地方会写：To satisfied the verifier...
-            // TODO: 写一个文章记录一下这个...
             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - (MAX_STRING_SIZE))
                 goto out;
             // Add & ((MAX_PERCPU_BUFSIZE)-1)] for verifier if the index is not checked
@@ -155,14 +155,13 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
             return 1;
         }
     }
-
     return 0;
 }
 
 static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index) {
     // Data saved to submit buf: [index][size][ ... string ... ]
     // 2022-01-09: change to array -> [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
-    char sparate = '<';
+    // char sparate = '<';
     const char connector = '.';
     // save 1 length for \0
     struct task_struct *task = data->task;
@@ -251,7 +250,6 @@ out:
     data->context.argnum++;
     return 1;
 }
-
 /* init_context */
 static __always_inline int init_context(context_t *context, struct task_struct *task) {
     // 获取 timestamp
@@ -319,4 +317,91 @@ static __always_inline int init_event_data(event_data_t *data)
     if (data->submit_p == NULL)
         return 0;
     return 1;
+}
+
+static __always_inline void* get_path_str(struct path *path)
+{
+    struct path f_path;
+    bpf_probe_read(&f_path, sizeof(struct path), path);
+    char slash = '/';
+    int zero = 0;
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+    struct mount *mnt_parent_p;
+
+    struct mount *mnt_p = real_mount(vfsmnt);
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+
+    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
+    struct dentry *mnt_root;
+    struct dentry *d_parent;
+    struct qstr d_name;
+    unsigned int len;
+    unsigned int off;
+    int sz;
+
+    // Get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+    #pragma unroll
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+        mnt_root = READ_KERN(vfsmnt->mnt_root);
+        d_parent = READ_KERN(dentry->d_parent);
+        if (dentry == mnt_root || dentry == d_parent) {
+            if (dentry != mnt_root) {
+                // We reached root, but not mount root - escaped?
+                break;
+            }
+            if (mnt_p != mnt_parent_p) {
+                // We reached root, but not global root - continue with mount point path
+                bpf_probe_read(&dentry, sizeof(struct dentry*), &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                vfsmnt = &mnt_p->mnt;
+                continue;
+            }
+            // Global root - path fully parsed
+            break;
+        }
+        // Add this dentry name to path
+        d_name = READ_KERN(dentry->d_name);
+        len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        off = buf_off - len;
+
+        // Is string buffer big enough for dentry name?
+        sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & (((MAX_PERCPU_BUFSIZE) >> 1)-1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & (((MAX_PERCPU_BUFSIZE) >> 1)-1)]), len, (void *)d_name.name);
+        }
+        else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+        // memfd files have no path in the filesystem -> extract their name
+        buf_off = 0;
+        d_name = READ_KERN(dentry->d_name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1)-1]), 1, &zero);
+    }
+
+    set_buf_off(STRING_BUF_IDX, buf_off);
+    return &string_p->buf[buf_off];
 }
