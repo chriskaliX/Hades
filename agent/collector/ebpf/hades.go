@@ -34,9 +34,9 @@ type HadesObject struct {
 }
 
 type HadesProgs struct {
-	TracepointExecve *ebpf.Program `ebpf:"enter_execve"`
-	// TracepointExecveat *ebpf.Program `ebpf:"enter_execveat"`
-	// TracepointFork *ebpf.Program `ebpf:"process_fork"`
+	TracepointExecve   *ebpf.Program `ebpf:"sys_enter_execve"`
+	TracepointExecveat *ebpf.Program `ebpf:"sys_enter_execveat"`
+	KprobeDoExit       *ebpf.Program `ebpf:"kprobe_do_exit"`
 }
 
 type HadesMaps struct {
@@ -64,6 +64,7 @@ type eventCtx struct {
 	PComm           [16]byte
 	Nodename        [64]byte
 	TTYName         [64]byte
+	RetVal          uint64
 	Argnum          uint8
 	_               [7]byte // padding - 结构体修改后要修改 padding
 }
@@ -85,14 +86,17 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 
 func (t *HadesObject) AttachProbe() error {
 	execveLink, err := link.Tracepoint("syscalls", "sys_enter_execve", t.HadesProgs.TracepointExecve)
+	execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.HadesProgs.TracepointExecveat)
+	KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink)
+	t.links = append(t.links, execveLink, execveatLink, KprobeDoExit)
 	return nil
 }
 
+// 现在这里的代码都是 demo, 目标是先跑起来, 所以实现上不优雅
 func (t *HadesObject) Read() error {
 	var (
 		reader  *perf.Reader
@@ -151,31 +155,35 @@ func (t *HadesObject) Read() error {
 		process.TTYName = formatByte(ctx.TTYName[:])
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
-
-		file, args, pids, cwd, envs, err := parseExecve_(buffers)
-		if err == nil {
-			process.Cmdline = args
-			process.Exe = file
-			// type 添加
-			switch int(ctx.Type) {
-			case TRACEPOINT_SYSCALLS_EXECVE:
+		if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE || int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVEAT {
+			file, args, pids, cwd, envs, err := parseExecve_(buffers)
+			if err == nil {
 				for _, env := range envs {
 					if strings.HasPrefix(env, "SSH_CONNECTION=") {
 						process.SSH_connection = strings.TrimLeft(env, "SSH_CONNECTION=")
 					} else if strings.HasPrefix(env, "LD_PRELOAD=") {
 						process.LD_Preload = strings.TrimLeft(env, "LD_PRELOAD=")
 					} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
-						process.LD_Library_Path = strings.TrimLeft(env, "LD_LIBRARY_PATH")
+						process.LD_Library_Path = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
 					}
 				}
+				process.Cmdline = args
+				process.Exe = file
+				process.PidTree = pids
+				process.Cwd = cwd
+				if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE {
+					process.Syscall = "execve"
+				} else {
+					process.Syscall = "execveat"
+				}
 			}
-		} else {
-			zap.S().Error(err.Error())
+		} else if int(ctx.Type) == KPROBE_DO_EXIT {
+			process.RetVal = int(ctx.RetVal)
+			process.Syscall = "exit"
 		}
-		process.Cwd = cwd
+
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-		process.PidTree = pids
 		process.Sha256, _ = common.GetFileHash(process.Exe)
 		process.Username = global.GetUsername(process.UID)
 		process.StartTime = uint64(global.Time)

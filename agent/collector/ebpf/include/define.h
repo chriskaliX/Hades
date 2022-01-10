@@ -19,8 +19,8 @@
 
 #define TASK_COMM_LEN 16
 #define MAX_STR_FILTER_SIZE 128
-#define MAX_PERCPU_BUFSIZE 1 << 14
-#define MAX_STRING_SIZE 256
+#define MAX_PERCPU_BUFSIZE (1 << 14)
+#define MAX_STRING_SIZE 1024
 #define MAX_STR_ARR_ELEM 32
 #define MAX_PID_LEN 7       // (up to 2^22 = 4194304) 
 #define MAX_PATH_COMPONENTS 20
@@ -74,7 +74,8 @@ typedef struct data_context {
     char comm[TASK_COMM_LEN];   // command
     char pcomm[TASK_COMM_LEN];  // parent command
     char nodename[64];          // uts_name => 64
-    char ttyname[64];           // char name[64];
+    char ttyname[64];           // char name[64]; 这个有必要性嘛? 是否需要剔除公共字段
+    u64 retval;                 // return value(useful when it's exit or kill)
     u8  argnum;                 // argnum
 } context_t;
 
@@ -84,6 +85,7 @@ typedef struct event_data {
     context_t context;          // context: general fields for all hooks
     buf_t *submit_p;
     u32 buf_off;                // offset of the buf_t
+    void *ctx;
 } event_data_t;
 
 /* general field for filter string */
