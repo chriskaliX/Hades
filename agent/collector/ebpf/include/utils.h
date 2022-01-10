@@ -197,6 +197,7 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     return 0;
 }
 
+/* use cache to speed up */
 static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limit, u8 index)
 {
     // data: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
@@ -307,10 +308,11 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     return 0;
 }
 
-static __always_inline int init_event_data(event_data_t *data)
+static __always_inline int init_event_data(event_data_t *data, void *ctx)
 {
     data->task = (struct task_struct *)bpf_get_current_task();
     init_context(&data->context, data->task);
+    data->ctx = ctx;
     data->buf_off = sizeof(context_t);
     int buf_idx = SUBMIT_BUF_IDX;
     data->submit_p = bpf_map_lookup_elem(&bufs, &buf_idx);
@@ -404,4 +406,11 @@ static __always_inline void* get_path_str(struct path *path)
 
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
+}
+
+static __always_inline int events_perf_submit(event_data_t *data) {
+    bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t), &data->context);
+    int size = data->buf_off & (MAX_PERCPU_BUFSIZE-1);
+    void *output_data = data->submit_p->buf;
+    return bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU, output_data, size);
 }

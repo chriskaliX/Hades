@@ -38,6 +38,7 @@ type Process struct {
 	PidTree         string `json:"pidtree"`
 	Source          string `json:"source"`
 	Syscall         string `json:"syscall,omitempty"`
+	RetVal          int    `json:"retval,omitempty"`
 	NodeName        string `json:"nodename"`
 	LD_Preload      string `json:"ld_preload"`
 	LD_Library_Path string `json:"ld_library_path"`

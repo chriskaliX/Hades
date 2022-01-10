@@ -68,7 +68,7 @@ enum {
 #define BPF_F_INDEX_MASK 0xffffffffULL
 #define BPF_F_CURRENT_CPU BPF_F_INDEX_MASK
 
-#define PT_REGS_RC(x) ((x)->rax)
+// #define PT_REGS_RC(x) ((x)->rax)
 // struct pt_regs {
 // /*
 //  * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
