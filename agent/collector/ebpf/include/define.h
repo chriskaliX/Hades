@@ -109,14 +109,14 @@ struct mount {
 
 struct pid_cache_t {
     u32 ppid;
-    char pcomm[MAX_STRING_SIZE];
+    char pcomm[TASK_COMM_LEN];
 };
 
 /* filters that communicate with user_space prog */
 BPF_ARRAY(path_filter, string_t, 32);
 BPF_HASH(pid_filter, u32, u32, 32);
 BPF_HASH(cgroup_id_filter, u64, u32, 32);
-/* for pid tree */
+/* for pid -> parent cmdline */
 BPF_LRU_HASH(pid_cache_lru, u32, struct pid_cache_t, 1024);
 /* BPF_PERF_OUTPUT */
 BPF_PERF_OUTPUT(exec_events, 1024);

@@ -35,14 +35,14 @@ type Process struct {
 	StartTime       uint64 `json:"starttime"`
 	RemoteAddr      string `json:"remoteaddr"`
 	LocalAddr       string `json:"localaddr"`
-	PidTree         string `json:"pidtree"`
+	PidTree         string `json:"pidtree,omitempty"`
 	Source          string `json:"source"`
 	Syscall         string `json:"syscall,omitempty"`
-	RetVal          int    `json:"retval,omitempty"`
+	RetVal          int    `json:"retval"`
 	NodeName        string `json:"nodename"`
-	LD_Preload      string `json:"ld_preload"`
-	LD_Library_Path string `json:"ld_library_path"`
-	SSH_connection  string `json:"ssh_connection"`
+	LD_Preload      string `json:"ld_preload,omitempty"`
+	LD_Library_Path string `json:"ld_library_path,omitempty"`
+	SSH_connection  string `json:"ssh_connection,omitempty"`
 	// Only valid when processes ticker collector
 	ResMem string `json:"resmem,omitempty"`
 	VirMem string `json:"virmem,omitempty"`

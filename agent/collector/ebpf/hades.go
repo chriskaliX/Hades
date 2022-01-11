@@ -34,9 +34,12 @@ type HadesObject struct {
 }
 
 type HadesProgs struct {
-	TracepointExecve   *ebpf.Program `ebpf:"sys_enter_execve"`
-	TracepointExecveat *ebpf.Program `ebpf:"sys_enter_execveat"`
-	KprobeDoExit       *ebpf.Program `ebpf:"kprobe_do_exit"`
+	TracepointExecve           *ebpf.Program `ebpf:"sys_enter_execve"`
+	TracepointExecveat         *ebpf.Program `ebpf:"sys_enter_execveat"`
+	KprobeDoExit               *ebpf.Program `ebpf:"kprobe_do_exit"`
+	KprobeSysExitGroup         *ebpf.Program `ebpf:"kprobe_sys_exit_group"`
+	KprobeSecurityBprmCheck    *ebpf.Program `ebpf:"kprobe_security_bprm_check"`
+	TracePointSchedProcessFork *ebpf.Program `ebpf:"tracepoint_sched_process_fork"`
 }
 
 type HadesMaps struct {
@@ -87,12 +90,15 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 func (t *HadesObject) AttachProbe() error {
 	execveLink, err := link.Tracepoint("syscalls", "sys_enter_execve", t.HadesProgs.TracepointExecve)
 	execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.HadesProgs.TracepointExecveat)
+	TracePointSchedProcessFork, err := link.Tracepoint("syscalls", "sched_process_fork", t.HadesProgs.TracePointSchedProcessFork)
 	KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
+	KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
+	KprobeSecurityBprmCheck, err := link.Kprobe("security_bprm_check", t.HadesProgs.KprobeSecurityBprmCheck)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink, execveatLink, KprobeDoExit)
+	t.links = append(t.links, execveLink, execveatLink, KprobeDoExit, KprobeSysExitGroup, KprobeSecurityBprmCheck, TracePointSchedProcessFork)
 	return nil
 }
 
@@ -167,6 +173,15 @@ func (t *HadesObject) Read() error {
 						process.LD_Library_Path = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
 					}
 				}
+				if len(process.SSH_connection) == 0 {
+					process.SSH_connection = "-1"
+				}
+				if len(process.LD_Preload) == 0 {
+					process.LD_Preload = "-1"
+				}
+				if len(process.LD_Library_Path) == 0 {
+					process.LD_Library_Path = "-1"
+				}
 				process.Cmdline = args
 				process.Exe = file
 				process.PidTree = pids
@@ -179,7 +194,15 @@ func (t *HadesObject) Read() error {
 			}
 		} else if int(ctx.Type) == KPROBE_DO_EXIT {
 			process.RetVal = int(ctx.RetVal)
-			process.Syscall = "exit"
+			process.Syscall = "do_exit"
+		} else if int(ctx.Type) == KPROBE_EXIT_GROUP {
+			process.RetVal = int(ctx.RetVal)
+			process.Syscall = "exit_group"
+		} else if int(ctx.Type) == KRPOBE_SECURITY_BPRM_CHECK {
+			process.Syscall = "security_bprm_check"
+			if file, err := parseStr(buffers); err == nil {
+				process.Exe = file
+			}
 		}
 
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
