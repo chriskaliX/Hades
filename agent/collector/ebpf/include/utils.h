@@ -196,8 +196,7 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     }
     return 0;
 }
-
-/* use cache to speed up */
+// TODO: pid lru 加速
 static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limit, u8 index)
 {
     // data: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
@@ -256,7 +255,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     // 获取 timestamp
     struct task_struct * realparent;
     bpf_probe_read(&realparent, sizeof(realparent), &task->real_parent);
-    bpf_probe_read(&context->ppid, sizeof(context->ppid), &realparent->pid);
+    bpf_probe_read(&context->ppid, sizeof(context->ppid), &realparent->tgid);
     context->ts = bpf_ktime_get_ns();
     // 填充 id 相关信息
     u64 id = bpf_get_current_uid_gid();
@@ -296,16 +295,24 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
 
     struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
-    if( parent ) {
-        // 防止未知的 fallback 情况, 参考 issue 提问
-        if (context->ppid == 0) {
-            bpf_probe_read(&context->ppid, sizeof(context->ppid), &parent->ppid);
-        }
+    if (parent) {
+        // 感觉没必要，就做 command line 加速吧
         bpf_probe_read(&context->pcomm, sizeof(context->pcomm), &parent->pcomm);
     }
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
     return 0;
+}
+
+static __always_inline void* get_tty_str(struct task_struct *task)
+{
+    struct signal_struct *signal;
+    bpf_probe_read(&signal, sizeof(signal), &task->signal);
+    struct tty_struct *tty;
+    bpf_probe_read(&tty, sizeof(tty), &signal->tty);
+    char *ttyname = NULL;
+    bpf_probe_read_str(&ttyname, 64, &tty->name);
+    return ttyname;
 }
 
 static __always_inline int init_event_data(event_data_t *data, void *ctx)
