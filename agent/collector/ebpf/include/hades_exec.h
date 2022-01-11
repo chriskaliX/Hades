@@ -8,7 +8,8 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-struct _sys_enter_execve {
+struct _sys_enter_execve
+{
     __u64 unused;
     int syscall_nr;
     const char *filename;
@@ -16,7 +17,8 @@ struct _sys_enter_execve {
     const char *const * envp;
 };
 
-struct _sys_enter_execveat {
+struct _sys_enter_execveat
+{
     __u64 unused;
     int syscall_nr;
     const char *filename;
@@ -33,6 +35,19 @@ struct _tracepoint_sched_process_fork
     char child_comm[16];
     pid_t child_pid;
 };
+
+struct _sys_enter_kill
+{
+    __u64 unused;
+    pid_t pid;
+    int   sig;
+}
+
+struct _sys_exit_kill
+{
+    __u64 unused;
+    long  ret;
+}
 
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
@@ -79,6 +94,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 }
 
 /* exit hooks */
+// 日志量很大...开启的必要性是...
 // reference of exit & exit_group: https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
 SEC("kprobe/do_exit")
 int kprobe_do_exit(struct pt_regs *ctx)
@@ -146,3 +162,14 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     save_str_to_buf(&data, file_path, 0);
     return events_perf_submit(&data);
 }
+
+/* kill/tkill/tgkill */
+// some reference: http://blog.chinaunix.net/uid-26983295-id-3552919.html, 还是遵循 tracepoint 吧
+// tracee 是 hook 了所有 enter/exit, 我感觉没有必要, 性能消耗应该会高很多?
+// 但是这个统一处理很方便, 也可以搞。过滤点统一, 处理点统一, 先思考一下
+// raw_tracepoint for bpf
+// SEC("tracepoint/syscalls/sys_enter_kill")
+// int sys_enter_kill(struct _sys_enter_kill *ctx)
+// {
+
+// }
