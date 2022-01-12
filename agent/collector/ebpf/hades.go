@@ -66,7 +66,7 @@ type eventCtx struct {
 	Comm            [16]byte
 	PComm           [16]byte
 	Nodename        [64]byte
-	TTYName         [64]byte
+	// TTYName         [64]byte
 	RetVal          uint64
 	Argnum          uint8
 	_               [7]byte // padding - 结构体修改后要修改 padding
@@ -91,14 +91,17 @@ func (t *HadesObject) AttachProbe() error {
 	execveLink, err := link.Tracepoint("syscalls", "sys_enter_execve", t.HadesProgs.TracepointExecve)
 	execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.HadesProgs.TracepointExecveat)
 	TracePointSchedProcessFork, err := link.Tracepoint("syscalls", "sched_process_fork", t.HadesProgs.TracePointSchedProcessFork)
-	KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
-	KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
+	// KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
+	// KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
 	KprobeSecurityBprmCheck, err := link.Kprobe("security_bprm_check", t.HadesProgs.KprobeSecurityBprmCheck)
+
+	// KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
+	// KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink, execveatLink, KprobeDoExit, KprobeSysExitGroup, KprobeSecurityBprmCheck, TracePointSchedProcessFork)
+	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork)
 	return nil
 }
 
@@ -158,11 +161,11 @@ func (t *HadesObject) Read() error {
 		process.PName = formatByte(ctx.PComm[:])
 		process.Uts_inum = int(ctx.Uts_inum)
 		process.Parent_uts_inum = int(ctx.Parent_uts_inum)
-		process.TTYName = formatByte(ctx.TTYName[:])
+		// process.TTYName = formatByte(ctx.TTYName[:])
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
 		if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE || int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVEAT {
-			file, args, pids, cwd, envs, err := parseExecve_(buffers)
+			file, args, pids, cwd, tty, envs, err := parseExecve_(buffers)
 			if err == nil {
 				for _, env := range envs {
 					if strings.HasPrefix(env, "SSH_CONNECTION=") {
@@ -182,6 +185,12 @@ func (t *HadesObject) Read() error {
 				if len(process.LD_Library_Path) == 0 {
 					process.LD_Library_Path = "-1"
 				}
+				if len(tty) == 0 {
+					process.TTYName = "-1"
+				} else {
+					process.TTYName = tty
+				}
+
 				process.Cmdline = args
 				process.Exe = file
 				process.PidTree = pids
@@ -233,12 +242,17 @@ func formatByte(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
-func parseExecve_(buf io.Reader) (file, args, pids, cwd string, envs []string, err error) {
+func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty string, envs []string, err error) {
 	// files
 	if file, err = parseStr(buf); err != nil {
 		return
 	}
+
 	if cwd, err = parseStr(buf); err != nil {
+		return
+	}
+
+	if tty, err = parseStr(buf); err != nil {
 		return
 	}
 	// pid_tree

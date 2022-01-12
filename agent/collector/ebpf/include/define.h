@@ -74,7 +74,6 @@ typedef struct data_context {
     char comm[TASK_COMM_LEN];   // command
     char pcomm[TASK_COMM_LEN];  // parent command
     char nodename[64];          // uts_name => 64
-    char ttyname[64];           // char name[64]; 这个有必要性嘛? 是否需要剔除公共字段
     u64 retval;                 // return value(useful when it's exit or kill)
     u8  argnum;                 // argnum
 } context_t;

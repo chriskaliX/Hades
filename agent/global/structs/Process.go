@@ -31,7 +31,7 @@ type Process struct {
 	Cwd             string `json:"cwd"`
 	Session         int    `json:"session"`
 	TTY             int    `json:"tty,omitempty"`
-	TTYName         string `json:"ttyname"`
+	TTYName         string `json:"ttyname,omitempty"`
 	StartTime       uint64 `json:"starttime"`
 	RemoteAddr      string `json:"remoteaddr"`
 	LocalAddr       string `json:"localaddr"`
