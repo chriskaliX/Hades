@@ -8,6 +8,7 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
+// TODO: Hook ID 的标准化, 看 format 里面
 struct _sys_enter_execve
 {
     __u64 unused;
@@ -41,13 +42,13 @@ struct _sys_enter_kill
     __u64 unused;
     pid_t pid;
     int   sig;
-}
+};
 
 struct _sys_exit_kill
 {
     __u64 unused;
     long  ret;
-}
+};
 
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
@@ -65,10 +66,14 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
+
+    void *ttyname = get_tty_str(data.task);
+    save_str_to_buf(&data, ttyname, 2);
+    
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 8, 2);
-    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 3);
-    save_envp_to_buf(&data, (const char *const *)ctx->envp, 4);
+    save_pid_tree_new_to_buf(&data, 8, 3);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 4);
+    save_envp_to_buf(&data, (const char *const *)ctx->envp, 5);
     return events_perf_submit(&data);
 }
 
@@ -145,6 +150,8 @@ int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
 
 
 /* lsm bprm: unfinished - 看的tracee, 上次看了又忘记了... */
+// https://blog.aquasec.com/ebpf-container-tracing-malware-detection
+// 这个主要检测 dynamic code execution, 如果不捕获 payload, 是否能只做简单匹配
 SEC("kprobe/security_bprm_check")
 int kprobe_security_bprm_check(struct pt_regs *ctx)
 {
@@ -159,8 +166,20 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     // 但是 security_bprm_check 的 hook 原因是啥呢? 看着 tracee 下的应该是对内存执行的监控, 这种是跳过 execve 的, 所以从上下文的 LRU 里取不到就 return (datadog 做法), 可能是没有意义的
     // 当然衍生出另外一个问题, 这个 hook 会导致 execve 下的数量翻倍, 同一个链路下的, 考虑在内核态做过滤
     // TODO: 场景探究 & 内核过滤必要性
-    save_str_to_buf(&data, file_path, 0);
-    return events_perf_submit(&data);
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return 0;
+    // memfd 这个应该相当于 kprobe/memfd_create, 还有一个 shm_open https://x-c3ll.github.io/posts/fileless-memfd_create/ 可以绕过字节的 hook 吗?
+    // 对应的也就是 /dev/shm/ | /run/shm/
+    // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
+    // TODO: optimize this function get_path_str
+    if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10)) {
+        save_str_to_buf(&data, file_path, 0);
+        return events_perf_submit(&data);
+    }
+    return 0;
+    // save_str_to_buf(&data, file_path, 0);
+    // return events_perf_submit(&data);
 }
 
 /* kill/tkill/tgkill */

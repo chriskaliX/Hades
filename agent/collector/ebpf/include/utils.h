@@ -158,45 +158,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
     return 0;
 }
 
-static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index) {
-    // Data saved to submit buf: [index][size][ ... string ... ]
-    // 2022-01-09: change to array -> [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
-    // char sparate = '<';
-    const char connector = '.';
-    // save 1 length for \0
-    struct task_struct *task = data->task;
-    int length = TASK_COMM_LEN + sizeof(char) + sizeof(u32);
-    // we read pid+connector+pid_comm firstly
-    if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int))
-        return 0;
-    // Save argument index
-    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
-    if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int)){
-        // according to bcc's markdown, the mininum kernel version for bpf_snprintf is 5.13...not a good choice I think
-        int flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off+1+sizeof(int)]), sizeof(u32), &task->tgid);
-        if (flag != 0) 
-            return 0;
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int))
-            return 0;
-        flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)]), sizeof(char), &connector);
-        if (flag != 0)
-            return 0;
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (length) - sizeof(int) - 1)
-            return 0;
-        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off+1+sizeof(int)+sizeof(u32)+sizeof(char)]), TASK_COMM_LEN, &task->comm);
-        if (sz > 0) {
-            if ((data->buf_off+1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
-                return 0;
-            sz = sz + sizeof(u32) + sizeof(char);
-            __builtin_memcpy(&(data->submit_p->buf[data->buf_off+1]), &sz, sizeof(int));
-            data->buf_off += sz + sizeof(int) + 1;
-            data->context.argnum++;
-            return 1;
-        }
-    }
-    return 0;
-}
-// TODO: pid lru 加速
+// TODO: pid lru 加速, 需要考虑到更新的场景, 加入时间 tag
 static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limit, u8 index)
 {
     // data: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
@@ -204,25 +166,25 @@ static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limi
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
     u32 orig_off = data->buf_off+1;
     data->buf_off += 2;
+    // precheck limit: unuseful?
     if (limit < 1 || limit >= 32) {
         return 0;
     }
-
     struct task_struct *task = data->task;
     u32 pid;
-
     #pragma unroll
     for (int i = 0; i < limit; i++) {
         // check pid
         int flag = bpf_probe_read(&pid, sizeof(pid), &task->tgid);
         if (flag != 0)
             goto out;
+        // trace until pid = 1
         if (pid == 0)
             goto out;
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int)) {
             goto out;
         }
-        // read pid firstly
+        // read pid to buffer firstly
         flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &pid);
         if (flag != 0)
             goto out;
@@ -236,7 +198,6 @@ static __always_inline int save_pid_tree_new_to_buf(event_data_t *data, int limi
             bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]), sizeof(int), &sz);
             data->buf_off += sz + sizeof(int) + sizeof(int);
             elem_num++;
-            // task = task->real_parent;
             flag = bpf_probe_read(&task, sizeof(task), &task->real_parent);
             if (flag != 0)
                 goto out;
@@ -280,20 +241,9 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     bpf_probe_read(&context->uts_inum, sizeof(context->uts_inum), &uts_ns->ns.inum);
     bpf_probe_read(&nsp, sizeof(nsp), &realparent->nsproxy);
     bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
-    bpf_probe_read(&context->parent_uts_inum, sizeof(context->parent_uts_inum), &uts_ns->ns.inum);
-
-    // ssh 相关信息, tty
-    // 参考 https://github.com/Gui774ume/ssh-probe/blob/26b6f0b38bf7707a5f7f21444917ed2760766353/ebpf/utils/process.h
-    // ttyname
-    struct signal_struct *signal;
-    bpf_probe_read(&signal, sizeof(signal), &task->signal);
-    struct tty_struct *tty;
-    bpf_probe_read(&tty, sizeof(tty), &signal->tty);
-    bpf_probe_read_str(&context->ttyname, sizeof(context->ttyname), &tty->name);
-    
+    bpf_probe_read(&context->parent_uts_inum, sizeof(context->parent_uts_inum), &uts_ns->ns.inum);    
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
-
     struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
     if (parent) {
         // 感觉没必要，就做 command line 加速吧
@@ -310,9 +260,16 @@ static __always_inline void* get_tty_str(struct task_struct *task)
     bpf_probe_read(&signal, sizeof(signal), &task->signal);
     struct tty_struct *tty;
     bpf_probe_read(&tty, sizeof(tty), &signal->tty);
-    char *ttyname = NULL;
-    bpf_probe_read_str(&ttyname, 64, &tty->name);
-    return ttyname;
+
+    // Get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+    int size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
+    char nothing[] = "-1";
+    if (size <= 1)
+        bpf_probe_read_str(&(string_p->buf[0]), 1, nothing);
+    return &string_p->buf[0];
 }
 
 static __always_inline int init_event_data(event_data_t *data, void *ctx)
