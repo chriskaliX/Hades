@@ -273,7 +273,7 @@ static __always_inline void* get_tty_str()
     int size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
     char nothing[] = "-1";
     if (size <= 1)
-        bpf_probe_read_str(&(string_p->buf[0]), 2, nothing);
+        bpf_probe_read_str(&(string_p->buf[0]), 1, nothing);
     return &string_p->buf[0];
 }
 
@@ -305,6 +305,94 @@ static __always_inline void* get_path_str(struct path *path)
 
     #pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+        mnt_root = READ_KERN(vfsmnt->mnt_root);
+        d_parent = READ_KERN(dentry->d_parent);
+        if (dentry == mnt_root || dentry == d_parent) {
+            if (dentry != mnt_root) {
+                // We reached root, but not mount root - escaped?
+                break;
+            }
+            if (mnt_p != mnt_parent_p) {
+                // We reached root, but not global root - continue with mount point path
+                bpf_probe_read(&dentry, sizeof(struct dentry*), &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                vfsmnt = &mnt_p->mnt;
+                continue;
+            }
+            // Global root - path fully parsed
+            break;
+        }
+        // Add this dentry name to path
+        d_name = READ_KERN(dentry->d_name);
+        len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        off = buf_off - len;
+
+        // Is string buffer big enough for dentry name?
+        sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & (((MAX_PERCPU_BUFSIZE) >> 1)-1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & (((MAX_PERCPU_BUFSIZE) >> 1)-1)]), len, (void *)d_name.name);
+        }
+        else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+        // memfd files have no path in the filesystem -> extract their name
+        buf_off = 0;
+        d_name = READ_KERN(dentry->d_name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1)-1]), 1, &zero);
+    }
+
+    set_buf_off(STRING_BUF_IDX, buf_off);
+    return &string_p->buf[buf_off];
+}
+
+/*test only*/
+static __always_inline void* get_path_str_once(struct path *path)
+{
+    struct path f_path;
+    bpf_probe_read(&f_path, sizeof(struct path), path);
+    char slash = '/';
+    int zero = 0;
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+    struct mount *mnt_parent_p;
+
+    struct mount *mnt_p = real_mount(vfsmnt);
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+
+    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
+    struct dentry *mnt_root;
+    struct dentry *d_parent;
+    struct qstr d_name;
+    unsigned int len;
+    unsigned int off;
+    int sz;
+
+    // Get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+    #pragma unroll
+    for (int i = 0; i < 1; i++) {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         if (dentry == mnt_root || dentry == d_parent) {
@@ -429,7 +517,7 @@ static __always_inline void *get_fraw_str(u64 num)
     if (string_p == NULL)
         return NULL;
     // review
-    bpf_probe_read_str(&(string_p->buf[0]), 2, nothing);
+    bpf_probe_read_str(&(string_p->buf[0]), 1, nothing);
     struct file *f = file_get_raw(num);
     if (!f)
         return &string_p->buf[0];
@@ -472,7 +560,7 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32
     return 0;
 }
 
-static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtable *fdt, int max_fds, u8 index)
+static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtable *fdt, u8 index)
 {
     u16 family;
     void *tmp_socket = NULL;
@@ -483,36 +571,34 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return 0;
+    struct sockaddr_in remote;
     #pragma unroll
     for (int j = 0; j < 8; j++) {
-        if (j >= max_fds)
-            break;
         struct file **fd = (struct file **)READ_KERN(fdt->fd);
         if (fd == NULL)
-            continue;
+            break;
         struct file *f = (struct file *)READ_KERN(fd[j]);
         if (f == NULL)
-            continue;
-        // 获取 path 名
-        get_path_str(GET_FIELD_ADDR(f->f_path));
+            break;
+        // 获取 path 名, 这个需要大优化, 参考 datadog, 周末安排
+        get_path_str_once(GET_FIELD_ADDR(f->f_path));
         // 匹配文件名 socket:[
         if(prefix("socket:[", (char *)&string_p->buf[0], 8)) {
             bpf_probe_read(&tmp_socket, sizeof(tmp_socket), &f->private_data);
             if(!tmp_socket)
-                continue;
+                break;
             bpf_probe_read(&socket, sizeof(socket), &tmp_socket);
             if(!socket)
-                continue;
+                break;
             bpf_probe_read(&sk, sizeof(sk), &socket->sk);
             if(!sk)
-                continue;
+                break;
             bpf_probe_read(&inet, sizeof(inet), &sk);
             // 先不支持 IPv6, 跑通先
             family = READ_KERN(sk->sk_family);
             if (family == AF_INET) {
                 net_conn_v4_t net_details = {};
                 get_network_details_from_sock_v4(sk, &net_details, 0);
-                struct sockaddr_in remote;
                 get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
                 // 只获取 remote 的
                 save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
@@ -524,18 +610,17 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
 }
 
 // 向上溯源获取 socket 信息, 参考字节 Elkeid & trace 代码
+// 需要做 lru 加速
 static __always_inline int get_socket_info(event_data_t *data, u8 index)
 {
+    struct sockaddr_in remote;
     // get current task
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL) {
+        save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
         return 0;
     }
-
-    int max_fds;
     u32 pid;
-
-    // max is 4
     #pragma unroll
     for (int i = 0; i < 4; i++) {
         bpf_probe_read(&pid, sizeof(pid), &task->pid);
@@ -550,14 +635,12 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
         struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
         if (fdt == NULL)
             continue;
-        bpf_probe_read(&max_fds, sizeof(max_fds), &fdt->max_fds);
-        if(max_fds > 8)
-            max_fds = 8;
-        int flag = get_socket_info_sub(data,fdt, max_fds,index);
-        if (flag)
+        int flag = get_socket_info_sub(data, fdt, index);
+        if (flag == 1)
             return 0;
         bpf_probe_read(&task, sizeof(task), &task->real_parent);
     }
+    save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
     return 0;
 }
 
