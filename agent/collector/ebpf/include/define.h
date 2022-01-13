@@ -13,7 +13,9 @@
 #include <linux/mount.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include "common.h"
+#include <net/inet_sock.h>
+#include <uapi/linux/un.h>
+// #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 
@@ -29,6 +31,9 @@
 #define TMP_BUF_IDX 1
 #define SUBMIT_BUF_IDX 0
 #define STRING_BUF_IDX 1
+
+#define EXECVE_GET_SOCK_FD_LIMIT 12
+#define EXECVE_GET_SOCK_PID_LIMIT 4
 
 /* ========== MAP MICRO DEFINATION ========== */
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries)     \
@@ -98,6 +103,13 @@ struct mnt_namespace {
     // ...
 };
 
+typedef struct network_connection_v4 {
+    u32 local_address;
+    u16 local_port;
+    u32 remote_address;
+    u16 remote_port;
+} net_conn_v4_t;
+
 struct mount {
     struct hlist_node mnt_hash;
     struct mount *mnt_parent;
@@ -138,10 +150,22 @@ static __always_inline buf_t* get_buf(int idx)
 {
     return bpf_map_lookup_elem(&bufs, &idx);
 }
+
 static __always_inline void set_buf_off(int buf_idx, u32 new_off)
 {
     bpf_map_update_elem(&bufs_off, &buf_idx, &new_off, BPF_ANY);
 }
+
+static __always_inline u32* get_buf_off(int buf_idx)
+{
+    return bpf_map_lookup_elem(&bufs_off, &buf_idx);
+}
+
+// why missing part
+// static inline struct inet_sock *inet_sk(const struct sock *sk)
+// {
+// 	return (struct inet_sock *)sk;
+// }
 
 // mount
 static inline struct mount *real_mount(struct vfsmount *mnt)

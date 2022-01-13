@@ -67,9 +67,9 @@ type eventCtx struct {
 	PComm           [16]byte
 	Nodename        [64]byte
 	// TTYName         [64]byte
-	RetVal          uint64
-	Argnum          uint8
-	_               [7]byte // padding - 结构体修改后要修改 padding
+	RetVal uint64
+	Argnum uint8
+	_      [7]byte // padding - 结构体修改后要修改 padding
 }
 
 // 重写 Init
@@ -81,7 +81,7 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 	t.probeBytes = HadesProgByte
 	t.opts = &ebpf.CollectionOptions{
 		Programs: ebpf.ProgramOptions{
-			LogSize: 1 * 1024 * 1024, // the size of verifier log !!!
+			LogSize: 800 * 1024 * 1024, // the size of verifier log !!!
 		},
 	}
 	return nil
@@ -165,7 +165,7 @@ func (t *HadesObject) Read() error {
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
 		if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE || int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVEAT {
-			file, args, pids, cwd, tty, envs, err := parseExecve_(buffers)
+			file, args, pids, cwd, tty, stdin, stdout, remote_port, remote_addr, envs, err := parseExecve_(buffers)
 			if err == nil {
 				for _, env := range envs {
 					if strings.HasPrefix(env, "SSH_CONNECTION=") {
@@ -190,7 +190,11 @@ func (t *HadesObject) Read() error {
 				} else {
 					process.TTYName = tty
 				}
+				process.RemoteAddr = remote_addr
+				process.RemotePort = remote_port
 
+				process.Stdin = stdin
+				process.Stdout = stdout
 				process.Cmdline = args
 				process.Exe = file
 				process.PidTree = pids
@@ -242,7 +246,7 @@ func formatByte(b []byte) string {
 	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }
 
-func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty string, envs []string, err error) {
+func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty, stdin, stout, remote_port, remote_addr string, envs []string, err error) {
 	// files
 	if file, err = parseStr(buf); err != nil {
 		return
@@ -255,6 +259,19 @@ func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty string, envs []stri
 	if tty, err = parseStr(buf); err != nil {
 		return
 	}
+
+	if stdin, err = parseStr(buf); err != nil {
+		return
+	}
+
+	if stout, err = parseStr(buf); err != nil {
+		return
+	}
+
+	if remote_port, remote_addr, err = parseRemoteAddr(buf); err != nil {
+		return
+	}
+
 	// pid_tree
 	pid_tree := make([]string, 0)
 	if pid_tree, err = parsePidTree(buf); err != nil {
