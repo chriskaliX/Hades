@@ -1,9 +1,11 @@
-#include "common.h"
+// #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
+#include "bpf_endian.h"
 #include "define.h"
 #include "helpers.h"
 #include <linux/sched.h>
+#include <linux/fdtable.h>
 
 /* save envp to buf (with specific fields) */
 // TODO: 后期改成动态的
@@ -254,8 +256,11 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     return 0;
 }
 
-static __always_inline void* get_tty_str(struct task_struct *task)
+/* ==== get ==== */
+
+static __always_inline void* get_tty_str()
 {
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     struct signal_struct *signal;
     bpf_probe_read(&signal, sizeof(signal), &task->signal);
     struct tty_struct *tty;
@@ -268,21 +273,8 @@ static __always_inline void* get_tty_str(struct task_struct *task)
     int size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
     char nothing[] = "-1";
     if (size <= 1)
-        bpf_probe_read_str(&(string_p->buf[0]), 1, nothing);
+        bpf_probe_read_str(&(string_p->buf[0]), 2, nothing);
     return &string_p->buf[0];
-}
-
-static __always_inline int init_event_data(event_data_t *data, void *ctx)
-{
-    data->task = (struct task_struct *)bpf_get_current_task();
-    init_context(&data->context, data->task);
-    data->ctx = ctx;
-    data->buf_off = sizeof(context_t);
-    int buf_idx = SUBMIT_BUF_IDX;
-    data->submit_p = bpf_map_lookup_elem(&bufs, &buf_idx);
-    if (data->submit_p == NULL)
-        return 0;
-    return 1;
 }
 
 static __always_inline void* get_path_str(struct path *path)
@@ -370,6 +362,216 @@ static __always_inline void* get_path_str(struct path *path)
 
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
+}
+
+static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details, int peer)
+{
+    struct inet_sock *inet = inet_sk(sk);
+
+    if (!peer) {
+        net_details->local_address = READ_KERN(inet->inet_rcv_saddr);
+        net_details->local_port = bpf_ntohs(READ_KERN(inet->inet_num));
+        net_details->remote_address = READ_KERN(inet->inet_daddr);
+        net_details->remote_port = READ_KERN(inet->inet_dport);
+    }
+    else {
+        net_details->remote_address = READ_KERN(inet->inet_rcv_saddr);
+        net_details->remote_port = bpf_ntohs(READ_KERN(inet->inet_num));
+        net_details->local_address = READ_KERN(inet->inet_daddr);
+        net_details->local_port = READ_KERN(inet->inet_dport);
+    }
+
+    return 0;
+}
+
+static __always_inline int get_remote_sockaddr_in_from_network_details(struct sockaddr_in *addr, net_conn_v4_t *net_details, u16 family)
+{
+    addr->sin_family = family;
+    addr->sin_port = net_details->remote_port;
+    addr->sin_addr.s_addr = net_details->remote_address;
+
+    return 0;
+}
+
+static __always_inline struct file *file_get_raw(u64 fd_num)
+{
+    // get current task
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    if (task == NULL) {
+        return NULL;
+    }
+    // get files
+    struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
+    if (files == NULL) {
+        return NULL;
+    }
+    // get fdtable
+    struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
+    if (fdt == NULL) {
+        return NULL;
+    }
+    struct file **fd = (struct file **)READ_KERN(fdt->fd);
+    if (fd == NULL) {
+        return NULL;
+    }
+    struct file *f = (struct file *)READ_KERN(fd[fd_num]);
+    if (f == NULL) {
+        return NULL;
+    }
+
+    return f;
+}
+//TODO: op
+static __always_inline void *get_fraw_str(u64 num)
+{
+    char nothing[] = "-1";
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+    // review
+    bpf_probe_read_str(&(string_p->buf[0]), 2, nothing);
+    struct file *f = file_get_raw(num);
+    if (!f)
+        return &string_p->buf[0];
+    struct path p = READ_KERN(f->f_path);
+    void *path = get_path_str(GET_FIELD_ADDR(p));
+    if (!path)
+        return &string_p->buf[0];
+    return path;
+}
+
+static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32 size, u8 index)
+{
+// The biggest element that can be saved with this function should be defined here
+#define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
+
+    // Data saved to submit buf: [index][ ... buffer[size] ... ]
+
+    if (size == 0)
+        return 0;
+
+    // If we don't have enough space - return
+    if (data->buf_off > MAX_PERCPU_BUFSIZE - (size+1))
+        return 0;
+
+    // Save argument index
+    volatile int buf_off = data->buf_off;
+    data->submit_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)] = index;
+
+    // Satisfy validator for probe read
+    if ((data->buf_off+1) <= MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE) {
+        // Read into buffer
+        if (bpf_probe_read(&(data->submit_p->buf[data->buf_off+1]), size, ptr) == 0) {
+            // We update buf_off only if all writes were successful
+            data->buf_off += size+1;
+            data->context.argnum++;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtable *fdt, int max_fds, u8 index)
+{
+    u16 family;
+    void *tmp_socket = NULL;
+    struct socket *socket;
+    struct sock *sk;
+    struct inet_sock *inet;
+    // 跨 bpf program 做 read 数据传输
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return 0;
+    #pragma unroll
+    for (int j = 0; j < 8; j++) {
+        if (j >= max_fds)
+            break;
+        struct file **fd = (struct file **)READ_KERN(fdt->fd);
+        if (fd == NULL)
+            continue;
+        struct file *f = (struct file *)READ_KERN(fd[j]);
+        if (f == NULL)
+            continue;
+        // 获取 path 名
+        get_path_str(GET_FIELD_ADDR(f->f_path));
+        // 匹配文件名 socket:[
+        if(prefix("socket:[", (char *)&string_p->buf[0], 8)) {
+            bpf_probe_read(&tmp_socket, sizeof(tmp_socket), &f->private_data);
+            if(!tmp_socket)
+                continue;
+            bpf_probe_read(&socket, sizeof(socket), &tmp_socket);
+            if(!socket)
+                continue;
+            bpf_probe_read(&sk, sizeof(sk), &socket->sk);
+            if(!sk)
+                continue;
+            bpf_probe_read(&inet, sizeof(inet), &sk);
+            // 先不支持 IPv6, 跑通先
+            family = READ_KERN(sk->sk_family);
+            if (family == AF_INET) {
+                net_conn_v4_t net_details = {};
+                get_network_details_from_sock_v4(sk, &net_details, 0);
+                struct sockaddr_in remote;
+                get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
+                // 只获取 remote 的
+                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+// 向上溯源获取 socket 信息, 参考字节 Elkeid & trace 代码
+static __always_inline int get_socket_info(event_data_t *data, u8 index)
+{
+    // get current task
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    if (task == NULL) {
+        return 0;
+    }
+
+    int max_fds;
+    u32 pid;
+
+    // max is 4
+    #pragma unroll
+    for (int i = 0; i < 4; i++) {
+        bpf_probe_read(&pid, sizeof(pid), &task->pid);
+        // 0 for failed...
+        if (pid == 1 || pid == 0)
+            break;
+        // get files
+        struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
+        if (files == NULL)
+            continue;
+        // get fdtable
+        struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
+        if (fdt == NULL)
+            continue;
+        bpf_probe_read(&max_fds, sizeof(max_fds), &fdt->max_fds);
+        if(max_fds > 8)
+            max_fds = 8;
+        int flag = get_socket_info_sub(data,fdt, max_fds,index);
+        if (flag)
+            return 0;
+        bpf_probe_read(&task, sizeof(task), &task->real_parent);
+    }
+    return 0;
+}
+
+static __always_inline int init_event_data(event_data_t *data, void *ctx)
+{
+    data->task = (struct task_struct *)bpf_get_current_task();
+    init_context(&data->context, data->task);
+    data->ctx = ctx;
+    data->buf_off = sizeof(context_t);
+    int buf_idx = SUBMIT_BUF_IDX;
+    data->submit_p = bpf_map_lookup_elem(&bufs, &buf_idx);
+    if (data->submit_p == NULL)
+        return 0;
+    return 1;
 }
 
 static __always_inline int events_perf_submit(event_data_t *data) {

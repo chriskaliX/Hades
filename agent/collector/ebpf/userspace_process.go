@@ -3,7 +3,9 @@ package ebpf
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"sync"
 )
@@ -97,6 +99,53 @@ func parseStr(buf io.Reader) (str string, err error) {
 	var dummy int8
 	binary.Read(buf, binary.LittleEndian, &dummy)
 	return
+}
+
+func parseRemoteAddr(buf io.Reader) (sin_port, sin_addr string, err error) {
+	var index uint8
+	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+		return
+	}
+	var family int16
+	err = binary.Read(buf, binary.LittleEndian, &family)
+	if err != nil {
+		return
+	}
+	var port uint16
+	err = binary.Read(buf, binary.BigEndian, &port)
+	if err != nil {
+		return
+	}
+
+	sin_port = strconv.Itoa(int(port))
+
+	var addr uint32
+	err = binary.Read(buf, binary.BigEndian, &addr)
+	if err != nil {
+		return
+	}
+
+	sin_addr = PrintUint32IP(addr)
+
+	_, err = readByteSliceFromBuff(buf, 8)
+	return
+}
+
+/* from tracee, run firstly */
+func readByteSliceFromBuff(buff io.Reader, len int) ([]byte, error) {
+	var err error
+	res := make([]byte, len)
+	err = binary.Read(buff, binary.LittleEndian, &res)
+	if err != nil {
+		return nil, fmt.Errorf("error reading byte array: %v", err)
+	}
+	return res, nil
+}
+
+func PrintUint32IP(in uint32) string {
+	ip := make(net.IP, net.IPv4len)
+	binary.BigEndian.PutUint32(ip, in)
+	return ip.String()
 }
 
 func init() {

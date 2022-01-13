@@ -2,7 +2,7 @@
 #include <linux/binfmts.h>
 #include <linux/kconfig.h>
 
-#include "common.h"
+// #include "common.h"
 #include "utils.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -66,14 +66,22 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
-
-    void *ttyname = get_tty_str(data.task);
+    // tty
+    void *ttyname = get_tty_str();
     save_str_to_buf(&data, ttyname, 2);
-    
+    // stdin
+    void *stdin = get_fraw_str(0);
+    save_str_to_buf(&data, stdin, 3);
+    // stdout
+    void *stdout = get_fraw_str(1);
+    save_str_to_buf(&data, stdout, 4);
+    // socket
+    get_socket_info(&data, 5);
+
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 8, 3);
-    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 4);
-    save_envp_to_buf(&data, (const char *const *)ctx->envp, 5);
+    save_pid_tree_new_to_buf(&data, 8, 6);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
+    save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
 }
 
@@ -169,7 +177,7 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return 0;
-    // memfd 这个应该相当于 kprobe/memfd_create, 还有一个 shm_open https://x-c3ll.github.io/posts/fileless-memfd_create/ 可以绕过字节的 hook 吗?
+    // memfd 这个应该相当于 kprobe/memfd_create, 还有一个 shm_open https://x-c3ll.github.io/posts/fileless-memfd_create/ 可以绕过字节的 hook 吗? 字节的大佬说 execve 可以 hook
     // 对应的也就是 /dev/shm/ | /run/shm/
     // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
     // TODO: optimize this function get_path_str
