@@ -15,7 +15,6 @@
 #include <linux/fs.h>
 #include <net/inet_sock.h>
 #include <uapi/linux/un.h>
-// #include "common.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 
