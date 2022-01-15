@@ -141,7 +141,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
         return 0;
     // Save argument index
-    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
+    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE-1)] = index;
     // Satisfy validator for probe read
     if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
         // Read into buffer
@@ -304,93 +304,8 @@ static __always_inline void* get_path_str(struct path *path)
         return NULL;
 
     #pragma unroll
+    // MAX_PATH_COMPONENTS
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
-        mnt_root = READ_KERN(vfsmnt->mnt_root);
-        d_parent = READ_KERN(dentry->d_parent);
-        if (dentry == mnt_root || dentry == d_parent) {
-            if (dentry != mnt_root) {
-                // We reached root, but not mount root - escaped?
-                break;
-            }
-            if (mnt_p != mnt_parent_p) {
-                // We reached root, but not global root - continue with mount point path
-                bpf_probe_read(&dentry, sizeof(struct dentry*), &mnt_p->mnt_mountpoint);
-                bpf_probe_read(&mnt_p, sizeof(struct mount*), &mnt_p->mnt_parent);
-                bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
-                vfsmnt = &mnt_p->mnt;
-                continue;
-            }
-            // Global root - path fully parsed
-            break;
-        }
-        // Add this dentry name to path
-        d_name = READ_KERN(dentry->d_name);
-        len = (d_name.len+1) & (MAX_STRING_SIZE-1);
-        off = buf_off - len;
-
-        // Is string buffer big enough for dentry name?
-        sz = 0;
-        if (off <= buf_off) { // verify no wrap occurred
-            len = len & (((MAX_PERCPU_BUFSIZE) >> 1)-1);
-            sz = bpf_probe_read_str(&(string_p->buf[off & (((MAX_PERCPU_BUFSIZE) >> 1)-1)]), len, (void *)d_name.name);
-        }
-        else
-            break;
-        if (sz > 1) {
-            buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
-            buf_off -= sz - 1;
-        } else {
-            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
-            break;
-        }
-        dentry = d_parent;
-    }
-
-    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
-        // memfd files have no path in the filesystem -> extract their name
-        buf_off = 0;
-        d_name = READ_KERN(dentry->d_name);
-        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
-    } else {
-        // Add leading slash
-        buf_off -= 1;
-        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
-        // Null terminate the path string
-        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1)-1]), 1, &zero);
-    }
-
-    set_buf_off(STRING_BUF_IDX, buf_off);
-    return &string_p->buf[buf_off];
-}
-
-/*test only*/
-static __always_inline void* get_path_str_once(struct path *path)
-{
-    struct path f_path;
-    bpf_probe_read(&f_path, sizeof(struct path), path);
-    char slash = '/';
-    int zero = 0;
-    struct dentry *dentry = f_path.dentry;
-    struct vfsmount *vfsmnt = f_path.mnt;
-    struct mount *mnt_parent_p;
-    struct mount *mnt_p = real_mount(vfsmnt);
-    bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
-    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
-    struct dentry *mnt_root;
-    struct dentry *d_parent;
-    struct qstr d_name;
-    unsigned int len;
-    unsigned int off;
-    int sz;
-
-    // Get per-cpu string buffer
-    buf_t *string_p = get_buf(STRING_BUF_IDX);
-    if (string_p == NULL)
-        return NULL;
-
-    #pragma unroll
-    for (int i = 0; i < 1; i++) {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         if (dentry == mnt_root || dentry == d_parent) {
@@ -452,7 +367,6 @@ static __always_inline void* get_path_str_once(struct path *path)
 
 static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details, int peer)
 {
-    // struct inet_sock *inet = inet_sk(sk);
     struct inet_sock *inet = (struct inet_sock *)sk;
     if (!peer) {
         net_details->local_address = READ_KERN(inet->inet_rcv_saddr);
@@ -475,7 +389,6 @@ static __always_inline int get_remote_sockaddr_in_from_network_details(struct so
     addr->sin_family = family;
     addr->sin_port = net_details->remote_port;
     addr->sin_addr.s_addr = net_details->remote_address;
-
     return 0;
 }
 
@@ -564,71 +477,60 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
     void *tmp_socket = NULL;
     struct socket *socket;
     struct sock *sk;
-    struct file **fd;
+    struct file **fd = NULL;
     struct file *file;
+    void *file_path;
     int state;
     // 跨 bpf program 做 read 数据传输
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return -1;
-    // get max fds 
+    // get max fds
     unsigned long max_fds;
     bpf_probe_read(&max_fds, sizeof(max_fds), &fdt->max_fds);
     fd = (struct file **)READ_KERN(fdt->fd);
-    if (fd == NULL)
-        return -1;
     // unroll since unbounded loop is not supported < kernel version 5.3
     #pragma unroll
     for (int i = 0; i < 8; i++) {
         if (i == max_fds)
             break;
         file = (struct file *)READ_KERN(fd[i]);
-        if (file == NULL)
+        if (!file)
             continue;
-        // 获取 path 名, 这个需要大优化, 参考 datadog, 周末安排
-        struct path *path;
-        struct dentry *dentry; 
+        struct path f_path;
+        struct dentry *dentry;
         struct qstr d_name;
-        bpf_probe_read(&path, sizeof(path), &file->f_path);
-        dentry = (struct dentry *)READ_KERN(path->dentry);
-        if (!dentry)
-            continue;
+        
+        bpf_probe_read(&f_path, sizeof(struct path), &file->f_path);
+        dentry = f_path.dentry;
         d_name = READ_KERN(dentry->d_name);
+        unsigned int len = (d_name.len+1) & (MAX_STRING_SIZE-1);
         /* test code */
-        int size = bpf_probe_read_str(&(string_p->buf[0]), 24, (void *)d_name.name);
-        if (size != 9) {
-            struct sockaddr_in remote;
-            remote.sin_family = maxsize_fds;
-            save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
-            return 1;
-        }
-        if (prefix("socket:[", (char *)&string_p->buf[0], 8) == 1) {
-            struct sockaddr_in remote;
-            remote.sin_family = 3;
-            save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
-            return 1;
-            // bpf_probe_read(&tmp_socket, sizeof(tmp_socket), &file->private_data);
-            // if(!tmp_socket)
-            //     continue;
-            // socket = (struct socket *)tmp_socket;
-            // // check state
-            // bpf_probe_read(&state, sizeof(state), &socket->state);
-            // if (state <= 1)
-            //     continue;
-            // bpf_probe_read(&sk, sizeof(sk), &socket->sk);
-            // if(!sk)
-            //     continue;
-            // // 先不支持 IPv6, 跑通先
-            // family = READ_KERN(sk->sk_family);
-            // if (family == AF_INET) {
-            //     net_conn_v4_t net_details = {};
-            //     get_network_details_from_sock_v4(sk, &net_details, 1);
-            //     // remote we need to send
-            //     struct sockaddr_in remote;
-            //     get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
-            //     save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
-            //     return 1;
-            // }
+        bpf_probe_read_str(&(string_p->buf[0]), len, (void *)d_name.name);
+        if (prefix("TCP", &(string_p->buf[0]), 3)) {
+            // save_str_to_buf(data, &(string_p->buf[0]), 0);
+            bpf_probe_read(&tmp_socket, sizeof(tmp_socket), &file->private_data);
+            if(!tmp_socket)
+                continue;
+            socket = (struct socket *)tmp_socket;
+            // check state
+            bpf_probe_read(&state, sizeof(state), &socket->state);
+            if (state <= 1)
+                continue;
+            bpf_probe_read(&sk, sizeof(sk), &socket->sk);
+            if(!sk)
+                continue;
+            // 先不支持 IPv6, 跑通先
+            family = READ_KERN(sk->sk_family);
+            if (family == AF_INET) {
+                net_conn_v4_t net_details = {};
+                get_network_details_from_sock_v4(sk, &net_details, 0);
+                // remote we need to send
+                struct sockaddr_in remote;
+                get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
+                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+                return 1;
+            }
         }
     }
     return 0;
