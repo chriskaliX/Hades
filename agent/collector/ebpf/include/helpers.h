@@ -9,7 +9,6 @@ static __inline int has_prefix(char *prefix, char *str, int n)
             return 0;
         }
     }
-
     // prefix is too long
     return 0;
 }

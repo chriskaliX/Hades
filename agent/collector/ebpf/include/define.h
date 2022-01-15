@@ -161,12 +161,6 @@ static __always_inline u32* get_buf_off(int buf_idx)
     return bpf_map_lookup_elem(&bufs_off, &buf_idx);
 }
 
-// why missing part
-// static inline struct inet_sock *inet_sk(const struct sock *sk)
-// {
-// 	return (struct inet_sock *)sk;
-// }
-
 // mount
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {

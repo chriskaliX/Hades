@@ -99,10 +99,22 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
+    // tty
+    void *ttyname = get_tty_str();
+    save_str_to_buf(&data, ttyname, 2);
+    // stdin
+    void *stdin = get_fraw_str(0);
+    save_str_to_buf(&data, stdin, 3);
+    // stdout
+    void *stdout = get_fraw_str(1);
+    save_str_to_buf(&data, stdout, 4);
+    // socket
+    get_socket_info(&data, 5);
+
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 8, 2);
-    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 3);
-    save_envp_to_buf(&data, (const char *const *)ctx->envp, 4);
+    save_pid_tree_new_to_buf(&data, 8, 6);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
+    save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
 }
 
