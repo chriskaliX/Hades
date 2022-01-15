@@ -374,10 +374,8 @@ static __always_inline void* get_path_str_once(struct path *path)
     struct dentry *dentry = f_path.dentry;
     struct vfsmount *vfsmnt = f_path.mnt;
     struct mount *mnt_parent_p;
-
     struct mount *mnt_p = real_mount(vfsmnt);
     bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
-
     u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
     struct dentry *mnt_root;
     struct dentry *d_parent;
@@ -454,8 +452,8 @@ static __always_inline void* get_path_str_once(struct path *path)
 
 static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details, int peer)
 {
-    struct inet_sock *inet = inet_sk(sk);
-
+    // struct inet_sock *inet = inet_sk(sk);
+    struct inet_sock *inet = (struct inet_sock *)sk;
     if (!peer) {
         net_details->local_address = READ_KERN(inet->inet_rcv_saddr);
         net_details->local_port = bpf_ntohs(READ_KERN(inet->inet_num));
@@ -556,54 +554,81 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32
             return 1;
         }
     }
-
     return 0;
 }
 
+/* Reference: http://jinke.me/2018-08-23-socket-and-linux-file-system/ */
 static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtable *fdt, u8 index)
 {
     u16 family;
     void *tmp_socket = NULL;
     struct socket *socket;
     struct sock *sk;
-    struct inet_sock *inet;
+    struct file **fd;
+    struct file *file;
+    int state;
     // 跨 bpf program 做 read 数据传输
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
-        return 0;
-    struct sockaddr_in remote;
+        return -1;
+    // get max fds 
+    unsigned long max_fds;
+    bpf_probe_read(&max_fds, sizeof(max_fds), &fdt->max_fds);
+    fd = (struct file **)READ_KERN(fdt->fd);
+    if (fd == NULL)
+        return -1;
+    // unroll since unbounded loop is not supported < kernel version 5.3
     #pragma unroll
-    for (int j = 0; j < 8; j++) {
-        struct file **fd = (struct file **)READ_KERN(fdt->fd);
-        if (fd == NULL)
+    for (int i = 0; i < 8; i++) {
+        if (i == max_fds)
             break;
-        struct file *f = (struct file *)READ_KERN(fd[j]);
-        if (f == NULL)
-            break;
+        file = (struct file *)READ_KERN(fd[i]);
+        if (file == NULL)
+            continue;
         // 获取 path 名, 这个需要大优化, 参考 datadog, 周末安排
-        get_path_str_once(GET_FIELD_ADDR(f->f_path));
-        // 匹配文件名 socket:[
-        if(prefix("socket:[", (char *)&string_p->buf[0], 8)) {
-            bpf_probe_read(&tmp_socket, sizeof(tmp_socket), &f->private_data);
-            if(!tmp_socket)
-                break;
-            bpf_probe_read(&socket, sizeof(socket), &tmp_socket);
-            if(!socket)
-                break;
-            bpf_probe_read(&sk, sizeof(sk), &socket->sk);
-            if(!sk)
-                break;
-            bpf_probe_read(&inet, sizeof(inet), &sk);
-            // 先不支持 IPv6, 跑通先
-            family = READ_KERN(sk->sk_family);
-            if (family == AF_INET) {
-                net_conn_v4_t net_details = {};
-                get_network_details_from_sock_v4(sk, &net_details, 0);
-                get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
-                // 只获取 remote 的
-                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
-                return 1;
-            }
+        struct path *path;
+        struct dentry *dentry; 
+        struct qstr d_name;
+        bpf_probe_read(&path, sizeof(path), &file->f_path);
+        dentry = (struct dentry *)READ_KERN(path->dentry);
+        if (!dentry)
+            continue;
+        d_name = READ_KERN(dentry->d_name);
+        /* test code */
+        int size = bpf_probe_read_str(&(string_p->buf[0]), 24, (void *)d_name.name);
+        if (size != 9) {
+            struct sockaddr_in remote;
+            remote.sin_family = maxsize_fds;
+            save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+            return 1;
+        }
+        if (prefix("socket:[", (char *)&string_p->buf[0], 8) == 1) {
+            struct sockaddr_in remote;
+            remote.sin_family = 3;
+            save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+            return 1;
+            // bpf_probe_read(&tmp_socket, sizeof(tmp_socket), &file->private_data);
+            // if(!tmp_socket)
+            //     continue;
+            // socket = (struct socket *)tmp_socket;
+            // // check state
+            // bpf_probe_read(&state, sizeof(state), &socket->state);
+            // if (state <= 1)
+            //     continue;
+            // bpf_probe_read(&sk, sizeof(sk), &socket->sk);
+            // if(!sk)
+            //     continue;
+            // // 先不支持 IPv6, 跑通先
+            // family = READ_KERN(sk->sk_family);
+            // if (family == AF_INET) {
+            //     net_conn_v4_t net_details = {};
+            //     get_network_details_from_sock_v4(sk, &net_details, 1);
+            //     // remote we need to send
+            //     struct sockaddr_in remote;
+            //     get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
+            //     save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+            //     return 1;
+            // }
         }
     }
     return 0;
@@ -614,32 +639,41 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
 static __always_inline int get_socket_info(event_data_t *data, u8 index)
 {
     struct sockaddr_in remote;
-    // get current task
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    if (task == NULL) {
-        save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
-        return 0;
-    }
+    if (task == NULL)
+        goto exit;
+    
     u32 pid;
+    int flag;
+
     #pragma unroll
     for (int i = 0; i < 4; i++) {
         bpf_probe_read(&pid, sizeof(pid), &task->pid);
         // 0 for failed...
-        if (pid == 1 || pid == 0)
+        if (pid == 1)
             break;
+        
         // get files
         struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
         if (files == NULL)
-            continue;
+            goto next_task;
+        
         // get fdtable
         struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
         if (fdt == NULL)
-            continue;
-        int flag = get_socket_info_sub(data, fdt, index);
+            goto next_task;
+        
+        // find out
+        flag = get_socket_info_sub(data, fdt, index);
         if (flag == 1)
             return 0;
+next_task:
         bpf_probe_read(&task, sizeof(task), &task->real_parent);
     }
+exit:
+    remote.sin_family = 0;
+    remote.sin_port = 0;
+    remote.sin_addr.s_addr = 0;
     save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
     return 0;
 }

@@ -269,6 +269,7 @@ func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty, stdin, stout, remo
 	}
 
 	if remote_port, remote_addr, err = parseRemoteAddr(buf); err != nil {
+		fmt.Println(err)
 		return
 	}
 
