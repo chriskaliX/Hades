@@ -81,7 +81,7 @@ func (t *HadesProbe) Init(ctx context.Context) error {
 	t.probeBytes = HadesProgByte
 	t.opts = &ebpf.CollectionOptions{
 		Programs: ebpf.ProgramOptions{
-			LogSize: 800 * 1024 * 1024, // the size of verifier log !!!
+			LogSize: 1 * 1024 * 1024, // the size of verifier log !!!
 		},
 	}
 	return nil

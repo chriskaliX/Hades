@@ -198,9 +198,8 @@ out:
     return 1;
 }
 /* 
- * @function: save pid_tree to buffer
+ * @function: save ptr(struct) to buffer
  * @structure: [index][buffer]
- * TODO: cache to speed up
  */
 static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32 size, u8 index)
 {
@@ -233,4 +232,4 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32
     return 0;
 }
 
-#endif //__UTILS_BUF
+#endif //__UTILS_BUF_H
