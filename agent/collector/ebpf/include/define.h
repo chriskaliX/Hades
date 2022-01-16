@@ -170,4 +170,10 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 
 #define GET_FIELD_ADDR(field) &field
 
+/* hook point id */
+// TODO: gather all and update
+#define SCHED_PROCESS_FORK 317
+#define SYS_ENTER_EXECVEAT 698
+#define SYS_ENTER_EXECVE   700
+
 #endif //__DEFINE_H

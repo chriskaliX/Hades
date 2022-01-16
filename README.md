@@ -10,17 +10,23 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 > Agent自身接收命令，拆解Config指令，按照Osquery应该也要支持主动查询(其实就是Config中的一种)
 
-![agent](https://github.com/chriskaliX/HIDS-Linux/blob/main/agent.png)
+![agent](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/agent.png)
 
 ### 数据处理
 
 > Agent字段连接公司对应的cmdb，做初步扩展。之后走入 Flink CEP 做初步的节点数据清洗。打入 HIVE 时根据情况，也可再做一次清洗减小性能消耗。清洗过后的数据走入第二个 Flink CEP 以及规则引擎，HIDS 的规则部分其实较为头疼，是一个 HIDS 能否用好的关键所在，后续会把自己的想法逐步开源
 
-![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/data_analyze.png)
+![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/data_analyze.png)
 
 ## 目前阶段
 
-用户态基本完成，eBPF 进行中, 目前 execve 字段全部采集完毕, 包括进程树, envp, cwd
+用户态基本完成，eBPF 进行中, 目前 execve 字段全部采集完毕, 包括进程树, envp, cwd...
+
+目前在重要的字段下先对齐 Elkeid, 还有一些纰漏, 慢慢的修复
+
+![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/examples.png)
+
+2022-01-16:
 
 ## 开发计划
 
@@ -70,4 +76,4 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 ## 交流群
 
-<img src="https://github.com/chriskaliX/Hades/blob/main/feishu1.png" width="30%" style="float:left;"/>
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/feishu.png" width="50%" style="float:left;"/>
