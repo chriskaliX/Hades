@@ -164,7 +164,7 @@ int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
     bpf_probe_read(&ppid, sizeof(ppid), &ctx->parent_pid);
     struct pid_cache_t cache = {};
     cache.ppid = ppid;
-    bpf_probe_read(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
+    bpf_probe_read_str(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
     bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
     return 0;
 }
