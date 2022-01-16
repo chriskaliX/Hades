@@ -67,7 +67,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     // tty
-    void *ttyname = get_tty_str();
+    void *ttyname = get_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
     // stdin
     void *stdin = get_fraw_str(0);
@@ -100,7 +100,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     // tty
-    void *ttyname = get_tty_str();
+    void *ttyname = get_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
     // stdin
     void *stdin = get_fraw_str(0);
@@ -109,6 +109,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     void *stdout = get_fraw_str(1);
     save_str_to_buf(&data, stdout, 4);
     // socket
+    // TODO: Add socket to this
     get_socket_info(&data, 5);
 
     // 新增 pid_tree
@@ -167,8 +168,6 @@ int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
     bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
     return 0;
 }
-
-
 /* lsm bprm: unfinished - 看的tracee, 上次看了又忘记了... */
 // https://blog.aquasec.com/ebpf-container-tracing-malware-detection
 // 这个主要检测 dynamic code execution, 如果不捕获 payload, 是否能只做简单匹配
@@ -201,7 +200,7 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     // save_str_to_buf(&data, file_path, 0);
     // return events_perf_submit(&data);
 }
-
+// TODO: ptrace 的 hook, kprobe 直接挂载或者 CAP_CAPABLE, 明天开始 check 一下
 /* kill/tkill/tgkill */
 // some reference: http://blog.chinaunix.net/uid-26983295-id-3552919.html, 还是遵循 tracepoint 吧
 // tracee 是 hook 了所有 enter/exit, 我感觉没有必要, 性能消耗应该会高很多?

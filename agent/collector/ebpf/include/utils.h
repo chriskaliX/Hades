@@ -48,11 +48,11 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     bpf_probe_read(&context->parent_uts_inum, sizeof(context->parent_uts_inum), &uts_ns->ns.inum);    
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
-    struct pid_cache_t * parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
-    if (parent) {
-        // 感觉没必要，就做 command line 加速吧
+    struct pid_cache_t *parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
+    if (parent)
         bpf_probe_read(&context->pcomm, sizeof(context->pcomm), &parent->pcomm);
-    }
+    else
+        bpf_probe_read(&context->pcomm, sizeof(context->pcomm), &realparent->comm);
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
     return 0;
@@ -60,9 +60,8 @@ static __always_inline int init_context(context_t *context, struct task_struct *
 
 /* ==== get ==== */
 
-static __always_inline void* get_tty_str()
+static __always_inline void* get_tty_str(struct task_struct *task)
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     struct signal_struct *signal;
     bpf_probe_read(&signal, sizeof(signal), &task->signal);
     struct tty_struct *tty;
