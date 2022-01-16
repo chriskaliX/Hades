@@ -8,7 +8,6 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"go.uber.org/zap"
 )
 
 const MAX_STRING_LEN = 256
@@ -114,7 +113,6 @@ func parseRemoteAddr(buf io.Reader) (sin_port, sin_addr string, err error) {
 		return
 	}
 	// fmt.Println(family)
-	zap.S().Info(family)
 	var port uint16
 	err = binary.Read(buf, binary.BigEndian, &port)
 	if err != nil {

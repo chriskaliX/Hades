@@ -1,3 +1,5 @@
+#ifndef __DEFINE_H
+#define __DEFINE_H
 #include <linux/kconfig.h>
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
@@ -167,3 +169,5 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 }
 
 #define GET_FIELD_ADDR(field) &field
+
+#endif //__DEFINE_H

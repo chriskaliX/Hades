@@ -1,3 +1,5 @@
+#ifndef __HELPERS_H
+#define __HELPERS_H
 static __inline int has_prefix(char *prefix, char *str, int n)
 {
     int i;
@@ -23,3 +25,5 @@ static int prefix(char *prefix, char *str, int n)
     }
     return 1;
 }
+
+#endif //__HELPERS_H

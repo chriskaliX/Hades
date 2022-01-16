@@ -2,7 +2,7 @@
 #include <linux/binfmts.h>
 #include <linux/kconfig.h>
 
-// #include "common.h"
+#include "utils_buf.h"
 #include "utils.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -79,7 +79,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     get_socket_info(&data, 5);
 
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
@@ -112,7 +112,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     get_socket_info(&data, 5);
 
     // 新增 pid_tree
-    save_pid_tree_new_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
