@@ -50,6 +50,16 @@ struct _sys_exit_kill
     long  ret;
 };
 
+struct _sys_enter_prctl
+{
+    __u64 unused;
+    int option;
+	unsigned long arg2;
+	unsigned long arg3;
+	unsigned long arg4;
+	unsigned long arg5;
+}
+
 // TODO: raw_tracepoint
 // 相比来说有一定的性能提升, 给出的 benchmark 里能看到有 5% 左右的性能提升(某个 hook)
 // 但是对于性能来说, 还是尽可能的用 tracepoint, 看起来效率比 kprobe 更好
@@ -212,13 +222,20 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
 // @Notes: 可能有用的：CAP_SETGID/CAP_SETUID/CAP_SYS_MODULE/CAP_SYS_PTRACE/CAP_BPF
 // Prctl(CAP)/Ptrace(SYS_ENTER) 操作/注入进程
 
-// SEC("raw_tracepoint/sys_enter_prctl")
-// int sys_enter_prctl
-// {
-
-// }
-
-
+SEC("tracepoint/syscalls/sys_enter_prctl")
+int sys_enter_prctl(struct _sys_enter_prctl *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 6;
+    // 读 option, 类型?
+    save_to_submit_buf(data, &ctx->option, sizeof(int), 0);
+    char *name = NULL;
+    bpf_probe_read(&name, MAX_STRING_SIZE, &ctx->arg2);
+    save_str_to_buf(&data, name, 1);
+    return 0;
+}
 
 // TODO: ptrace 的 hook, kprobe 直接挂载或者 CAP_CAPABLE, 明天开始 check 一下
 /* kill/tkill/tgkill */
