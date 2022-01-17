@@ -23,7 +23,7 @@
 #define TASK_COMM_LEN 16
 #define MAX_STR_FILTER_SIZE 128
 #define MAX_PERCPU_BUFSIZE (1 << 14)
-#define MAX_STRING_SIZE 1024
+#define MAX_STRING_SIZE 256 // Same with Elkeid, but it's larger in tracee or other project
 #define MAX_STR_ARR_ELEM 32
 #define MAX_PID_LEN 7       // (up to 2^22 = 4194304) 
 #define MAX_PATH_COMPONENTS 20
@@ -66,9 +66,8 @@ typedef struct simple_buf {
 /* general context for all hook point */
 typedef struct data_context {
     u64 ts;                     // timestamp
-    u64 uts_inum;               // 
-    u64 parent_uts_inum;        // 
     u64 cgroup_id;              // cgroup_id
+    u32 uts_inum;               //
     u32 type;                   // type of struct
     u32 pid;                    // processid
     u32 tid;                    // thread id

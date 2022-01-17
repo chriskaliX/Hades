@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
-	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -29,7 +28,7 @@ func init() {
 	/*https://gocn.vip/topics/9822*/
 	/*https://wudaijun.com/2019/09/go-performance-optimization/*/
 	runtime.GOMAXPROCS(8)
-	debug.SetGCPercent(50)
+	// debug.SetGCPercent(50)
 }
 
 // 默认 agent 仅仅保留和server段通信功能, 通信失败就不开启
