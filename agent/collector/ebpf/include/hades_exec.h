@@ -50,6 +50,14 @@ struct _sys_exit_kill
     long  ret;
 };
 
+// TODO: raw_tracepoint
+// 相比来说有一定的性能提升, 给出的 benchmark 里能看到有 5% 左右的性能提升(某个 hook)
+// 但是对于性能来说, 还是尽可能的用 tracepoint, 看起来效率比 kprobe 更好
+// @Reference: TRACEE - https://github.com/aquasecurity/tracee/pull/205
+// @Reference: https://lwn.net/Articles/748352/
+// @Prerequisties: kernel version > 4.17
+// @Notes: 看起来对兼容性要做一定处理，在 tracee 中对于这些 hook 点的处理方式都是统一入口点，之后尾调具体处理函数
+
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
 SEC("tracepoint/syscalls/sys_enter_execve")
@@ -67,7 +75,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     // tty
-    void *ttyname = get_tty_str(data.task);
+    void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
     // stdin
     void *stdin = get_fraw_str(0);
@@ -100,7 +108,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     // tty
-    void *ttyname = get_tty_str(data.task);
+    void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
     // stdin
     void *stdin = get_fraw_str(0);
@@ -197,9 +205,21 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
         return events_perf_submit(&data);
     }
     return 0;
-    // save_str_to_buf(&data, file_path, 0);
-    // return events_perf_submit(&data);
 }
+
+// @Kernel Source Code: CAP标志位 https://github.com/torvalds/linux/blob/7c636d4d20f8c5acfbfbc60f326fddb0e1cf5daa/include/uapi/linux/capability.h
+// @Reference: https://blog.51cto.com/u_2559640/2365794
+// @Notes: 可能有用的：CAP_SETGID/CAP_SETUID/CAP_SYS_MODULE/CAP_SYS_PTRACE/CAP_BPF
+// Prctl(CAP)/Ptrace(SYS_ENTER) 操作/注入进程
+
+// SEC("raw_tracepoint/sys_enter_prctl")
+// int sys_enter_prctl
+// {
+
+// }
+
+
+
 // TODO: ptrace 的 hook, kprobe 直接挂载或者 CAP_CAPABLE, 明天开始 check 一下
 /* kill/tkill/tgkill */
 // some reference: http://blog.chinaunix.net/uid-26983295-id-3552919.html, 还是遵循 tracepoint 吧

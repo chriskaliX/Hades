@@ -51,24 +51,23 @@ type HadesMaps struct {
 var HadesProgByte []byte
 
 type eventCtx struct {
-	Ts              uint64
-	Uts_inum        uint64
-	Parent_uts_inum uint64
-	CgroupId        uint64
-	Type            uint32
-	Pid             uint32
-	Tid             uint32
-	Uid             uint32
-	EUid            uint32
-	Gid             uint32
-	Ppid            uint32
-	Sessionid       uint32
-	Comm            [16]byte
-	PComm           [16]byte
-	Nodename        [64]byte
-	RetVal          uint64
-	Argnum          uint8
-	_               [7]byte // padding - 结构体修改后要修改 padding
+	Ts        uint64
+	CgroupId  uint64
+	Uts_inum  uint32
+	Type      uint32
+	Pid       uint32
+	Tid       uint32
+	Uid       uint32
+	EUid      uint32
+	Gid       uint32
+	Ppid      uint32
+	Sessionid uint32
+	Comm      [16]byte
+	PComm     [16]byte
+	Nodename  [64]byte
+	RetVal    uint64
+	Argnum    uint8
+	_         [11]byte // padding - 结构体修改后要修改 padding
 }
 
 // 重写 Init
@@ -159,7 +158,6 @@ func (t *HadesObject) Read() error {
 		process.Source = "ebpf"
 		process.PName = formatByte(ctx.PComm[:])
 		process.Uts_inum = int(ctx.Uts_inum)
-		process.Parent_uts_inum = int(ctx.Parent_uts_inum)
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
 		if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE || int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVEAT {

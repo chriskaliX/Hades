@@ -35,17 +35,17 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     // 有三个 ptracer_cred, real_cred, cred, 看kernel代码即可
     bpf_probe_read(&cred, sizeof(cred), &task->real_cred);
     bpf_probe_read(&context->euid, sizeof(context->euid), &cred->euid);
-
     // 容器相关信息
+    // Elkeid - ROOT_PID_NS_INUM = task->nsproxy->pid_ns_for_children->ns.inum;
+    // namespace: https://zhuanlan.zhihu.com/p/307864233
     struct nsproxy *nsp;
     struct uts_namespace *uts_ns;
+    // nodename
     bpf_probe_read(&nsp, sizeof(nsp), &task->nsproxy);
     bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_probe_read_str(&context->nodename, sizeof(context->nodename), &uts_ns->name.nodename);
-    bpf_probe_read(&context->uts_inum, sizeof(context->uts_inum), &uts_ns->ns.inum);
-    bpf_probe_read(&nsp, sizeof(nsp), &realparent->nsproxy);
-    bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
-    bpf_probe_read(&context->parent_uts_inum, sizeof(context->parent_uts_inum), &uts_ns->ns.inum);    
+    // pid_namespace
+    bpf_probe_read(&context->uts_inum, sizeof(context->uts_inum), &uts_ns->ns.inum); 
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
     struct pid_cache_t *parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
@@ -60,7 +60,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
 
 /* ==== get ==== */
 
-static __always_inline void* get_tty_str(struct task_struct *task)
+static __always_inline void* get_task_tty_str(struct task_struct *task)
 {
     struct signal_struct *signal;
     bpf_probe_read(&signal, sizeof(signal), &task->signal);

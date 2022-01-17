@@ -13,28 +13,27 @@ var ProcessPool *sync.Pool
 
 // process 定期采集的进程, cn_proc/ebpf 采集的进程, 共用这个结构体
 type Process struct {
-	CgroupId        int    `json:"cgroupid,omitempty"`
-	Uts_inum        int    `json:"uts_inum"`
-	Parent_uts_inum int    `json:"parent_uts_inum"`
-	PID             int    `json:"pid"`
-	TID             int    `json:"tid,omitempty"`
-	PPID            int    `json:"ppid"`
-	Name            string `json:"name"`
-	PName           string `json:"pname"`
-	Cmdline         string `json:"cmdline"`
-	Exe             string `json:"exe"`
-	Sha256          string `json:"sha256"`
-	UID             string `json:"uid"`
-	Username        string `json:"username"`
-	EUID            string `json:"euid"`
-	Eusername       string `json:"eusername"`
-	Cwd             string `json:"cwd"`
-	Session         int    `json:"session"`
-	TTY             int    `json:"tty,omitempty"`
-	TTYName         string `json:"ttyname,omitempty"`
-	StartTime       uint64 `json:"starttime"`
-	RemoteAddr      string `json:"remoteaddr"`
-	RemotePort      string `json:"remoteport"`
+	CgroupId   int    `json:"cgroupid,omitempty"`
+	Uts_inum   int    `json:"uts_inum"`
+	PID        int    `json:"pid"`
+	TID        int    `json:"tid,omitempty"`
+	PPID       int    `json:"ppid"`
+	Name       string `json:"name"`
+	PName      string `json:"pname"`
+	Cmdline    string `json:"cmdline"`
+	Exe        string `json:"exe"`
+	Sha256     string `json:"sha256"`
+	UID        string `json:"uid"`
+	Username   string `json:"username"`
+	EUID       string `json:"euid"`
+	Eusername  string `json:"eusername"`
+	Cwd        string `json:"cwd"`
+	Session    int    `json:"session"`
+	TTY        int    `json:"tty,omitempty"`
+	TTYName    string `json:"ttyname,omitempty"`
+	StartTime  uint64 `json:"starttime"`
+	RemoteAddr string `json:"remoteaddr"`
+	RemotePort string `json:"remoteport"`
 	// LocalAddr       string `json:"localaddr"`
 	PidTree         string `json:"pidtree,omitempty"`
 	Source          string `json:"source"`
