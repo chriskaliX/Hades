@@ -2,13 +2,15 @@ package parser
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+	"net"
 	"strconv"
 )
 
 func getStr(buf io.Reader, size uint32) (str string, err error) {
 	res := bufPool.get()
-	res = make([]byte, size-1)
+	res = res[:size]
 	defer func() {
 		bufPool.put(res)
 	}()
@@ -90,7 +92,7 @@ func ParsePidTree(buf io.Reader) (strArr []string, err error) {
 			break
 		}
 		res := bufPool.get()
-		res = make([]byte, size-1)
+		res = res[:sz-1]
 		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
 			bufPool.put(res)
 			return
@@ -100,4 +102,50 @@ func ParsePidTree(buf io.Reader) (strArr []string, err error) {
 		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
 	return
+}
+
+func ParseRemoteAddr(buf io.Reader) (sin_port, sin_addr string, err error) {
+	var (
+		index  uint8
+		family uint16
+		port   uint16
+		addr   uint32
+	)
+	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+		return
+	}
+	err = binary.Read(buf, binary.LittleEndian, &family)
+	if err != nil {
+		return
+	}
+	err = binary.Read(buf, binary.BigEndian, &port)
+	if err != nil {
+		return
+	}
+	sin_port = strconv.Itoa(int(port))
+	err = binary.Read(buf, binary.BigEndian, &addr)
+	if err != nil {
+		return
+	}
+
+	sin_addr = printUint32IP(addr)
+
+	_, err = readByteSliceFromBuff(buf, 8)
+	return
+}
+
+func readByteSliceFromBuff(buff io.Reader, len int) ([]byte, error) {
+	var err error
+	res := make([]byte, len)
+	err = binary.Read(buff, binary.LittleEndian, &res)
+	if err != nil {
+		return nil, fmt.Errorf("error reading byte array: %v", err)
+	}
+	return res, nil
+}
+
+func printUint32IP(in uint32) string {
+	ip := make(net.IP, net.IPv4len)
+	binary.BigEndian.PutUint32(ip, in)
+	return ip.String()
 }
