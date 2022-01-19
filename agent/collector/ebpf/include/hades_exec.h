@@ -1,6 +1,7 @@
 #include <linux/sched.h>
 #include <linux/binfmts.h>
 #include <linux/kconfig.h>
+#include <uapi/linux/ptrace.h>
 
 #include "utils_buf.h"
 #include "utils.h"
@@ -58,7 +59,15 @@ struct _sys_enter_prctl
 	unsigned long arg3;
 	unsigned long arg4;
 	unsigned long arg5;
-}
+};
+
+struct _sys_enter_ptrace
+{
+    long request;
+	long pid;
+	unsigned long addr;
+	unsigned long data;
+};
 
 // TODO: raw_tracepoint
 // 相比来说有一定的性能提升, 给出的 benchmark 里能看到有 5% 左右的性能提升(某个 hook)
@@ -221,7 +230,6 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
 // @Reference: https://blog.51cto.com/u_2559640/2365794
 // @Notes: 可能有用的：CAP_SETGID/CAP_SETUID/CAP_SYS_MODULE/CAP_SYS_PTRACE/CAP_BPF
 // Prctl(CAP)/Ptrace(SYS_ENTER) 操作/注入进程
-
 SEC("tracepoint/syscalls/sys_enter_prctl")
 int sys_enter_prctl(struct _sys_enter_prctl *ctx)
 {
@@ -230,21 +238,44 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
         return 0;
     data.context.type = 6;
     // 读 option, 类型?
-    save_to_submit_buf(data, &ctx->option, sizeof(int), 0);
+    save_to_submit_buf(&data, &ctx->option, sizeof(int), 0);
     char *name = NULL;
     bpf_probe_read(&name, MAX_STRING_SIZE, &ctx->arg2);
     save_str_to_buf(&data, name, 1);
+    events_perf_submit(&data);
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_enter_ptrace")
+int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 7;
+    long request;
+    // 仅抓取两种 request 位
+    bpf_probe_read(&request, sizeof(request), &ctx->request);
+    if (request != PTRACE_POKETEXT && request != PTRACE_POKEDATA)
+        return 0;
+    save_to_submit_buf(&data, &ctx->request, sizeof(long), 0);
+    save_to_submit_buf(&data, &ctx->pid, sizeof(long), 1);
+    save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 2);
+    save_to_submit_buf(&data, &ctx->data, sizeof(unsigned long), 3);
+    events_perf_submit(&data);
     return 0;
 }
 
 // TODO: ptrace 的 hook, kprobe 直接挂载或者 CAP_CAPABLE, 明天开始 check 一下
 /* kill/tkill/tgkill */
-// some reference: http://blog.chinaunix.net/uid-26983295-id-3552919.html, 还是遵循 tracepoint 吧
-// tracee 是 hook 了所有 enter/exit, 我感觉没有必要, 性能消耗应该会高很多?
-// 但是这个统一处理很方便, 也可以搞。过滤点统一, 处理点统一, 先思考一下
-// raw_tracepoint for bpf
-// SEC("tracepoint/syscalls/sys_enter_kill")
-// int sys_enter_kill(struct _sys_enter_kill *ctx)
-// {
-
-// }
+SEC("tracepoint/syscalls/sys_enter_kill")
+int sys_enter_kill(struct _sys_enter_kill *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 8;
+    save_to_submit_buf(&data, &ctx->pid, sizeof(u32), 0);
+    save_to_submit_buf(&data, &ctx->sig, sizeof(int), 1);
+    return 0;
+}

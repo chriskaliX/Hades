@@ -53,3 +53,6 @@ hades.o: hades.c
 	$(CMD_LLC) -march=bpf -filetype=obj -o $@ $(@:.o=.ll)
 	# -$(CMD_LLVM_STRIP) $@ --no-strip-all -R .BTF
 	rm $(@:.o=.ll)
+
+clean:
+	rm -f hades.o
