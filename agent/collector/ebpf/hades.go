@@ -2,6 +2,7 @@ package ebpf
 
 import (
 	"agent/collector/common"
+	"agent/collector/ebpf/userspace/parser"
 	"agent/global"
 	"agent/global/structs"
 	"agent/utils"
@@ -244,23 +245,23 @@ func formatByte(b []byte) string {
 
 func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty, stdin, stout, remote_port, remote_addr string, envs []string, err error) {
 	// files
-	if file, err = parseStr(buf); err != nil {
+	if file, err = parser.ParseStr(buf); err != nil {
 		return
 	}
 
-	if cwd, err = parseStr(buf); err != nil {
+	if cwd, err = parser.ParseStr(buf); err != nil {
 		return
 	}
 
-	if tty, err = parseStr(buf); err != nil {
+	if tty, err = parser.ParseStr(buf); err != nil {
 		return
 	}
 
-	if stdin, err = parseStr(buf); err != nil {
+	if stdin, err = parser.ParseStr(buf); err != nil {
 		return
 	}
 
-	if stout, err = parseStr(buf); err != nil {
+	if stout, err = parser.ParseStr(buf); err != nil {
 		return
 	}
 
@@ -271,12 +272,12 @@ func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty, stdin, stout, remo
 
 	// pid_tree
 	pid_tree := make([]string, 0)
-	if pid_tree, err = parsePidTree(buf); err != nil {
+	if pid_tree, err = parser.ParsePidTree(buf); err != nil {
 		return
 	}
 	pids = strings.Join(pid_tree, "<")
 	// 开始读 argv
-	argsArr, err := parseStrArray(buf)
+	argsArr, err := parser.ParseStrArray(buf)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -284,7 +285,7 @@ func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty, stdin, stout, remo
 	// defer strArrPool.Put(argsArr)
 	args = strings.Join(argsArr, " ")
 	// 开始读 envs
-	if envs, err = parseStrArray(buf); err != nil {
+	if envs, err = parser.ParseStrArray(buf); err != nil {
 		return
 	}
 	return
