@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"agent/utils/buffer"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -8,12 +9,18 @@ import (
 	"strconv"
 )
 
+var (
+	bytepool buffer.Pool
+)
+
+func init() {
+	bytepool = buffer.NewPool()
+}
+
 func getStr(buf io.Reader, size uint32) (str string, err error) {
-	res := bufPool.get()
-	res = res[:size]
-	defer func() {
-		bufPool.put(res)
-	}()
+	buffer := bytepool.Get()
+	res := buffer.Bytes()[:size]
+	defer buffer.Free()
 	if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
 		return
 	}
@@ -91,14 +98,14 @@ func ParsePidTree(buf io.Reader) (strArr []string, err error) {
 		if err = binary.Read(buf, binary.LittleEndian, &sz); err != nil {
 			break
 		}
-		res := bufPool.get()
-		res = res[:sz-1]
+		buffer := bytepool.Get()
+		res := buffer.Bytes()[:sz-1]
 		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
-			bufPool.put(res)
+			buffer.Free()
 			return
 		}
 		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(res))
-		bufPool.put(res)
+		buffer.Free()
 		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
 	return
