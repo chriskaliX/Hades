@@ -1,39 +1,64 @@
 package collector
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
-	"os/exec"
-	"strings"
+	"os"
+
+	"github.com/fsnotify/fsnotify"
+	"go.uber.org/zap"
 )
 
-// 也看了字节的写法, systemd 直接启一个 journalctl
-// 这样写很简单, 但是感觉不优雅, 再调研一下吧, 看看有没有兼容性好一点优雅一点的
-// 上传通道应该也要分开或者独立限制, 因为如果 syscall 太多导致所有日志丢失也是一个问题
+// Get and parse SSH log
 func GetSSH(ctx context.Context) {
-	cmd := exec.Command("journalctl", "-f", "_COMM=sshd", "-o", "json")
-	stdout, err := cmd.StdoutPipe()
+	// Redhat or Fedora Core: /var/log/secure
+	// Mandrake, FreeBSD, OpenBSD or Debian: /var/log/auth.log
+	// Format: Month Day Time Hostname ProcessName[ActionID] Message
+	var (
+		err     error
+		watcher *fsnotify.Watcher
+		path    string
+		// record the last size
+		lastSize int64
+	)
+
+	path = "/var/log/secure"
+
+	// init the size
+	fs, err := os.Stat(path)
 	if err != nil {
+		zap.S().Error(err)
 		return
 	}
-	err = cmd.Start()
-	if err != nil {
+	lastSize = fs.Size()
+
+	// start a watcher
+	// TODO: make this to a interface
+	if watcher, err = fsnotify.NewWatcher(); err != nil {
+		zap.S().Error(err)
 		return
 	}
-	scanner := bufio.NewScanner(stdout)
-	var message []byte
-	tmp := make(map[string]string)
-	for scanner.Scan() {
-		message = scanner.Bytes()
-		err = json.Unmarshal(message, &tmp)
-		// 这里 err 上传
-		msg := tmp["MESSAGE"]
-		switch {
-		case strings.Contains(msg, "Failed password"):
-			//
-		case strings.Contains(msg, "Accepted password"):
-			//
+	defer watcher.Close()
+
+	watcher.Add(path)
+
+	// only for write now, evaluate
+	for {
+		select {
+		case event := <-watcher.Events:
+			switch event.Op {
+			case fsnotify.Write:
+				fs, err := os.Stat(event.Name)
+				if err != nil {
+					zap.S().Error(err)
+				}
+				// the first time, read
+				
+			}
+		case err := <-watcher.Errors:
+			zap.S().Error(err)
+			return
+		case <-ctx.Done():
+			return
 		}
 	}
 }
