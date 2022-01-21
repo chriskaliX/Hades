@@ -19,12 +19,11 @@ func init() {
 
 func getStr(buf io.Reader, size uint32) (str string, err error) {
 	buffer := bytepool.Get()
-	res := buffer.Bytes()[:size]
 	defer buffer.Free()
-	if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
+	if err = binary.Read(buf, binary.LittleEndian, buffer.Bytes()[:size]); err != nil {
 		return
 	}
-	str = string(res)
+	str = string(buffer.Bytes()[:size])
 	return
 }
 
@@ -99,12 +98,11 @@ func ParsePidTree(buf io.Reader) (strArr []string, err error) {
 			break
 		}
 		buffer := bytepool.Get()
-		res := buffer.Bytes()[:sz-1]
-		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
+		if err = binary.Read(buf, binary.LittleEndian, buffer.Bytes()[:sz-1]); err != nil {
 			buffer.Free()
 			return
 		}
-		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(res))
+		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(buffer.Bytes()[:sz-1]))
 		buffer.Free()
 		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
