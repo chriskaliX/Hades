@@ -7,7 +7,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
