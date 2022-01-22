@@ -2,6 +2,7 @@ package collector
 
 import (
 	"agent/global"
+	"agent/utils"
 	"bufio"
 	"context"
 	"io"
@@ -54,11 +55,14 @@ func SshdConfigJob(ctx context.Context) {
 				ticker.Reset(time.Hour * 24)
 				init = false
 			}
-			sshd, err := GetSshdConfig()
-			if err == nil {
-				sshd["time"] = strconv.FormatInt(time.Now().Unix(), 10)
-				sshd["data_type"] = "3002"
-				global.UploadChannel <- sshd
+			if sshd, err := GetSshdConfig(); err == nil {
+				if data, err := utils.Marshal(sshd); err == nil {
+					rawdata := make(map[string]string)
+					rawdata["time"] = strconv.FormatInt(time.Now().Unix(), 10)
+					rawdata["data_type"] = "3002"
+					rawdata["data"] = string(data)
+					global.UploadChannel <- rawdata
+				}
 			}
 		case <-ctx.Done():
 			return

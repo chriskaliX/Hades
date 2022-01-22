@@ -68,6 +68,9 @@ func Run() {
 	// sshd 信息
 	go SshdConfigJob(ctx)
 
+	// ssh 登录信息
+	go GetSSH(ctx)
+
 	// cn_proc_start()
 	// go ebpf.Tracepoint_execve()
 	// go ebpf.Tracer()
