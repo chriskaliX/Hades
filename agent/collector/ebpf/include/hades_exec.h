@@ -240,7 +240,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     // 读 option, 类型?
     save_to_submit_buf(&data, &ctx->option, sizeof(int), 0);
     char *name = NULL;
-    bpf_probe_read(&name, MAX_STRING_SIZE, &ctx->arg2);
+    save_to_submit_buf(&data, &ctx->arg2, sizeof(unsigned long), 1);
     save_str_to_buf(&data, name, 1);
     events_perf_submit(&data);
     return 0;

@@ -159,8 +159,10 @@ func handleProcEvent(data []byte) {
 		defer ProcEventExecPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
 		pid := event.ProcessPid
+
 		process, err := GetProcessInfo(pid)
 		process.Source = "netlink"
+		process.TID = int(event.ProcessTgid)
 		if err != nil {
 			process.Reset()
 			structs.ProcessPool.Put(process)

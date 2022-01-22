@@ -57,7 +57,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
     - [x] eBPF 进程监控
     - [ ] 整理 ebpf 初版, 预备 release version
     - [x] 目前非 CO-RE, 后续支持
-  - [ ] ssh 日志采集 (journalctl)
+  - [x] ssh 日志采集 - `/var/log/auth.log` | `/var/log/secure`
 - [x] 完成日志部分 (搬字节的, 需要再仔细看一下)
   - [x] 日志设计
   - [x] 日志存储 & 配置 & 分割
