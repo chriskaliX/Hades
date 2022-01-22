@@ -1,8 +1,8 @@
+#ifndef __UTILS_H
+#define __UTILS_H
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_endian.h"
-// #include "define.h"
-// #include "helpers.h"
 #include <linux/sched.h>
 #include <linux/fdtable.h>
 #include <utils_buf.h>
@@ -368,3 +368,5 @@ static __always_inline int events_perf_submit(event_data_t *data) {
     void *output_data = data->submit_p->buf;
     return bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU, output_data, size);
 }
+
+#endif //__UTILS_BUF_H

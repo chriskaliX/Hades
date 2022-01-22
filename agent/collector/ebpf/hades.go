@@ -35,14 +35,16 @@ type HadesObject struct {
 }
 
 type HadesProgs struct {
-	TracepointExecve           *ebpf.Program `ebpf:"sys_enter_execve"`
-	TracepointExecveat         *ebpf.Program `ebpf:"sys_enter_execveat"`
-	KprobeDoExit               *ebpf.Program `ebpf:"kprobe_do_exit"`
-	KprobeSysExitGroup         *ebpf.Program `ebpf:"kprobe_sys_exit_group"`
-	KprobeSecurityBprmCheck    *ebpf.Program `ebpf:"kprobe_security_bprm_check"`
-	TracePointSchedProcessFork *ebpf.Program `ebpf:"tracepoint_sched_process_fork"`
-	TracepointPrctl            *ebpf.Program `ebpf:"sys_enter_prctl"`
-	TracepointPtrace           *ebpf.Program `ebpf:"sys_enter_ptrace"`
+	TracepointExecve            *ebpf.Program `ebpf:"sys_enter_execve"`
+	TracepointExecveat          *ebpf.Program `ebpf:"sys_enter_execveat"`
+	KprobeDoExit                *ebpf.Program `ebpf:"kprobe_do_exit"`
+	KprobeSysExitGroup          *ebpf.Program `ebpf:"kprobe_sys_exit_group"`
+	KprobeSecurityBprmCheck     *ebpf.Program `ebpf:"kprobe_security_bprm_check"`
+	TracePointSchedProcessFork  *ebpf.Program `ebpf:"tracepoint_sched_process_fork"`
+	TracepointPrctl             *ebpf.Program `ebpf:"sys_enter_prctl"`
+	TracepointPtrace            *ebpf.Program `ebpf:"sys_enter_ptrace"`
+	KprobeSecuritySocketConnect *ebpf.Program `ebpf:"kprobe_security_socket_connect"`
+	KprobeSecuritySocketBind *ebpf.Program `ebpf:"kprobe_security_socket_bind"`
 }
 
 type HadesMaps struct {
@@ -97,11 +99,13 @@ func (t *HadesObject) AttachProbe() error {
 	KprobeSecurityBprmCheck, err := link.Kprobe("security_bprm_check", t.HadesProgs.KprobeSecurityBprmCheck)
 	PrtclLink, err := link.Tracepoint("syscalls", "sys_enter_prctl", t.HadesProgs.TracepointPrctl)
 	PtraceLink, err := link.Tracepoint("syscalls", "sys_enter_ptrace", t.HadesProgs.TracepointPtrace)
+	SocketConnectLink, err := link.Kprobe("security_socket_connect", t.HadesProgs.KprobeSecuritySocketConnect)
+	SocketBindLink, err := link.Kprobe("security_socket_bind", t.HadesProgs.KprobeSecuritySocketBind)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrtclLink, PtraceLink)
+	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrtclLink, PtraceLink, SocketConnectLink, SocketBindLink)
 	return nil
 }
 
@@ -162,7 +166,6 @@ func (t *HadesObject) Read() error {
 		process.Uts_inum = int(ctx.Uts_inum)
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
-
 		switch int(ctx.Type) {
 		case TRACEPOINT_SYSCALLS_EXECVE:
 			process.Syscall = "execve"
@@ -187,6 +190,12 @@ func (t *HadesObject) Read() error {
 		case TRACEPOINT_SYSCALLS_PTRACE:
 			process.Syscall = "ptrace"
 			parser.Ptrace(buffers, &process)
+		case 9:
+			process.Syscall = "socket_connect"
+			parser.Net(buffers, &process)
+		case 10:
+			process.Syscall = "socket_bind"
+			parser.Net(buffers, &process)
 		}
 
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
