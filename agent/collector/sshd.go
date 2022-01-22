@@ -34,17 +34,26 @@ func GetSSH(ctx context.Context) {
 		err     error
 		watcher *fsnotify.Watcher
 		path    string
+		secure  string
 		// record the last size
 		lastSize int64
+		fs       os.FileInfo
 	)
 
 	path = "/var/log/auth.log"
+	secure = "/var/log/secure"
 
 	// init the size
-	fs, err := os.Stat(path)
+	fs, err = os.Stat(path)
 	if err != nil {
 		zap.S().Error(err)
-		return
+		fs, err = os.Stat(secure)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		} else {
+			path = secure
+		}
 	}
 	lastSize = fs.Size()
 
