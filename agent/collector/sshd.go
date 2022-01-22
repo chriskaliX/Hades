@@ -105,7 +105,7 @@ func GetSSH(ctx context.Context) {
 
 					sshlog := make(map[string]string)
 					rawdata := make(map[string]string)
-					rawdata["time"] = strconv.FormatInt(timeNow.Unix(), 10)
+					rawdata["time"] = strconv.Itoa(int(global.Time))
 					rawdata["data_type"] = "3003"
 
 					// failed password
@@ -114,6 +114,7 @@ func GetSSH(ctx context.Context) {
 						case "Failed", "Accepted":
 							sshlog["reason"] = fields[5]
 						}
+						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)
 						sshlog["username"] = fields[8]
 						sshlog["ip"] = fields[10]
 						sshlog["port"] = fields[12]

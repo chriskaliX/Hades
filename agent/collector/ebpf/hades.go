@@ -41,6 +41,8 @@ type HadesProgs struct {
 	KprobeSysExitGroup         *ebpf.Program `ebpf:"kprobe_sys_exit_group"`
 	KprobeSecurityBprmCheck    *ebpf.Program `ebpf:"kprobe_security_bprm_check"`
 	TracePointSchedProcessFork *ebpf.Program `ebpf:"tracepoint_sched_process_fork"`
+	TracepointPrctl            *ebpf.Program `ebpf:"sys_enter_prctl"`
+	TracepointPtrace           *ebpf.Program `ebpf:"sys_enter_ptrace"`
 }
 
 type HadesMaps struct {
@@ -93,14 +95,13 @@ func (t *HadesObject) AttachProbe() error {
 	// KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
 	// KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
 	KprobeSecurityBprmCheck, err := link.Kprobe("security_bprm_check", t.HadesProgs.KprobeSecurityBprmCheck)
-
-	// KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
-	// KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
+	PrtclLink, err := link.Tracepoint("syscalls", "sys_enter_prctl", t.HadesProgs.TracepointPrctl)
+	PtraceLink, err := link.Tracepoint("syscalls", "sys_enter_ptrace", t.HadesProgs.TracepointPtrace)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork)
+	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrtclLink, PtraceLink)
 	return nil
 }
 
@@ -161,58 +162,31 @@ func (t *HadesObject) Read() error {
 		process.Uts_inum = int(ctx.Uts_inum)
 		process.EUID = strconv.Itoa(int(ctx.EUid))
 		process.Eusername = global.GetUsername(process.EUID)
-		if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE || int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVEAT {
-			file, args, pids, cwd, tty, stdin, stdout, remote_port, remote_addr, envs, err := parseExecve_(buffers)
-			if err == nil {
-				for _, env := range envs {
-					if strings.HasPrefix(env, "SSH_CONNECTION=") {
-						process.SSH_connection = strings.TrimLeft(env, "SSH_CONNECTION=")
-					} else if strings.HasPrefix(env, "LD_PRELOAD=") {
-						process.LD_Preload = strings.TrimLeft(env, "LD_PRELOAD=")
-					} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
-						process.LD_Library_Path = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
-					}
-				}
-				if len(process.SSH_connection) == 0 {
-					process.SSH_connection = "-1"
-				}
-				if len(process.LD_Preload) == 0 {
-					process.LD_Preload = "-1"
-				}
-				if len(process.LD_Library_Path) == 0 {
-					process.LD_Library_Path = "-1"
-				}
-				if len(tty) == 0 {
-					process.TTYName = "-1"
-				} else {
-					process.TTYName = tty
-				}
-				process.RemoteAddr = remote_addr
-				process.RemotePort = remote_port
 
-				process.Stdin = stdin
-				process.Stdout = stdout
-				process.Cmdline = args
-				process.Exe = file
-				process.PidTree = pids
-				process.Cwd = cwd
-				if int(ctx.Type) == TRACEPOINT_SYSCALLS_EXECVE {
-					process.Syscall = "execve"
-				} else {
-					process.Syscall = "execveat"
-				}
-			}
-		} else if int(ctx.Type) == KPROBE_DO_EXIT {
+		switch int(ctx.Type) {
+		case TRACEPOINT_SYSCALLS_EXECVE:
+			process.Syscall = "execve"
+			parser.Execve(buffers, &process)
+		case TRACEPOINT_SYSCALLS_EXECVEAT:
+			process.Syscall = "execveat"
+			parser.Execve(buffers, &process)
+		case KPROBE_DO_EXIT:
 			process.RetVal = int(ctx.RetVal)
 			process.Syscall = "do_exit"
-		} else if int(ctx.Type) == KPROBE_EXIT_GROUP {
+		case KPROBE_EXIT_GROUP:
 			process.RetVal = int(ctx.RetVal)
 			process.Syscall = "exit_group"
-		} else if int(ctx.Type) == KRPOBE_SECURITY_BPRM_CHECK {
+		case KRPOBE_SECURITY_BPRM_CHECK:
 			process.Syscall = "security_bprm_check"
 			if file, err := parseStr(buffers); err == nil {
 				process.Exe = file
 			}
+		case TRACEPOINT_SYSCALLS_PRCTL:
+			process.Syscall = "prtcl"
+			parser.Prctl(buffers, &process)
+		case TRACEPOINT_SYSCALLS_PTRACE:
+			process.Syscall = "ptrace"
+			parser.Ptrace(buffers, &process)
 		}
 
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
