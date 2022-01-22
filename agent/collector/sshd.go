@@ -16,15 +16,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	sshRegexStr = "^[A-Za-z]{3} [0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} "
-	sshRegex    *regexp.Regexp
-)
-
-func init() {
-	sshRegex, _ = regexp.Compile(sshRegexStr)
-}
-
 // Get and parse SSH log
 func GetSSH(ctx context.Context) {
 	// Redhat or Fedora Core: /var/log/secure
