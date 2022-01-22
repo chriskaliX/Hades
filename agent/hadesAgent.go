@@ -87,7 +87,7 @@ func main() {
 				rd["AgentID"] = global.AgentID
 				rd["Hostname"] = global.Hostname
 				// 目前还在测试, 专门打印
-				if rd["data_type"] == "1000" {
+				if rd["data_type"] == "3003" {
 					fmt.Println(rd["data"])
 				} else {
 					continue
