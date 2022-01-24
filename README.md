@@ -26,11 +26,17 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 ![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/examples.png)
 
-2022-01-16:
-
 ## 开发计划
 
 > 按照先后顺序。基本照搬的比较多, 很多东西看完了觉得没必要重写。但是所有搬来的代码都是人工看过的, 有些地方有问题的也反馈给社区, 我用不到的字段也被剔除, 部分优化的地方小范围重写。
+
+我之前的 Agent 的设计耦合太重了，会参照字节的重新设计，预计过年前就开始。从一个 Agent 启动，相当于 Fork 插件的形式，之前逻辑想错了，还以为是独立的插件下发...顺便看了一下 Linux 进程间通信的[方式](https://www.linuxprobe.com/linux-process-method.html)，
+
+翻开尘封已久的 UNIX 环境高级编程 15 章开始阅读...为了兼容性用半双工的，所以需要开启两个 pipe 作为双向读写。最早之间字节采用的方式应该是 socket 方式，找到了 performance 对比如下
+
+https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
+
+在读写效率上提高了 16%。对于程序终止，用信号量的方式发送 `SIGKILL` 
 
 - [x] 参考 美团|字节 的 Agent 以及文章, 设计良好稳定的 Agent 架构
   - [ ] 20211121 - 重构需要提上日程, 目前能体会到自己写的时候, 有些地方比较混乱。到时候新开一个 branch 更新吧
