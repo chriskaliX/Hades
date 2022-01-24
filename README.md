@@ -36,7 +36,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 
-在读写效率上提高了 16%。对于程序终止，用信号量的方式发送 `SIGKILL` 
+在读写效率上提高了 16%。由于创建 pipe 的时候默认会创建读写双方向的，为了兼容性还得 Close 掉各一遍的写和读，对于程序终止，用信号量的方式发送 `SIGKILL` 
 
 - [x] 参考 美团|字节 的 Agent 以及文章, 设计良好稳定的 Agent 架构
   - [ ] 20211121 - 重构需要提上日程, 目前能体会到自己写的时候, 有些地方比较混乱。到时候新开一个 branch 更新吧
