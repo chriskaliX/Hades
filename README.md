@@ -2,15 +2,18 @@
 
 ![language](https://shields.io/github/languages/top/chriskalix/HIDS-Linux)
 
-Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内核态(ebpf)以及用户态(cn_proc)的事件进程采集。目标为用纯 Golang 开发一款实际能用的，非玩具的 HIDS。其中借鉴了非常多的代码和思想(from meituan, Elkeid, tracee)
+Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内核态(ebpf)以及用户态(cn_proc)的事件进程采集。其中借鉴了非常多的代码和思想(from meituan, Elkeid, tracee)
 
 ## 架构设计以及引擎
 
 ### Agent
 
-> Agent自身接收命令，拆解Config指令，按照Osquery应该也要支持主动查询(其实就是Config中的一种)
+对 Agent 自身的架构设计，开始的时候比较混乱，没有设计好既定目标。在字节的 v1.7 版本 release 后，终于发现和美团之前文章的相似之处了。所有 plugins 抽象出统一的方法，包括新建 plugin，数据交互等。Agent 自身负责的是：
+配置透传，Server 数据交互，插件启动停止，另外数据上传这个地方的实现待定（Agent中自带上传，还是同样以 plugin 的形式去做）。
 
-![agent](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/agent.png)
+> 由于字节的 v1.7 版本已经 release 了，有大规模改动，但是之前读过，我会很快的过一遍
+
+![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/agentv1.png)
 
 ### 数据处理
 
@@ -42,7 +45,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
   - [ ] 20211121 - 重构需要提上日程, 目前能体会到自己写的时候, 有些地方比较混乱。到时候新开一个 branch 更新吧
   - [ ] 腾讯云盾: 在 /usr/local/sa/agent 下, 能看到是 watchdog 守护。根据配置文件也能看出一些, 比如回连 ip 下发文件等, 到时候看一遍配置文件。这个很有意思, 包括一些 bash 脚本都有带注释, 能看出一些大致思路
 - [ ] 完成信息采集部分
-  - [x] ncp 信息采集, 补齐进程树信息
+  - [x] NCP 信息采集, 补齐进程树信息
   - [x] socket 采集 (LISTEN状态以及TCP_ESTABLISHED状态)
   - [x] process 采集 (启动阶段以及定期刷新)
     - [x] process 包采集问题, ~~目前写法 getAll 有问题, 考虑自实现~~ 先用这个方式
