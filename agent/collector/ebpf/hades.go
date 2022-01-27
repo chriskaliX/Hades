@@ -44,7 +44,8 @@ type HadesProgs struct {
 	TracepointPrctl             *ebpf.Program `ebpf:"sys_enter_prctl"`
 	TracepointPtrace            *ebpf.Program `ebpf:"sys_enter_ptrace"`
 	KprobeSecuritySocketConnect *ebpf.Program `ebpf:"kprobe_security_socket_connect"`
-	KprobeSecuritySocketBind *ebpf.Program `ebpf:"kprobe_security_socket_bind"`
+	KprobeSecuritySocketBind    *ebpf.Program `ebpf:"kprobe_security_socket_bind"`
+	KprobeCommitCreds           *ebpf.Program `ebpf:"kprobe_commit_creds"`
 }
 
 type HadesMaps struct {
@@ -101,11 +102,12 @@ func (t *HadesObject) AttachProbe() error {
 	PtraceLink, err := link.Tracepoint("syscalls", "sys_enter_ptrace", t.HadesProgs.TracepointPtrace)
 	SocketConnectLink, err := link.Kprobe("security_socket_connect", t.HadesProgs.KprobeSecuritySocketConnect)
 	SocketBindLink, err := link.Kprobe("security_socket_bind", t.HadesProgs.KprobeSecuritySocketBind)
+	KprobeCommitCreds, err := link.Kprobe("commit_creds", t.HadesProgs.KprobeCommitCreds)
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrtclLink, PtraceLink, SocketConnectLink, SocketBindLink)
+	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrtclLink, PtraceLink, SocketConnectLink, SocketBindLink, KprobeCommitCreds)
 	return nil
 }
 
@@ -196,7 +198,14 @@ func (t *HadesObject) Read() error {
 		case 10:
 			process.Syscall = "socket_bind"
 			parser.Net(buffers, &process)
+		case 11:
+			process.Syscall = "commit_creds"
+			parser.CommitCreds(buffers, &process)
 		}
+
+		// if int(ctx.Type) != 11 {
+		// 	continue
+		// }
 
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
