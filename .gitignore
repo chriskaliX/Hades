@@ -6,5 +6,4 @@ agent/log/Hades*
 agent/log/hades.log
 agent/log/hades*
 cert/
-agent/agent
 server/hadeserver

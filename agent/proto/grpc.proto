@@ -2,7 +2,7 @@ syntax = "proto3";
 option go_package = "proto";
 package grpc;
 
-/* Record send to server, if we use logger plugin, then this is not needed */
+// the communication format of plugins
 message EncodedRecord {
     int32 data_type = 1;
     int64 timestamp = 2;
@@ -30,18 +30,21 @@ message Record {
     Payload data = 3;
 }
 
+// task & config
 message Command {
     Task task = 2;
     repeated Config configs = 3;
 }
 
+// task for plugin
 message Task {
     int32 data_type = 1;
     string object_name = 2;
     string data = 3;
     string token = 4;
 }
-  
+
+// config for agent itself, 
 message Config {
     string name = 1;
     string type = 2;
