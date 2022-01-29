@@ -1,11 +1,15 @@
+// collection of basic information about host
+// @Reference: https://osquery.io/
 package host
 
 import (
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
 )
 
@@ -18,12 +22,15 @@ var (
 	PublicIPv4  atomic.Value
 	PrivateIPv6 atomic.Value
 	PublicIPv6  atomic.Value
-
+	// kernel & arch information
 	Platform        string
 	PlatformFamily  string
 	PlatformVersion string
 	KernelVersion   string
 	Arch            string
+	// Add cpu basic for display
+	CpuNum string
+	CpuMhz string
 )
 
 // Competely from Elkeid, but something with the IP need to be changed
@@ -80,8 +87,21 @@ func RefreshHost() {
 }
 
 func init() {
+	// init stable
 	KernelVersion, _ = host.KernelVersion()
 	Platform, PlatformFamily, PlatformVersion, _ = host.PlatformInformation()
 	Arch, _ = host.KernelArch()
+	// cpu related
+	var mhz float64
+	var cpuNum int
+	cpuNum, _ = cpu.Counts(false)
+	CpuNum = strconv.Itoa(cpuNum)
+	if cpuInfo, err := cpu.Info(); err == nil {
+		for _, c := range cpuInfo {
+			mhz += c.Mhz
+		}
+		mhz /= float64(len(cpuInfo))
+	}
+	CpuMhz = strconv.FormatFloat(mhz/1000, 'f', 1, 64)
 	RefreshHost()
 }

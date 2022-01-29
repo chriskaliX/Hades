@@ -23,8 +23,12 @@ import (
 )
 
 func init() {
-	// TODO: 在一些 KVM 下其实可能小于 8，例如 4 核的机器，设置成大于 CPU 的数量反而可能会造成线程频繁切换
-	runtime.GOMAXPROCS(8)
+	// 在一些 KVM 下其实可能小于 8，例如 4 核的机器，设置成大于 CPU 的数量反而可能会造成线程频繁切换
+	numcpu := runtime.NumCPU()
+	if numcpu > 8 {
+		numcpu = 8
+	}
+	runtime.GOMAXPROCS(numcpu)
 }
 
 // plugin的模式，我思考了一下还是有必要的，又因为偷看了 osquery 的, 功能开放
