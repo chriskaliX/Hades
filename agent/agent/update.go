@@ -9,6 +9,7 @@ import (
 	"path"
 )
 
+// agent self-update
 func Update(config proto.Config) (err error) {
 	dst := path.Join("/tmp", Product+"-updater"+".pkg")
 	// unfinished
