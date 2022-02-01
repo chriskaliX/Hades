@@ -1,14 +1,12 @@
-package collector
+package main
 
 import (
+	"collector/model"
+	"collector/share"
 	"context"
 	"errors"
 	"sync"
 	"time"
-
-	"agent/collector/common"
-	"agent/global"
-	"agent/global/structs"
 
 	"os"
 	"strconv"
@@ -51,7 +49,7 @@ func init() {
 	2021-11-26 更新
 	本来想提一个 issue 或者自己 patch 一下 AllProcs, 感觉太麻烦了先这么写
 */
-func GetProcess() (procs []structs.Process, err error) {
+func GetProcess() (procs []model.Process, err error) {
 	var (
 		sys   procfs.Stat
 		count int
@@ -88,7 +86,7 @@ func GetProcess() (procs []structs.Process, err error) {
 			continue
 		}
 
-		proc := structs.Process{PID: p.PID}
+		proc := model.Process{PID: p.PID}
 		if proc.Exe, err = p.Executable(); err != nil {
 			continue
 		}
@@ -125,9 +123,9 @@ func GetProcess() (procs []structs.Process, err error) {
 				proc.Cmdline = proc.Cmdline[:64]
 			}
 		}
-		proc.Sha256, _ = common.GetFileHash("/proc/" + strconv.Itoa(proc.PID) + "/exe")
-		proc.Username = global.GetUsername(proc.UID)
-		proc.Eusername = global.GetUsername(proc.EUID)
+		proc.Sha256, _ = share.GetFileHash("/proc/" + strconv.Itoa(proc.PID) + "/exe")
+		proc.Username = share.GetUsername(proc.UID)
+		proc.Eusername = share.GetUsername(proc.EUID)
 		procs = append(procs, proc)
 	}
 	return
@@ -138,7 +136,7 @@ func GetProcess() (procs []structs.Process, err error) {
 // 这里其实会有一个问题, 频繁创建了, 需要用对象池
 // 2021-11-06, 开始对这里进行优化
 // 函数应该对已有值跳过 TODO 优化
-func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
+func GetProcessInfo(pid uint32) (proc model.Process, err error) {
 	// proc 对象池
 	process := processPool.Get().(procfs.Proc)
 	defer processPool.Put(process)
@@ -148,7 +146,7 @@ func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 	}
 
 	// 对象池获取
-	proc = structs.ProcessPool.Get().(structs.Process)
+	proc = model.ProcessPool.Get().(model.Process)
 
 	proc.PID = process.PID
 	proc.NameUidEuid()
@@ -161,7 +159,7 @@ func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 		proc.PPID = stat.PPID
 		proc.Session = stat.Session
 		proc.TTY = stat.TTY
-		proc.StartTime = uint64(global.Time)
+		proc.StartTime = uint64(share.Time)
 	}
 
 	proc.Cwd, _ = process.Cwd()
@@ -177,15 +175,15 @@ func GetProcessInfo(pid uint32) (proc structs.Process, err error) {
 
 	if proc.Exe, err = process.Executable(); err == nil {
 		if _, err = os.Stat(proc.Exe); err == nil {
-			proc.Sha256, _ = common.GetFileHash(proc.Exe)
+			proc.Sha256, _ = share.GetFileHash(proc.Exe)
 		}
 	}
 
 	// 修改本地缓存加速
-	proc.Username = global.GetUsername(proc.UID)
+	proc.Username = share.GetUsername(proc.UID)
 
 	// 修改本地缓存加速
-	proc.Eusername = global.GetUsername(proc.EUID)
+	proc.Eusername = share.GetUsername(proc.EUID)
 
 	// inodes 于 fd 关联, 获取 remote_ip
 	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点

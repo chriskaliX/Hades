@@ -1,13 +1,13 @@
 package parser
 
 import (
-	"agent/global/structs"
+	"collector/model"
 	"encoding/binary"
 	"io"
 )
 
 // TODO: unfinished
-func Ptrace(buf io.Reader, process *structs.Process) (err error) {
+func Ptrace(buf io.Reader, process *model.Process) (err error) {
 	var (
 		index    uint8
 		requests int32

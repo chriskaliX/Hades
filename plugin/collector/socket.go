@@ -1,4 +1,4 @@
-package collector
+package main
 
 import (
 	"context"
@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"agent/global"
-	"agent/network"
+	"collector/network"
+	"collector/share"
 
+	"github.com/chriskaliX/plugin"
 	"github.com/prometheus/procfs"
 	"golang.org/x/sys/unix"
 )
@@ -121,13 +122,18 @@ func SocketJob(ctx context.Context) {
 			if socks, err := GetSockets(false, network.TCP_ESTABLISHED); err == nil {
 				if data, err := json.Marshal(socks); err == nil {
 					rawdata := make(map[string]string)
-					rawdata["time"] = strconv.Itoa(int(global.Time))
 					rawdata["data"] = string(data)
-					rawdata["data_type"] = "1001"
-					global.UploadChannel <- rawdata
+					rec := &plugin.Record{
+						DataType:  1001,
+						Timestamp: time.Now().Unix(),
+						Data: &plugin.Payload{
+							Fields: rawdata,
+						},
+					}
+					share.Client.SendRecord(rec)
 				}
 			}
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}

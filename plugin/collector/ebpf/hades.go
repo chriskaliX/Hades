@@ -1,12 +1,10 @@
 package ebpf
 
 import (
-	"agent/collector/common"
-	"agent/collector/ebpf/userspace/parser"
-	"agent/global"
-	"agent/global/structs"
-	"agent/utils"
 	"bytes"
+	"collector/ebpf/userspace/parser"
+	"collector/model"
+	"collector/share"
 	"context"
 	_ "embed"
 	"encoding/binary"
@@ -17,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/chriskaliX/plugin"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
@@ -44,7 +43,7 @@ type HadesProgs struct {
 	TracepointPrctl             *ebpf.Program `ebpf:"sys_enter_prctl"`
 	TracepointPtrace            *ebpf.Program `ebpf:"sys_enter_ptrace"`
 	KprobeSecuritySocketConnect *ebpf.Program `ebpf:"kprobe_security_socket_connect"`
-	KprobeSecuritySocketBind *ebpf.Program `ebpf:"kprobe_security_socket_bind"`
+	KprobeSecuritySocketBind    *ebpf.Program `ebpf:"kprobe_security_socket_bind"`
 }
 
 type HadesMaps struct {
@@ -138,9 +137,9 @@ func (t *HadesObject) Read() error {
 		if record.LostSamples != 0 {
 			rawdata := make(map[string]string)
 			rawdata["data"] = fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples)
-			rawdata["time"] = strconv.Itoa(int(global.Time))
+			// rawdata["time"] = strconv.Itoa(int(global.Time))
 			rawdata["data_type"] = "999"
-			global.UploadChannel <- rawdata
+			// global.UploadChannel <- rawdata
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
 			continue
 		}
@@ -151,9 +150,9 @@ func (t *HadesObject) Read() error {
 			continue
 		}
 		rawdata := make(map[string]string)
-		rawdata["data_type"] = "1000"
-		rawdata["time"] = strconv.Itoa(int(global.Time))
-		process := structs.ProcessPool.Get().(structs.Process)
+		// rawdata["data_type"] = "1000"
+		// rawdata["time"] = strconv.Itoa(int(global.Time))
+		process := model.ProcessPool.Get().(model.Process)
 		process.Name = formatByte(ctx.Comm[:])
 		process.CgroupId = int(ctx.CgroupId)
 		process.UID = strconv.Itoa(int(ctx.Uid))
@@ -165,7 +164,7 @@ func (t *HadesObject) Read() error {
 		process.PName = formatByte(ctx.PComm[:])
 		process.Uts_inum = int(ctx.Uts_inum)
 		process.EUID = strconv.Itoa(int(ctx.EUid))
-		process.Eusername = global.GetUsername(process.EUID)
+		process.Eusername = share.GetUsername(process.EUID)
 		switch int(ctx.Type) {
 		case TRACEPOINT_SYSCALLS_EXECVE:
 			process.Syscall = "execve"
@@ -198,18 +197,25 @@ func (t *HadesObject) Read() error {
 			parser.Net(buffers, &process)
 		}
 
-		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
-		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-		process.Sha256, _ = common.GetFileHash(process.Exe)
-		process.Username = global.GetUsername(process.UID)
-		process.StartTime = uint64(global.Time)
-		data, err := utils.Marshal(process)
+		share.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
+		share.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
+		process.Sha256, _ = share.GetFileHash(process.Exe)
+		process.Username = share.GetUsername(process.UID)
+		process.StartTime = uint64(share.Time)
+		data, err := share.Marshal(process)
 		if err == nil {
 			rawdata["data"] = string(data)
-			global.UploadChannel <- rawdata
+			rec := &plugin.Record{
+				DataType:  1000,
+				Timestamp: int64(share.Time),
+				Data: &plugin.Payload{
+					Fields: rawdata,
+				},
+			}
+			share.Client.SendRecord(rec)
 		}
 		process.Reset()
-		structs.ProcessPool.Put(process)
+		model.ProcessPool.Put(process)
 	}
 }
 

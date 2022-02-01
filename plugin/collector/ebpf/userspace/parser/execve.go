@@ -1,13 +1,13 @@
 package parser
 
 import (
-	"agent/global/structs"
+	"collector/model"
 	"fmt"
 	"io"
 	"strings"
 )
 
-func Execve(buf io.Reader, process *structs.Process) (err error) {
+func Execve(buf io.Reader, process *model.Process) (err error) {
 	if process.Exe, err = ParseStr(buf); err != nil {
 		return
 	}

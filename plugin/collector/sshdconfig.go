@@ -1,16 +1,16 @@
-package collector
+package main
 
 import (
-	"agent/global"
-	"agent/utils"
 	"bufio"
+	"collector/share"
 	"context"
 	"io"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/chriskaliX/plugin"
 )
 
 // Elkeid 只有 system 级别的 Config, User 级别没有获取...不对, 我看错了
@@ -56,12 +56,17 @@ func SshdConfigJob(ctx context.Context) {
 				init = false
 			}
 			if sshd, err := GetSshdConfig(); err == nil {
-				if data, err := utils.Marshal(sshd); err == nil {
+				if data, err := share.Marshal(sshd); err == nil {
 					rawdata := make(map[string]string)
-					rawdata["time"] = strconv.FormatInt(time.Now().Unix(), 10)
-					rawdata["data_type"] = "3002"
 					rawdata["data"] = string(data)
-					global.UploadChannel <- rawdata
+					rec := &plugin.Record{
+						DataType:  3002,
+						Timestamp: time.Now().Unix(),
+						Data: &plugin.Payload{
+							Fields: rawdata,
+						},
+					}
+					share.Client.SendRecord(rec)
 				}
 			}
 		case <-ctx.Done():

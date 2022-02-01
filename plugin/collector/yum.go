@@ -1,18 +1,18 @@
-package collector
+package main
 
 import (
-	"agent/global"
-	"agent/utils"
 	"bufio"
+	"collector/share"
 	"context"
 	"errors"
 	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/chriskaliX/plugin"
 )
 
 // 参考字节的, 以 osquery 的为标准开发
@@ -58,7 +58,7 @@ func yum() (config map[string]string, err error) {
 	}
 
 	if len(sourcesList) > 0 {
-		if encodedsource, err := utils.Marshal(sourcesList); err == nil {
+		if encodedsource, err := share.Marshal(sourcesList); err == nil {
 			config["sources"] = string(encodedsource)
 		}
 	} else {
@@ -96,9 +96,15 @@ func GetYumJob(ctx context.Context) {
 			}
 			yum, err := yum()
 			if err == nil {
-				yum["time"] = strconv.FormatInt(time.Now().Unix(), 10)
 				yum["data_type"] = "3003"
-				global.UploadChannel <- yum
+				rec := &plugin.Record{
+					DataType:  3003,
+					Timestamp: time.Now().Unix(),
+					Data: &plugin.Payload{
+						Fields: yum,
+					},
+				}
+				share.Client.SendRecord(rec)
 			}
 		case <-ctx.Done():
 			return
