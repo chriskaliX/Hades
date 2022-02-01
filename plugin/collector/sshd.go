@@ -1,9 +1,8 @@
-package collector
+package main
 
 import (
-	"agent/global"
-	"agent/utils"
 	"bufio"
+	"collector/share"
 	"context"
 	"io"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chriskaliX/plugin"
 	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 )
@@ -105,8 +105,8 @@ func GetSSH(ctx context.Context) {
 
 					sshlog := make(map[string]string)
 					rawdata := make(map[string]string)
-					rawdata["time"] = strconv.Itoa(int(global.Time))
-					rawdata["data_type"] = "3003"
+					// rawdata["time"] = strconv.Itoa(int(global.Time))
+					// rawdata["data_type"] = "3003"
 
 					// failed password
 					if len(fields) == 14 && fields[6] == "password" {
@@ -118,9 +118,16 @@ func GetSSH(ctx context.Context) {
 						sshlog["username"] = fields[8]
 						sshlog["ip"] = fields[10]
 						sshlog["port"] = fields[12]
-						if data, err := utils.Marshal(sshlog); err == nil {
+						if data, err := share.Marshal(sshlog); err == nil {
 							rawdata["data"] = string(data)
-							global.UploadChannel <- rawdata
+							rec := &plugin.Record{
+								DataType:  3003,
+								Timestamp: time.Now().Unix(),
+								Data: &plugin.Payload{
+									Fields: rawdata,
+								},
+							}
+							share.Client.SendRecord(rec)
 						}
 
 					}

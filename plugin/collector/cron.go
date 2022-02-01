@@ -1,9 +1,8 @@
-package collector
+package main
 
 import (
-	"agent/global"
-	"agent/utils"
 	"bufio"
+	"collector/share"
 	"context"
 	"crypto/md5"
 	"errors"
@@ -12,10 +11,10 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/chriskaliX/plugin"
 	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
@@ -209,12 +208,12 @@ func CronJob(ctx context.Context) {
 				for _, cron := range crons {
 					CronCache.Add(md5.Sum([]byte(cron.Command)), true)
 				}
-				if data, err := utils.Marshal(crons); err == nil {
+				if data, err := share.Marshal(crons); err == nil {
 					rawdata := make(map[string]string)
 					rawdata["data_type"] = "3001"
 					rawdata["data"] = string(data)
-					rawdata["time"] = strconv.Itoa(int(global.Time))
-					global.UploadChannel <- rawdata
+					// rawdata["time"] = strconv.Itoa(int(global.Time))
+					// global.UploadChannel <- rawdata
 				}
 			}
 		case event := <-watcher.Events:
@@ -236,12 +235,17 @@ func CronJob(ctx context.Context) {
 							}
 						}
 						if len(tmp) > 0 {
-							if data, err := utils.Marshal(tmp); err == nil {
+							if data, err := share.Marshal(tmp); err == nil {
 								rawdata := make(map[string]string)
-								rawdata["data_type"] = "2001"
 								rawdata["data"] = string(data)
-								rawdata["time"] = strconv.Itoa(int(global.Time))
-								global.UploadChannel <- rawdata
+								rec := &plugin.Record{
+									DataType:  2001,
+									Timestamp: time.Now().Unix(),
+									Data: &plugin.Payload{
+										Fields: rawdata,
+									},
+								}
+								share.Client.SendRecord(rec)
 							}
 						}
 					}

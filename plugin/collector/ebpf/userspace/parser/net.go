@@ -1,13 +1,13 @@
 package parser
 
 import (
-	"agent/global/structs"
+	"collector/model"
 	"encoding/binary"
 	"io"
 	"strconv"
 )
 
-func Net(buf io.Reader, process *structs.Process) (err error) {
+func Net(buf io.Reader, process *model.Process) (err error) {
 	var (
 		index  uint8
 		family int16

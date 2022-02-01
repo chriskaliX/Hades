@@ -1,18 +1,16 @@
-package collector
+package main
 
 import (
 	"bytes"
+	"collector/model"
+	"collector/network"
+	"collector/share"
 	"encoding/binary"
-	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
-	"agent/config"
-	"agent/global"
-	"agent/global/structs"
-	"agent/network"
-	"agent/utils"
-
+	"github.com/chriskaliX/plugin"
 	"go.uber.org/zap"
 )
 
@@ -152,7 +150,7 @@ func handleProcEvent(data []byte) {
 		defer ProcEventForkPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
 		// 进程树补充
-		global.ProcessCache.Add(event.ChildPid, event.ParentPid)
+		share.ProcessCache.Add(event.ChildPid, event.ParentPid)
 	case network.PROC_EVENT_EXEC:
 		// 对象池获取
 		event := ProcEventExecPool.Get().(*ProcEventExec)
@@ -165,33 +163,38 @@ func handleProcEvent(data []byte) {
 		process.TID = int(event.ProcessTgid)
 		if err != nil {
 			process.Reset()
-			structs.ProcessPool.Put(process)
+			model.ProcessPool.Put(process)
 			return
 		}
 		// 白名单校验
-		if config.WhiteListCheck(process) {
+		if share.WhiteListCheck(process) {
 			process.Reset()
-			structs.ProcessPool.Put(process)
+			model.ProcessPool.Put(process)
 			return
 		}
 
-		global.ProcessCmdlineCache.Add(pid, process.Exe)
-		if ppid, ok := global.ProcessCache.Get(pid); ok {
+		share.ProcessCmdlineCache.Add(pid, process.Exe)
+		if ppid, ok := share.ProcessCache.Get(pid); ok {
 			process.PPID = int(ppid.(uint32))
 		}
-		process.PidTree = global.GetPstree(uint32(process.PID))
-		data, err := utils.Marshal(process)
+		process.PidTree = share.GetPstree(uint32(process.PID))
+		data, err := share.Marshal(process)
 
 		// map 对象池
 		if err == nil {
 			rawdata := make(map[string]string)
 			rawdata["data"] = string(data)
-			rawdata["time"] = strconv.Itoa(int(global.Time))
-			rawdata["data_type"] = "1000"
-			global.UploadChannel <- rawdata
+			rec := &plugin.Record{
+				DataType:  1000,
+				Timestamp: time.Now().Unix(),
+				Data: &plugin.Payload{
+					Fields: rawdata,
+				},
+			}
+			share.Client.SendRecord(rec)
 		}
 		process.Reset()
-		structs.ProcessPool.Put(process)
+		model.ProcessPool.Put(process)
 	// 考虑获取 exit 事件, 用来捕获退出后从 LRU 里面剔除, 减小内存占用
 	// 但是会让 LRU 里面的增多,
 	case network.PROC_EVENT_EXIT:

@@ -1,7 +1,6 @@
-package common
+package share
 
 import (
-	"agent/global"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -62,7 +61,7 @@ func GetFileHash(path string) (shasum string, err error) {
 		fh := temp.(FileHash)
 		// 对比上次 accessTime, 超过了则重新 stat
 		// TODO: Time 精度
-		if fh.AccessTime-global.Time > freq {
+		if fh.AccessTime-Time > freq {
 			modetime, inode, size, err = fileStat(path)
 			if err != nil {
 				return
@@ -76,7 +75,7 @@ func GetFileHash(path string) (shasum string, err error) {
 			if fh.Mtime == modetime && fh.Inode == inode {
 				return fh.Sha256, nil
 			} else {
-				fh.AccessTime = global.Time
+				// fh.AccessTime = Time
 				fileHash, err := fileInfo(path)
 				if err != nil {
 					return "", err
@@ -103,7 +102,7 @@ func GetFileHash(path string) (shasum string, err error) {
 	if err != nil {
 		return
 	}
-	fh.AccessTime = global.Time
+	fh.AccessTime = Time
 	fh.Mtime = modetime
 	fh.Inode = inode
 	fh.Size = size

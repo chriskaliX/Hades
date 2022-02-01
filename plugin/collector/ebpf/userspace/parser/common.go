@@ -1,12 +1,13 @@
 package parser
 
 import (
-	"agent/utils/buffer"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
+
+	"go.uber.org/zap/buffer"
 )
 
 var (
