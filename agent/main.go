@@ -1,22 +1,20 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
-	"agent/collector"
-	"agent/global"
+	"agent/agent"
+	"agent/heartbeat"
 	"agent/log"
-	"agent/report"
-	"agent/transport"
+	"agent/plugin"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -34,12 +32,6 @@ func init() {
 // plugin的模式，我思考了一下还是有必要的，又因为偷看了 osquery 的, 功能开放
 // 后期蜜罐之类的这种还是以 plugin 模式，年底之前的目标是跑起来
 func main() {
-	defer func() {
-		if err := recover(); err != nil {
-			panic(err)
-		}
-	}()
-
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"
@@ -61,41 +53,11 @@ func main() {
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// 默认collector也不开, 接收server指令后再开
-	// go collector.EbpfGather()
-	go collector.Run()
-	go transport.Run()
-	go report.Run()
-
-	// 下面都是测试代码, 后面这里应该为走 kafka 渠道上传
-	// 可以理解为什么字节要先走 grpc 到 server 端, 可以压缩, 统计, 更加灵活
-	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
-	// TODO: 2021-11-06 这里考虑一下, kafka 批量上传, ticker 时间过段导致切换频繁
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				rd := <-global.UploadChannel
-				rd["AgentID"] = global.AgentID
-				rd["Hostname"] = global.Hostname
-				// 目前还在测试, 专门打印
-				if rd["data_type"] == "1000" {
-					fmt.Println(rd["data"])
-				} else {
-					continue
-				}
-				_, err := json.Marshal(rd)
-				if err != nil {
-					continue
-				}
-				// network.KafkaSingleton.Send(string(m))
-			}
-		}
-	}()
-
-	http.ListenAndServe("0.0.0.0:6060", nil)
-	// time.Sleep(1000 * time.Second)
-	// 指令回传在这里
+	wg := &sync.WaitGroup{}
+	// transport to server not added
+	wg.Add(2)
+	go plugin.Startup(agent.Context, wg)
+	go heartbeat.Startup(agent.Context, wg)
+	wg.Wait()
+	fmt.Println("agent itself has started")
 }

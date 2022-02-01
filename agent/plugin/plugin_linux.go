@@ -11,65 +11,15 @@ import (
 	"path"
 	"sync"
 	"syscall"
-)
-
-var (
-	plgMInstance   *PluginManager
-	plgManagerOnce *sync.Once
+	"time"
 )
 
 var (
 	errDupPlugin = errors.New("duplicate plugin load")
 )
 
-// move to struct, dependency injection
-type PluginManager struct {
-	plugins *sync.Map
-	syncCh  chan map[string]*proto.Config
-}
-
-func NewPluginManager() *PluginManager {
-	plgManagerOnce.Do(func() {
-		plgMInstance = &PluginManager{
-			plugins: &sync.Map{},
-			syncCh:  make(chan map[string]*proto.Config, 1),
-		}
-	})
-	return plgMInstance
-}
-
-func (this *PluginManager) Get(name string) (*Plugin, bool) {
-	plg, ok := this.plugins.Load(name)
-	if ok {
-		return plg.(*Plugin), ok
-	}
-	return nil, ok
-}
-
-func (this *PluginManager) GetAll() (plgs []*Plugin) {
-	this.plugins.Range(func(key, value interface{}) bool {
-		plg := value.(*Plugin)
-		plgs = append(plgs, plg)
-		return true
-	})
-	return
-}
-
-func (this *PluginManager) Sync(cfgs map[string]*proto.Config) (err error) {
-	select {
-	case this.syncCh <- cfgs:
-	default:
-		err = errors.New("plugins are syncing or context has been cancled")
-	}
-	return
-}
-
-func (this *PluginManager) Register(name string, plg *Plugin) {
-	this.plugins.Store(name, plg)
-}
-
 func Load(ctx context.Context, config proto.Config) (err error) {
-	plgManager := NewPluginManager()
+	plgManager := NewManager()
 	loadedPlg, ok := plgManager.Get(config.GetName())
 	// logical problem
 	if ok {
@@ -121,4 +71,44 @@ func Load(ctx context.Context, config proto.Config) (err error) {
 	go plg.Task()
 	plgManager.Register(plg.Name(), plg)
 	return nil
+}
+
+func Startup(ctx context.Context, wg *sync.WaitGroup) {
+	plgManager := NewManager()
+	defer wg.Done()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			plgManager.UnregisterAll()
+			return
+		case cfgs := <-plgManager.syncCh:
+			// 加载插件
+			for _, cfg := range cfgs {
+				if cfg.Name != agent.Product {
+					err := Load(ctx, *cfg)
+					// 相同版本的同名插件正在运行，无需操作
+					if err == errDupPlugin {
+						continue
+					}
+					if err != nil {
+						// TODO: log here
+					} else {
+						// TODO: log here
+					}
+				}
+			}
+			// 移除插件
+			for _, plg := range plgManager.GetAll() {
+				if _, ok := cfgs[plg.Name()]; !ok {
+					plg.Shutdown()
+					plgManager.plugins.Delete(plg.Name())
+					if err := os.RemoveAll(plg.GetWorkingDirectory()); err != nil {
+						// TODO: log here
+					}
+				}
+			}
+		}
+	}
 }

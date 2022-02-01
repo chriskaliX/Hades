@@ -1,4 +1,4 @@
-package heartbeat
+package resource
 
 import (
 	"os"
@@ -48,6 +48,7 @@ func GetDirSize(path string, except string) uint64 {
 	}
 
 	filepath.Walk(path, readSize)
+
 	return dirSize
 }
 
