@@ -203,10 +203,6 @@ func (t *HadesObject) Read() error {
 			parser.CommitCreds(buffers, &process)
 		}
 
-		// if int(ctx.Type) != 11 {
-		// 	continue
-		// }
-
 		global.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		global.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 		process.Sha256, _ = common.GetFileHash(process.Exe)
