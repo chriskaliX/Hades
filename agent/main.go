@@ -11,6 +11,7 @@ import (
 	"agent/heartbeat"
 	"agent/log"
 	"agent/plugin"
+	"agent/proto"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -52,12 +53,20 @@ func main() {
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
-
 	wg := &sync.WaitGroup{}
 	// transport to server not added
 	wg.Add(2)
 	go plugin.Startup(agent.Context, wg)
 	go heartbeat.Startup(agent.Context, wg)
+	// test
+	cfg := make(map[string]*proto.Config)
+	cfg["collector"] = &proto.Config{
+		Name:    "collector",
+		Version: "1.0.0",
+		Sha256:  "3899dec243d4f4db760d19224055c07a3037d6cbfa6ece9591a437e97831be3f",
+	}
+	manager := plugin.NewManager()
+	manager.Sync(cfg)
 	wg.Wait()
 	fmt.Println("agent itself has started")
 }
