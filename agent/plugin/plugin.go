@@ -2,8 +2,11 @@ package plugin
 
 import (
 	"agent/agent"
+	"agent/core"
 	"agent/proto"
+	"agent/utils"
 	"bufio"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -40,42 +43,62 @@ type Plugin struct {
 	workdir string
 }
 
-func NewPlugin(config proto.Config) (p *Plugin, err error) {
-	p = &Plugin{}
-	p.config = config
-	// set workdir
-	p.workdir = path.Join(agent.WorkingDirectory, "plugin", p.Name())
+func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) {
+	p = &Plugin{
+		config:     config,
+		workdir:    path.Join(agent.WorkingDirectory, "plugin", p.Name()),
+		updateTime: time.Now(),
+		done:       make(chan struct{}),
+		taskCh:     make(chan proto.Task),
+		wg:         &sync.WaitGroup{},
+	}
 	// pipe init
-	// In Elkeid, a note: 'for compatibility' is here.  Since some systems only allow
+	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
 	// half-duplex pipe.
 	var rx_r, rx_w, tx_r, tx_w *os.File
 	rx_r, rx_w, err = os.Pipe()
 	if err != nil {
 		return
 	}
-	rx_w.Close()
 	p.rx = rx_r
 	tx_r, tx_w, err = os.Pipe()
 	if err != nil {
 		return
 	}
-	tx_r.Close()
 	p.tx = tx_w
 	// reader init
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
-
-	p.updateTime = time.Now()
-	p.done = make(chan struct{})
-	p.taskCh = make(chan proto.Task)
-	p.wg = &sync.WaitGroup{}
 	// purge the files
 	os.Remove(path.Join(p.workdir, p.Name()+".stderr"))
 	os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
-	return
-}
-
-func (p *Plugin) SetCmd(cmd *exec.Cmd) {
+	// cmdline
+	execPath := path.Join(p.workdir, config.Name)
+	err = utils.CheckSignature(execPath, config.Signature)
+	if err != nil {
+		err = utils.Download(ctx, execPath, config)
+		if err != nil {
+			return
+		}
+	}
+	cmd := exec.Command(execPath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
+	cmd.Dir = p.workdir
+	var errFile *os.File
+	errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600)
+	if err != nil {
+		return
+	}
+	defer errFile.Close()
+	cmd.Stderr = errFile
+	if config.Detail != "" {
+		cmd.Env = append(cmd.Env, "DETAIL="+config.Detail)
+	}
+	err = cmd.Start()
+	rx_w.Close()
+	tx_r.Close()
 	p.cmd = cmd
+	return
 }
 
 func (p *Plugin) Wait() (err error) {
@@ -132,12 +155,13 @@ func (p *Plugin) Receive() {
 		rec, err := p.receiveData()
 		if err != nil {
 			// TODO: log here
+			fmt.Println(err)
 		} else if !(errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed)) {
 			// TODO: log here
 		} else {
 			break
 		}
-		fmt.Println(rec)
+		fmt.Println(string(rec.Data))
 	}
 }
 
@@ -171,11 +195,61 @@ func (p *Plugin) Task() {
 
 // receive data, not added
 func (p *Plugin) receiveData() (rec *proto.EncodedRecord, err error) {
-	// test code
-	testSlice := make([]byte, 0, 100)
-	_, err = io.ReadFull(p.reader, testSlice)
-	fmt.Println(string(testSlice))
-	atomic.AddUint64(&p.rxCnt, 1)
+	var l uint32
+	err = binary.Read(p.reader, binary.LittleEndian, &l)
+	if err != nil {
+		return
+	}
+	_, err = p.reader.Discard(1)
+	if err != nil {
+		return
+	}
+	te := 1
+
+	rec = core.Get()
+	var dt, ts, e int
+
+	dt, e, err = readVarint(p.reader)
+	if err != nil {
+		return
+	}
+	_, err = p.reader.Discard(1)
+	if err != nil {
+		return
+	}
+	te += e + 1
+	rec.DataType = int32(dt)
+
+	ts, e, err = readVarint(p.reader)
+	if err != nil {
+		return
+	}
+	_, err = p.reader.Discard(1)
+	if err != nil {
+		return
+	}
+	te += e + 1
+	rec.Timestamp = int64(ts)
+
+	if uint32(te) < l {
+		_, e, err = readVarint(p.reader)
+		if err != nil {
+			return
+		}
+		te += e
+		ne := int(l) - te
+		if cap(rec.Data) < ne {
+			rec.Data = make([]byte, ne)
+		} else {
+			rec.Data = rec.Data[:ne]
+		}
+		_, err = io.ReadFull(p.reader, rec.Data)
+		if err != nil {
+			return
+		}
+	}
+	atomic.AddUint64(&p.txCnt, 1)
+	atomic.AddUint64(&p.txBytes, uint64(l))
 	return
 }
 
@@ -190,4 +264,24 @@ func (p *Plugin) SendTask(task proto.Task) (err error) {
 
 func (p *Plugin) GetWorkingDirectory() string {
 	return p.cmd.Dir
+}
+
+func readVarint(r io.ByteReader) (int, int, error) {
+	varint := 0
+	eaten := 0
+	for shift := uint(0); ; shift += 7 {
+		if shift >= 64 {
+			return 0, eaten, proto.ErrIntOverflowGrpc
+		}
+		b, err := r.ReadByte()
+		if err != nil {
+			return 0, eaten, err
+		}
+		eaten++
+		varint |= int(b&0x7F) << shift
+		if b < 0x80 {
+			break
+		}
+	}
+	return varint, eaten, nil
 }
