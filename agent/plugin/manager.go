@@ -31,16 +31,16 @@ func NewManager() *Manager {
 	return plgMInstance
 }
 
-func (this *Manager) Get(name string) (*Plugin, bool) {
-	plg, ok := this.plugins.Load(name)
+func (m *Manager) Get(name string) (*Plugin, bool) {
+	plg, ok := m.plugins.Load(name)
 	if ok {
 		return plg.(*Plugin), ok
 	}
 	return nil, ok
 }
 
-func (this *Manager) GetAll() (plgs []*Plugin) {
-	this.plugins.Range(func(key, value interface{}) bool {
+func (m *Manager) GetAll() (plgs []*Plugin) {
+	m.plugins.Range(func(key, value interface{}) bool {
 		plg := value.(*Plugin)
 		plgs = append(plgs, plg)
 		return true
@@ -48,37 +48,37 @@ func (this *Manager) GetAll() (plgs []*Plugin) {
 	return
 }
 
-func (this *Manager) Sync(cfgs map[string]*proto.Config) (err error) {
+func (m *Manager) Sync(cfgs map[string]*proto.Config) (err error) {
 	select {
-	case this.syncCh <- cfgs:
+	case m.syncCh <- cfgs:
 	default:
 		err = errors.New("plugins are syncing or context has been cancled")
 	}
 	return
 }
 
-func (this *Manager) Register(name string, plg *Plugin) {
-	this.plugins.Store(name, plg)
+func (m *Manager) Register(name string, plg *Plugin) {
+	m.plugins.Store(name, plg)
 }
 
-func (this *Manager) UnregisterAll() {
+func (m *Manager) UnregisterAll() {
 	subWg := &sync.WaitGroup{}
-	this.plugins.Range(func(key, value interface{}) bool {
+	m.plugins.Range(func(key, value interface{}) bool {
 		subWg.Add(1)
 		plg := value.(*Plugin)
 		go func() {
 			defer subWg.Done()
 			plg.Shutdown()
 			plg.wg.Wait()
-			this.plugins.Delete(plg.Name())
+			m.plugins.Delete(plg.Name())
 		}()
 		return true
 	})
 	subWg.Wait()
 }
 
-func (this *Manager) GetPlgStat(now time.Time) {
-	plgs := this.GetAll()
+func (m *Manager) GetPlgStat(now time.Time) {
+	plgs := m.GetAll()
 	for _, plg := range plgs {
 		if !plg.IsExited() {
 			rec := &proto.Record{

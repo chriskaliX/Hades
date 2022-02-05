@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 var (
@@ -64,6 +66,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 					}
 					if err != nil {
 						// TODO: log here
+						zap.S().Error(err)
 					} else {
 						// TODO: log here
 					}

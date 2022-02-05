@@ -2,7 +2,7 @@ package plugin
 
 import (
 	"agent/agent"
-	"agent/core"
+	"agent/core/pool"
 	"agent/proto"
 	"agent/utils"
 	"bufio"
@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -19,6 +18,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type Plugin struct {
@@ -38,31 +39,37 @@ type Plugin struct {
 	taskCh     chan proto.Task
 	done       chan struct{} // same with the context done
 	wg         *sync.WaitGroup
-	logger     *log.Logger
-
-	workdir string
+	workdir    string
+	// SugaredLogger/Logger
+	logger *zap.SugaredLogger
 }
 
 func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) {
+	var (
+		rx_r, rx_w, tx_r, tx_w *os.File
+		errFile                *os.File
+	)
 	p = &Plugin{
 		config:     config,
-		workdir:    path.Join(agent.WorkingDirectory, "plugin", p.Name()),
 		updateTime: time.Now(),
 		done:       make(chan struct{}),
 		taskCh:     make(chan proto.Task),
 		wg:         &sync.WaitGroup{},
+		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
 	}
+	p.workdir = path.Join(agent.WorkingDirectory, "plugin", p.Name())
 	// pipe init
 	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
 	// half-duplex pipe.
-	var rx_r, rx_w, tx_r, tx_w *os.File
 	rx_r, rx_w, err = os.Pipe()
 	if err != nil {
+		p.logger.Error("rx pipe init")
 		return
 	}
 	p.rx = rx_r
 	tx_r, tx_w, err = os.Pipe()
 	if err != nil {
+		p.logger.Error("tx pipe init")
 		return
 	}
 	p.tx = tx_w
@@ -70,23 +77,26 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
 	// purge the files
 	os.Remove(path.Join(p.workdir, p.Name()+".stderr"))
-	os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
+	// os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
 	// cmdline
-	execPath := path.Join(p.workdir, config.Name)
+	execPath := path.Join(p.workdir, p.Name())
 	err = utils.CheckSignature(execPath, config.Signature)
 	if err != nil {
+		p.logger.Warn("check signature failed")
+		p.logger.Info("start download")
 		err = utils.Download(ctx, execPath, config)
 		if err != nil {
+			p.logger.Error("download failed:", err)
 			return
 		}
+		p.logger.Info("download success")
 	}
 	cmd := exec.Command(execPath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
 	cmd.Dir = p.workdir
-	var errFile *os.File
-	errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600)
-	if err != nil {
+	if errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
+		p.logger.Error("open stderr:", errFile)
 		return
 	}
 	defer errFile.Close()
@@ -94,7 +104,11 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	if config.Detail != "" {
 		cmd.Env = append(cmd.Env, "DETAIL="+config.Detail)
 	}
+	p.logger.Info("cmd start")
 	err = cmd.Start()
+	if err != nil {
+		p.logger.Error("cmd start:", err)
+	}
 	rx_w.Close()
 	tx_r.Close()
 	p.cmd = cmd
@@ -130,7 +144,7 @@ func (p *Plugin) Version() string { return p.config.Version }
 func (p *Plugin) Pid() int { return p.cmd.Process.Pid }
 
 // get the state by fork status
-func (p *Plugin) IsExited() bool { return p.cmd.ProcessState.Exited() }
+func (p *Plugin) IsExited() bool { return p.cmd.ProcessState != nil }
 
 // TODO:shutdown for plugin, need to change...
 func (p *Plugin) Shutdown() {
@@ -139,27 +153,41 @@ func (p *Plugin) Shutdown() {
 	if p.IsExited() {
 		return
 	}
+	p.logger.Info("shutdown called")
 	p.tx.Close()
 	p.rx.Close()
 	select {
 	case <-time.After(time.Second * 30):
+		p.logger.Warn("close by killing start")
 		syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
 		<-p.done
+		p.logger.Info("close by killing done")
 	case <-p.done:
+		p.logger.Info("close by done channel")
 	}
 }
 
 func (p *Plugin) Receive() {
+	var (
+		rec *proto.EncodedRecord
+		err error
+	)
 	defer p.wg.Done()
 	for {
-		rec, err := p.receiveData()
-		if err != nil {
-			// TODO: log here
-			fmt.Println(err)
-		} else if !(errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed)) {
-			// TODO: log here
-		} else {
-			break
+		if rec, err = p.receiveData(); err != nil {
+			if errors.Is(err, bufio.ErrBufferFull) {
+				// problem of multi
+				p.logger.Warn("buffer full, skip")
+				continue
+				// any error about close or EOF, it's done
+			} else if !(errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed)) {
+				p.logger.Error("receive err:", err)
+				// add continue to any error
+				continue
+			} else {
+				p.logger.Error("exit the receive task:", err)
+				break
+			}
 		}
 		fmt.Println(string(rec.Data))
 	}
@@ -177,6 +205,7 @@ func (p *Plugin) Task() {
 			var dst = make([]byte, 4+s)
 			_, err = task.MarshalToSizedBuffer(dst[4:])
 			if err != nil {
+				p.logger.Errorf("task: %+v, err: %v", task, err)
 				continue
 			}
 			binary.LittleEndian.PutUint32(dst[:4], uint32(s))
@@ -184,6 +213,7 @@ func (p *Plugin) Task() {
 			n, err = p.tx.Write(dst)
 			if err != nil {
 				if !errors.Is(err, os.ErrClosed) {
+					p.logger.Error("when sending task, an error occurred: ", err)
 				}
 				return
 			}
@@ -206,7 +236,7 @@ func (p *Plugin) receiveData() (rec *proto.EncodedRecord, err error) {
 	}
 	te := 1
 
-	rec = core.Get()
+	rec = pool.Get()
 	var dt, ts, e int
 
 	dt, e, err = readVarint(p.reader)

@@ -6,6 +6,7 @@ package connection
 
 import (
 	"agent/network"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"reflect"
@@ -19,8 +20,10 @@ var (
 	dialOptions = []grpc.DialOption{}
 )
 
-func New() (*grpc.ClientConn, error) {
-	grpcConn := &network.Context{}
+func New(ctx context.Context) (*grpc.ClientConn, error) {
+	grpcConn := &network.Context{
+		Context: ctx,
+	}
 	grpcInstance := &Grpc{}
 	grpcInstance.Init()
 	err := grpcConn.IRetry(grpcInstance)
