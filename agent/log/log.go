@@ -1,36 +1,54 @@
 package log
 
 import (
-	"agent/global"
+	"agent/proto"
 	"encoding/json"
-	"fmt"
+	"strconv"
+	"time"
 )
 
-type ErrorLog struct {
-	Level     string `json:"level"`
-	Timestamp string `json:"timestamp"`
-	Source    string `json:"source"`
-	Msg       string `json:"msg"`
+type GrpcWriter struct {
 }
 
-type LoggerWriter struct{}
-
-func (*LoggerWriter) Write(p []byte) (n int, err error) {
-	l := ErrorLog{}
-	e := json.Unmarshal(p, &l)
+func (w *GrpcWriter) Write(p []byte) (n int, err error) {
+	rec := &proto.Record{
+		DataType: 1010,
+		Data: &proto.Payload{
+			Fields: map[string]string{},
+		},
+	}
+	fields := map[string]interface{}{}
+	err = json.Unmarshal(p, &fields)
 	if err != nil {
-		return 0, e
+		return
 	}
-	m := make(map[string]string)
-	m["level"] = l.Level
-	m["timestamp"] = l.Timestamp
-	m["source"] = l.Source
-	m["msg"] = l.Msg
-	m["data_type"] = "999"
-	select {
-	case global.UploadChannel <- m:
-	default:
-		fmt.Println("Channel full")
+	timestamp, ok := fields["timestamp"]
+	if ok {
+		timestamp, err := strconv.ParseInt(timestamp.(string), 10, 64)
+		if err == nil {
+			rec.Timestamp = timestamp
+			delete(fields, "timestamp")
+		}
 	}
-	return len(p), nil
+	if rec.Timestamp == 0 {
+		rec.Timestamp = time.Now().Unix()
+	}
+	for k, v := range fields {
+		switch v := v.(type) {
+		case string:
+			rec.Data.Fields[k] = v
+		case int:
+			rec.Data.Fields[k] = strconv.Itoa(v)
+		}
+	}
+	// err = core.Transmission(rec, false)
+	// if err != nil {
+	// 	return
+	// }
+	// n = len(p)
+	return
+}
+
+func (w *GrpcWriter) Sync() error {
+	return nil
 }

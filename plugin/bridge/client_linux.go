@@ -12,6 +12,7 @@ func New() (c *Client) {
 		rx: os.Stdin,
 		tx: os.Stdout,
 		// MAX_SIZE = 1 MB
+		// TODO: uintptr
 		reader: bufio.NewReaderSize(os.NewFile(3, "pipe"), 1024*1024),
 		writer: bufio.NewWriterSize(os.NewFile(4, "pipe"), 512*1024),
 		rmu:    &sync.Mutex{},

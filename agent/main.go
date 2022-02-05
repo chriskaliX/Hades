@@ -40,7 +40,7 @@ func main() {
 		z.AppendString(strconv.FormatInt(t.Unix(), 10))
 	}
 	grpcEncoder := zapcore.NewJSONEncoder(config)
-	grpcWriter := zapcore.AddSync(&log.LoggerWriter{})
+	grpcWriter := zapcore.AddSync(&log.GrpcWriter{})
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "log/hades.log",
