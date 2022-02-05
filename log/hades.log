@@ -1,0 +1,26 @@
+2022-02-02T13:48:08.381+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T14:00:47.627+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T14:02:18.729+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T14:06:03.645+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T14:46:32.895+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T14:47:46.985+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T14:49:47.247+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T15:03:18.190+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T16:27:45.942+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T17:53:21.710+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T17:53:48.668+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T18:03:18.782+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-02T18:06:44.080+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T00:33:50.770+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T00:34:02.727+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T01:16:40.565+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T01:21:50.490+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T01:43:18.109+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T01:44:25.040+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-03T01:46:47.911+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-05T00:13:47.314+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-05T00:14:14.147+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-05T00:15:19.517+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-05T00:25:57.822+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-05T15:41:46.464+0800	INFO	heartbeat/heartbeat.go:89	health daemon startup
+2022-02-05T15:41:46.499+0800	INFO	plugin/plugin.go:107	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "3899dec243d4f4db760d19224055c07a3037d6cbfa6ece9591a437e97831be3f"}
