@@ -12,6 +12,7 @@ import (
 
 	"github.com/chriskaliX/plugin"
 	"github.com/fsnotify/fsnotify"
+	"github.com/shirou/gopsutil/host"
 	"go.uber.org/zap"
 )
 
@@ -24,29 +25,23 @@ func GetSSH(ctx context.Context) {
 		err     error
 		watcher *fsnotify.Watcher
 		path    string
-		secure  string
 		// record the last size
 		lastSize int64
 		fs       os.FileInfo
 	)
-
-	path = "/var/log/auth.log"
-	secure = "/var/log/secure"
-
+	// choose file by platformfamily
+	switch host.PlatformFamily {
+	case "fedora", "redhat":
+		path = "/var/log/secure"
+	default:
+		path = "/var/log/auth.log"
+	}
 	// init the size
-	fs, err = os.Stat(path)
-	if err != nil {
+	if fs, err = os.Stat(path); err != nil {
 		zap.S().Error(err)
-		fs, err = os.Stat(secure)
-		if err != nil {
-			zap.S().Error(err)
-			return
-		} else {
-			path = secure
-		}
+		return
 	}
 	lastSize = fs.Size()
-
 	// start a watcher
 	// TODO: make this to a interface
 	if watcher, err = fsnotify.NewWatcher(); err != nil {
@@ -54,17 +49,14 @@ func GetSSH(ctx context.Context) {
 		return
 	}
 	defer watcher.Close()
-
 	watcher.Add(path)
-
 	// only for write now, evaluate
 	for {
 		select {
 		case event := <-watcher.Events:
 			switch event.Op {
 			case fsnotify.Write:
-				fs, err := os.Stat(event.Name)
-				if err != nil {
+				if fs, err := os.Stat(event.Name); err != nil {
 					zap.S().Error(err)
 					return
 				}
@@ -89,6 +81,7 @@ func GetSSH(ctx context.Context) {
 				// 2 = End of file
 				file.Seek(lastSize, 0)
 				s := bufio.NewScanner(io.LimitReader(file, 1024*1024))
+				// parse here
 				for s.Scan() {
 					// some situations that we need to audit
 					// 1. Session opened - Success Login
@@ -102,12 +95,8 @@ func GetSSH(ctx context.Context) {
 					if err != nil {
 						continue
 					}
-
-					sshlog := make(map[string]string)
-					rawdata := make(map[string]string)
-					// rawdata["time"] = strconv.Itoa(int(global.Time))
-					// rawdata["data_type"] = "3003"
-
+					sshlog := make(map[string]string, 5)
+					rawdata := make(map[string]string, 1)
 					// failed password
 					if len(fields) == 14 && fields[6] == "password" {
 						switch fields[5] {
@@ -129,7 +118,6 @@ func GetSSH(ctx context.Context) {
 							}
 							share.Client.SendRecord(rec)
 						}
-
 					}
 				}
 				// before we exit

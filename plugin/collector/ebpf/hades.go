@@ -195,6 +195,9 @@ func (t *HadesObject) Read() error {
 		case 10:
 			process.Syscall = "socket_bind"
 			parser.Net(buffers, &process)
+		case 11:
+			process.Syscall = "commit_creds"
+			parser.CommitCreds(buffers, &process)
 		}
 
 		share.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)

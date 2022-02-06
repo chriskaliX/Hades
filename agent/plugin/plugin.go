@@ -189,7 +189,7 @@ func (p *Plugin) Receive() {
 				break
 			}
 		}
-		// TODO: upload via `Logger Plugin` here
+		// TODO: upload via `Logger Plugin` here, not to the service..
 		fmt.Println(string(rec.Data))
 	}
 }

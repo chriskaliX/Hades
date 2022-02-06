@@ -16,9 +16,10 @@
 
 // TODO: 判断 kernel version, 使用 ringbuf, 传输优化
 /* init_context */
-static __always_inline int init_context(context_t *context, struct task_struct *task) {
+static __always_inline int init_context(context_t *context, struct task_struct *task)
+{
     // 获取 timestamp
-    struct task_struct * realparent;
+    struct task_struct *realparent;
     bpf_probe_read(&realparent, sizeof(realparent), &task->real_parent);
     bpf_probe_read(&context->ppid, sizeof(context->ppid), &realparent->tgid);
     context->ts = bpf_ktime_get_ns();
@@ -45,7 +46,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_probe_read_str(&context->nodename, sizeof(context->nodename), &uts_ns->name.nodename);
     // pid_namespace
-    bpf_probe_read(&context->uts_inum, sizeof(context->uts_inum), &uts_ns->ns.inum); 
+    bpf_probe_read(&context->uts_inum, sizeof(context->uts_inum), &uts_ns->ns.inum);
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
     struct pid_cache_t *parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
@@ -60,13 +61,12 @@ static __always_inline int init_context(context_t *context, struct task_struct *
 
 /* ==== get ==== */
 
-static __always_inline void* get_task_tty_str(struct task_struct *task)
+static __always_inline void *get_task_tty_str(struct task_struct *task)
 {
     struct signal_struct *signal;
     bpf_probe_read(&signal, sizeof(signal), &task->signal);
     struct tty_struct *tty;
     bpf_probe_read(&tty, sizeof(tty), &signal->tty);
-
     // Get per-cpu string buffer
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
@@ -78,7 +78,7 @@ static __always_inline void* get_task_tty_str(struct task_struct *task)
     return &string_p->buf[0];
 }
 
-static __always_inline void* get_path_str(struct path *path)
+static __always_inline void *get_path_str(struct path *path)
 {
     struct path f_path;
     bpf_probe_read(&f_path, sizeof(struct path), path);
@@ -89,7 +89,7 @@ static __always_inline void* get_path_str(struct path *path)
     struct mount *mnt_parent_p;
 
     struct mount *mnt_p = real_mount(vfsmnt);
-    bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
 
     u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
     struct dentry *mnt_root;
@@ -104,21 +104,25 @@ static __always_inline void* get_path_str(struct path *path)
     if (string_p == NULL)
         return NULL;
 
-    #pragma unroll
+#pragma unroll
     // MAX_PATH_COMPONENTS
-    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++)
+    {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
-        if (dentry == mnt_root || dentry == d_parent) {
-            if (dentry != mnt_root) {
+        if (dentry == mnt_root || dentry == d_parent)
+        {
+            if (dentry != mnt_root)
+            {
                 // We reached root, but not mount root - escaped?
                 break;
             }
-            if (mnt_p != mnt_parent_p) {
+            if (mnt_p != mnt_parent_p)
+            {
                 // We reached root, but not global root - continue with mount point path
-                bpf_probe_read(&dentry, sizeof(struct dentry*), &mnt_p->mnt_mountpoint);
-                bpf_probe_read(&mnt_p, sizeof(struct mount*), &mnt_p->mnt_parent);
-                bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount *), &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
                 vfsmnt = &mnt_p->mnt;
                 continue;
             }
@@ -127,39 +131,46 @@ static __always_inline void* get_path_str(struct path *path)
         }
         // Add this dentry name to path
         d_name = READ_KERN(dentry->d_name);
-        len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
         off = buf_off - len;
 
         // Is string buffer big enough for dentry name?
         sz = 0;
-        if (off <= buf_off) { // verify no wrap occurred
-            len = len & (((MAX_PERCPU_BUFSIZE) >> 1)-1);
-            sz = bpf_probe_read_str(&(string_p->buf[off & (((MAX_PERCPU_BUFSIZE) >> 1)-1)]), len, (void *)d_name.name);
+        if (off <= buf_off)
+        { // verify no wrap occurred
+            len = len & (((MAX_PERCPU_BUFSIZE) >> 1) - 1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & (((MAX_PERCPU_BUFSIZE) >> 1) - 1)]), len, (void *)d_name.name);
         }
         else
             break;
-        if (sz > 1) {
+        if (sz > 1)
+        {
             buf_off -= 1; // remove null byte termination with slash sign
             bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
             buf_off -= sz - 1;
-        } else {
+        }
+        else
+        {
             // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
             break;
         }
         dentry = d_parent;
     }
 
-    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1))
+    {
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
         d_name = READ_KERN(dentry->d_name);
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
-    } else {
+    }
+    else
+    {
         // Add leading slash
         buf_off -= 1;
         bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
         // Null terminate the path string
-        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1)-1]), 1, &zero);
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1, &zero);
     }
 
     set_buf_off(STRING_BUF_IDX, buf_off);
@@ -169,13 +180,15 @@ static __always_inline void* get_path_str(struct path *path)
 static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details, int peer)
 {
     struct inet_sock *inet = (struct inet_sock *)sk;
-    if (!peer) {
+    if (!peer)
+    {
         net_details->local_address = READ_KERN(inet->inet_rcv_saddr);
         net_details->local_port = bpf_ntohs(READ_KERN(inet->inet_num));
         net_details->remote_address = READ_KERN(inet->inet_daddr);
         net_details->remote_port = READ_KERN(inet->inet_dport);
     }
-    else {
+    else
+    {
         net_details->remote_address = READ_KERN(inet->inet_rcv_saddr);
         net_details->remote_port = bpf_ntohs(READ_KERN(inet->inet_num));
         net_details->local_address = READ_KERN(inet->inet_daddr);
@@ -197,31 +210,37 @@ static __always_inline struct file *file_get_raw(u64 fd_num)
 {
     // get current task
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    if (task == NULL) {
+    if (task == NULL)
+    {
         return NULL;
     }
     // get files
     struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
-    if (files == NULL) {
+    if (files == NULL)
+    {
         return NULL;
     }
     // get fdtable
     struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
-    if (fdt == NULL) {
+    if (fdt == NULL)
+    {
         return NULL;
     }
     struct file **fd = (struct file **)READ_KERN(fdt->fd);
-    if (fd == NULL) {
+    if (fd == NULL)
+    {
         return NULL;
     }
     struct file *f = (struct file *)READ_KERN(fd[fd_num]);
-    if (f == NULL) {
+    if (f == NULL)
+    {
         return NULL;
     }
 
     return f;
 }
-//TODO: op
+
+// TODO: op
 static __always_inline void *get_fraw_str(u64 num)
 {
     char nothing[] = "-1";
@@ -259,9 +278,10 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
     fd = (struct file **)READ_KERN(fdt->fd);
     if (fd == NULL)
         return 0;
-    // unroll since unbounded loop is not supported < kernel version 5.3
-    #pragma unroll
-    for (int i = 0; i < 8; i++) {
+// unroll since unbounded loop is not supported < kernel version 5.3
+#pragma unroll
+    for (int i = 0; i < 8; i++)
+    {
         if (i == max_fds)
             break;
         file = (struct file *)READ_KERN(fd[i]);
@@ -273,12 +293,13 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
         bpf_probe_read(&f_path, sizeof(struct path), &file->f_path);
         dentry = f_path.dentry;
         d_name = READ_KERN(dentry->d_name);
-        unsigned int len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        unsigned int len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
         int size = bpf_probe_read_str(&(string_p->buf[0]), len, (void *)d_name.name);
         if (size <= 0)
             continue;
         // TODO: TCP4/6
-        if (prefix("TCP", &(string_p->buf[0]), 3)) {
+        if (prefix("TCP", &(string_p->buf[0]), 3))
+        {
             bpf_probe_read(&socket, sizeof(socket), &file->private_data);
             if (socket == NULL)
                 continue;
@@ -287,11 +308,12 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
             if (state <= 1)
                 continue;
             bpf_probe_read(&sk, sizeof(sk), &socket->sk);
-            if(!sk)
+            if (!sk)
                 continue;
             // 先不支持 IPv6, 跑通先
             family = READ_KERN(sk->sk_family);
-            if (family == AF_INET) {
+            if (family == AF_INET)
+            {
                 net_conn_v4_t net_details = {};
                 get_network_details_from_sock_v4(sk, &net_details, 0);
                 // remote we need to send
@@ -313,32 +335,33 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL)
         goto exit;
-    
+
     u32 pid;
     int flag;
 
-    #pragma unroll
-    for (int i = 0; i < 4; i++) {
+#pragma unroll
+    for (int i = 0; i < 4; i++)
+    {
         bpf_probe_read(&pid, sizeof(pid), &task->pid);
         // 0 for failed...
         if (pid == 1)
             break;
-        
+
         // get files
         struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
         if (files == NULL)
             goto next_task;
-        
+
         // get fdtable
         struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
         if (fdt == NULL)
             goto next_task;
-        
+
         // find out
         flag = get_socket_info_sub(data, fdt, index);
         if (flag == 1)
             return 0;
-next_task:
+    next_task:
         bpf_probe_read(&task, sizeof(task), &task->real_parent);
     }
 exit:
@@ -362,9 +385,10 @@ static __always_inline int init_event_data(event_data_t *data, void *ctx)
     return 1;
 }
 
-static __always_inline int events_perf_submit(event_data_t *data) {
+static __always_inline int events_perf_submit(event_data_t *data)
+{
     bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t), &data->context);
-    int size = data->buf_off & (MAX_PERCPU_BUFSIZE-1);
+    int size = data->buf_off & (MAX_PERCPU_BUFSIZE - 1);
     void *output_data = data->submit_p->buf;
     return bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU, output_data, size);
 }
