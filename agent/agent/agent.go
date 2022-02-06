@@ -6,15 +6,15 @@ import (
 	"context"
 	"errors"
 	"os"
-	"sync"
 
 	"github.com/google/uuid"
 )
 
-var (
-	agent     *Agent
-	agentOnce sync.Once
-)
+var DefaultAgent = &Agent{
+	env:     "SPECIFIED_AGENT_ID",
+	product: "hades-agent",
+	version: "1.0.0",
+}
 
 type Agent struct {
 	id      string
@@ -26,11 +26,21 @@ type Agent struct {
 	product string
 }
 
-func (a Agent) ID() string {
+func (a *Agent) Init() {
+	a.context, a.cancel = context.WithCancel(context.Background())
+	a.workdir, _ = os.Getwd()
+	if a.workdir == "" {
+		a.workdir = "/var/run"
+	}
+	a.genID()
+}
+
+func (a *Agent) ID() string {
 	return a.id
 }
 
-func (a Agent) Workdir() string {
+func (a *Agent) Workdir() string {
+
 	return a.workdir
 }
 
@@ -119,18 +129,6 @@ func (a *Agent) genID() {
 	a.id = uuid.New().String()
 }
 
-func NewAgent() *Agent {
-	agentOnce.Do(func() {
-		agent = &Agent{}
-		agent.context, agent.cancel = context.WithCancel(context.Background())
-		agent.workdir, _ = os.Getwd()
-		if agent.workdir == "" {
-			agent.workdir = "/var/run"
-		}
-		agent.version = "1.0.0"
-		agent.product = "hades-agent"
-		agent.env = "SPECIFIED_AGENT_ID"
-		agent.genID()
-	})
-	return agent
+func init() {
+	DefaultAgent.Init()
 }

@@ -2,33 +2,19 @@ package plugin
 
 import (
 	"agent/proto"
-	"agent/resource"
 	"errors"
-	"os"
-	"strconv"
 	"sync"
-	"time"
 )
 
-var (
-	plgMInstance   *Manager
-	plgManagerOnce sync.Once
-)
+var DefaultManager = &Manager{
+	plugins: &sync.Map{},
+	syncCh:  make(chan map[string]*proto.Config, 1),
+}
 
 // move to struct, dependency injection
 type Manager struct {
 	plugins *sync.Map
 	syncCh  chan map[string]*proto.Config
-}
-
-func NewManager() *Manager {
-	plgManagerOnce.Do(func() {
-		plgMInstance = &Manager{
-			plugins: &sync.Map{},
-			syncCh:  make(chan map[string]*proto.Config, 1),
-		}
-	})
-	return plgMInstance
 }
 
 func (m *Manager) Get(name string) (*Plugin, bool) {
@@ -40,7 +26,7 @@ func (m *Manager) Get(name string) (*Plugin, bool) {
 }
 
 func (m *Manager) GetAll() (plgs []*Plugin) {
-	m.plugins.Range(func(key, value interface{}) bool {
+	m.plugins.Range(func(_, value interface{}) bool {
 		plg := value.(*Plugin)
 		plgs = append(plgs, plg)
 		return true
@@ -61,9 +47,13 @@ func (m *Manager) Register(name string, plg *Plugin) {
 	m.plugins.Store(name, plg)
 }
 
+func (m *Manager) UnRegister(name string) {
+	m.plugins.Delete(name)
+}
+
 func (m *Manager) UnregisterAll() {
 	subWg := &sync.WaitGroup{}
-	m.plugins.Range(func(key, value interface{}) bool {
+	m.plugins.Range(func(_, value interface{}) bool {
 		subWg.Add(1)
 		plg := value.(*Plugin)
 		go func() {
@@ -75,39 +65,4 @@ func (m *Manager) UnregisterAll() {
 		return true
 	})
 	subWg.Wait()
-}
-
-func (m *Manager) GetPlgStat(now time.Time) {
-	plgs := m.GetAll()
-	for _, plg := range plgs {
-		if !plg.IsExited() {
-			rec := &proto.Record{
-				DataType:  1001,
-				Timestamp: now.Unix(),
-				Data: &proto.Payload{
-					Fields: map[string]string{"name": plg.Name(), "pversion": plg.Version()},
-				},
-			}
-			cpuPercent, rss, readSpeed, writeSpeed, fds, startAt, err := resource.GetProcResouce(plg.Pid())
-			if err != nil {
-				// TODO: log here
-			} else {
-				rec.Data.Fields["cpu"] = strconv.FormatFloat(cpuPercent, 'f', 8, 64)
-				rec.Data.Fields["rss"] = strconv.FormatUint(rss, 10)
-				rec.Data.Fields["read_speed"] = strconv.FormatFloat(readSpeed, 'f', 8, 64)
-				rec.Data.Fields["write_speed"] = strconv.FormatFloat(writeSpeed, 'f', 8, 64)
-				rec.Data.Fields["pid"] = strconv.Itoa(os.Getpid())
-				rec.Data.Fields["fd_cnt"] = strconv.FormatInt(int64(fds), 10)
-				rec.Data.Fields["started_at"] = strconv.FormatInt(startAt, 10)
-			}
-			rec.Data.Fields["du"] = strconv.FormatUint(resource.GetDirSize(plg.GetWorkingDirectory(), ""), 10)
-			RxSpeed, TxSpeed, RxTPS, TxTPS := plg.GetState()
-			rec.Data.Fields["rx_tps"] = strconv.FormatFloat(RxTPS, 'f', 8, 64)
-			rec.Data.Fields["tx_tps"] = strconv.FormatFloat(TxTPS, 'f', 8, 64)
-			rec.Data.Fields["rx_speed"] = strconv.FormatFloat(RxSpeed, 'f', 8, 64)
-			rec.Data.Fields["tx_speed"] = strconv.FormatFloat(TxSpeed, 'f', 8, 64)
-			// TODO: log here
-			// core.Transmission(rec, false)
-		}
-	}
 }

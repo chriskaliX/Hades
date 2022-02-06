@@ -17,8 +17,7 @@ var (
 )
 
 func Load(ctx context.Context, config proto.Config) (err error) {
-	plgManager := NewManager()
-	loadedPlg, ok := plgManager.Get(config.GetName())
+	loadedPlg, ok := DefaultManager.Get(config.GetName())
 	// logical problem
 	if ok {
 		if loadedPlg.Version() == config.GetVersion() && !loadedPlg.IsExited() {
@@ -41,21 +40,20 @@ func Load(ctx context.Context, config proto.Config) (err error) {
 	go plg.Wait()
 	go plg.Receive()
 	go plg.Task()
-	plgManager.Register(plg.Name(), plg)
+	DefaultManager.Register(plg.Name(), plg)
 	return nil
 }
 
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
-	plgManager := NewManager()
 	defer wg.Done()
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			plgManager.UnregisterAll()
+			DefaultManager.UnregisterAll()
 			return
-		case cfgs := <-plgManager.syncCh:
+		case cfgs := <-DefaultManager.syncCh:
 			// 加载插件
 			for _, cfg := range cfgs {
 				if cfg.Name != agent.Product {
@@ -65,20 +63,19 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 						continue
 					}
 					if err != nil {
-						// TODO: log here
 						zap.S().Error(err)
 					} else {
-						// TODO: log here
+						zap.S().Info("plugin has been loaded")
 					}
 				}
 			}
 			// 移除插件
-			for _, plg := range plgManager.GetAll() {
+			for _, plg := range DefaultManager.GetAll() {
 				if _, ok := cfgs[plg.Name()]; !ok {
 					plg.Shutdown()
-					plgManager.plugins.Delete(plg.Name())
+					DefaultManager.UnRegister(plg.Name())
 					if err := os.RemoveAll(plg.GetWorkingDirectory()); err != nil {
-						// TODO: log here
+						zap.S().Error(err)
 					}
 				}
 			}

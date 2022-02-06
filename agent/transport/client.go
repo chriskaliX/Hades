@@ -56,7 +56,6 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_TransferClient) {
 	defer wg.Done()
 	defer c.CloseSend()
-	trans := core.NewTrans()
 	zap.S().Info("send handler running")
 	interval := time.NewTicker(time.Millisecond * 100)
 	for {
@@ -64,20 +63,19 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 		case <-ctx.Done():
 			return
 		case <-interval.C:
-			trans.Send(c)
+			core.DefaultTrans.Send(c)
 		}
 	}
 }
 
 func handleReceive(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_TransferClient) {
-	trans := core.NewTrans()
 	defer wg.Done()
 	for {
 		select {
 		case <-ctx.Done():
 		// stuck here, may not helpful
 		default:
-			if err := trans.Receive(c); err != nil {
+			if err := core.DefaultTrans.Receive(c); err != nil {
 				return
 			}
 		}
