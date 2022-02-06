@@ -15,8 +15,8 @@ struct _sys_enter_execve
     __u64 unused;
     int syscall_nr;
     const char *filename;
-    const char *const * argv;
-    const char *const * envp;
+    const char *const *argv;
+    const char *const *envp;
 };
 
 struct _sys_enter_execveat
@@ -24,8 +24,8 @@ struct _sys_enter_execveat
     __u64 unused;
     int syscall_nr;
     const char *filename;
-    const char *const * argv;
-    const char *const * envp;
+    const char *const *argv;
+    const char *const *envp;
     int flags;
 };
 
@@ -42,31 +42,31 @@ struct _sys_enter_kill
 {
     __u64 unused;
     pid_t pid;
-    int   sig;
+    int sig;
 };
 
 struct _sys_exit_kill
 {
     __u64 unused;
-    long  ret;
+    long ret;
 };
 
 struct _sys_enter_prctl
 {
     __u64 unused;
     int option;
-	unsigned long arg2;
-	unsigned long arg3;
-	unsigned long arg4;
-	unsigned long arg5;
+    unsigned long arg2;
+    unsigned long arg3;
+    unsigned long arg4;
+    unsigned long arg5;
 };
 
 struct _sys_enter_ptrace
 {
     long request;
-	long pid;
-	unsigned long addr;
-	unsigned long data;
+    long pid;
+    unsigned long addr;
+    unsigned long data;
 };
 
 // TODO: raw_tracepoint
@@ -136,7 +136,6 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     void *stdout = get_fraw_str(1);
     save_str_to_buf(&data, stdout, 4);
     // socket
-    // TODO: Add socket to this
     get_socket_info(&data, 5);
 
     // 新增 pid_tree
@@ -155,8 +154,9 @@ int kprobe_do_exit(struct pt_regs *ctx)
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u32 tgid = pid_tgid >> 32;
     u32 pid = pid_tgid;
-    //TODO: figure - 线程退出
-    if (tgid != pid) {
+    // TODO: figure - 线程退出
+    if (tgid != pid)
+    {
         return 0;
     }
 
@@ -219,7 +219,8 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     // 对应的也就是 /dev/shm/ | /run/shm/
     // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
     // TODO: optimize this function get_path_str
-    if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10)) {
+    if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10))
+    {
         save_str_to_buf(&data, file_path, 0);
         return events_perf_submit(&data);
     }

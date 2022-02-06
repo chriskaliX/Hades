@@ -57,7 +57,7 @@ func SshdConfigJob(ctx context.Context) {
 			}
 			if sshd, err := GetSshdConfig(); err == nil {
 				if data, err := share.Marshal(sshd); err == nil {
-					rawdata := make(map[string]string)
+					rawdata := make(map[string]string, 1)
 					rawdata["data"] = string(data)
 					rec := &plugin.Record{
 						DataType:  3002,

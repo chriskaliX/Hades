@@ -15,14 +15,13 @@ import (
 	"github.com/prometheus/procfs"
 )
 
-const MaxProcess = 5000
-
-var (
-	processPool *sync.Pool
-	statPool    *sync.Pool
+// modify this according to Elkeid
+const (
+	MaxProcess             = 1500
+	ProcessIntervalMillSec = 100
 )
 
-func init() {
+var (
 	processPool = &sync.Pool{
 		New: func() interface{} {
 			return procfs.Proc{}
@@ -33,19 +32,9 @@ func init() {
 			return procfs.ProcStat{}
 		},
 	}
-}
+)
 
 /*
-	获取进程, 这里也得改造一下
-	TODO: 如果是5000个, 内存占用还是不小的, 共享一下对象池做回收
-	另外需要稍微限速一下
-
-	2021-11-24 更新
-	经过大佬指点, 觉得这里获取 AllProcs 是有问题的, 即使是 shuffle 之后取 5000, 也有问题
-	需要有一个平滑一点的方法来获取, 尽量不要在执行的时候有突刺
-	要考虑到有时候进程数量非常多, 例如 宿主机 上
-	干脆重写这一部分 - 周末的时候思考一下, 然后重写
-
 	2021-11-26 更新
 	本来想提一个 issue 或者自己 patch 一下 AllProcs, 感觉太麻烦了先这么写
 */
@@ -76,7 +65,6 @@ func GetProcess() (procs []model.Process, err error) {
 			return
 		}
 		count++
-
 		pid, err := strconv.ParseInt(name, 10, 64)
 		if err != nil {
 			continue
@@ -85,7 +73,6 @@ func GetProcess() (procs []model.Process, err error) {
 		if err != nil {
 			continue
 		}
-
 		proc := model.Process{PID: p.PID}
 		if proc.Exe, err = p.Executable(); err != nil {
 			continue
@@ -127,6 +114,7 @@ func GetProcess() (procs []model.Process, err error) {
 		proc.Username = share.GetUsername(proc.UID)
 		proc.Eusername = share.GetUsername(proc.EUID)
 		procs = append(procs, proc)
+		time.Sleep(time.Duration(ProcessIntervalMillSec) * time.Millisecond)
 	}
 	return
 }

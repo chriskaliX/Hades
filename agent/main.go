@@ -63,7 +63,7 @@ func main() {
 	cfg["collector"] = &proto.Config{
 		Name:    "collector",
 		Version: "1.0.0",
-		Sha256:  "3899dec243d4f4db760d19224055c07a3037d6cbfa6ece9591a437e97831be3f",
+		Sha256:  "87080a4665b8446b64596b9935f7ba5673f459d39e4e9dfa6874baa7a8875fe3",
 	}
 	plugin.DefaultManager.Sync(cfg)
 	wg.Wait()

@@ -11,6 +11,7 @@ import (
 
 /*
 	所有网络操作实现动作, 统一加强鲁棒性
+	后续会抽象到跟目录
 */
 type INetRetry interface {
 	// 网络配置初始化
