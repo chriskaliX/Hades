@@ -31,6 +31,8 @@ var (
 	// Add cpu basic for display
 	CpuNum string
 	CpuMhz string
+	// Add mem information
+	Mem string
 )
 
 // Competely from Elkeid, but something with the IP need to be changed
@@ -41,8 +43,7 @@ func RefreshHost() {
 	privateIPv6 := []string{}
 	publicIPv4 := []string{}
 	publicIPv6 := []string{}
-	interfaces, err := net.Interfaces()
-	if err == nil {
+	if interfaces, err := net.Interfaces(); err == nil {
 		for _, i := range interfaces {
 			if strings.HasPrefix(i.Name, "docker") || strings.HasPrefix(i.Name, "lo") {
 				continue

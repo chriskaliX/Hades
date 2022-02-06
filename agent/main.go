@@ -65,8 +65,7 @@ func main() {
 		Version: "1.0.0",
 		Sha256:  "3899dec243d4f4db760d19224055c07a3037d6cbfa6ece9591a437e97831be3f",
 	}
-	manager := plugin.NewManager()
-	manager.Sync(cfg)
+	plugin.DefaultManager.Sync(cfg)
 	wg.Wait()
 	fmt.Println("agent itself has started")
 }

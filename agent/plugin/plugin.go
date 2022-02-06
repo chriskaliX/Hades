@@ -189,6 +189,7 @@ func (p *Plugin) Receive() {
 				break
 			}
 		}
+		// TODO: upload via `Logger Plugin` here
 		fmt.Println(string(rec.Data))
 	}
 }

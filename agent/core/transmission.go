@@ -6,6 +6,7 @@ import (
 	"agent/host"
 	"agent/plugin"
 	"agent/proto"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,39 +15,38 @@ import (
 )
 
 var (
-	once  sync.Once
-	trans *Trans
+	ErrBufferOverflow = errors.New("buffer overflow")
+	DefaultTrans      = &Trans{
+		buf:        [8208]interface{}{},
+		offset:     0,
+		updateTime: time.Now(),
+	}
 )
 
 type Trans struct {
 	mu         sync.Mutex
-	buf        [8192]interface{}
+	buf        [8208]interface{} // max buffer size 8192 + 16(for important)
 	offset     int
 	txCnt      uint64
 	rxCnt      uint64
 	updateTime time.Time
 }
 
-func NewTrans() *Trans {
-	once.Do(func() {
-		trans = &Trans{
-			buf:        [8192]interface{}{},
-			offset:     0,
-			updateTime: time.Now(),
-		}
-	})
-	return trans
-}
-
-func (t *Trans) Transmission(rec interface{}) (err error) {
+// The `tolerate` in Elkeid, make sure the important data is transported and insert into the front by replacing
+// the Buf[0], which I think is not as good as I want...
+func (t *Trans) Transmission(rec interface{}, importance bool) (err error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.offset < len(t.buf) {
-		t.buf[t.offset] = rec
-		t.offset++
-		return
+		// when buffer is not full(8192)
+		if t.offset < 8192 || importance {
+			t.buf[t.offset] = rec
+			t.offset++
+			return
+		}
 	}
-	// why tolerate
+	// when buffer is full
+	err = ErrBufferOverflow
 	return
 }
 
@@ -126,8 +126,7 @@ func (tr *Trans) Receive(client proto.Transfer_TransferClient) (err error) {
 	}
 	delete(cfgs, agent.Product)
 	// sync Plugin
-	plgmanager := plugin.NewManager()
-	if e := plgmanager.Sync(cfgs); e != nil {
+	if e := plugin.DefaultManager.Sync(cfgs); e != nil {
 		zap.S().Error(err)
 	}
 	return
