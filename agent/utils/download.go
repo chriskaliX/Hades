@@ -15,60 +15,57 @@ import (
 )
 
 func CheckSignature(dst string, sign string) (err error) {
-	var f *os.File
-	f, err = os.Open(dst)
-	if err != nil {
+	var (
+		f         *os.File
+		signBytes []byte
+	)
+	if f, err = os.Open(dst); err != nil {
 		return
 	}
-	var signBytes []byte
-	signBytes, err = hex.DecodeString(sign)
-	if err != nil {
+	defer f.Close()
+
+	if signBytes, err = hex.DecodeString(sign); err != nil {
 		return
 	}
 	hasher := sha256.New()
-	if err == nil {
-		_, err = io.Copy(hasher, f)
-		if err != nil {
-			return
-		}
-		if !bytes.Equal(hasher.Sum(nil), signBytes) {
-			err = errors.New("signature doesn't match")
-			return
-		}
-		f.Chmod(0o0700)
-		f.Close()
+	// @Reference: https://pandaychen.github.io/2020/01/01/MAGIC-GO-IO-PACKAGE/
+	if _, err = io.Copy(hasher, f); err != nil {
+		return
 	}
+	if !bytes.Equal(hasher.Sum(nil), signBytes) {
+		err = errors.New("signature doesn't match")
+		return
+	}
+	// make it executable
+	f.Chmod(0o0700)
 	return
 }
 
+// TODO: io.Copy to file to use minium memory
 func Download(ctx context.Context, dst string, config proto.Config) (err error) {
-	var checksum []byte
-	checksum, err = hex.DecodeString(config.Sha256)
-	if err != nil {
+	var (
+		checksum []byte
+	)
+	// check wheater this already exist
+	// err = CheckSignature(dst, config.Sha256)
+	if checksum, err = hex.DecodeString(config.Sha256); err != nil {
 		return
 	}
 	hasher := sha256.New()
-	var f *os.File
-	f, err = os.Open(dst)
-	if err == nil {
-		_, err = io.Copy(hasher, f)
-		if err == nil && bytes.Equal(hasher.Sum(nil), checksum) {
-			f.Close()
-			return
-		}
-		f.Close()
+	// extra work, but to simplify
+	if err = CheckSignature(dst, config.Sha256); err == nil {
+		return
 	}
+	// in elkeid, `defer` in loop... emmm, not a best practice I think, but nothing wrong
 	for _, rawurl := range config.DownloadUrls {
 		var req *http.Request
 		var resp *http.Response
 		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
 		defer cancel()
-		req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil)
-		if err != nil {
+		if req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil); err != nil {
 			continue
 		}
-		resp, err = http.DefaultClient.Do(req)
-		if err != nil {
+		if resp, err = http.DefaultClient.Do(req); err != nil {
 			continue
 		}
 		if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
@@ -77,8 +74,10 @@ func Download(ctx context.Context, dst string, config proto.Config) (err error) 
 		}
 		defer resp.Body.Close()
 		var buf []byte
-		buf, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
+		// @Notes: ReadAll may not be a best practice, but a dump to mem/file is needed
+		// So, the filesize is limited! Another option is to download and io.Copy to file
+		// @Reference: https://stackoverflow.com/questions/11692860/how-can-i-efficiently-download-a-large-file-using-go
+		if buf, err = ioutil.ReadAll(resp.Body); err != nil {
 			continue
 		}
 		hasher.Reset()
@@ -86,16 +85,15 @@ func Download(ctx context.Context, dst string, config proto.Config) (err error) 
 		if !bytes.Equal(hasher.Sum(nil), checksum) {
 			err = errors.New("checksum doesn't match")
 			continue
-		} else {
-			br := bytes.NewBuffer(buf)
-			switch config.Type {
-			case "tar.gz":
-				err = DecompressTarGz(dst, br)
-			default:
-				err = DecompressDefault(dst, br)
-			}
-			break
 		}
+		br := bytes.NewBuffer(buf)
+		switch config.Type {
+		case "tar.gz":
+			err = DecompressTarGz(dst, br)
+		default:
+			err = DecompressDefault(dst, br)
+		}
+		break
 	}
 	return
 }

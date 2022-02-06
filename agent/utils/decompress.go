@@ -45,12 +45,12 @@ func DecompressTarGz(dst string, r io.Reader) (err error) {
 		// if it's a file create it
 		case tar.TypeReg:
 			var f *os.File
-			f, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(hdr.Mode))
-			if err != nil {
+			if f, err = os.OpenFile(target, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(hdr.Mode)); err != nil {
 				return
 			}
 			// copy over contents
 			if _, err = io.Copy(f, tr); err != nil {
+				f.Close()
 				return err
 			}
 			// manually close here after each file operation; defering would cause each file close
@@ -60,9 +60,9 @@ func DecompressTarGz(dst string, r io.Reader) (err error) {
 	}
 }
 func DecompressDefault(dst string, r io.Reader) (err error) {
+	var f *os.File
 	root := filepath.Dir(dst)
-	err = os.MkdirAll(root, 0o0700)
-	if err != nil {
+	if err = os.MkdirAll(root, 0o0700); err != nil {
 		return
 	}
 	defer func() {
@@ -70,14 +70,13 @@ func DecompressDefault(dst string, r io.Reader) (err error) {
 			os.RemoveAll(root)
 		}
 	}()
-	var f *os.File
-	f, err = os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0700)
-	if err != nil {
+
+	if f, err = os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0700); err != nil {
 		return
 	}
+	defer f.Close()
 	if _, err = io.Copy(f, r); err != nil {
 		return err
 	}
-	f.Close()
 	return
 }
