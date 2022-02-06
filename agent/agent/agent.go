@@ -26,32 +26,32 @@ type Agent struct {
 	product string
 }
 
-func (this Agent) ID() string {
-	return this.id
+func (a Agent) ID() string {
+	return a.id
 }
 
-func (this Agent) Workdir() string {
-	return this.workdir
+func (a Agent) Workdir() string {
+	return a.workdir
 }
 
-func (this Agent) Version() string {
-	return this.version
+func (a Agent) Version() string {
+	return a.version
 }
 
-func (this Agent) Cancel() {
-	this.cancel()
+func (a *Agent) Cancel() {
+	a.cancel()
 }
 
-func (this Agent) Context() context.Context {
-	return this.context
+func (a *Agent) Context() context.Context {
+	return a.context
 }
 
-func (this Agent) Env() string {
-	return this.env
+func (a Agent) Env() string {
+	return a.env
 }
 
-func (this Agent) Product() string {
-	return this.product
+func (a Agent) Product() string {
+	return a.product
 }
 
 func (Agent) fromUUIDFile(file string) (id uuid.UUID, err error) {
@@ -75,10 +75,10 @@ func (Agent) fromIDFile(file string) (id []byte, err error) {
 	return
 }
 
-func (this *Agent) genID() {
+func (a *Agent) genID() {
 	var ok bool
 	// get ID from env, return if exists
-	if this.id, ok = os.LookupEnv(this.env); ok {
+	if a.id, ok = os.LookupEnv(a.env); ok {
 		return
 	}
 	source := []byte{}
@@ -86,37 +86,37 @@ func (this *Agent) genID() {
 	// instance-id is one of the metadata of the cloud-init, but this
 	// may be wrong since 'nocloud' is also considered.
 	// @Reference: https://zhuanlan.zhihu.com/p/27664869
-	isid, err := this.fromIDFile("/var/lib/cloud/data/instance-id")
+	isid, err := a.fromIDFile("/var/lib/cloud/data/instance-id")
 	if err == nil {
 		source = append(source, isid...)
 	}
 	// dmi information
 	// @Reference: https://stackoverflow.com/questions/35883313/dmidecode-product-uuid-and-product-serial-what-is-the-difference/35886893
-	pdid, err := this.fromIDFile("/sys/class/dmi/id/product_uuid")
+	pdid, err := a.fromIDFile("/sys/class/dmi/id/product_uuid")
 	if err == nil {
 		source = append(source, pdid...)
 	}
 	// emac for eth0
-	emac, err := this.fromIDFile("/sys/class/net/eth0/address")
+	emac, err := a.fromIDFile("/sys/class/net/eth0/address")
 	if err == nil {
 		source = append(source, emac...)
 	}
 	if len(source) > 8 {
-		this.id = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
+		a.id = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
 		return
 	}
 
-	mid, err := this.fromUUIDFile("/etc/machine-id")
+	mid, err := a.fromUUIDFile("/etc/machine-id")
 	if err == nil {
-		this.id = mid.String()
+		a.id = mid.String()
 		return
 	}
-	mid, err = this.fromUUIDFile("machine-id")
+	mid, err = a.fromUUIDFile("machine-id")
 	if err == nil {
-		ID = mid.String()
+		a.id = mid.String()
 		return
 	}
-	this.id = uuid.New().String()
+	a.id = uuid.New().String()
 }
 
 func NewAgent() *Agent {
