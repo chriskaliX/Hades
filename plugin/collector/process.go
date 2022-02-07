@@ -24,15 +24,40 @@ const (
 var (
 	processPool = &sync.Pool{
 		New: func() interface{} {
-			return procfs.Proc{}
+			return &procfs.Proc{}
 		},
 	}
 	statPool = &sync.Pool{
 		New: func() interface{} {
-			return procfs.ProcStat{}
+			return &procfs.ProcStat{}
 		},
 	}
 )
+
+// Elkeid impletement still get problem when pid is too much, like 100,000+
+func GetPids(limit int) (pids []int, err error) {
+	// pre allocation
+	pids = make([]int, 0, 100)
+	d, err := os.Open("/proc")
+	if err != nil {
+		return
+	}
+	names, err := d.Readdirnames(limit + 50)
+	if err != nil {
+		return
+	}
+	for _, name := range names {
+		if limit == 0 {
+			return
+		}
+		pid, err := strconv.ParseInt(name, 10, 64)
+		if err == nil {
+			pids = append(pids, int(pid))
+			limit -= 1
+		}
+	}
+	return
+}
 
 /*
 	2021-11-26 更新
@@ -40,36 +65,17 @@ var (
 */
 func GetProcess() (procs []model.Process, err error) {
 	var (
-		sys   procfs.Stat
-		count int
+		sys  procfs.Stat
+		pids []int
 	)
 
-	d, err := os.Open("/proc")
-	if err != nil {
-		return procs, err
-	}
-	defer d.Close()
-	// 这里数字上可能会有一些对不上
-	// 因为 /proc 下可能包含别的文件夹, 如 sys tty 等, 所以我们加大一些, 然后计数
-	names, err := d.Readdirnames(MaxProcess + 20)
+	pids, err = GetPids(MaxProcess)
 	if err != nil {
 		return
 	}
 
-	if sys, err = procfs.NewStat(); err != nil {
-		return
-	}
-
-	for _, name := range names {
-		if count > MaxProcess {
-			return
-		}
-		count++
-		pid, err := strconv.ParseInt(name, 10, 64)
-		if err != nil {
-			continue
-		}
-		p, err := procfs.NewProc(int(pid))
+	for _, pid := range pids {
+		p, err := procfs.NewProc(pid)
 		if err != nil {
 			continue
 		}
@@ -120,30 +126,26 @@ func GetProcess() (procs []model.Process, err error) {
 }
 
 // 获取单个 process 信息
-// 改造一下, 用于补足单个进程的完整信息
-// 这里其实会有一个问题, 频繁创建了, 需要用对象池
-// 2021-11-06, 开始对这里进行优化
-// 函数应该对已有值跳过 TODO 优化
-func GetProcessInfo(pid uint32) (proc model.Process, err error) {
+func GetProcessInfo(pid uint32) (proc *model.Process, err error) {
 	// proc 对象池
-	process := processPool.Get().(procfs.Proc)
+	process := processPool.Get().(*procfs.Proc)
 	defer processPool.Put(process)
 
-	if process, err = procfs.NewProc(int(pid)); err != nil {
+	if *process, err = procfs.NewProc(int(pid)); err != nil {
 		return proc, errors.New("no process found")
 	}
 
 	// 对象池获取
-	proc = model.ProcessPool.Get().(model.Process)
+	proc = model.DefaultProcessPool.Get()
 
 	proc.PID = process.PID
-	proc.NameUidEuid()
+	proc.GetStatus()
 
 	// 改成对象池
-	stat := statPool.Get().(procfs.ProcStat)
+	stat := statPool.Get().(*procfs.ProcStat)
 	defer statPool.Put(stat)
 
-	if stat, err = process.Stat(); err == nil {
+	if *stat, err = process.Stat(); err == nil {
 		proc.PPID = stat.PPID
 		proc.Session = stat.Session
 		proc.TTY = stat.TTY

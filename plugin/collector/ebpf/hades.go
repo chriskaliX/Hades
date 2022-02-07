@@ -137,7 +137,6 @@ func (t *HadesObject) Read() error {
 		if record.LostSamples != 0 {
 			rawdata := make(map[string]string)
 			rawdata["data"] = fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples)
-			// rawdata["time"] = strconv.Itoa(int(global.Time))
 			rawdata["data_type"] = "999"
 			// global.UploadChannel <- rawdata
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
@@ -150,9 +149,7 @@ func (t *HadesObject) Read() error {
 			continue
 		}
 		rawdata := make(map[string]string)
-		// rawdata["data_type"] = "1000"
-		// rawdata["time"] = strconv.Itoa(int(global.Time))
-		process := model.ProcessPool.Get().(model.Process)
+		process := model.DefaultProcessPool.Get()
 		process.Name = formatByte(ctx.Comm[:])
 		process.CgroupId = int(ctx.CgroupId)
 		process.UID = strconv.Itoa(int(ctx.Uid))
@@ -168,10 +165,10 @@ func (t *HadesObject) Read() error {
 		switch int(ctx.Type) {
 		case TRACEPOINT_SYSCALLS_EXECVE:
 			process.Syscall = "execve"
-			parser.Execve(buffers, &process)
+			parser.Execve(buffers, process)
 		case TRACEPOINT_SYSCALLS_EXECVEAT:
 			process.Syscall = "execveat"
-			parser.Execve(buffers, &process)
+			parser.Execve(buffers, process)
 		case KPROBE_DO_EXIT:
 			process.RetVal = int(ctx.RetVal)
 			process.Syscall = "do_exit"
@@ -185,19 +182,19 @@ func (t *HadesObject) Read() error {
 			}
 		case TRACEPOINT_SYSCALLS_PRCTL:
 			process.Syscall = "prtcl"
-			parser.Prctl(buffers, &process)
+			parser.Prctl(buffers, process)
 		case TRACEPOINT_SYSCALLS_PTRACE:
 			process.Syscall = "ptrace"
-			parser.Ptrace(buffers, &process)
+			parser.Ptrace(buffers, process)
 		case 9:
 			process.Syscall = "socket_connect"
-			parser.Net(buffers, &process)
+			parser.Net(buffers, process)
 		case 10:
 			process.Syscall = "socket_bind"
-			parser.Net(buffers, &process)
+			parser.Net(buffers, process)
 		case 11:
 			process.Syscall = "commit_creds"
-			parser.CommitCreds(buffers, &process)
+			parser.CommitCreds(buffers, process)
 		}
 
 		share.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
@@ -217,8 +214,7 @@ func (t *HadesObject) Read() error {
 			}
 			share.Client.SendRecord(rec)
 		}
-		process.Reset()
-		model.ProcessPool.Put(process)
+		model.DefaultProcessPool.Put(process)
 	}
 }
 

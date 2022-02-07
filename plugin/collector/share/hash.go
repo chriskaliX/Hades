@@ -132,8 +132,8 @@ func fileInfo(path string) (FileHash, error) {
 	}
 	defer f.Close()
 	hash := hasherPool.Get().(hash.Hash)
-	defer hash.Reset()
 	defer hasherPool.Put(hash)
+	defer hash.Reset()
 	_, err = io.Copy(hash, f)
 	if err != nil {
 		return fh, err

@@ -62,7 +62,7 @@ func yum() (config map[string]string, err error) {
 			config["sources"] = string(encodedsource)
 		}
 	} else {
-		err = errors.New("Yum config is empty")
+		err = errors.New("yum config is empty")
 	}
 	return
 }
