@@ -2,24 +2,25 @@ package model
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"io"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 )
 
-var ProcessPool *sync.Pool
+var emptyProcess = &Process{}
 
 // process 定期采集的进程, cn_proc/ebpf 采集的进程, 共用这个结构体
 type Process struct {
 	CgroupId        int    `json:"cgroupid,omitempty"`
-	Uts_inum        int    `json:"uts_inum"`
+	Uts_inum        int    `json:"uts_inum,omitempty"`
 	PID             int    `json:"pid"`
 	TID             int    `json:"tid,omitempty"`
 	PPID            int    `json:"ppid"`
 	Name            string `json:"name"`
-	PName           string `json:"pname"`
+	PName           string `json:"pname,omitempty"`
 	Cmdline         string `json:"cmdline"`
 	Exe             string `json:"exe"`
 	Sha256          string `json:"sha256"`
@@ -52,51 +53,67 @@ type Process struct {
 	Cpu    string `json:"cpu,omitempty"`
 }
 
-/*
-	// 优化点 1:
-	// 这里有点问题, 压测了一下观察火焰图, 这里耗时非常高, 占比 Collector 的近 40%, 更改后占 20% 多
-	// 我们跟进去看一下, 是一次性读取之后全部 load 进来, 由于我们只需要获取部分数据
-	// 不需要全部读取, 读取到特定行之后退出即可
-	// status, err := process.NewStatus()
-	// if err == nil {
-	// 	proc.UID = status.UIDs[0]
-	// 	proc.EUID = status.UIDs[1]
-	// 	proc.Name = status.Name
-	// }
-*/
-// 因为我们不需要读取全部信息, 读取到需要的行之后直接退出
-// 用来加速, 不直接创建对象
-func (p *Process) NameUidEuid() {
-	if p == nil {
+// readonly, change to readfile
+func (p *Process) GetStatus() (err error) {
+	var file *os.File
+	if file, err = os.Open("/proc/" + strconv.Itoa(p.PID) + "/status"); err != nil {
 		return
 	}
-	path := "/proc/" + strconv.Itoa(p.PID) + "/status"
-	if file, err := os.Open(path); err == nil {
-		defer file.Close()
-		s := bufio.NewScanner(io.LimitReader(file, 1024*512))
-		for s.Scan() {
-			if strings.HasPrefix(s.Text(), "Name:") {
-				p.Name = strings.Fields(s.Text())[1]
-			} else if strings.HasPrefix(s.Text(), "Uid:") {
-				fields := strings.Fields(s.Text())
-				p.UID = fields[1]
-				p.EUID = fields[2]
-				break
-			}
+	defer file.Close()
+	s := bufio.NewScanner(io.LimitReader(file, 1024*512))
+	for s.Scan() {
+		if strings.HasPrefix(s.Text(), "Name:") {
+			p.Name = strings.Fields(s.Text())[1]
+		} else if strings.HasPrefix(s.Text(), "Uid:") {
+			fields := strings.Fields(s.Text())
+			p.UID = fields[1]
+			p.EUID = fields[2]
+			break
 		}
 	}
+	return
 }
 
-var emptyProcess = &Process{}
+func (p *Process) GetCwd() (err error) {
+	p.Cwd, err = os.Readlink("/proc/" + strconv.Itoa(int(p.PID)) + "/cwd")
+	return
+}
+
+func (p *Process) GetExe() (err error) {
+	p.Cwd, err = os.Readlink("/proc/" + strconv.Itoa(int(p.PID)) + "/exe")
+	return
+}
+
+func (p *Process) GetCmdline() (err error) {
+	var res []byte
+	if res, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/cmdline"); err != nil {
+		return
+	}
+	if len(res) == 0 {
+		return
+	}
+	res = bytes.ReplaceAll(res, []byte{0}, []byte{' '})
+	res = bytes.TrimSpace(res)
+	p.Cmdline = string(res)
+	return
+}
+
+// TODO: unfinished
+func (p *Process) GetStat() (err error) {
+	var stat []byte
+	if stat, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/stat"); err != nil {
+		return
+	}
+	statStr := string(stat)
+	fields := strings.Fields(statStr)
+	// precheck length
+	if len(fields) < 24 {
+		err = errors.New("invalid stat format")
+		return
+	}
+	return
+}
 
 func (p *Process) Reset() {
 	*p = *emptyProcess
-}
-
-func init() {
-	ProcessPool = &sync.Pool{
-		New: func() interface{} {
-			return Process{}
-		},
-	}
 }

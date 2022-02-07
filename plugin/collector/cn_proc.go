@@ -162,14 +162,12 @@ func handleProcEvent(data []byte) {
 		process.Source = "netlink"
 		process.TID = int(event.ProcessTgid)
 		if err != nil {
-			process.Reset()
-			model.ProcessPool.Put(process)
+			model.DefaultProcessPool.Put(process)
 			return
 		}
 		// 白名单校验
-		if share.WhiteListCheck(process) {
-			process.Reset()
-			model.ProcessPool.Put(process)
+		if share.WhiteListCheck(*process) {
+			model.DefaultProcessPool.Put(process)
 			return
 		}
 
@@ -193,8 +191,7 @@ func handleProcEvent(data []byte) {
 			}
 			share.Client.SendRecord(rec)
 		}
-		process.Reset()
-		model.ProcessPool.Put(process)
+		model.DefaultProcessPool.Put(process)
 	// 考虑获取 exit 事件, 用来捕获退出后从 LRU 里面剔除, 减小内存占用
 	// 但是会让 LRU 里面的增多,
 	case network.PROC_EVENT_EXIT:

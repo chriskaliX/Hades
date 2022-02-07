@@ -16,6 +16,12 @@ import (
 	"go.uber.org/zap"
 )
 
+var _platformfamily string
+
+func init() {
+	_, _platformfamily, _, _ = host.PlatformInformation()
+}
+
 // Get and parse SSH log
 func GetSSH(ctx context.Context) {
 	// Redhat or Fedora Core: /var/log/secure
@@ -30,7 +36,7 @@ func GetSSH(ctx context.Context) {
 		fs       os.FileInfo
 	)
 	// choose file by platformfamily
-	switch host.PlatformFamily {
+	switch _platformfamily {
 	case "fedora", "redhat":
 		path = "/var/log/secure"
 	default:
@@ -56,7 +62,8 @@ func GetSSH(ctx context.Context) {
 		case event := <-watcher.Events:
 			switch event.Op {
 			case fsnotify.Write:
-				if fs, err := os.Stat(event.Name); err != nil {
+				fs, err = os.Stat(event.Name)
+				if err != nil {
 					zap.S().Error(err)
 					return
 				}
