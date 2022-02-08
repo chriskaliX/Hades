@@ -158,7 +158,7 @@ func handleProcEvent(data []byte) {
 		binary.Read(buf, network.BYTE_ORDER, event)
 		pid := event.ProcessPid
 
-		process, err := GetProcessInfo(pid)
+		process, err := GetProcessInfo(int(pid))
 		process.Source = "netlink"
 		process.TID = int(event.ProcessTgid)
 		if err != nil {
