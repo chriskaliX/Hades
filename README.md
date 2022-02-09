@@ -89,3 +89,5 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 ## 交流群
 
 <img src="https://github.com/chriskaliX/Hades/blob/main/imgs/feishu.png" width="50%" style="float:left;"/>
+
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/WechatIMG109.jpeg" width="50%" style="float:left;"/>
