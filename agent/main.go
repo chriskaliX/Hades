@@ -1,10 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"agent/agent"
@@ -63,9 +65,20 @@ func main() {
 	cfg["collector"] = &proto.Config{
 		Name:    "collector",
 		Version: "1.0.0",
-		Sha256:  "cb9bf22e0f751087e27f6e64794a9e02c685f0725fd479f74010503d6253e9f5",
+		Sha256:  "4e47d55002c585985a60cc51fe0e62622c065276dfd3db310733b957569d1466",
 	}
 	plugin.DefaultManager.Sync(cfg)
+
+	// https://colobu.com/2015/10/09/Linux-Signals/
+	// SIGTERM 信号: 结束程序(可以被捕获、阻塞或忽略)
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGTERM)
+		sig := <-sigs
+		zap.S().Error("receive signal:", sig.String())
+		zap.S().Info("wait for 5 secs to exit")
+		<-time.After(time.Second * 5)
+		agent.Cancel()
+	}()
 	wg.Wait()
-	fmt.Println("agent itself has started")
 }
