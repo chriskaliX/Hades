@@ -55,9 +55,9 @@ type HadesMaps struct {
 var HadesProgByte []byte
 
 type eventCtx struct {
-	Ts        uint64
+	Ts        uint64 // 8
 	CgroupId  uint64
-	Uts_inum  uint32
+	Uts_inum  uint32 // 4
 	Type      uint32
 	Pid       uint32
 	Tid       uint32
@@ -65,13 +65,14 @@ type eventCtx struct {
 	EUid      uint32
 	Gid       uint32
 	Ppid      uint32
-	Sessionid uint32
+	Sessionid uint32 // padding 4
 	Comm      [16]byte
 	PComm     [16]byte
 	Nodename  [64]byte
 	RetVal    uint64
-	Argnum    uint8
-	_         [11]byte // padding - 结构体修改后要修改 padding
+	Argnum    uint8    // SUM UP = 157, and padding 7
+	_         [11]byte // SUM UP = padding - 结构体修改后要修改 padding
+	// tracee 中关于 align的 issue https://github.com/aquasecurity/tracee/pull/375
 }
 
 // 重写 Init
