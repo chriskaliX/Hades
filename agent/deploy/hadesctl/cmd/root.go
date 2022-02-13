@@ -17,7 +17,12 @@ var cfgFile string
 const (
 	serviceName = "hades-agent"
 	// systemd service file
-	serviceFile = "/etc/elkeid/elkeid-agent.service"
+	serviceFile    = "/etc/hades/hades-agent.service"
+	agentWorkDir   = "/etc/hades/"
+	agentFile      = "/etc/hades/hades-agent"
+	cgroupPath     = "/hades-agent"
+	crontabContent = "* * * * * root /etc/hades/hadesctl check\n"
+	crontabFile    = "/etc/cron.d/hades-agent"
 )
 
 // rootCmd represents the base command when called without any subcommands
