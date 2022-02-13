@@ -8,11 +8,17 @@ require (
 )
 
 require (
+	github.com/containerd/cgroups v1.0.3 // indirect
+	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
+	github.com/docker/go-units v0.4.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/godbus/dbus/v5 v5.0.4 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
+	github.com/opencontainers/runtime-spec v1.0.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
