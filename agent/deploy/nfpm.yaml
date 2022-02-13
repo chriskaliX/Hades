@@ -39,5 +39,6 @@ scripts:
   preremove: ./scripts/postremove.sh
   preinstall: ./scripts/preinstall.sh
   postremove: ./scripts/postremove.sh
-  postremove: ./scripts/postremove.sh
+  postinstall: ./scripts/postinstall.sh
 # overrides:
+# don't understand for -tx thing

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/coreos/go-systemd/daemon"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/load"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -76,5 +77,9 @@ func getAgentStat(now time.Time) {
 	if mem, err := mem.VirtualMemory(); err != nil {
 		rec.Data.Fields["sys_mem"] = strconv.FormatFloat(mem.UsedPercent, 'f', 8, 64)
 	}
+
+	// 看门狗程序, 配合 .service 下做服务探活
+	daemon.SdNotify(false, "WATCHDOG=1")
+
 	core.DefaultTrans.Transmission(rec, false)
 }
