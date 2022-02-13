@@ -47,6 +47,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [ ] Process 的 FDs 和 CPUPercentage 还没看明白, 进行中/nfpm 工程化部署
     - [ ] eBPF user端需要添加 size 大小判断, 另外 execveat 似乎有 bug，本周排查完毕
     - [ ] (20%)work with Elkeid deploy thing, very important and not familiar
+    - [x] 刚刚看了 cgroups 设置, 问题1：为啥 Elkeid 需要 250M mem 而美团的文章里是 50M 左右, 问题2: cgroups 下碰到的 kernel panic 问题是啥.
   - [ ] 腾讯云盾: 在 /usr/local/sa/agent 下, 能看到是 watchdog 守护。根据配置文件也能看出一些, 比如回连 ip 下发文件等, 到时候看一遍配置文件。这个很有意思, 包括一些 bash 脚本都有带注释, 能看出一些大致思路
 - [ ] 完成信息采集部分
   - [x] NCP 信息采集, 补齐进程树信息
