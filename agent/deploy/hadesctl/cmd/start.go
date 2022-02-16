@@ -37,6 +37,7 @@ func sysvinitStart() error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
+	// viper 获取全部变量
 	for k, v := range viper.AllSettings() {
 		cmd.Env = append(cmd.Env, k+"="+v.(string))
 	}
@@ -77,6 +78,7 @@ var startCmd = &cobra.Command{
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cobra.CheckErr(cmd.Run())
+			// sysvinit + crontab
 		} else if viper.GetString("service_type") == "sysvinit" {
 			err := sysvinitStart()
 			cobra.CheckErr(os.WriteFile(crontabFile, []byte(crontabContent), 0600))

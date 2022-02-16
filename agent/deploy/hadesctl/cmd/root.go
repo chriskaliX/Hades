@@ -17,9 +17,13 @@ var cfgFile string
 const (
 	serviceName = "hades-agent"
 	// systemd service file
-	serviceFile    = "/etc/hades/hades-agent.service"
-	agentWorkDir   = "/etc/hades/"
-	agentFile      = "/etc/hades/hades-agent"
+	serviceFile  = "/etc/hades/hades-agent.service"
+	agentWorkDir = "/etc/hades/"
+	agentFile    = "/etc/hades/hades-agent"
+	// pid 文件作用防止进程启动多个副本, 只有获得特定 pid 的写入权限的进程才能正常启动(F_WRLCK)
+	// 在 Elkeid 中在 check 中, 但事实上也没有什么特殊的规则, 只是简单的约定
+	// https://stackoverflow.com/questions/8296170/what-is-a-pid-file-and-what-does-it-contain
+	agentPidFile   = "/var/run/hades-agent.pid"
 	cgroupPath     = "/hades-agent"
 	crontabContent = "* * * * * root /etc/hades/hadesctl check\n"
 	crontabFile    = "/etc/cron.d/hades-agent"
