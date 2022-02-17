@@ -23,7 +23,8 @@ CPUQuota=10%
 Delegate=yes
 # http://www.jinbuguo.com/systemd/systemd.service.html
 # 在代码中必须周期性的调用 WATCHDOG=1, keep-alive ping,  如果两次的周期大于 900s, 则发送 WatchdogSignal= 信号(默认为 SIGABRT)关闭
-WatchdogSec=900
+# 字节 Elkeid 1.7.0.1 中 remove 掉了这个, 不需要 Watchdog。我猜测是因为那个 systemd 的问题
+# WatchdogSec=900
 # config file 问题
 EnvironmentFile=-/etc/hades/specified_env
 [Install]

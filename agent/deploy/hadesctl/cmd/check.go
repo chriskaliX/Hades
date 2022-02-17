@@ -21,10 +21,12 @@ var checkCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if viper.GetString("service_type") == "sysvinit" {
 			file, _ := lockfile.New(agentPidFile)
-			_, err := file.GetOwner()
-			if err != nil {
+			if _, err := file.GetOwner(); err != nil {
 				err := sysvinitStart()
 				cobra.CheckErr(os.WriteFile(crontabFile, []byte(crontabContent), 0600))
+				// https://stackoverflow.com/questions/10193788/restarting-cron-after-changing-crontab-file
+				// 一些场景下不一定能用 reload, 需要强制 restart. 是否会导致 crontab 的一些问题? 例如每天重置, 每天不会触发
+				// maybe some problems with this restart thing.
 				exec.Command("service", "cron", "restart").Run()
 				exec.Command("service", "crond", "restart").Run()
 				cobra.CheckErr(err)
@@ -38,14 +40,4 @@ var checkCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// checkCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// checkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

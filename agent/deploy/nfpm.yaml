@@ -42,3 +42,4 @@ scripts:
   postinstall: ./scripts/postinstall.sh
 # overrides:
 # don't understand for -tx thing
+# 字节在 1.7.0.1 把下面删除了，虽然我当时就没看懂这里是干嘛的...
