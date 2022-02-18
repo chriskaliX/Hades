@@ -63,6 +63,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
   - [ ] bash_history 采集, 弥补 cn_proc 下丢失的问题
   - [ ] jar 包采集(对于这种文件名采集的, 应该参考一下 osquery? 做成通用的)
+    - [ ] jar 包采集和当前 java 进程引入的 jar 包需要思考一下, 扫描 /fd/ 下(字节的方式), 对 fatjar 可能无法采集。需要考虑别的方式?
   - [x] **eBPF 采集进程和外连事件**
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
     - [x] tracepoint sys_enter_connect (完毕)
