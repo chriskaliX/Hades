@@ -42,13 +42,13 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 在读写效率上提高了 16%。由于创建 pipe 的时候默认会创建读写双方向的，为了兼容性还得 Close 掉各一遍的写和读，对于程序终止，用信号量的方式发送 `SIGKILL`
 
 - [x] 参考字节重构在 v1.0.0 branch 下
-  - [ ] (65%) 根据字节 Elkeid v1.7.1 通读源码, Agent 端采用 Plugin 形式 Pipe 通信。由于上传通道不走 server，考虑 agent 和 server 是否需要走 grpc? (OSQUERY心跳回连/ETCD)
+  - [ ] (75%) 根据字节 Elkeid v1.7.1 通读源码, Agent 端采用 Plugin 形式 Pipe 通信。由于上传通道不走 server，考虑 agent 和 server 是否需要走 grpc? (OSQUERY心跳回连/ETCD)
     - [x] Agent 与 Plugin 侧与 Elkeid 相同  
     - [ ] Process 的 FDs 和 CPUPercentage 还没看明白, 进行中/nfpm 工程化部署
     - [ ] eBPF user端需要添加 size 大小判断, 另外 execveat 似乎有 bug，本周排查完毕
     - [ ] (20%)work with Elkeid deploy thing, very important and not familiar
     - [x] 刚刚看了 cgroups 设置, 问题1：为啥 Elkeid 需要 250M mem 而美团的文章里是 50M 左右, 问题2: cgroups 下碰到的 kernel panic 问题是啥.
-    - [x] restart and start thing
+    - [x] ctl 部分看完整理, 最后 nfpm 两个脚本过完就 Over
   - [ ] 腾讯云盾: 在 /usr/local/sa/agent 下, 能看到是 watchdog 守护。根据配置文件也能看出一些, 比如回连 ip 下发文件等, 到时候看一遍配置文件。这个很有意思, 包括一些 bash 脚本都有带注释, 能看出一些大致思路
 - [ ] 完成信息采集部分
   - [x] NCP 信息采集, 补齐进程树信息
