@@ -17,6 +17,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// @TODO: /proc/net/packet
+// https://github.com/osquery/osquery/blob/f9282c0f03d049e0f13670afa2cf8a87f8ddf0cc/osquery/filesystem/linux/proc.cpp
+// osquery中用户态获取socket方式 https://github.com/osquery/osquery/blob/f9282c0f03d049e0f13670afa2cf8a87f8ddf0cc/osquery/tables/networking/linux/process_open_sockets.cpp
+
 var (
 	nlSocketContext     *network.Context
 	nlSocketSingleton   *network.VNetlink
