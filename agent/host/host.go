@@ -36,6 +36,7 @@ var (
 )
 
 // Competely from Elkeid, but something with the IP need to be changed
+// https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/osquery/tables/networking/posix/interfaces.cpp
 func RefreshHost() {
 	hostname, _ := os.Hostname()
 	Hostname.Store(hostname)
