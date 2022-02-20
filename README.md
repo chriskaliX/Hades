@@ -8,10 +8,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 ### Agent
 
-对 Agent 自身的架构设计，开始的时候比较混乱，没有设计好既定目标。在字节的 v1.7 版本 release 后，终于发现和美团之前文章的相似之处了。所有 plugins 抽象出统一的方法，包括新建 plugin，数据交互等。Agent 自身负责的是：
-配置透传，Server 数据交互，插件启动停止，另外数据上传这个地方的实现待定（Agent 中自带上传，还是同样以 plugin 的形式去做）。
-
-> 由于字节的 v1.7 版本已经 release 了，有大规模改动，但是之前读过，我会很快的过一遍
+> Agent 部分基本参照 Elkeid 1.7 部分重构, 部分不合理处自己手工 patch, 后续提交 PR
 
 ![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/agentv1.png)
 
@@ -31,9 +28,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 ## 开发计划
 
-> 按照先后顺序。基本照搬的比较多, 很多东西看完了觉得没必要重写。但是所有搬来的代码都是人工看过的, 有些地方有问题的也反馈给社区, 我用不到的字段也被剔除, 部分优化的地方小范围重写。
-
-我之前的 Agent 的设计耦合太重了，会参照字节的重新设计，预计过年前就开始。从一个 Agent 启动，相当于 Fork 插件的形式，之前逻辑想错了，还以为是独立的插件下发...顺便看了一下 Linux 进程间通信的[方式](https://www.linuxprobe.com/linux-process-method.html)，
+> 从一个 Agent 启动，相当于 Fork 插件的形式，之前逻辑想错了，还以为是独立的插件下发...顺便看了一下 Linux 进程间通信的[方式](https://www.linuxprobe.com/linux-process-method.html)，
 
 翻开尘封已久的 UNIX 环境高级编程 15 章开始阅读...为了兼容性用半双工的，所以需要开启两个 pipe 作为双向读写。最早之间字节采用的方式应该是 socket 方式，找到了 performance 对比如下
 
@@ -41,27 +36,24 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 
 在读写效率上提高了 16%。由于创建 pipe 的时候默认会创建读写双方向的，为了兼容性还得 Close 掉各一遍的写和读，对于程序终止，用信号量的方式发送 `SIGKILL`
 
-- [x] 参考字节重构在 v1.0.0 branch 下
-  - [ ] (75%) 根据字节 Elkeid v1.7.1 通读源码, Agent 端采用 Plugin 形式 Pipe 通信。由于上传通道不走 server，考虑 agent 和 server 是否需要走 grpc? (OSQUERY心跳回连/ETCD)
+- [x] 参考字节Elkeid 1.7重构在 v1.0.0 branch 下
+  - [ ] (80%) 根据字节 Elkeid v1.7.1 通读源码, Agent 端采用 Plugin 形式 Pipe 通信。由于上传通道不走 server，考虑 agent 和 server 是否需要走 grpc? (OSQUERY心跳回连/ETCD)
     - [x] Agent 与 Plugin 侧与 Elkeid 相同  
-    - [ ] Process 的 FDs 和 CPUPercentage 还没看明白, 进行中/nfpm 工程化部署
+    - [x] Elkeid Deploy 部分基本照搬
     - [ ] eBPF user端需要添加 size 大小判断, 另外 execveat 似乎有 bug，本周排查完毕
+    - [ ] iLog插件编写, 先支持 Kafka
     - [ ] (20%)work with Elkeid deploy thing, very important and not familiar
-    - [x] 刚刚看了 cgroups 设置, 问题1：为啥 Elkeid 需要 250M mem 而美团的文章里是 50M 左右, 问题2: cgroups 下碰到的 kernel panic 问题是啥.
-    - [x] ctl 部分看完整理, 最后 nfpm 两个脚本过完就 Over
-  - [ ] 腾讯云盾: 在 /usr/local/sa/agent 下, 能看到是 watchdog 守护。根据配置文件也能看出一些, 比如回连 ip 下发文件等, 到时候看一遍配置文件。这个很有意思, 包括一些 bash 脚本都有带注释, 能看出一些大致思路
-- [ ] 完成信息采集部分
+- [ ] 1. 插件 Collector
   - [x] NCP 信息采集, 补齐进程树信息
   - [x] socket 采集 (LISTEN 状态以及 TCP_ESTABLISHED 状态)
-  - [x] process 采集 (启动阶段以及定期刷新)
-    - [x] process 包采集问题, ~~目前写法 getAll 有问题, 考虑自实现~~ 先用这个方式
-    - [x] sha256sum 部分, 认为字节的实现不够完美, 参考 osquery 先 patch 了一版。已经提交给 Elkeid 开发, 等待回复
+  - [x] process 采集 (启动阶段以及定期刷新/TODO: 注意Elkeid v1.7对exe_hash的变更)
   - [x] yum 包采集
   - [x] crontab 采集
   - [ ] 启动项采集
   - [x] ssh 信息采集 - 配置信息
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
   - [ ] bash_history 采集, 弥补 cn_proc 下丢失的问题
+    - [ ] 除了定时采集, 使用 bpf uprobe hook readline 方式
   - [ ] jar 包采集(对于这种文件名采集的, 应该参考一下 osquery? 做成通用的)
     - [ ] jar 包采集和当前 java 进程引入的 jar 包需要思考一下, 扫描 /fd/ 下(字节的方式), 对 fatjar 可能无法采集。需要考虑别的方式?
   - [x] **eBPF 采集进程和外连事件**
@@ -75,17 +67,13 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
   - [x] ssh 日志采集 - `/var/log/auth.log` | `/var/log/secure`
-- [x] 完成日志部分 (搬字节的, 需要再仔细看一下)
-  - [x] 日志设计
-  - [x] 日志存储 & 配置 & 分割
+- [ ] 2. 插件 Yara 扫描模块
+- [ ] 3. 插件 **蜜罐模式** 
+  这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
+- [ ] 4. 插件 运维 模块插件(系统信息采集, 最后支持)
 - [ ] 完成轮询交互
   - [x] Agent 端 HTTPS 心跳 & 配置检测
   - [ ] Server 端开发 (暂时滞后, 支持集群部署)
-- [ ] 自更新功能(调研)
-- [ ] Yara 扫描模块
-- [ ] **蜜罐模式** | 这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
-  - [ ] 调研
-  - [ ] 本身日志采集的好, 也是一个好蜜罐( SSH 等日志 )
 
 ## 调研
 
