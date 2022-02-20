@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"agent/proto"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -42,22 +41,21 @@ func CheckSignature(dst string, sign string) (err error) {
 }
 
 // TODO: io.Copy to file to use minium memory
-func Download(ctx context.Context, dst string, config proto.Config) (err error) {
+func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
 	var (
 		checksum []byte
 	)
 	// check wheater this already exist
-	// err = CheckSignature(dst, config.Sha256)
-	if checksum, err = hex.DecodeString(config.Sha256); err != nil {
+	if checksum, err = hex.DecodeString(sha256sum); err != nil {
 		return
 	}
 	hasher := sha256.New()
 	// extra work, but to simplify
-	if err = CheckSignature(dst, config.Sha256); err == nil {
+	if err = CheckSignature(dst, sha256sum); err == nil {
 		return
 	}
 	// in elkeid, `defer` in loop... emmm, not a best practice I think, but nothing wrong
-	for _, rawurl := range config.DownloadUrls {
+	for _, rawurl := range urls {
 		var req *http.Request
 		var resp *http.Response
 		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
@@ -87,7 +85,7 @@ func Download(ctx context.Context, dst string, config proto.Config) (err error) 
 			continue
 		}
 		br := bytes.NewBuffer(buf)
-		switch config.Type {
+		switch suffix {
 		case "tar.gz":
 			err = DecompressTarGz(dst, br)
 		default:

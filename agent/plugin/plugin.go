@@ -44,6 +44,7 @@ type Plugin struct {
 	logger *zap.SugaredLogger
 }
 
+// @TODO: StartProcess
 func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) {
 	var (
 		rx_r, rx_w, tx_r, tx_w *os.File
@@ -57,7 +58,7 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		wg:         &sync.WaitGroup{},
 		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
 	}
-	p.workdir = path.Join(agent.WorkingDirectory, "plugin", p.Name())
+	p.workdir = path.Join(agent.DefaultAgent.Workdir(), "plugin", p.Name())
 	// pipe init
 	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
 	// half-duplex pipe.
@@ -77,14 +78,14 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
 	// purge the files
 	os.Remove(path.Join(p.workdir, p.Name()+".stderr"))
-	// os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
+	os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
 	// cmdline
 	execPath := path.Join(p.workdir, p.Name())
 	err = utils.CheckSignature(execPath, config.Signature)
 	if err != nil {
 		p.logger.Warn("check signature failed")
 		p.logger.Info("start download")
-		err = utils.Download(ctx, execPath, config)
+		err = utils.Download(ctx, execPath, config.Sha256, config.DownloadUrls, config.Type)
 		if err != nil {
 			p.logger.Error("download failed:", err)
 			return
@@ -288,7 +289,7 @@ func (p *Plugin) SendTask(task proto.Task) (err error) {
 	select {
 	case p.taskCh <- task:
 	default:
-		err = errors.New("plugin is processing task or context has been cancled")
+		err = errors.New("plugin is processing task or context has been canceled")
 	}
 	return
 }
@@ -297,6 +298,7 @@ func (p *Plugin) GetWorkingDirectory() string {
 	return p.cmd.Dir
 }
 
+// @TODO: go through this
 func readVarint(r io.ByteReader) (int, int, error) {
 	varint := 0
 	eaten := 0

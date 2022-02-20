@@ -69,7 +69,7 @@ func (tr *Trans) Send(client proto.Transfer_TransferClient) (err error) {
 		}
 		err = client.Send(&proto.PackagedData{
 			Records:      nbuf,
-			AgentId:      agent.ID,
+			AgentId:      agent.DefaultAgent.ID(),
 			IntranetIpv4: host.PrivateIPv4.Load().([]string),
 			IntranetIpv6: host.PrivateIPv6.Load().([]string),
 			ExtranetIpv4: host.PublicIPv4.Load().([]string),
@@ -95,6 +95,51 @@ func (tr *Trans) Send(client proto.Transfer_TransferClient) (err error) {
 	return
 }
 
+func (tr *Trans) resolveTask(cmd *proto.Command) error {
+	// Judge whether the Task
+	switch cmd.Task.GetObjectName() {
+	case agent.DefaultAgent.Product():
+		// There are several options for this.
+		// 1. Shutdown
+		// 2. Update(But Elkeid do not in Product)
+		// 3. Set env(considering, not supported not)
+		// 4. Restart
+		switch cmd.Task.DataType {
+		case 1:
+			zap.S().Info("agent shotdown is called")
+			agent.DefaultAgent.Cancel()
+			return nil
+		case 2:
+			// update here
+			// if agent.Version == cmd.Task.Version {
+			// 	return errors.New("agent version not changed.")
+			// }
+			// zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, cmd.Task.Version)
+		default:
+			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
+			return errors.New("Agent DataType not supported")
+		}
+	// send to plugin
+	default:
+		// In future, shutdown, update, restart will be in here
+		if plg, ok := plugin.DefaultManager.Get(cmd.Task.GetObjectName()); ok {
+			if err := plg.SendTask(*cmd.Task); err != nil {
+				zap.S().Error("send task to plugin: ", err)
+				return errors.New("send task to plugin failed")
+			}
+			return nil
+		}
+		zap.S().Error("can't find plugin: ", cmd.Task.GetObjectName())
+		return errors.New("plugin not found")
+	}
+	return nil
+}
+
+// @TODO: finish this when TASK & Configuration split by my way.
+func (tr *Trans) resolveConfig(cmd *proto.Command) error {
+	return nil
+}
+
 func (tr *Trans) Receive(client proto.Transfer_TransferClient) (err error) {
 	cmd, err := client.Recv()
 	if err != nil {
@@ -103,9 +148,9 @@ func (tr *Trans) Receive(client proto.Transfer_TransferClient) (err error) {
 	zap.S().Info("received command")
 	atomic.AddUint64(&tr.rxCnt, 1)
 	// if task is available, handle task
+	// @TODO: In elkeid, return right here
 	if cmd.Task != nil {
-		// agent task
-		// plugin task
+		tr.resolveTask(cmd)
 	}
 	// if configuration available, handle config
 	cfgs := map[string]*proto.Config{}
@@ -118,7 +163,7 @@ func (tr *Trans) Receive(client proto.Transfer_TransferClient) (err error) {
 		err = agent.Update(*cfg)
 		if err == nil {
 			zap.S().Info("update successfully")
-			agent.Cancel()
+			agent.DefaultAgent.Cancel()
 			return
 		} else {
 			zap.S().Error("update failed:", err)

@@ -58,19 +58,21 @@ func main() {
 	wg := &sync.WaitGroup{}
 	// transport to server not added
 	wg.Add(2)
-	go plugin.Startup(agent.Context, wg)
-	go heartbeat.Startup(agent.Context, wg)
+	go plugin.Startup(agent.DefaultAgent.Context(), wg)
+	go heartbeat.Startup(agent.DefaultAgent.Context(), wg)
 	// test
 	cfg := make(map[string]*proto.Config)
 	cfg["collector"] = &proto.Config{
 		Name:    "collector",
 		Version: "1.0.0",
-		Sha256:  "4e47d55002c585985a60cc51fe0e62622c065276dfd3db310733b957569d1466",
+		Sha256:  "265d56ac215cb3c4e710ecc3f968194d1509463f4c5ba14e87c4f201850e10fa",
 	}
 	plugin.DefaultManager.Sync(cfg)
 
 	// https://colobu.com/2015/10/09/Linux-Signals/
 	// SIGTERM 信号: 结束程序(可以被捕获、阻塞或忽略)
+	// https://github.com/osquery/osquery/blob/master/osquery/process/posix/process.cpp
+	// osquery 中也是用这个方式, 作为 gracefulExit 的方式, 应该对 plugin 也如此处理
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGTERM)
@@ -78,7 +80,7 @@ func main() {
 		zap.S().Error("receive signal:", sig.String())
 		zap.S().Info("wait for 5 secs to exit")
 		<-time.After(time.Second * 5)
-		agent.Cancel()
+		agent.DefaultAgent.Cancel()
 	}()
 	wg.Wait()
 }

@@ -59,6 +59,17 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     return 0;
 }
 
+// this is kernel space simple filter, also userspace filter will be supported
+// 0 on false & 1 on true
+static __always_inline int filter(context_t context)
+{
+    // pid filter
+    u8 *equality = bpf_map_lookup_elem(&pid_filter, &context->pid);
+    if (equality != NULL)
+        return 1;
+    return 0;
+}
+
 /* ==== get ==== */
 
 static __always_inline void *get_task_tty_str(struct task_struct *task)

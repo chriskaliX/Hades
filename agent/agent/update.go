@@ -13,7 +13,7 @@ import (
 func Update(config proto.Config) (err error) {
 	dst := path.Join("/tmp", Product+"-updater"+".pkg")
 	// unfinished
-	err = utils.Download(context.Background(), dst, config)
+	err = utils.Download(context.Background(), dst, config.Sha256, config.DownloadUrls, config.Type)
 	if err != nil {
 		return
 	}
