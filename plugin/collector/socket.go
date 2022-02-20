@@ -20,7 +20,10 @@ import (
 // @TODO: /proc/net/packet
 // https://github.com/osquery/osquery/blob/f9282c0f03d049e0f13670afa2cf8a87f8ddf0cc/osquery/filesystem/linux/proc.cpp
 // osquery中用户态获取socket方式 https://github.com/osquery/osquery/blob/f9282c0f03d049e0f13670afa2cf8a87f8ddf0cc/osquery/tables/networking/linux/process_open_sockets.cpp
-
+// 在 osquery issue 1094 中(https://github.com/osquery/osquery/issues/1094) 解释了为什么剔除了用 netlink 获取的方式
+// 大致为 netlink 的方式在 CentOS/RHEL6 不稳定, 经常会 fallback
+// 可以看到之前 readnetlink 他们也有出现 timeout 的情况 https://github.com/osquery/osquery/pull/543
+// 其他相关 issue: https://github.com/osquery/osquery/issues/671
 var (
 	nlSocketContext     *network.Context
 	nlSocketSingleton   *network.VNetlink

@@ -87,13 +87,13 @@ func (Agent) fromIDFile(file string) (id []byte, err error) {
 	return
 }
 
-func (a *Agent) generateID() {
+func (agent *Agent) generateID() {
 	var (
 		ok     bool
 		source []byte
 	)
 	// 1. from env
-	if a.id, ok = os.LookupEnv(a.env); ok {
+	if agent.id, ok = os.LookupEnv(agent.env); ok {
 		return
 	}
 	// 2. from `/var/lib/cloud/data/instance-id` for cloud situation
@@ -101,7 +101,7 @@ func (a *Agent) generateID() {
 	// instance-id is one of the metadata of the cloud-init, but this
 	// may be wrong since 'nocloud' is also considered.
 	// @Reference: https://zhuanlan.zhihu.com/p/27664869
-	if instanceId, err := a.fromIDFile("/var/lib/cloud/data/instance-id"); err == nil {
+	if instanceId, err := agent.fromIDFile("/var/lib/cloud/data/instance-id"); err == nil {
 		source = append(source, instanceId...)
 	}
 	// 3. from `/sys/class/dmi/id/product_uuid`
@@ -109,31 +109,31 @@ func (a *Agent) generateID() {
 	// @Reference: https://stackoverflow.com/questions/35883313/dmidecode-product-uuid-and-product-serial-what-is-the-difference/35886893
 	// 我们可以看到在 osquery 里也有代码读取这个作为 UUID, https://github.com/osquery/osquery/blob/852d87b0eb6718ec527fa8484390cb4ae82b76ae/osquery/core/system.cpp
 	// 如果失效则生成另外的 uuid, this is unchangable
-	if pdid, err := a.fromIDFile("/sys/class/dmi/id/product_uuid"); err == nil {
+	if pdid, err := agent.fromIDFile("/sys/class/dmi/id/product_uuid"); err == nil {
 		source = append(source, pdid...)
 	}
 	// from /sys/class/net/eth0/address
 	// @TODO: Remove this maybe
-	if emac, err := a.fromIDFile("/sys/class/net/eth0/address"); err == nil {
+	if emac, err := agent.fromIDFile("/sys/class/net/eth0/address"); err == nil {
 		source = append(source, emac...)
 	}
 	// since may have "nocloud", over 8 is reasonable
 	if len(source) > 8 {
-		a.id = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
+		agent.id = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
 		return
 	}
 	// get machine-id from the file
-	mid, err := a.fromUUIDFile("/etc/machine-id")
+	mid, err := agent.fromUUIDFile("/etc/machine-id")
 	if err == nil {
-		a.id = mid.String()
+		agent.id = mid.String()
 		return
 	}
-	mid, err = a.fromUUIDFile("machine-id")
+	mid, err = agent.fromUUIDFile("machine-id")
 	if err == nil {
-		a.id = mid.String()
+		agent.id = mid.String()
 		return
 	}
-	a.id = uuid.New().String()
+	agent.id = uuid.New().String()
 }
 
 func init() {
