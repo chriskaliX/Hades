@@ -13,24 +13,29 @@ import (
 	"github.com/chriskaliX/plugin"
 )
 
-// Elkeid 只有 system 级别的 Config, User 级别没有获取...不对, 我看错了
+const (
+	userSshConfig   = ".ssh/config"
+	systemSshConfig = "/etc/ssh/sshd_config"
+)
+
 // 参考 https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/osquery/tables/system/ssh_configs.cpp
 // 在我的机器上还有一个 Include /etc/ssh/sshd_config.d/*.conf
-
 func GetSshdConfig() (config map[string]string, err error) {
-	var f *os.File
-	f, err = os.Open("/etc/ssh/sshd_config")
-	if err != nil {
+	var (
+		file *os.File
+		scan *bufio.Scanner
+	)
+	if file, err = os.Open(systemSshConfig); err != nil {
 		return
 	}
-
-	defer f.Close()
-	config = make(map[string]string)
+	defer file.Close()
+	config = make(map[string]string, 2)
 	config["pubkey_authentication"] = "yes"
 	config["passwd_authentication"] = "yes"
-	s := bufio.NewScanner(io.LimitReader(f, 1024*1024))
-	for s.Scan() {
-		fields := strings.Fields(s.Text())
+	
+	scan = bufio.NewScanner(io.LimitReader(file, 1024*1024))
+	for scan.Scan() {
+		fields := strings.Fields(scan.Text())
 		if len(fields) != 2 {
 			continue
 		}

@@ -10,10 +10,9 @@ import (
 	"strings"
 )
 
-type Utmp struct {
-	Type int16
-	// alignment
-	_      [2]byte
+type utmp struct {
+	Type   int16
+	_      [2]byte // alignment
 	Pid    int32
 	Device [32]byte
 	Id     [4]byte
@@ -28,9 +27,8 @@ type Utmp struct {
 		Sec  int32
 		Usec int32
 	}
-	AddrV6 [16]byte
-	// Reserved member
-	Reserved [20]byte
+	AddrV6   [16]byte
+	Reserved [20]byte // Reserved member
 }
 
 type User struct {
@@ -44,36 +42,43 @@ type User struct {
 	Shell         string `json:"shell"`
 	LastLoginTime uint64 `json:"last_login_time"`
 	LastLoginIP   net.IP `json:"last_login_ip"`
-	WeakPassword  bool   `json:"weak_password"`
 }
 
 func GetUser() (users []User, err error) {
-	userMap := make(map[string]*User, 30)
-	var passwd *os.File
-	passwd, err = os.Open("/etc/passwd")
-	if err != nil {
+	var (
+		passwd  *os.File
+		userMap = make(map[string]*User, 20)
+	)
+	if passwd, err = os.Open("/etc/passwd"); err != nil {
 		return
 	}
 	defer passwd.Close()
+	// basic information
 	passwdScanner := bufio.NewScanner(passwd)
 	for passwdScanner.Scan() {
 		line := passwdScanner.Text()
 		fields := strings.Split(line, ":")
-		u := User{Username: fields[0], Password: fields[1], Info: fields[4], HomeDir: fields[5], Shell: fields[6]}
+		u := User{
+			Username: fields[0],
+			Password: fields[1],
+			Info:     fields[4],
+			HomeDir:  fields[5],
+			Shell:    fields[6],
+		}
 		uid, _ := strconv.ParseUint(fields[2], 10, 32)
 		gid, _ := strconv.ParseUint(fields[3], 10, 32)
 		u.UID = uint32(uid)
 		u.GID = uint32(gid)
-		group, err := user.LookupGroupId(fields[3])
-		if err == nil {
+		if group, err := user.LookupGroupId(fields[3]); err == nil {
 			u.GroupName = group.Name
 		}
 		userMap[fields[0]] = &u
 	}
+	// login thing
 	if wtmp, err := os.Open("/var/log/wtmp"); err == nil {
 		defer wtmp.Close()
 		for {
-			u := Utmp{}
+			u := utmp{}
 			if e := binary.Read(wtmp, binary.LittleEndian, &u); e != nil {
 				break
 			}
@@ -86,6 +91,7 @@ func GetUser() (users []User, err error) {
 			}
 		}
 	}
+	// append all
 	for _, user := range userMap {
 		users = append(users, *user)
 	}
