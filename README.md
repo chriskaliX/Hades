@@ -67,6 +67,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
   - [x] ssh 日志采集 - `/var/log/auth.log` | `/var/log/secure`
+  - [ ] (10%)开始代码 review，全部代码看过标准化
 - [ ] 2. 插件 Yara 扫描模块
 - [ ] 3. 插件 **蜜罐模式** 
   这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
