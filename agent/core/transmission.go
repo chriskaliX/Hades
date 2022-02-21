@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"agent/internal"
+
 	"go.uber.org/zap"
 )
 
@@ -105,16 +107,18 @@ func (tr *Trans) resolveTask(cmd *proto.Command) error {
 		// 3. Set env(considering, not supported not)
 		// 4. Restart
 		switch cmd.Task.DataType {
-		case 1:
+		case internal.TaskAgentShutdown:
 			zap.S().Info("agent shotdown is called")
 			agent.DefaultAgent.Cancel()
 			return nil
-		case 2:
-			// update here
-			// if agent.Version == cmd.Task.Version {
-			// 	return errors.New("agent version not changed.")
-			// }
-			// zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, cmd.Task.Version)
+		case internal.TaskAgentUpdate:
+		// update here
+		// if agent.Version == cmd.Task.Version {
+		// 	return errors.New("agent version not changed.")
+		// }
+		// zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, cmd.Task.Version)
+		case internal.TaskAgentSetenv:
+		case internal.TaskAgentRestart:
 		default:
 			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
 			return errors.New("Agent DataType not supported")

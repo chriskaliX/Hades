@@ -23,14 +23,6 @@ const (
 	yumConfigFileExtension = ".repo"
 )
 
-// 字节的是只取了 baseURL, 不关心其他设置的值
-/*
-	osquery 中的代码为:
-	if ("baseurl" == it2.first || "enabled" == it2.first ||
-		"gpgcheck" == it2.first || "name" == it2.first ||
-		"gpgkey" == it2.first) {
-	其实也可以, 一个取得字段多, 一个少
-*/
 // map 过大?, scanner 已经有一个 Limit, 需要从数量上限制一下
 func yum() (config map[string]string, err error) {
 	config = make(map[string]string)

@@ -11,6 +11,11 @@ import (
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
+	"go.uber.org/zap"
+)
+
+const (
+	MAX_IP = 5
 )
 
 // atomic to make sure the value is sync
@@ -38,14 +43,21 @@ var (
 // Competely from Elkeid, but something with the IP need to be changed
 // https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/osquery/tables/networking/posix/interfaces.cpp
 func RefreshHost() {
-	hostname, _ := os.Hostname()
-	Hostname.Store(hostname)
+	// hostname
+	if hostname, err := os.Hostname(); err == nil {
+		Hostname.Store(hostname)
+	} else {
+		zap.S().Error(err)
+	}
+
+	// ip list
 	privateIPv4 := []string{}
 	privateIPv6 := []string{}
 	publicIPv4 := []string{}
 	publicIPv6 := []string{}
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, i := range interfaces {
+			// skip docker
 			if strings.HasPrefix(i.Name, "docker") || strings.HasPrefix(i.Name, "lo") {
 				continue
 			}
@@ -76,12 +88,13 @@ func RefreshHost() {
 	}
 
 	// truncate the private ip length
-	if len(privateIPv4) > 5 {
-		privateIPv4 = privateIPv4[:5]
+	if len(privateIPv4) > MAX_IP {
+		privateIPv4 = privateIPv4[:MAX_IP]
 	}
-	if len(privateIPv6) > 5 {
-		privateIPv6 = privateIPv6[:5]
+	if len(privateIPv6) > MAX_IP {
+		privateIPv6 = privateIPv6[:MAX_IP]
 	}
+
 	PrivateIPv4.Store(privateIPv4)
 	PublicIPv4.Store(publicIPv4)
 	PrivateIPv6.Store(privateIPv6)

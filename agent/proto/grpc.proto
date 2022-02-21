@@ -44,7 +44,6 @@ message Task {
     string token = 4;
 }
 
-// config for agent itself, 
 message Config {
     string name = 1;
     string type = 2;
