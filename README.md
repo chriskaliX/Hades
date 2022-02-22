@@ -50,7 +50,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
   - [x] yum 包采集
   - [x] crontab 采集
   - [ ] 启动项采集
-  - [x] ssh 信息采集 - 配置信息
+  - [ ] ssh 配置信息采集实现不完整, 有一定纰漏. 根据Osquery 重构实现中(40%)
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
   - [ ] bash_history 采集, 弥补 cn_proc 下丢失的问题
     - [ ] 除了定时采集, 使用 bpf uprobe hook readline 方式
