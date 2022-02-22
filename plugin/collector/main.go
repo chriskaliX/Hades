@@ -13,6 +13,9 @@ func init() {
 // 这里采集的数据, 统一不带上主机基础信息
 // 统一上传结构体然后Marshal上传
 func main() {
+	// 先获取User刷新, 临时代码, 先理清函数
+	GetUser()
+
 	// 上下文控制, 有点不统一, 待会更新
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

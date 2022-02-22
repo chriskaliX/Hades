@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"collector/cache"
 	"encoding/binary"
 	"net"
 	"os"
@@ -31,23 +32,11 @@ type utmp struct {
 	Reserved [20]byte // Reserved member
 }
 
-type User struct {
-	Username      string `json:"username"`
-	Password      string `json:"password"`
-	UID           uint32 `json:"uid"`
-	GID           uint32 `json:"gid"`
-	GroupName     string `json:"group_name"`
-	Info          string `json:"info"`
-	HomeDir       string `json:"home_dir"`
-	Shell         string `json:"shell"`
-	LastLoginTime uint64 `json:"last_login_time"`
-	LastLoginIP   net.IP `json:"last_login_ip"`
-}
-
-func GetUser() (users []User, err error) {
+// get user and update the usercache
+func GetUser() (users []cache.User, err error) {
 	var (
 		passwd  *os.File
-		userMap = make(map[string]*User, 20)
+		userMap = make(map[string]cache.User, 20)
 	)
 	if passwd, err = os.Open("/etc/passwd"); err != nil {
 		return
@@ -58,7 +47,7 @@ func GetUser() (users []User, err error) {
 	for passwdScanner.Scan() {
 		line := passwdScanner.Text()
 		fields := strings.Split(line, ":")
-		u := User{
+		u := cache.User{
 			Username: fields[0],
 			Password: fields[1],
 			Info:     fields[4],
@@ -72,7 +61,7 @@ func GetUser() (users []User, err error) {
 		if group, err := user.LookupGroupId(fields[3]); err == nil {
 			u.GroupName = group.Name
 		}
-		userMap[fields[0]] = &u
+		userMap[fields[0]] = u
 	}
 	// login thing
 	if wtmp, err := os.Open("/var/log/wtmp"); err == nil {
@@ -93,7 +82,8 @@ func GetUser() (users []User, err error) {
 	}
 	// append all
 	for _, user := range userMap {
-		users = append(users, *user)
+		users = append(users, user)
+		cache.DefaultUserCache.Update(&user)
 	}
 	return
 }

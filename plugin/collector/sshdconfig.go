@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"collector/cache"
 	"collector/share"
 	"context"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -32,7 +35,7 @@ func GetSshdConfig() (config map[string]string, err error) {
 	config = make(map[string]string, 2)
 	config["pubkey_authentication"] = "yes"
 	config["passwd_authentication"] = "yes"
-	
+
 	scan = bufio.NewScanner(io.LimitReader(file, 1024*1024))
 	for scan.Scan() {
 		fields := strings.Fields(scan.Text())
@@ -45,6 +48,67 @@ func GetSshdConfig() (config map[string]string, err error) {
 		case "PubkeyAuthentication":
 			config["pubkey_authentication"] = strings.TrimSpace(fields[1])
 		}
+	}
+	return
+}
+
+type SshConfig struct {
+	UID      uint32
+	Username string
+	Filepath string
+}
+
+// Depend on usercache, execute after GetUser
+func getSshConfigPath() (configs map[uint32]string) {
+	users := cache.DefaultUserCache.GetUsers()
+	for _, user := range users {
+		configs[user.UID] = filepath.Join(user.HomeDir, userSshConfig)
+	}
+	return
+}
+
+// unfinished
+func analyzeConfig(fpath string) (config map[string]string, err error) {
+	var (
+		file  *os.File
+		scan  *bufio.Scanner
+		block string
+	)
+	if file, err = os.Open(systemSshConfig); err != nil {
+		return
+	}
+	defer file.Close()
+	config = make(map[string]string, 2)
+	// Default
+	config["pubkey_authentication"] = "yes"
+	config["passwd_authentication"] = "yes"
+	scan = bufio.NewScanner(io.LimitReader(file, 1024*1024))
+	for scan.Scan() {
+		text := strings.TrimSpace(scan.Text())
+		text = strings.ToLower(text)
+		if len(text) == 0 || text[:1] == "#" {
+			continue
+		}
+		// In Elkeid, only PasswordAuthentication & PubkeyAuthentication is added. But in osquery,
+		// all the configurations are added, I think it's better for future usage.
+		// Also, according to https://www.cyberciti.biz/faq/create-ssh-config-file-on-linux-unix/
+		// "=" is also supported, which is ignored in Elkeid. Just a tidy problem, which can be used
+		// in avoiding detection of ssh_config.
+		// Data structure of osquery: https://osquery.io/schema/5.1.0/#ssh_configs
+		if strings.HasPrefix(text, "host ") || strings.HasPrefix(text, "match ") {
+			block = text
+		}
+		fmt.Println(block)
+		// get PasswordAuthentication & PubkeyAuthentication Only
+		// fields := strings.Fields(text)
+		// if len(fields) == 2 {
+		// 	switch strings.TrimSpace(fields[0]) {
+		// 	case "PasswordAuthentication":
+		// 		config["passwd_authentication"] = strings.TrimSpace(fields[1])
+		// 	case "PubkeyAuthentication":
+		// 		config["pubkey_authentication"] = strings.TrimSpace(fields[1])
+		// 	}
+		// }
 	}
 	return
 }
