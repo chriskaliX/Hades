@@ -32,6 +32,9 @@ func main() {
 	// sshd 信息
 	go SshdConfigJob(ctx)
 
+	// sshconfig信息
+	go SshConfigJob(ctx)
+
 	// ssh 登录信息
 	go GetSSH(ctx)
 

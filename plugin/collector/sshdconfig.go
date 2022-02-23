@@ -2,13 +2,11 @@ package main
 
 import (
 	"bufio"
-	"collector/cache"
 	"collector/share"
 	"context"
 	"io"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -55,15 +53,6 @@ func GetSshdConfig() (config map[string]string, err error) {
 				config["pubkey_authentication"] = strings.TrimSpace(fields[1])
 			}
 		}
-	}
-	return
-}
-
-// Depend on usercache, execute after GetUser
-func getSshConfigPath() (configs map[uint32]string) {
-	users := cache.DefaultUserCache.GetUsers()
-	for _, user := range users {
-		configs[user.UID] = filepath.Join(user.HomeDir, userSshConfig)
 	}
 	return
 }
