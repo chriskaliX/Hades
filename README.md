@@ -81,6 +81,14 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 
 > [server 端 - 参考文章](https://programmer.group/grpc-service-discovery-amp-load-balancing.html)
 
+## 长远计划
+
+- [ ] LKM/Rookit
+
+## Other
+
+- [阿里云Rookit检测产品Simple Doc](https://help.aliyun.com/document_detail/194087.html?spm=5176.24320532.content1.3.7389ece6Exy34X)
+
 ## 交流群
 
 <img src="https://github.com/chriskaliX/Hades/blob/main/imgs/feishu.png" width="50%" style="float:left;"/>
