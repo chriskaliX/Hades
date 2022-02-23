@@ -71,3 +71,4 @@
 2022-02-20T11:36:09.416+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
 2022-02-20T11:36:09.668+0800	INFO	plugin/plugin.go:107	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "265d56ac215cb3c4e710ecc3f968194d1509463f4c5ba14e87c4f201850e10fa"}
 2022-02-20T11:36:09.698+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-23T01:09:45.718+0800	ERROR	plugin/plugin.go:188	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "265d56ac215cb3c4e710ecc3f968194d1509463f4c5ba14e87c4f201850e10fa"}
