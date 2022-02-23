@@ -37,7 +37,6 @@ func getSshConfigPath() (configs map[uint32]string) {
 	return
 }
 
-// unfinished
 // Reference: https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/osquery/tables/system/ssh_configs.cpp
 func getSshConfig(uid string, path string) (configs []SshConfig, err error) {
 	var (
@@ -104,22 +103,25 @@ func SshConfigJob(ctx context.Context) {
 				ticker.Reset(time.Hour * 24)
 				init = false
 			}
+			// get user configuration
 			configPath := getSshConfigPath()
 			configs := make([]SshConfig, 0)
 			for uid, path := range configPath {
-				if config, err := getSshConfig(string(uid), path); err == nil {
+				if config, err := getSshConfig(string(rune(uid)), path); err == nil {
 					configs = append(configs, config...)
 				}
 			}
+			// get system configuration
 			if config, err := getSshConfig("0", systemSshConfig); err == nil {
 				configs = append(configs, config...)
 			}
+			// upload
 			if len(configs) > 0 {
 				if data, err := share.Marshal(configs); err == nil {
 					rawdata := make(map[string]string, 1)
 					rawdata["data"] = string(data)
 					rec := &plugin.Record{
-						DataType:  3002,
+						DataType:  3005,
 						Timestamp: time.Now().Unix(),
 						Data: &plugin.Payload{
 							Fields: rawdata,
