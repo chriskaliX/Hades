@@ -42,8 +42,8 @@ type Process struct {
 	Syscall         string `json:"syscall,omitempty"`
 	RetVal          int    `json:"retval"`
 	NodeName        string `json:"nodename"`
-	Stdin           string `json:"stdin"`
-	Stdout          string `json:"stdout"`
+	Stdin           string `json:"stdin,omitempty"`
+	Stdout          string `json:"stdout,omitempty"`
 	LD_Preload      string `json:"ld_preload,omitempty"`
 	LD_Library_Path string `json:"ld_library_path,omitempty"`
 	SSH_connection  string `json:"ssh_connection,omitempty"`

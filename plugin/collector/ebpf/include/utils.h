@@ -64,7 +64,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
 static __always_inline int filter(context_t context)
 {
     // pid filter
-    u8 *equality = bpf_map_lookup_elem(&pid_filter, &context->pid);
+    u8 *equality = bpf_map_lookup_elem(&pid_filter, &context.pid);
     if (equality != NULL)
         return 1;
     return 0;
@@ -84,8 +84,8 @@ static __always_inline void *get_task_tty_str(struct task_struct *task)
         return NULL;
     int size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
     char nothing[] = "-1";
-    if (size <= 1)
-        bpf_probe_read_str(&(string_p->buf[0]), 1, nothing);
+    if (size < 1)
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
     return &string_p->buf[0];
 }
 
@@ -101,7 +101,7 @@ static __always_inline void *get_path_str(struct path *path)
 
     struct mount *mnt_p = real_mount(vfsmnt);
     bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
-
+    // from the middle, to avoid rewrite by this
     u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
     struct dentry *mnt_root;
     struct dentry *d_parent;
@@ -109,12 +109,10 @@ static __always_inline void *get_path_str(struct path *path)
     unsigned int len;
     unsigned int off;
     int sz;
-
-    // Get per-cpu string buffer
+    // get per-cpu string buffer
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
-
 #pragma unroll
     // MAX_PATH_COMPONENTS
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++)
@@ -167,13 +165,19 @@ static __always_inline void *get_path_str(struct path *path)
         }
         dentry = d_parent;
     }
-
+    // no path avaliable.
     if (buf_off == (MAX_PERCPU_BUFSIZE >> 1))
     {
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
         d_name = READ_KERN(dentry->d_name);
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+        // 2022-02-24 added. return "-1" if it's added
+        // int sz = bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+        // if (sz <= 1) {
+        //     char nothing[] = "-1";
+        //     bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
+        // }
     }
     else
     {
@@ -183,7 +187,6 @@ static __always_inline void *get_path_str(struct path *path)
         // Null terminate the path string
         bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1, &zero);
     }
-
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }
@@ -258,15 +261,17 @@ static __always_inline void *get_fraw_str(u64 num)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
-    // review
-    bpf_probe_read_str(&(string_p->buf[0]), 1, nothing);
-    struct file *f = file_get_raw(num);
-    if (!f)
+    bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
+    // get the fd if it exists
+    struct file *_file = file_get_raw(num);
+    // if null read the fd
+    if (!_file)
         return &string_p->buf[0];
-    struct path p = READ_KERN(f->f_path);
+    struct path p = READ_KERN(_file->f_path);
     void *path = get_path_str(GET_FIELD_ADDR(p));
     if (!path)
         return &string_p->buf[0];
+    // Another thing is that the length of path might be 0.
     return path;
 }
 
