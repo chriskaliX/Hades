@@ -66,7 +66,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [ ] 整理 ebpf 初版, 预备 release version
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
-    - [ ] 在 4 月份左右会完成 CO-RE 的兼容, 同时会开始编写配套的 BPF Rootkit(读cfc4n师傅有感, 另外盘古实验室的[文章](https://www.pangulab.cn/post/the_bvp47_a_top-tier_backdoor_of_us_nsa_equation_group/)好像提到了BPF作用于通信隐藏, 猜测是 XDP 预先处理包(还没看过, 4月份继续))
+    - [ ] 在 4 月份左右会完成 CO-RE 的兼容, 同时会开始编写配套的 BPF Rootkit(读cfc4n师傅有感, 另外盘古实验室的[文章](https://www.pangulab.cn/post/the_bvp47_a_top-tier_backdoor_of_us_nsa_equation_group/)好像提到了BPF作用于通信隐藏, 改正：内核版本太低了, 不会是 XDP... 新的任务是稍微看一下Linux网络协议这一块(源码级别)后续会有笔记放开)
   - [x] ssh 日志采集 - `/var/log/auth.log` | `/var/log/secure`
   - [ ] (10%)开始代码 review，全部代码看过标准化
 - [ ] 2. 插件 Yara 扫描模块
