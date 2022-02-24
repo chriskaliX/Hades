@@ -8,6 +8,13 @@ import (
 )
 
 func Execve(buf io.Reader, process *model.Process) (err error) {
+	// debug code here
+	defer func() {
+		fmt.Println(process.Exe)
+		fmt.Println(process.Cwd)
+		fmt.Println(process.TTYName)
+		fmt.Println(process.Stdin)
+	}()
 	if process.Exe, err = ParseStr(buf); err != nil {
 		return
 	}
