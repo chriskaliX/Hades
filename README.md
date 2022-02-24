@@ -45,12 +45,12 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [ ] (20%)work with Elkeid deploy thing, very important and not familiar
 - [ ] 1. 插件 Collector
   - [x] NCP 信息采集, 补齐进程树信息
-  - [x] socket 采集 (LISTEN 状态以及 TCP_ESTABLISHED 状态)
+  - [x] socket 采集
   - [x] process 采集 (启动阶段以及定期刷新/TODO: 注意Elkeid v1.7对exe_hash的变更)
   - [x] yum 包采集
   - [x] crontab 采集
   - [ ] 启动项采集
-  - [ ] ssh 配置信息采集实现不完整, 有一定纰漏. 根据Osquery 重构实现中(40%)
+  - [x] sshd/ssh config collection
   - [ ] pypi 采集 (恶意包, 如 request 包的检测)
   - [ ] bash_history 采集, 弥补 cn_proc 下丢失的问题
     - [ ] 除了定时采集, 使用 bpf uprobe hook readline 方式
