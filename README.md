@@ -63,6 +63,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [ ] eBPF uprobe => openjdk
     - [x] eBPF 进程监控
+    - [ ] socket下完全支持ipv6, 字段丰富EXE完成(跟之前一样, 无lock操作, 可能有读错的问题)
     - [ ] 整理 ebpf 初版, 预备 release version
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
