@@ -40,7 +40,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
   - [ ] (80%) 根据字节 Elkeid v1.7.1 通读源码, Agent 端采用 Plugin 形式 Pipe 通信。由于上传通道不走 server，考虑 agent 和 server 是否需要走 grpc? (OSQUERY心跳回连/ETCD)
     - [x] Agent 与 Plugin 侧与 Elkeid 相同  
     - [x] Elkeid Deploy 部分基本照搬
-    - [ ] eBPF user端需要添加 size 大小判断, 另外 execveat 似乎有 bug，本周排查完毕
+    - [x] ~~execveat 似乎有 bug，本周排查完毕~~ 出现在 runltp 下, 查询 cwd 为 NULL 会导致写入失败, 默认重写入 "-1"
     - [ ] iLog插件编写, 先支持 Kafka
     - [ ] (20%)work with Elkeid deploy thing, very important and not familiar
 - [ ] 1. 插件 Collector
@@ -77,11 +77,9 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
   - [x] Agent 端 HTTPS 心跳 & 配置检测
   - [ ] Server 端开发 (暂时滞后, 支持集群部署)
 
-## 调研
-
-> [server 端 - 参考文章](https://programmer.group/grpc-service-discovery-amp-load-balancing.html)
-
 ## 长远计划
+
+> 另外, 目前不感觉 CO-RE 会是一个很大的问题, 看了下 LKM 下也都需要 linux-kernel-header, 后期 plan 是先按照大部分 kernel version 把 .o 文件编译出来. 放在这里提供下载
 
 - [ ] LKM/Rookit
 
