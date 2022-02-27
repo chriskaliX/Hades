@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// 在同一时间突然流量激增导致丢弃，给一个初始随机值，再reset掉
+// All like in Elkeid
 func SocketJob(ctx context.Context) {
 	init := true
 	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(600)+1))

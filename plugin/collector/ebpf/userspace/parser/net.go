@@ -7,6 +7,7 @@ import (
 	"strconv"
 )
 
+// test, unfinished
 func Net(buf io.Reader, process *cache.Process) (err error) {
 	var (
 		index  uint8
@@ -33,6 +34,9 @@ func Net(buf io.Reader, process *cache.Process) (err error) {
 		}
 		process.RemoteAddr = printUint32IP(addr)
 		if _, err = readByteSliceFromBuff(buf, 8); err != nil {
+			return
+		}
+		if process.Exe, err = ParseStr(buf); err != nil {
 			return
 		}
 	}

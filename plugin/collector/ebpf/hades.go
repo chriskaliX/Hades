@@ -127,6 +127,7 @@ func (t *HadesObject) Read() error {
 
 	for {
 		// read first
+		os.Stderr.WriteString("test" + "\n")
 		if record, err = reader.Read(); err != nil {
 			if errors.Is(err, perf.ErrClosed) {
 				return err
@@ -189,7 +190,10 @@ func (t *HadesObject) Read() error {
 			parser.Ptrace(buffers, process)
 		case 9:
 			process.Syscall = "socket_connect"
-			parser.Net(buffers, process)
+			err = parser.Net(buffers, process)
+			if err != nil {
+				os.Stderr.WriteString(err.Error() + "\n")
+			}
 		case 10:
 			process.Syscall = "socket_bind"
 			parser.Net(buffers, process)
