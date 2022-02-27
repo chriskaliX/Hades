@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -62,10 +65,21 @@ func main() {
 	go heartbeat.Startup(agent.DefaultAgent.Context(), wg)
 	// test
 	cfg := make(map[string]*proto.Config)
+
+	file, err := os.Open("plugin/collector/collector")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+	hash := sha256.New()
+	io.Copy(hash, file)
+	sum := hash.Sum(nil)
+	fmt.Printf("%x\n", sum)
+
 	cfg["collector"] = &proto.Config{
 		Name:    "collector",
 		Version: "1.0.0",
-		Sha256:  "1f3f0fb53207e3305ca4796e561718e01c7b68cfc099614a7f081ea13a70352a",
+		Sha256:  fmt.Sprintf("%x", sum),
 	}
 	plugin.DefaultManager.Sync(cfg)
 

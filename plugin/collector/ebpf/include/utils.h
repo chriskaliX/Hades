@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/fdtable.h>
 #include <utils_buf.h>
+#include <linux/mm_types.h>
 
 // TODO: 后期改成动态的
 /* R3 max value is outside of the array range */
@@ -220,6 +221,15 @@ static __always_inline int get_remote_sockaddr_in_from_network_details(struct so
     return 0;
 }
 
+static __always_inline int get_local_sockaddr_in_from_network_details(struct sockaddr_in *addr, net_conn_v4_t *net_details, u16 family)
+{
+    addr->sin_family = family;
+    addr->sin_port = net_details->local_port;
+    addr->sin_addr.s_addr = net_details->local_address;
+
+    return 0;
+}
+
 static __always_inline struct file *file_get_raw(u64 fd_num)
 {
     // get current task
@@ -320,8 +330,9 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
             if (socket == NULL)
                 continue;
             // check state
+            // in Elkeid v1.7. Only SS_CONNECTING/SS_CONNECTED/SS_DISCONNECTING is considered.
             bpf_probe_read(&state, sizeof(state), &socket->state);
-            if (state <= 1)
+            if (state != SS_CONNECTING && state != SS_CONNECTED && state != SS_DISCONNECTING)
                 continue;
             bpf_probe_read(&sk, sizeof(sk), &socket->sk);
             if (!sk)
@@ -345,6 +356,9 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
 
 // 向上溯源获取 socket 信息, 参考字节 Elkeid & trace 代码
 // 需要做 lru 加速
+// In Elkeid 1.7 later, it changes
+/* only process known states: SS_CONNECTING/SS_CONNECTED/SS_DISCONNECTING,
+    SS_FREE/SS_UNCONNECTED or any possible new states are to be skipped */
 static __always_inline int get_socket_info(event_data_t *data, u8 index)
 {
     struct sockaddr_in remote;
@@ -362,17 +376,14 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
         // 0 for failed...
         if (pid == 1)
             break;
-
         // get files
         struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
         if (files == NULL)
             goto next_task;
-
         // get fdtable
         struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
         if (fdt == NULL)
             goto next_task;
-
         // find out
         flag = get_socket_info_sub(data, fdt, index);
         if (flag == 1)
@@ -386,6 +397,36 @@ exit:
     remote.sin_addr.s_addr = 0;
     save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
     return 0;
+}
+
+// it's somehow interesting in Elkeid code(by the good way). it changes from versions
+// to versions. Firstly, kernel version range from 4.1.0 - 5.15.0, `get_mm_exe_file`
+// is used. internal thing about `rcu` will be introduced in my repo(which I would learn)
+// but in bpf, unfortunately, there is no lock we can operate, and no external function
+// we can use as well. So I assume that we can only get the exe from task_struct by no
+// lock, which may be inaccurate in some situtation.
+static __always_inline void *get_exe_from_task(struct task_struct *task)
+{
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+    char nothing[] = "-1";
+    bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
+
+    struct mm_struct *mm;
+    struct file *_file;
+    bpf_probe_read(&mm, sizeof(mm), &task->mm);
+    if (!mm)
+        return &string_p->buf[0];
+    bpf_probe_read(&_file, sizeof(_file), &mm->exe_file);
+    if (!_file)
+        return &string_p->buf[0];
+    struct path p = READ_KERN(_file->f_path);
+    void *path = get_path_str(GET_FIELD_ADDR(p));
+    if (!path)
+        return &string_p->buf[0];
+    return path;
 }
 
 static __always_inline int init_event_data(event_data_t *data, void *ctx)

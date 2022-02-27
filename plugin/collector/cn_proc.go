@@ -170,7 +170,6 @@ func handleProcEvent(data []byte) {
 			cache.DefaultProcessPool.Put(process)
 			return
 		}
-
 		share.ProcessCmdlineCache.Add(pid, process.Exe)
 		if ppid, ok := share.ProcessCache.Get(pid); ok {
 			process.PPID = int(ppid.(uint32))
@@ -198,7 +197,6 @@ func handleProcEvent(data []byte) {
 	case network.PROC_EVENT_UID:
 	case network.PROC_EVENT_GID:
 	case network.PROC_EVENT_SID:
-
 	// ptrace 事件监听
 	// TODO:
 	case network.PROC_EVENT_PTRACE:

@@ -98,7 +98,6 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    // 2022-02-25, error find here, no buf was inserted here
     ret = save_str_to_buf(&data, file_path, 1);
     if (ret == 0)
     {

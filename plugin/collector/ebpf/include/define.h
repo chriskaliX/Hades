@@ -116,6 +116,16 @@ typedef struct network_connection_v4
     u16 remote_port;
 } net_conn_v4_t;
 
+typedef struct network_connection_v6
+{
+    struct in6_addr local_address;
+    u16 local_port;
+    struct in6_addr remote_address;
+    u16 remote_port;
+    u32 flowinfo;
+    u32 scope_id;
+} net_conn_v6_t;
+
 struct mount
 {
     struct hlist_node mnt_hash;
