@@ -56,7 +56,13 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [ ] 除了定时采集, 使用 bpf uprobe hook readline 方式
   - [ ] jar 包采集(对于这种文件名采集的, 应该参考一下 osquery? 做成通用的)
     - [ ] jar 包采集和当前 java 进程引入的 jar 包需要思考一下, 扫描 /fd/ 下(字节的方式), 对 fatjar 可能无法采集。需要考虑别的方式?
-  - [x] **eBPF 采集进程和外连事件**
+  - [x] ssh 日志采集 - `/var/log/auth.log` | `/var/log/secure`
+  - [ ] (10%)开始代码 review，全部代码看过标准化
+- [ ] 2. 插件 Yara 扫描模块
+- [ ] 3. 插件 **蜜罐模式** 
+  这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
+- [ ] 4. 插件 运维 模块插件(系统信息采集, 最后支持)
+- [ ] 5. Driver 模块 (和 Elkeid 一样, 把 driver 模块提取出来)
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
     - [x] tracepoint sys_enter_connect (完毕)
     - [x] tracepoint hook (done, 但是未测试)
@@ -68,12 +74,6 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
     - [ ] 在 4 月份左右会完成 CO-RE 的兼容, 同时会开始编写配套的 BPF Rootkit(读cfc4n师傅有感, 另外盘古实验室的[文章](https://www.pangulab.cn/post/the_bvp47_a_top-tier_backdoor_of_us_nsa_equation_group/)好像提到了BPF作用于通信隐藏, 改正：内核版本太低了, 不会是 XDP... 新的任务是稍微看一下Linux网络协议这一块(源码级别)后续会有笔记放开)
-  - [x] ssh 日志采集 - `/var/log/auth.log` | `/var/log/secure`
-  - [ ] (10%)开始代码 review，全部代码看过标准化
-- [ ] 2. 插件 Yara 扫描模块
-- [ ] 3. 插件 **蜜罐模式** 
-  这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
-- [ ] 4. 插件 运维 模块插件(系统信息采集, 最后支持)
 - [ ] 完成轮询交互
   - [x] Agent 端 HTTPS 心跳 & 配置检测
   - [ ] Server 端开发 (暂时滞后, 支持集群部署)
