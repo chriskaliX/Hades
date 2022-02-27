@@ -90,3 +90,107 @@
 2022-02-24T19:25:10.316+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
 2022-02-24T19:25:10.365+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "6e7f3c0ff6e72e5e806c082f3675cec58135845c95d2c6d614915ea25fd28276"}
 2022-02-24T19:25:10.366+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-25T15:57:30.648+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "6e7f3c0ff6e72e5e806c082f3675cec58135845c95d2c6d614915ea25fd28276"}
+2022-02-25T16:03:08.527+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-25T16:03:08.568+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "39bce2e0cccb9db8873223640f3b7040f22e8160fc15a9765bed7d79a49b8524"}
+2022-02-25T16:03:08.569+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T08:01:23.083+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T08:01:23.117+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "fcd689cec3f0f20d81e68cb27ce30b07184c2a48cb780dd6c70018fe34ac99be"}
+2022-02-26T08:01:23.118+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T08:09:21.460+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "fcd689cec3f0f20d81e68cb27ce30b07184c2a48cb780dd6c70018fe34ac99be"}
+2022-02-26T08:42:42.699+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T08:42:42.746+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "cbcf267a4043a121b6d95a69ffdab8085d314d4eddc1e977341b1888aa8209a6"}
+2022-02-26T08:42:42.746+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T08:42:54.243+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "cbcf267a4043a121b6d95a69ffdab8085d314d4eddc1e977341b1888aa8209a6"}
+2022-02-26T08:56:07.756+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T08:56:07.816+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "330a6a82bad456ae10bee30c5096687c37ac867d37c429a0e71fe98bea8a647b"}
+2022-02-26T08:56:07.819+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T08:56:14.183+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "330a6a82bad456ae10bee30c5096687c37ac867d37c429a0e71fe98bea8a647b"}
+2022-02-26T09:18:31.816+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:18:31.858+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "d1415d7ff1e901d81ec772fdf07aa60f7880c801e170e75dc58edb8ecc27bc47"}
+2022-02-26T09:18:31.859+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T09:21:44.783+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:21:44.815+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "df8d716fb2ea2d38ed161778fc4f1bceef59614b53228aa1d03fa32634d1575b"}
+2022-02-26T09:21:44.821+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T09:24:38.999+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:24:39.038+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "a4135d2f09bf772a70a9da86954faa831150d5503e83e7745b6c3a628e7dd917"}
+2022-02-26T09:24:39.039+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T09:29:33.484+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:29:33.524+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "df8d716fb2ea2d38ed161778fc4f1bceef59614b53228aa1d03fa32634d1575b"}
+2022-02-26T09:29:33.525+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T09:45:33.765+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:45:33.805+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "ec2f4e8955dab9f76c72f304703123747714e1096747f090de1c1f7bba117ad3"}
+2022-02-26T09:45:33.806+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T09:48:07.031+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "ec2f4e8955dab9f76c72f304703123747714e1096747f090de1c1f7bba117ad3"}
+2022-02-26T09:52:45.987+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:52:46.019+0800	WARN	plugin/plugin.go:86	check signature failed	{"plugin": "collector", "pver": "1.0.0", "psign": "ec2f4e8955dab9f76c72f304703123747714e1096747f090de1c1f7bba117ad3"}
+2022-02-26T09:52:46.019+0800	INFO	plugin/plugin.go:87	start download	{"plugin": "collector", "pver": "1.0.0", "psign": "ec2f4e8955dab9f76c72f304703123747714e1096747f090de1c1f7bba117ad3"}
+2022-02-26T09:52:46.054+0800	ERROR	plugin/plugin.go:90	download failed:signature doesn't match	{"plugin": "collector", "pver": "1.0.0", "psign": "ec2f4e8955dab9f76c72f304703123747714e1096747f090de1c1f7bba117ad3"}
+2022-02-26T09:52:46.054+0800	ERROR	plugin/plugin_linux.go:66	signature doesn't match
+2022-02-26T09:54:13.782+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T09:54:13.820+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "074efde8af68001904df223800caca1a0e4dd580cc0de081ddecb667992e362b"}
+2022-02-26T09:54:13.820+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:04:17.994+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:04:18.035+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "8e6aba88a0e2f43c811ff3b5633f1a0717a810fb974ca5df6d1757e8558ab5bb"}
+2022-02-26T10:04:18.036+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:06:36.210+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:06:36.250+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "396473d51fa3f7c20adb68503492ed4065a8fd765b4ded5375f7470013de14de"}
+2022-02-26T10:06:36.251+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:11:23.587+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "396473d51fa3f7c20adb68503492ed4065a8fd765b4ded5375f7470013de14de"}
+2022-02-26T10:17:40.233+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:17:40.266+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "8e6aba88a0e2f43c811ff3b5633f1a0717a810fb974ca5df6d1757e8558ab5bb"}
+2022-02-26T10:17:40.266+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:20:03.411+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "8e6aba88a0e2f43c811ff3b5633f1a0717a810fb974ca5df6d1757e8558ab5bb"}
+2022-02-26T10:22:12.205+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:22:12.240+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "3737abfc1507f69455d5d6c27b8c7f4dab90ccc1316fefa8c469f08690045e3d"}
+2022-02-26T10:22:12.243+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:22:29.488+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "3737abfc1507f69455d5d6c27b8c7f4dab90ccc1316fefa8c469f08690045e3d"}
+2022-02-26T10:25:28.999+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:25:29.040+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "e97ee3eec52e5e7e6660b747db78ba6238c2597e8798544494ae1539808f3bd5"}
+2022-02-26T10:25:29.045+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:25:39.368+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "e97ee3eec52e5e7e6660b747db78ba6238c2597e8798544494ae1539808f3bd5"}
+2022-02-26T10:28:18.504+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:28:18.533+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "465a0bda7e97668a82fa27998c1fa580c6aa3875f9850a311027f03bc0efc858"}
+2022-02-26T10:28:18.534+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:28:24.887+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "465a0bda7e97668a82fa27998c1fa580c6aa3875f9850a311027f03bc0efc858"}
+2022-02-26T10:31:06.846+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:31:06.902+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "9a3031bf66017424e522391e58875eab97af24801505e854e69fbaa8e2ae74b4"}
+2022-02-26T10:31:06.907+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:31:28.903+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "9a3031bf66017424e522391e58875eab97af24801505e854e69fbaa8e2ae74b4"}
+2022-02-26T10:33:48.885+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:33:48.926+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "858f85ad35ee9990a8928f53d15015c1c3a41c303a90768df4bf4084768dfbb9"}
+2022-02-26T10:33:48.927+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:33:58.687+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "858f85ad35ee9990a8928f53d15015c1c3a41c303a90768df4bf4084768dfbb9"}
+2022-02-26T10:40:43.936+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T10:40:43.977+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "a9bfeffa6a445832f4ad2283caf3c4483662ff485bd3c292c1353a575deb98f3"}
+2022-02-26T10:40:43.979+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T10:40:50.580+0800	ERROR	plugin/plugin.go:189	exit the receive task:read |0: file already closed	{"plugin": "collector", "pver": "1.0.0", "psign": "a9bfeffa6a445832f4ad2283caf3c4483662ff485bd3c292c1353a575deb98f3"}
+2022-02-26T17:22:10.397+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T17:22:10.431+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "1fd7c201d34fa8e58e3b7ff2d84dd41bc437ee75d702d9708e758daa5fcfc1f2"}
+2022-02-26T17:22:10.432+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T17:22:40.111+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "1fd7c201d34fa8e58e3b7ff2d84dd41bc437ee75d702d9708e758daa5fcfc1f2"}
+2022-02-26T17:31:44.648+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T17:31:44.691+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "61fc2ac8c8a1e9c174619c603e6f5bf374a9261d5b9f85674358d60e3b2a5837"}
+2022-02-26T17:31:44.697+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T17:32:16.919+0800	ERROR	plugin/plugin.go:189	exit the receive task:read |0: file already closed	{"plugin": "collector", "pver": "1.0.0", "psign": "61fc2ac8c8a1e9c174619c603e6f5bf374a9261d5b9f85674358d60e3b2a5837"}
+2022-02-26T17:39:54.119+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T17:39:54.161+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "1fd7c201d34fa8e58e3b7ff2d84dd41bc437ee75d702d9708e758daa5fcfc1f2"}
+2022-02-26T17:39:54.162+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T17:40:22.515+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "1fd7c201d34fa8e58e3b7ff2d84dd41bc437ee75d702d9708e758daa5fcfc1f2"}
+2022-02-26T18:27:46.724+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T18:27:46.770+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "da3977fdc0e609130d0c2c53c345841b122b188c829d55ada0a6a4e29e0d3de7"}
+2022-02-26T18:27:46.771+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T18:28:11.115+0800	ERROR	plugin/plugin.go:189	exit the receive task:read |0: file already closed	{"plugin": "collector", "pver": "1.0.0", "psign": "da3977fdc0e609130d0c2c53c345841b122b188c829d55ada0a6a4e29e0d3de7"}
+2022-02-26T18:29:50.037+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T18:29:50.080+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "f6e3c0d3016402724f237d539999b6c220256b9744af20b306e132673be5456f"}
+2022-02-26T18:29:50.080+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T18:29:57.883+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "f6e3c0d3016402724f237d539999b6c220256b9744af20b306e132673be5456f"}
+2022-02-26T18:32:09.799+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T18:32:09.844+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "1f3f0fb53207e3305ca4796e561718e01c7b68cfc099614a7f081ea13a70352a"}
+2022-02-26T18:32:09.845+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-26T18:33:28.295+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-26T18:33:28.333+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "1f3f0fb53207e3305ca4796e561718e01c7b68cfc099614a7f081ea13a70352a"}
+2022-02-26T18:33:28.334+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-27T04:14:10.834+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-27T04:14:10.866+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "1f3f0fb53207e3305ca4796e561718e01c7b68cfc099614a7f081ea13a70352a"}
+2022-02-27T04:14:10.866+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded

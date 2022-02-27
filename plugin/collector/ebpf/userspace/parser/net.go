@@ -1,13 +1,13 @@
 package parser
 
 import (
-	"collector/model"
+	"collector/cache"
 	"encoding/binary"
 	"io"
 	"strconv"
 )
 
-func Net(buf io.Reader, process *model.Process) (err error) {
+func Net(buf io.Reader, process *cache.Process) (err error) {
 	var (
 		index  uint8
 		family int16

@@ -23,6 +23,7 @@ struct _sys_enter_execveat
 {
     __u64 unused;
     int syscall_nr;
+    int fd;
     const char *filename;
     const char *const *argv;
     const char *const *envp;
@@ -87,12 +88,23 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
         return 0;
     data.context.type = 1;
     // filename
-    save_str_to_buf(&data, (void *)ctx->filename, 0);
+    int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 1);
+    }
     // cwd
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    save_str_to_buf(&data, file_path, 1);
+    // 2022-02-25, error find here, no buf was inserted here
+    ret = save_str_to_buf(&data, file_path, 1);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 1);
+    }
     // tty
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
@@ -120,12 +132,23 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
         return 0;
     data.context.type = 2;
     // filename
-    save_str_to_buf(&data, (void *)ctx->filename, 0);
+    int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 1);
+    }
     // cwd
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    save_str_to_buf(&data, file_path, 1);
+    // 2022-02-25, error find here, no buf was inserted here
+    ret = save_str_to_buf(&data, file_path, 1);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 1);
+    }
     // tty
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);

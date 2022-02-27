@@ -1,13 +1,13 @@
 package parser
 
 import (
-	"collector/model"
+	"collector/cache"
 	"encoding/binary"
 	"io"
 )
 
 // TODO: unfinished
-func Prctl(buf io.Reader, process *model.Process) (err error) {
+func Prctl(buf io.Reader, process *cache.Process) (err error) {
 	var (
 		index  uint8
 		option int32

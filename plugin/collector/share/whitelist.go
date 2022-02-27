@@ -1,7 +1,7 @@
 package share
 
 import (
-	"collector/model"
+	"collector/cache"
 	"errors"
 	"reflect"
 	"regexp"
@@ -103,7 +103,7 @@ func (w *WhiteList) Load() error {
 	return nil
 }
 
-func WhiteListCheck(process model.Process) bool {
+func WhiteListCheck(process cache.Process) bool {
 	if _, ok := ExeList.Load(process.Exe); ok {
 		return true
 	}
