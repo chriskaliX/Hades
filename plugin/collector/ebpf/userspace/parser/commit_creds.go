@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"collector/model"
+	"collector/cache"
 	"encoding/binary"
 	"io"
 	"strings"
@@ -25,7 +25,7 @@ type SlimCred struct {
 	CapAmbient     uint64 /* Ambient capability set */
 }
 
-func CommitCreds(buf io.Reader, process *model.Process) error {
+func CommitCreds(buf io.Reader, process *cache.Process) error {
 	var (
 		index uint8
 	)

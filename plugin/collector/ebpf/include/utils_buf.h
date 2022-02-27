@@ -117,10 +117,9 @@ out:
  */
 static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 index)
 {
-    // If we don't have enough space - return
+    // check the buf_off, to satisfy bpf verifier. And save index
     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
         return 0;
-    // Save argument index
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE-1)] = index;
     // Satisfy validator for probe read
     if ((data->buf_off+1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
@@ -135,6 +134,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
             data->buf_off += sz + sizeof(int) + 1;
             data->context.argnum++;
             return 1;
+        // added for nothing, assume that this would never failed.
         }
     }
     return 0;

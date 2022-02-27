@@ -9,7 +9,6 @@ require (
 	github.com/cilium/ebpf v0.8.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/prometheus/procfs v0.7.3
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/vishvananda/netlink v1.1.0
 	go.uber.org/zap v1.20.0

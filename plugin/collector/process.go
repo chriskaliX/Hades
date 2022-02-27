@@ -1,7 +1,7 @@
 package main
 
 import (
-	"collector/model"
+	"collector/cache"
 	"collector/share"
 	"context"
 	"encoding/json"
@@ -46,7 +46,7 @@ func GetPids(limit int) (pids []int, err error) {
 	return
 }
 
-func GetProcess() (procs []*model.Process, err error) {
+func GetProcess() (procs []*cache.Process, err error) {
 	var pids []int
 	pids, err = GetPids(MaxProcess)
 	if err != nil {
@@ -64,9 +64,9 @@ func GetProcess() (procs []*model.Process, err error) {
 }
 
 // 获取单个 process 信息
-func GetProcessInfo(pid int) (proc *model.Process, err error) {
+func GetProcessInfo(pid int) (proc *cache.Process, err error) {
 	// 对象池获取
-	proc = model.DefaultProcessPool.Get()
+	proc = cache.DefaultProcessPool.Get()
 	proc.PID = pid
 	if err = proc.GetStatus(); err != nil {
 		return
@@ -115,7 +115,7 @@ func GetProcessJob() error {
 	}
 	// TODO: proper implement?
 	for _, process := range processes {
-		model.DefaultProcessPool.Put(process)
+		cache.DefaultProcessPool.Put(process)
 	}
 	share.Client.SendRecord(rec)
 	return nil

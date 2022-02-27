@@ -2,6 +2,7 @@ package main
 
 import (
 	"collector/ebpf"
+	// "collector/socket"
 	"context"
 	"runtime"
 )
@@ -24,7 +25,7 @@ func main() {
 	go ProcessUpdateJob(ctx)
 
 	// socket 定期采集
-	go SocketJob(ctx)
+	// go socket.SocketJob(ctx)
 
 	// crontab 信息采集
 	go CronJob(ctx)

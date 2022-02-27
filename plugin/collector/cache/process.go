@@ -1,4 +1,4 @@
-package model
+package cache
 
 import (
 	"bufio"
@@ -8,7 +8,32 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
+
+var DefaultProcessPool = NewPool()
+
+type ProcessPool struct {
+	p *sync.Pool
+}
+
+func NewPool() *ProcessPool {
+	return &ProcessPool{p: &sync.Pool{
+		New: func() interface{} {
+			return &Process{}
+		},
+	}}
+}
+
+func (p ProcessPool) Get() *Process {
+	pr := p.p.Get().(*Process)
+	pr.Reset()
+	return pr
+}
+
+func (p ProcessPool) Put(pr *Process) {
+	p.p.Put(pr)
+}
 
 var emptyProcess = &Process{}
 
@@ -47,12 +72,11 @@ type Process struct {
 	LD_Preload      string `json:"ld_preload,omitempty"`
 	LD_Library_Path string `json:"ld_library_path,omitempty"`
 	SSH_connection  string `json:"ssh_connection,omitempty"`
-	// Only valid when processes ticker collector
-	Utime uint64 `json:"utime,omitempty"`
-	Stime uint64 `json:"stime,omitempty"`
-	Rss   uint64 `json:"resmem,omitempty"`
-	Vsize uint64 `json:"virmem,omitempty"`
-	Cpu   string `json:"cpu,omitempty"`
+	Utime           uint64 `json:"utime,omitempty"`
+	Stime           uint64 `json:"stime,omitempty"`
+	Rss             uint64 `json:"resmem,omitempty"`
+	Vsize           uint64 `json:"virmem,omitempty"`
+	Cpu             string `json:"cpu,omitempty"`
 }
 
 // readonly, change to readfile
@@ -150,4 +174,20 @@ func (p *Process) GetStat() (err error) {
 
 func (p *Process) Reset() {
 	*p = *emptyProcess
+}
+
+func GetFds(pid int) ([]string, error) {
+	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")
+	if err != nil {
+		return nil, err
+	}
+	files := []string{}
+	for _, fd := range fds {
+		file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + fd.Name())
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+	return files, nil
 }

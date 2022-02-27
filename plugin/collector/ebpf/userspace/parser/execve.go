@@ -1,19 +1,27 @@
 package parser
 
 import (
-	"collector/model"
+	"collector/cache"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 )
 
-func Execve(buf io.Reader, process *model.Process) (err error) {
+// 0 -> filename
+// 1 -> cwd
+// 2
+func Execve(buf io.Reader, process *cache.Process) (err error) {
 	// debug code here
 	defer func() {
-		fmt.Println(process.Exe)
-		fmt.Println(process.Cwd)
-		fmt.Println(process.TTYName)
-		fmt.Println(process.Stdin)
+		if err := recover(); err != nil {
+			fmt.Println("捕获异常:", err)
+			os.Stderr.WriteString(process.Exe + "\n")
+			os.Stderr.WriteString(process.Cwd + "\n")
+			os.Stderr.WriteString(process.TTYName + "\n")
+			os.Stderr.WriteString(process.Stdin + "\n")
+			panic("quitting")
+		}
 	}()
 	if process.Exe, err = ParseStr(buf); err != nil {
 		return

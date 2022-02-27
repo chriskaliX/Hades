@@ -2,8 +2,8 @@ package ebpf
 
 import (
 	"bytes"
+	"collector/cache"
 	"collector/ebpf/userspace/parser"
-	"collector/model"
 	"collector/share"
 	"context"
 	_ "embed"
@@ -150,7 +150,7 @@ func (t *HadesObject) Read() error {
 			continue
 		}
 		rawdata := make(map[string]string)
-		process := model.DefaultProcessPool.Get()
+		process := cache.DefaultProcessPool.Get()
 		process.Name = formatByte(ctx.Comm[:])
 		process.CgroupId = int(ctx.CgroupId)
 		process.UID = strconv.Itoa(int(ctx.Uid))
@@ -215,7 +215,7 @@ func (t *HadesObject) Read() error {
 			}
 			share.Client.SendRecord(rec)
 		}
-		model.DefaultProcessPool.Put(process)
+		cache.DefaultProcessPool.Put(process)
 	}
 }
 
