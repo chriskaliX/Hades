@@ -1,11 +1,8 @@
-package datactx
+package cache
 
 import "sync"
 
-var (
-	// A sync pool to reduce allocation.
-	dataContextPool sync.Pool
-)
+var dataContextPool sync.Pool
 
 func init() {
 	dataContextPool.New = func() interface{} {

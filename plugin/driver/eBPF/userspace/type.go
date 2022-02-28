@@ -1,4 +1,4 @@
-package ebpf
+package userspace
 
 const (
 	TRACEPOINT_SYSCALLS_EXECVE   = 1

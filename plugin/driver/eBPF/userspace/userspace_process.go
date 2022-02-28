@@ -1,4 +1,4 @@
-package ebpf
+package userspace
 
 import (
 	"bytes"
@@ -24,11 +24,7 @@ func parseStrArray(buf io.Reader) (strArr []string, err error) {
 	if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
 		return
 	}
-	// strArr = strArrPool.Get().([]string)
 	strArr = make([]string, 0)
-	// defer func() {
-	// 	strArrPool.Put(strArr)
-	// }()
 	var sz uint32
 	// for useful field
 	var dummy uint8

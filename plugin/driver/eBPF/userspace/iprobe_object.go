@@ -1,4 +1,4 @@
-package ebpf
+package userspace
 
 // Object 需要实现的
 type IBPFProbeObject interface {

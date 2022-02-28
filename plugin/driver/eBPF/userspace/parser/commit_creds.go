@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"collector/cache"
 	"encoding/binary"
+	"hades-ebpf/userspace/cache"
 	"io"
 	"strings"
 )

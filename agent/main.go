@@ -81,6 +81,22 @@ func main() {
 		Version: "1.0.0",
 		Sha256:  fmt.Sprintf("%x", sum),
 	}
+
+	file, err = os.Open("plugin/driver/driver")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+	hash = sha256.New()
+	io.Copy(hash, file)
+	sum = hash.Sum(nil)
+	fmt.Printf("%x\n", sum)
+	cfg["driver"] = &proto.Config{
+		Name:    "driver",
+		Version: "1.0.0",
+		Sha256:  fmt.Sprintf("%x", sum),
+	}
+
 	plugin.DefaultManager.Sync(cfg)
 
 	// https://colobu.com/2015/10/09/Linux-Signals/

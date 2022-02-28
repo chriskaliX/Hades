@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"collector/cache"
+	"hades-ebpf/userspace/cache"
 	"encoding/binary"
 	"io"
 )

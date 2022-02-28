@@ -1,15 +1,15 @@
-package ebpf
+package userspace
 
 import (
 	"bytes"
-	"collector/cache"
-	"collector/ebpf/userspace/parser"
-	"collector/share"
 	"context"
 	_ "embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hades-ebpf/userspace/cache"
+	"hades-ebpf/userspace/parser"
+	"hades-ebpf/userspace/share"
 	"io"
 	"os"
 	"strconv"
@@ -51,7 +51,7 @@ type HadesMaps struct {
 }
 
 //TODO: 动态加载
-//go:embed src/hades.o
+//go:embed hades_ebpf_driver.o
 var HadesProgByte []byte
 
 type eventCtx struct {
@@ -127,7 +127,6 @@ func (t *HadesObject) Read() error {
 
 	for {
 		// read first
-		os.Stderr.WriteString("test" + "\n")
 		if record, err = reader.Read(); err != nil {
 			if errors.Is(err, perf.ErrClosed) {
 				return err
@@ -163,7 +162,7 @@ func (t *HadesObject) Read() error {
 		process.PName = formatByte(ctx.PComm[:])
 		process.Uts_inum = int(ctx.Uts_inum)
 		process.EUID = strconv.Itoa(int(ctx.EUid))
-		process.Eusername = share.GetUsername(process.EUID)
+		process.Eusername = cache.GetUsername(process.EUID)
 		switch int(ctx.Type) {
 		case TRACEPOINT_SYSCALLS_EXECVE:
 			process.Syscall = "execve"
@@ -202,10 +201,10 @@ func (t *HadesObject) Read() error {
 			parser.CommitCreds(buffers, process)
 		}
 
-		share.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
-		share.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
+		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
+		cache.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 		process.Sha256, _ = share.GetFileHash(process.Exe)
-		process.Username = share.GetUsername(process.UID)
+		process.Username = cache.GetUsername(process.UID)
 		process.StartTime = uint64(share.Time)
 		data, err := share.Marshal(process)
 		if err == nil {

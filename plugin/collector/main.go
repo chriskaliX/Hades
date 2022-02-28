@@ -1,7 +1,6 @@
 package main
 
 import (
-	"collector/ebpf"
 	"time"
 
 	// "collector/socket"
@@ -48,7 +47,6 @@ func main() {
 	// cn_proc_start()
 	// go ebpf.Tracepoint_execve()
 	// go ebpf.Tracer()
-	go ebpf.Hades()
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "collector.log",

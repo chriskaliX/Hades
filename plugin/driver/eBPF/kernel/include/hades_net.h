@@ -41,6 +41,7 @@
 //     }
 // }
 
+// finished
 SEC("kprobe/security_socket_connect")
 int kprobe_security_socket_connect(struct pt_regs *ctx)
 {
@@ -71,7 +72,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     default:
         break;
     }
-
+    // get exe from task
     void *exe = get_exe_from_task(data.task);
     int ret = save_str_to_buf(&data, exe, 1);
     if (ret == 0)
@@ -112,6 +113,7 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
     default:
         break;
     }
+    // get exe from task_struct
     void *exe = get_exe_from_task(data.task);
     int ret = save_str_to_buf(&data, exe, 1);
     if (ret == 0)

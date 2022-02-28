@@ -99,7 +99,6 @@ static __always_inline void *get_path_str(struct path *path)
     struct dentry *dentry = f_path.dentry;
     struct vfsmount *vfsmnt = f_path.mnt;
     struct mount *mnt_parent_p;
-
     struct mount *mnt_p = real_mount(vfsmnt);
     bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
     // from the middle, to avoid rewrite by this
@@ -143,8 +142,6 @@ static __always_inline void *get_path_str(struct path *path)
         d_name = READ_KERN(dentry->d_name);
         len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
         off = buf_off - len;
-
-        // Is string buffer big enough for dentry name?
         sz = 0;
         if (off <= buf_off)
         { // verify no wrap occurred
@@ -174,11 +171,6 @@ static __always_inline void *get_path_str(struct path *path)
         d_name = READ_KERN(dentry->d_name);
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
         // 2022-02-24 added. return "-1" if it's added
-        // int sz = bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
-        // if (sz <= 1) {
-        //     char nothing[] = "-1";
-        //     bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
-        // }
     }
     else
     {
@@ -188,6 +180,7 @@ static __always_inline void *get_path_str(struct path *path)
         // Null terminate the path string
         bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1, &zero);
     }
+
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }

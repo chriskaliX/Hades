@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"collector/cache"
 	"fmt"
+	"hades-ebpf/userspace/cache"
 	"io"
 	"os"
 	"strings"
