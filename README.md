@@ -68,9 +68,11 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [ ] eBPF uprobe => openjdk
+    - [ ] 面向对象, ebpfmanager review 使用
     - [x] eBPF 进程监控
     - [ ] socket下完全支持ipv6, 字段丰富EXE完成(跟之前一样, 无lock操作, 可能有读错的问题)
     - [ ] 整理 ebpf 初版, 预备 release version
+    - [ ] (20%)code review tracee 函数 get_path_str, 本周完成与 fsprobe 的方式对比以及原理, 更新在 private repo, 到时候写个小文章
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
     - [ ] 在 4 月份左右会完成 CO-RE 的兼容, 同时会开始编写配套的 BPF Rootkit(读cfc4n师傅有感, 另外盘古实验室的[文章](https://www.pangulab.cn/post/the_bvp47_a_top-tier_backdoor_of_us_nsa_equation_group/)好像提到了BPF作用于通信隐藏, 改正：内核版本太低了, 不会是 XDP... 新的任务是稍微看一下Linux网络协议这一块(源码级别)后续会有笔记放开)
