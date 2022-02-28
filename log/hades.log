@@ -261,3 +261,37 @@
 2022-02-27T15:57:27.927+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
 2022-02-27T15:57:28.002+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "aca4a471c56b58b56b3e8cdb9636adaf0a08cbabacd099160eaaea152891462b"}
 2022-02-27T15:57:28.002+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-27T16:22:59.824+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-27T16:22:59.900+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "aca4a471c56b58b56b3e8cdb9636adaf0a08cbabacd099160eaaea152891462b"}
+2022-02-27T16:22:59.901+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T04:48:08.911+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T04:48:08.987+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "aca4a471c56b58b56b3e8cdb9636adaf0a08cbabacd099160eaaea152891462b"}
+2022-02-28T04:48:08.988+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T05:08:07.245+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T05:08:07.321+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "aca4a471c56b58b56b3e8cdb9636adaf0a08cbabacd099160eaaea152891462b"}
+2022-02-28T05:08:07.321+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T05:09:43.012+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T05:09:43.086+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "aca4a471c56b58b56b3e8cdb9636adaf0a08cbabacd099160eaaea152891462b"}
+2022-02-28T05:09:43.087+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T05:18:13.253+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T05:18:13.333+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "aca4a471c56b58b56b3e8cdb9636adaf0a08cbabacd099160eaaea152891462b"}
+2022-02-28T05:18:13.333+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T05:24:33.833+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T05:24:33.909+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "b226ae976fac6a2d2c1ac20c6ce46651fa7b6f044eca68ba08534511ca6b1563"}
+2022-02-28T05:24:33.910+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T05:25:48.139+0800	ERROR	plugin/plugin.go:189	exit the receive task:EOF	{"plugin": "collector", "pver": "1.0.0", "psign": "b226ae976fac6a2d2c1ac20c6ce46651fa7b6f044eca68ba08534511ca6b1563"}
+2022-02-28T05:25:57.544+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T05:25:57.620+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "ec5dcbcfe07c8a4d23a147253089c78cd7a3e5f569d59110cb056685629f8e44"}
+2022-02-28T05:25:57.621+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T08:41:55.346+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T08:41:55.456+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "ec5dcbcfe07c8a4d23a147253089c78cd7a3e5f569d59110cb056685629f8e44"}
+2022-02-28T08:41:55.457+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T08:41:55.457+0800	WARN	plugin/plugin.go:86	check signature failed	{"plugin": "hades-ebpf", "pver": "1.0.0", "psign": "e593051c55bc3ccfaad3cd11b752ae49dc387e677e69b002476276033925bccd"}
+2022-02-28T08:41:55.457+0800	INFO	plugin/plugin.go:87	start download	{"plugin": "hades-ebpf", "pver": "1.0.0", "psign": "e593051c55bc3ccfaad3cd11b752ae49dc387e677e69b002476276033925bccd"}
+2022-02-28T08:41:55.457+0800	ERROR	plugin/plugin.go:90	download failed:open /root/Hades/plugin/hades-ebpf/hades-ebpf: no such file or directory	{"plugin": "hades-ebpf", "pver": "1.0.0", "psign": "e593051c55bc3ccfaad3cd11b752ae49dc387e677e69b002476276033925bccd"}
+2022-02-28T08:41:55.457+0800	ERROR	plugin/plugin_linux.go:66	open /root/Hades/plugin/hades-ebpf/hades-ebpf: no such file or directory
+2022-02-28T08:45:04.663+0800	INFO	heartbeat/heartbeat.go:14	health daemon startup
+2022-02-28T08:45:04.743+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "collector", "pver": "1.0.0", "psign": "085f834af352a6462905707991a8259844661d04b9f88677ab2ca550d8ab9aea"}
+2022-02-28T08:45:04.744+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded
+2022-02-28T08:45:04.785+0800	INFO	plugin/plugin.go:108	cmd start	{"plugin": "driver", "pver": "1.0.0", "psign": "e593051c55bc3ccfaad3cd11b752ae49dc387e677e69b002476276033925bccd"}
+2022-02-28T08:45:04.785+0800	INFO	plugin/plugin_linux.go:68	plugin has been loaded

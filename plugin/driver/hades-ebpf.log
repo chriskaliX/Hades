@@ -1,0 +1,1 @@
+2022-02-28T08:52:56.361+0800	INFO	userspace/hades.go:143	perf event ring buffer full, dropped 3 samples
