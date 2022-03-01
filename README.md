@@ -76,6 +76,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] 目前非 CO-RE, 后续支持
     - [ ] ehids 下有个 JVM Hook 的文章, 2022年3月份内 go through , 最好能实现 rmi 等 hook
     - [ ] 在 4 月份左右会完成 CO-RE 的兼容, 同时会开始编写配套的 BPF Rootkit(读cfc4n师傅有感, 另外盘古实验室的[文章](https://www.pangulab.cn/post/the_bvp47_a_top-tier_backdoor_of_us_nsa_equation_group/)好像提到了BPF作用于通信隐藏, 改正：内核版本太低了, 不会是 XDP... 新的任务是稍微看一下Linux网络协议这一块(源码级别)后续会有笔记放开)
+    - [x] [cd00r.c](https://github.com/ehids/rootkit-sample)这个2000的backdoor稍微看了一下，以及对应的pdf。本质上新颖的地方在于不会暴露端口，libpcap的模式来监听knock, 看起来和 tcpdump 一样, 上述盘古文章里的后门里，这个应该是很小的一环。cd00r.c 是用户态的一个 demo，如果整合进来做成 rootkit 也挺好。
 - [ ] 完成轮询交互
   - [x] Agent 端 HTTPS 心跳 & 配置检测
   - [ ] Server 端开发 (暂时滞后, 支持集群部署)
