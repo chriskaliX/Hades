@@ -182,6 +182,9 @@ static __always_inline u32 *get_buf_off(int buf_idx)
 // mount
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
+    // @Note
+    // #define container_of(ptr, type, member) ({              \ const typeof( ((type *)0)->member ) *__mptr = (ptr);    \ (type *)( (char *)__mptr - offsetof(type,member) );})
+    // 从结构体的一个成员变量地址, 获取到一个结构体的首地址
     return container_of(mnt, struct mount, mnt);
 }
 

@@ -1,1 +1,15 @@
 2022-02-28T08:52:56.361+0800	INFO	userspace/hades.go:143	perf event ring buffer full, dropped 3 samples
+2022-02-28T09:05:01.350+0800	INFO	userspace/hades.go:143	perf event ring buffer full, dropped 5 samples
+2022-02-28T09:25:51.444+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 82 samples
+2022-02-28T09:29:01.517+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 9 samples
+2022-02-28T09:30:01.651+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 9 samples
+2022-02-28T09:52:01.401+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 9 samples
+2022-02-28T09:54:01.674+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 3 samples
+2022-02-28T14:51:01.974+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 9 samples
+2022-03-01T03:30:01.580+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 3 samples
+2022-03-01T03:45:01.690+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 9 samples
+2022-03-01T04:00:01.791+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 9 samples
+2022-03-02T14:20:01.227+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 54 samples
+2022-03-02T14:30:01.389+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 15 samples
+2022-03-02T14:30:41.398+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 31 samples
+2022-03-02T14:30:41.414+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 66 samples

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"hades-ebpf/userspace/cache"
 	"io"
-	"strings"
 )
 
 type SlimCred struct {
@@ -49,11 +48,9 @@ func CommitCreds(buf io.Reader, process *cache.Process) error {
 	}
 
 	var err error
-	pid_tree := make([]string, 0)
-	if pid_tree, err = ParsePidTree(buf); err != nil {
+	if process.PidTree, err = ParsePidTree(buf); err != nil {
 		return err
 	}
-	process.PidTree = strings.Join(pid_tree, "<")
 
 	return nil
 }
