@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"hades-ebpf/userspace/helper"
 	"io"
 	"net"
 	"strconv"
@@ -12,8 +13,10 @@ import (
 
 const MAX_STRING_LEN = 256
 
-var bufPool *sync.Pool
-var strArrPool *sync.Pool
+var (
+	bufPool    *sync.Pool
+	strArrPool *sync.Pool
+)
 
 func parseStrArray(buf io.Reader) (strArr []string, err error) {
 	var index uint8
@@ -32,15 +35,12 @@ func parseStrArray(buf io.Reader) (strArr []string, err error) {
 		if err = binary.Read(buf, binary.LittleEndian, &sz); err != nil {
 			break
 		}
-		// res := bufPool.Get().(*bytes.Buffer)
 		res := make([]byte, sz-1)
 		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
-			// bufPool.Put(res)
 			break
 		}
-		strArr = append(strArr, string(res))
+		strArr = append(strArr, helper.ZeroCopyString(res))
 		binary.Read(buf, binary.LittleEndian, &dummy)
-		// bufPool.Put(res)
 	}
 	return
 }
@@ -69,7 +69,7 @@ func parsePidTree(buf io.Reader) (strArr []string, err error) {
 		if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
 			break
 		}
-		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(res))
+		strArr = append(strArr, strconv.Itoa(int(pid))+"."+helper.ZeroCopyString(res))
 		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
 	return
@@ -84,14 +84,11 @@ func parseStr(buf io.Reader) (str string, err error) {
 	if err = binary.Read(buf, binary.LittleEndian, &strsize); err != nil {
 		return
 	}
-	// res := bufPool.Get().(*bytes.Buffer)
 	res := make([]byte, strsize-1)
 	if err = binary.Read(buf, binary.LittleEndian, res); err != nil {
-		// bufPool.Put(res)
 		return
 	}
-	str = string(res)
-	// bufPool.Put(res)
+	str = helper.ZeroCopyString(res)
 	var dummy int8
 	binary.Read(buf, binary.LittleEndian, &dummy)
 	return

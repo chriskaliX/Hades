@@ -90,6 +90,8 @@ static __always_inline void *get_task_tty_str(struct task_struct *task)
     return &string_p->buf[0];
 }
 
+// source code: __prepend_path
+// http://blog.sina.com.cn/s/blog_5219094a0100calt.html
 static __always_inline void *get_path_str(struct path *path)
 {
     struct path f_path;
@@ -99,7 +101,7 @@ static __always_inline void *get_path_str(struct path *path)
     struct dentry *dentry = f_path.dentry;
     struct vfsmount *vfsmnt = f_path.mnt;
     struct mount *mnt_parent_p;
-    struct mount *mnt_p = real_mount(vfsmnt);
+    struct mount *mnt_p = real_mount(vfsmnt); // get mount by vfsmnt
     bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
     // from the middle, to avoid rewrite by this
     u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
@@ -114,27 +116,31 @@ static __always_inline void *get_path_str(struct path *path)
     if (string_p == NULL)
         return NULL;
 #pragma unroll
-    // MAX_PATH_COMPONENTS
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++)
     {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
+        // 1. dentry == d_parent means we reach the dentry root
+        // 2. dentry == mnt_root means we reach the mount root, they share the same dentry
         if (dentry == mnt_root || dentry == d_parent)
         {
+            // We reached root, but not mount root - escaped?
             if (dentry != mnt_root)
             {
-                // We reached root, but not mount root - escaped?
                 break;
             }
+            // dentry == mnt_root, but the mnt has not reach it's root
+            // so update the dentry as the mnt_mountpoint(in order to continue the dentry loop for the mountpoint)
+            // We reached root, but not global root - continue with mount point path
             if (mnt_p != mnt_parent_p)
             {
-                // We reached root, but not global root - continue with mount point path
                 bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt_p->mnt_mountpoint);
                 bpf_probe_read(&mnt_p, sizeof(struct mount *), &mnt_p->mnt_parent);
                 bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
                 vfsmnt = &mnt_p->mnt;
                 continue;
             }
+            // dentry == mnt_root && mnt_p == mnt_parent_p, real root for all
             // Global root - path fully parsed
             break;
         }

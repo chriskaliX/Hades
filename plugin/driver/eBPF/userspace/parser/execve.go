@@ -4,25 +4,10 @@ import (
 	"fmt"
 	"hades-ebpf/userspace/cache"
 	"io"
-	"os"
 	"strings"
 )
 
-// 0 -> filename
-// 1 -> cwd
-// 2
 func Execve(buf io.Reader, process *cache.Process) (err error) {
-	// debug code here
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println("捕获异常:", err)
-			os.Stderr.WriteString(process.Exe + "\n")
-			os.Stderr.WriteString(process.Cwd + "\n")
-			os.Stderr.WriteString(process.TTYName + "\n")
-			os.Stderr.WriteString(process.Stdin + "\n")
-			panic("quitting")
-		}
-	}()
 	if process.Exe, err = ParseStr(buf); err != nil {
 		return
 	}
@@ -41,21 +26,17 @@ func Execve(buf io.Reader, process *cache.Process) (err error) {
 	if process.RemotePort, process.RemoteAddr, err = ParseRemoteAddr(buf); err != nil {
 		return
 	}
-	// pid_tree
-	pid_tree := make([]string, 0)
-	if pid_tree, err = ParsePidTree(buf); err != nil {
+	if process.PidTree, err = ParsePidTree(buf); err != nil {
 		return
 	}
-	process.PidTree = strings.Join(pid_tree, "<")
 	// 开始读 argv
 	argsArr, err := ParseStrArray(buf)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	// defer strArrPool.Put(argsArr)
 	process.Cmdline = strings.Join(argsArr, " ")
-	var envs []string
+	envs := make([]string, 0, 3)
 	// 开始读 envs
 	if envs, err = ParseStrArray(buf); err != nil {
 		return

@@ -8,12 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"hades-ebpf/userspace/cache"
+	"hades-ebpf/userspace/helper"
 	"hades-ebpf/userspace/parser"
 	"hades-ebpf/userspace/share"
-	"io"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/chriskaliX/plugin"
 	"github.com/cilium/ebpf"
@@ -54,27 +53,6 @@ type HadesMaps struct {
 //go:embed hades_ebpf_driver.o
 var HadesProgByte []byte
 
-type eventCtx struct {
-	Ts        uint64 // 8
-	CgroupId  uint64
-	Uts_inum  uint32 // 4
-	Type      uint32
-	Pid       uint32
-	Tid       uint32
-	Uid       uint32
-	EUid      uint32
-	Gid       uint32
-	Ppid      uint32
-	Sessionid uint32 // padding 4
-	Comm      [16]byte
-	PComm     [16]byte
-	Nodename  [64]byte
-	RetVal    uint64
-	Argnum    uint8    // SUM UP = 157, and padding 7
-	_         [11]byte // SUM UP = padding - 结构体修改后要修改 padding
-	// tracee 中关于 align的 issue https://github.com/aquasecurity/tracee/pull/375
-}
-
 // 重写 Init
 func (t *HadesProbe) Init(ctx context.Context) error {
 	t.EBPFProbe.Init(ctx)
@@ -110,21 +88,22 @@ func (t *HadesObject) AttachProbe() error {
 }
 
 // 现在这里的代码都是 demo, 目标是先跑起来, 所以实现上不优雅
+// @issue1: binary.Read use reflect
 func (t *HadesObject) Read() error {
 	var (
 		reader  *perf.Reader
 		err     error
-		ctx     eventCtx
+		dataCtx cache.DataContext
 		record  perf.Record
 		buffers *bytes.Buffer
 	)
-
 	if reader, err = perf.NewReader(t.HadesMaps.Perfevents, 4*os.Getpagesize()); err != nil {
 		zap.S().Error(err.Error())
 		return err
 	}
 	defer reader.Close()
 
+	// start to consume the eBPF msg
 	for {
 		// read first
 		if record, err = reader.Read(); err != nil {
@@ -139,31 +118,33 @@ func (t *HadesObject) Read() error {
 			rawdata := make(map[string]string)
 			rawdata["data"] = fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples)
 			rawdata["data_type"] = "999"
-			// global.UploadChannel <- rawdata
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
 			continue
 		}
+
 		buffers = bytes.NewBuffer(record.RawSample)
-		// 先消费 context_t
-		if err := binary.Read(buffers, binary.LittleEndian, &ctx); err != nil {
+		// consume data context firstly
+		if err := binary.Read(buffers, binary.LittleEndian, &dataCtx); err != nil {
 			zap.S().Error(err.Error())
 			continue
 		}
-		rawdata := make(map[string]string)
+
+		rawdata := make(map[string]string, 1)
 		process := cache.DefaultProcessPool.Get()
-		process.Name = formatByte(ctx.Comm[:])
-		process.CgroupId = int(ctx.CgroupId)
-		process.UID = strconv.Itoa(int(ctx.Uid))
-		process.PID = int(ctx.Pid)
-		process.PPID = int(ctx.Ppid)
-		process.NodeName = formatByte(ctx.Nodename[:])
-		process.TID = int(ctx.Tid)
+		process.CgroupId = dataCtx.CgroupId
+		process.UID = strconv.Itoa(int(dataCtx.Uid))
+		process.PID = dataCtx.Pid
+		process.PPID = dataCtx.Ppid
+		process.TID = dataCtx.Tid
 		process.Source = "ebpf"
-		process.PName = formatByte(ctx.PComm[:])
-		process.Uts_inum = int(ctx.Uts_inum)
-		process.EUID = strconv.Itoa(int(ctx.EUid))
+		process.Uts_inum = dataCtx.Uts_inum
+		process.EUID = strconv.Itoa(int(dataCtx.EUid))
 		process.Eusername = cache.GetUsername(process.EUID)
-		switch int(ctx.Type) {
+		process.NodeName = formatByte(dataCtx.Nodename[:])
+		process.Name = formatByte(dataCtx.Comm[:])
+		process.PName = formatByte(dataCtx.PComm[:])
+
+		switch dataCtx.Type {
 		case TRACEPOINT_SYSCALLS_EXECVE:
 			process.Syscall = "execve"
 			parser.Execve(buffers, process)
@@ -171,10 +152,10 @@ func (t *HadesObject) Read() error {
 			process.Syscall = "execveat"
 			parser.Execve(buffers, process)
 		case KPROBE_DO_EXIT:
-			process.RetVal = int(ctx.RetVal)
+			process.RetVal = dataCtx.RetVal
 			process.Syscall = "do_exit"
 		case KPROBE_EXIT_GROUP:
-			process.RetVal = int(ctx.RetVal)
+			process.RetVal = dataCtx.RetVal
 			process.Syscall = "exit_group"
 		case KRPOBE_SECURITY_BPRM_CHECK:
 			process.Syscall = "security_bprm_check"
@@ -208,7 +189,7 @@ func (t *HadesObject) Read() error {
 		process.StartTime = uint64(share.Time)
 		data, err := share.Marshal(process)
 		if err == nil {
-			rawdata["data"] = string(data)
+			rawdata["data"] = helper.ZeroCopyString(data)
 			rec := &plugin.Record{
 				DataType:  1000,
 				Timestamp: int64(share.Time),
@@ -232,53 +213,5 @@ func (t *HadesObject) Close() error {
 }
 
 func formatByte(b []byte) string {
-	return string(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
-}
-
-func parseExecve_(buf io.Reader) (file, args, pids, cwd, tty, stdin, stout, remote_port, remote_addr string, envs []string, err error) {
-	// files
-	if file, err = parser.ParseStr(buf); err != nil {
-		return
-	}
-
-	if cwd, err = parser.ParseStr(buf); err != nil {
-		return
-	}
-
-	if tty, err = parser.ParseStr(buf); err != nil {
-		return
-	}
-
-	if stdin, err = parser.ParseStr(buf); err != nil {
-		return
-	}
-
-	if stout, err = parser.ParseStr(buf); err != nil {
-		return
-	}
-
-	if remote_port, remote_addr, err = parseRemoteAddr(buf); err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// pid_tree
-	pid_tree := make([]string, 0)
-	if pid_tree, err = parser.ParsePidTree(buf); err != nil {
-		return
-	}
-	pids = strings.Join(pid_tree, "<")
-	// 开始读 argv
-	argsArr, err := parser.ParseStrArray(buf)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	// defer strArrPool.Put(argsArr)
-	args = strings.Join(argsArr, " ")
-	// 开始读 envs
-	if envs, err = parser.ParseStrArray(buf); err != nil {
-		return
-	}
-	return
+	return helper.ZeroCopyString(bytes.ReplaceAll((bytes.Trim(b[:], "\x00")), []byte("\x00"), []byte(" ")))
 }

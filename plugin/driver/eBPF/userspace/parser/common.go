@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 
 	"go.uber.org/zap/buffer"
 )
@@ -58,11 +59,10 @@ func ParseStrArray(buf io.Reader) (strArr []string, err error) {
 	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
 		return
 	}
-
 	if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
 		return
 	}
-	strArr = make([]string, 0)
+	strArr = make([]string, 0, 2)
 	for i := 0; i < int(size); i++ {
 		if err = binary.Read(buf, binary.LittleEndian, &sz); err != nil {
 			break
@@ -76,7 +76,7 @@ func ParseStrArray(buf io.Reader) (strArr []string, err error) {
 	return
 }
 
-func ParsePidTree(buf io.Reader) (strArr []string, err error) {
+func ParsePidTree(buf io.Reader) (pidtree string, err error) {
 	var (
 		index uint8
 		size  uint8
@@ -90,7 +90,7 @@ func ParsePidTree(buf io.Reader) (strArr []string, err error) {
 	if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
 		return
 	}
-	strArr = make([]string, 0)
+	strArr := make([]string, 0, 8)
 	for i := 0; i < int(size); i++ {
 		if err = binary.Read(buf, binary.LittleEndian, &pid); err != nil {
 			break
@@ -103,10 +103,11 @@ func ParsePidTree(buf io.Reader) (strArr []string, err error) {
 			buffer.Free()
 			return
 		}
-		strArr = append(strArr, strconv.Itoa(int(pid))+"."+string(buffer.Bytes()[:sz-1]))
+		strArr = append(strArr, strconv.FormatUint(uint64(pid), 10)+"."+string(buffer.Bytes()[:sz-1]))
 		buffer.Free()
 		binary.Read(buf, binary.LittleEndian, &dummy)
 	}
+	pidtree = strings.Join(strArr, "<")
 	return
 }
 
@@ -128,9 +129,8 @@ func ParseRemoteAddr(buf io.Reader) (sin_port, sin_addr string, err error) {
 	if err != nil {
 		return
 	}
-	sin_port = strconv.Itoa(int(port))
-	err = binary.Read(buf, binary.BigEndian, &addr)
-	if err != nil {
+	sin_port = strconv.FormatUint(uint64(port), 10)
+	if err = binary.Read(buf, binary.BigEndian, &addr); err != nil {
 		return
 	}
 
