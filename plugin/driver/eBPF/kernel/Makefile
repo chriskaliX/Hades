@@ -30,10 +30,11 @@ SUCC_COLOR = \033[32m[+]\033[0m
 FAIL_COLOR = \033[31m[-]\033[0m
 
 all:
-	@echo "| ------------------------ |"
-	@echo "| Hades eBPF Kernel Driver |"
-	@echo "|  based on Tracee/Elkeid  |"
-	@echo "| -----------------------  |"
+	@echo "| ---------------------------- |"
+	@echo "|   \033[35mHades\033[0m eBPF Kernel Driver   |"
+	@echo "|    based on Tracee/Elkeid    |"
+	@echo "|         @chriskaliX          |"
+	@echo "| ---------------------------- |"
 
 	@printf "$(INFO_COLOR) Start to build hades_ebpf_driver\n"
 

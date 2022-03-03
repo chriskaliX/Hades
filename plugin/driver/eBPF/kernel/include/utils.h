@@ -364,10 +364,8 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL)
         goto exit;
-
     u32 pid;
     int flag;
-
 #pragma unroll
     for (int i = 0; i < 4; i++)
     {
