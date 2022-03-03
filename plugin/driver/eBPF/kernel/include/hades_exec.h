@@ -290,8 +290,10 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
         // arg2 are the newname
         save_to_submit_buf(&data, (void *)&ctx->arg2, sizeof(unsigned long), 1);
         events_perf_submit(&data);
+        break;
         // in Elkeid, a comparison with newname & current->comm(noticing for the '\0' here).
     case PR_SET_MM:
+        break;
     }
     return 0;
 }
