@@ -1,6 +1,7 @@
 #include <linux/sched.h>
 #include <linux/binfmts.h>
 #include <linux/kconfig.h>
+#include <linux/prctl.h>
 #include <uapi/linux/ptrace.h>
 
 #include "utils_buf.h"
@@ -168,7 +169,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 }
 
 /* exit hooks */
-// 日志量很大...开启的必要性是...
+// 日志量很大...开启的必要性是... 默认第一版本不开启吧
 // reference of exit & exit_group: https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
 SEC("kprobe/do_exit")
 int kprobe_do_exit(struct pt_regs *ctx)
@@ -191,6 +192,7 @@ int kprobe_do_exit(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
+// 默认不开启
 SEC("kprobe/sys_exit_group")
 int kprobe_sys_exit_group(struct pt_regs *ctx)
 {
@@ -217,6 +219,7 @@ int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
     bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
     return 0;
 }
+
 /* lsm bprm: unfinished - 看的tracee, 上次看了又忘记了... */
 // https://blog.aquasec.com/ebpf-container-tracing-malware-detection
 // 这个主要检测 dynamic code execution, 如果不捕获 payload, 是否能只做简单匹配
@@ -249,10 +252,15 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     return 0;
 }
 
-// @Kernel Source Code: CAP标志位 https://github.com/torvalds/linux/blob/7c636d4d20f8c5acfbfbc60f326fddb0e1cf5daa/include/uapi/linux/capability.h
-// @Reference: https://blog.51cto.com/u_2559640/2365794
-// @Notes: 可能有用的：CAP_SETGID/CAP_SETUID/CAP_SYS_MODULE/CAP_SYS_PTRACE/CAP_BPF
 // Prctl(CAP)/Ptrace(SYS_ENTER) 操作/注入进程
+// @2022-03-02: in Elkeid, only PR_SET_NAME is collected, in function "prctl_pre_handler".
+// using PR_SET_NAME to set name for a process or thread. prctl is the function that we
+// used for change(or get?) the attribute of threads. But the options are too much. And
+// a blog was found: http://www.leveryd.top/2021-12-26-%E5%A6%82%E4%BD%95%E4%BC%AA%E8%A3%85%E8%BF%9B%E7%A8%8B%E4%BF%A1%E6%81%AF/
+// and https://stackoverflow.com/questions/57749629/manipulating-process-name-and-arguments-by-way-of-argv
+// as far as I consider, "PR_SET_MM" may should also be added.
+// TODO: By the way, PR_SET_SECCOMP/PR_SET_SECUREBITS/PR_SET_MM all should be reviewed.
+// Under DEV!!!
 SEC("tracepoint/syscalls/sys_enter_prctl")
 int sys_enter_prctl(struct _sys_enter_prctl *ctx)
 {
@@ -260,12 +268,31 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = 6;
-    // 读 option, 类型?
+    // read the option firstly
+    int option;
+    bpf_probe_read(&option, sizeof(option), &ctx->option);
+    if (option != PR_SET_NAME && option != PR_SET_MM)
+        return 0;
+    // save the option
     save_to_submit_buf(&data, &ctx->option, sizeof(int), 0);
-    char *name = NULL;
-    save_to_submit_buf(&data, &ctx->arg2, sizeof(unsigned long), 1);
-    save_str_to_buf(&data, name, 1);
-    events_perf_submit(&data);
+    // add exe in this
+    void *exe = get_exe_from_task(data.task);
+    int ret = save_str_to_buf(&data, exe, 1);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 1);
+    }
+    // add switcher
+    switch (option)
+    {
+    case PR_SET_NAME:
+        // arg2 are the newname
+        save_to_submit_buf(&data, (void *)&ctx->arg2, sizeof(unsigned long), 1);
+        events_perf_submit(&data);
+        // in Elkeid, a comparison with newname & current->comm(noticing for the '\0' here).
+    case PR_SET_MM:
+    }
     return 0;
 }
 
