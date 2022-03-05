@@ -72,6 +72,9 @@ type Process struct {
 	Rss             uint64 `json:"resmem,omitempty"`
 	Vsize           uint64 `json:"virmem,omitempty"`
 	Cpu             string `json:"cpu,omitempty"`
+	Prctl_Option    int32  `json:"prctl_option,omitempty"`
+	Prctl_Newname   string `json:"prctl_newname,omitempty"` //just for test,
+	Prctl_Flag      uint32 `json:"prctl_flag,omitempty"`
 }
 
 func (p *Process) GetCwd() (err error) {
