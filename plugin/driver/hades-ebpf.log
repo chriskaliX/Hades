@@ -15,3 +15,9 @@
 2022-03-02T14:30:41.414+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 66 samples
 2022-03-03T03:10:01.501+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 3 samples
 2022-03-03T03:10:01.513+0800	INFO	userspace/hades.go:122	perf event ring buffer full, dropped 8 samples
+2022-03-05T00:00:01.458+0800	INFO	userspace/hades.go:118	perf event ring buffer full, dropped 14 samples
+2022-03-05T00:00:04.119+0800	INFO	userspace/hades.go:118	perf event ring buffer full, dropped 83 samples
+2022-03-05T13:46:57.089+0800	ERROR	userspace/iprobe.go:57	field TracepointPrctl: unknown program kprobe_prctl
+2022-03-05T13:46:57.089+0800	ERROR	userspace/ebpf.go:28	field TracepointPrctl: unknown program kprobe_prctl
+2022-03-05T13:50:03.443+0800	ERROR	userspace/iprobe.go:57	field TracepointPrctl: unknown program sys_enter_prctl
+2022-03-05T13:50:03.443+0800	ERROR	userspace/ebpf.go:28	field TracepointPrctl: unknown program sys_enter_prctl

@@ -49,7 +49,6 @@ type HadesMaps struct {
 	Perfevents *ebpf.Map `ebpf:"exec_events"`
 }
 
-//TODO: 动态加载
 //go:embed hades_ebpf_driver.o
 var HadesProgByte []byte
 
@@ -72,10 +71,8 @@ func (t *HadesObject) AttachProbe() error {
 	execveLink, err := link.Tracepoint("syscalls", "sys_enter_execve", t.HadesProgs.TracepointExecve)
 	execveatLink, err := link.Tracepoint("syscalls", "sys_enter_execveat", t.HadesProgs.TracepointExecveat)
 	TracePointSchedProcessFork, err := link.Tracepoint("sched", "sched_process_fork", t.HadesProgs.TracePointSchedProcessFork)
-	// KprobeDoExit, err := link.Kprobe("do_exit", t.HadesProgs.KprobeDoExit)
-	// KprobeSysExitGroup, err := link.Kprobe("sys_exit_group", t.HadesProgs.KprobeSysExitGroup)
 	KprobeSecurityBprmCheck, err := link.Kprobe("security_bprm_check", t.HadesProgs.KprobeSecurityBprmCheck)
-	PrtclLink, err := link.Tracepoint("syscalls", "sys_enter_prctl", t.HadesProgs.TracepointPrctl)
+	PrctlLink, err := link.Tracepoint("syscalls", "sys_enter_prctl", t.HadesProgs.TracepointPrctl)
 	PtraceLink, err := link.Tracepoint("syscalls", "sys_enter_ptrace", t.HadesProgs.TracepointPtrace)
 	SocketConnectLink, err := link.Kprobe("security_socket_connect", t.HadesProgs.KprobeSecuritySocketConnect)
 	SocketBindLink, err := link.Kprobe("security_socket_bind", t.HadesProgs.KprobeSecuritySocketBind)
@@ -83,7 +80,7 @@ func (t *HadesObject) AttachProbe() error {
 		zap.S().Error(err)
 		return err
 	}
-	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrtclLink, PtraceLink, SocketConnectLink, SocketBindLink)
+	t.links = append(t.links, execveLink, execveatLink, KprobeSecurityBprmCheck, TracePointSchedProcessFork, PrctlLink, PtraceLink, SocketConnectLink, SocketBindLink)
 	return nil
 }
 
@@ -163,11 +160,14 @@ func (t *HadesObject) Read() error {
 				process.Exe = file
 			}
 		case TRACEPOINT_SYSCALLS_PRCTL:
-			process.Syscall = "prtcl"
+			process.Syscall = "prctl"
 			parser.Prctl(buffers, process)
 		case TRACEPOINT_SYSCALLS_PTRACE:
 			process.Syscall = "ptrace"
-			parser.Ptrace(buffers, process)
+			err = parser.Ptrace(buffers, process)
+			if err != nil {
+				os.Stderr.WriteString(err.Error() + "\n")
+			}
 		case 9:
 			process.Syscall = "socket_connect"
 			err = parser.Net(buffers, process)
@@ -181,7 +181,9 @@ func (t *HadesObject) Read() error {
 			process.Syscall = "commit_creds"
 			parser.CommitCreds(buffers, process)
 		}
-
+		if dataCtx.Type != TRACEPOINT_SYSCALLS_EXECVE {
+			continue
+		}
 		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 		cache.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 		process.Sha256, _ = share.GetFileHash(process.Exe)

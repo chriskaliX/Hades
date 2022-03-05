@@ -13,8 +13,8 @@
 // TODO: Hook ID 的标准化, 看 format 里面
 struct _sys_enter_execve
 {
-    __u64 unused;
-    int syscall_nr;
+    unsigned long long unused;
+    long syscall_nr;
     const char *filename;
     const char *const *argv;
     const char *const *envp;
@@ -22,7 +22,7 @@ struct _sys_enter_execve
 
 struct _sys_enter_execveat
 {
-    __u64 unused;
+    unsigned long long unused;
     int syscall_nr;
     int fd;
     const char *filename;
@@ -33,7 +33,7 @@ struct _sys_enter_execveat
 
 struct _tracepoint_sched_process_fork
 {
-    __u64 unused;
+    unsigned long long unused;
     char parent_comm[16];
     pid_t parent_pid;
     char child_comm[16];
@@ -42,20 +42,21 @@ struct _tracepoint_sched_process_fork
 
 struct _sys_enter_kill
 {
-    __u64 unused;
+    unsigned long long unused;
     pid_t pid;
     int sig;
 };
 
 struct _sys_exit_kill
 {
-    __u64 unused;
+    unsigned long long unused;
     long ret;
 };
 
 struct _sys_enter_prctl
 {
-    __u64 unused;
+    unsigned long long unused;
+    long syscall_nr;
     int option;
     unsigned long arg2;
     unsigned long arg3;
@@ -65,6 +66,8 @@ struct _sys_enter_prctl
 
 struct _sys_enter_ptrace
 {
+    unsigned long long unused;
+    long syscall_nr;
     long request;
     long pid;
     unsigned long addr;
@@ -168,43 +171,6 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     return events_perf_submit(&data);
 }
 
-/* exit hooks */
-// 日志量很大...开启的必要性是... 默认第一版本不开启吧
-// reference of exit & exit_group: https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
-SEC("kprobe/do_exit")
-int kprobe_do_exit(struct pt_regs *ctx)
-{
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    u32 tgid = pid_tgid >> 32;
-    u32 pid = pid_tgid;
-    // TODO: figure - 线程退出
-    if (tgid != pid)
-    {
-        return 0;
-    }
-
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 3;
-    long code = PT_REGS_PARM1(ctx);
-    data.context.retval = code;
-    return events_perf_submit(&data);
-}
-
-// 默认不开启
-SEC("kprobe/sys_exit_group")
-int kprobe_sys_exit_group(struct pt_regs *ctx)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 4;
-    long code = PT_REGS_PARM2(ctx);
-    data.context.retval = code;
-    return events_perf_submit(&data);
-}
-
 /* fork : nothing but just record the command line */
 SEC("tracepoint/sched/sched_process_fork")
 int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
@@ -256,11 +222,13 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
 // @2022-03-02: in Elkeid, only PR_SET_NAME is collected, in function "prctl_pre_handler".
 // using PR_SET_NAME to set name for a process or thread. prctl is the function that we
 // used for change(or get?) the attribute of threads. But the options are too much. And
-// a blog was found: http://www.leveryd.top/2021-12-26-%E5%A6%82%E4%BD%95%E4%BC%AA%E8%A3%85%E8%BF%9B%E7%A8%8B%E4%BF%A1%E6%81%AF/
-// and https://stackoverflow.com/questions/57749629/manipulating-process-name-and-arguments-by-way-of-argv
+// @Refenrence: http://www.leveryd.top/2021-12-26-%E5%A6%82%E4%BD%95%E4%BC%AA%E8%A3%85%E8%BF%9B%E7%A8%8B%E4%BF%A1%E6%81%AF/
+// @Refenrence: https://stackoverflow.com/questions/57749629/manipulating-process-name-and-arguments-by-way-of-argv
+// @Refenrence: https://www.blackhat.com/docs/us-16/materials/us-16-Leibowitz-Horse-Pill-A-New-Type-Of-Linux-Rootkit.pdf
 // as far as I consider, "PR_SET_MM" may should also be added.
 // TODO: By the way, PR_SET_SECCOMP/PR_SET_SECUREBITS/PR_SET_MM all should be reviewed.
-// Under DEV!!!
+// Pay attention that the syscall_nr is long instead of int.
+// Finished
 SEC("tracepoint/syscalls/sys_enter_prctl")
 int sys_enter_prctl(struct _sys_enter_prctl *ctx)
 {
@@ -268,34 +236,52 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = 6;
+    char nothing[] = "-1";
     // read the option firstly
     int option;
     bpf_probe_read(&option, sizeof(option), &ctx->option);
+    // pre-filter, now this is all I get.
     if (option != PR_SET_NAME && option != PR_SET_MM)
         return 0;
     // save the option
-    save_to_submit_buf(&data, &ctx->option, sizeof(int), 0);
-    // add exe in this
+    save_to_submit_buf(&data, &option, sizeof(int), 0);
+    // add exe
     void *exe = get_exe_from_task(data.task);
     int ret = save_str_to_buf(&data, exe, 1);
     if (ret == 0)
     {
-        char nothing[] = "-1";
         save_str_to_buf(&data, nothing, 1);
     }
-    // add switcher
+    // for PR_SET_NAME
+    char *newname = NULL;
+    // for PR_SET_MM
+    unsigned long flag2;
     switch (option)
     {
+    // PR_SET_NAME: to change the name of process or thread to deceptive
+    // prctl(PR_SET_NAME, <newname>)
     case PR_SET_NAME:
-        // arg2 are the newname
-        save_to_submit_buf(&data, (void *)&ctx->arg2, sizeof(unsigned long), 1);
-        events_perf_submit(&data);
+        // read this probe from userspace
+        bpf_probe_read_user_str(&newname, TASK_COMM_LEN, (char *)ctx->arg2);
+        ret = save_str_to_buf(&data, &newname, 2);
+        if (ret == 0)
+        {
+            save_str_to_buf(&data, nothing, 2);
+        }
         break;
-        // in Elkeid, a comparison with newname & current->comm(noticing for the '\0' here).
+        // @Reference: http://hermes.survey.ntua.gr/NaTUReS_Lab/ZZZ_Books/CS_IT/Hands-On_System_Programming_With_Linux__Explore_Linux_System_Programming_Interfaces,_Theory,_And_Practice.pdf
+        // @Reference: https://cloud.tencent.com/developer/article/1040079
+        // @Reference: https://man7.org/linux/man-pages/man2/prctl.2.html
+        // To analyze this would be a little bit tricky... if it's PR_SET_MM_MAP, we need to extract the prctl_mm_map
+        // and parse. What we care should be, PR_SET_MM_EXE_FILE, PR_SET_MM_MAP... By the way, we just send the flag of this.
     case PR_SET_MM:
+        bpf_probe_read_user(&flag2, sizeof(flag2), &ctx->arg2);
+        save_to_submit_buf(&data, &flag2, sizeof(unsigned long), 2);
+        break;
+    default:
         break;
     }
-    return 0;
+    return events_perf_submit(&data);
 }
 
 SEC("tracepoint/syscalls/sys_enter_ptrace")
@@ -318,6 +304,8 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     return 0;
 }
 
+/* Below here, hook is not added in the first version*/
+
 // TODO: ptrace 的 hook, kprobe 直接挂载或者 CAP_CAPABLE, 明天开始 check 一下
 /* kill/tkill/tgkill */
 SEC("tracepoint/syscalls/sys_enter_kill")
@@ -330,4 +318,41 @@ int sys_enter_kill(struct _sys_enter_kill *ctx)
     save_to_submit_buf(&data, &ctx->pid, sizeof(u32), 0);
     save_to_submit_buf(&data, &ctx->sig, sizeof(int), 1);
     return 0;
+}
+
+/* exit hooks */
+// 日志量很大...开启的必要性是... 默认第一版本不开启吧, 字节他们好像也很少开启...
+// reference of exit & exit_group: https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
+SEC("kprobe/do_exit")
+int kprobe_do_exit(struct pt_regs *ctx)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u32 tgid = pid_tgid >> 32;
+    u32 pid = pid_tgid;
+    // TODO: figure - 线程退出
+    if (tgid != pid)
+    {
+        return 0;
+    }
+
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 3;
+    long code = PT_REGS_PARM1(ctx);
+    data.context.retval = code;
+    return events_perf_submit(&data);
+}
+
+// 默认不开启
+SEC("kprobe/sys_exit_group")
+int kprobe_sys_exit_group(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 4;
+    long code = PT_REGS_PARM2(ctx);
+    data.context.retval = code;
+    return events_perf_submit(&data);
 }

@@ -18,12 +18,14 @@ func Hades() error {
 
 	hadesProbe := &HadesProbe{}
 	if err := hadesProbe.Init(ctx); err != nil {
+		zap.S().Error(err)
 		return err
 	}
 
 	defer hadesProbe.Close()
 
 	if err := hadesProbe.Run(); err != nil {
+		zap.S().Error(err)
 		return err
 	}
 	zap.S().Info("tracer finished")
