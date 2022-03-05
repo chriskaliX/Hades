@@ -64,6 +64,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 - [ ] 4. 插件 运维 模块插件(系统信息采集, 最后支持)
 - [ ] 5. Driver 模块 (和 Elkeid 一样, 把 driver 模块提取出来)
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
+    - [ ] tracepoint sys_enter_prctl 完毕, 添加了 PR_SET_MM
     - [x] tracepoint sys_enter_connect (完毕)
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
