@@ -284,6 +284,8 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     return events_perf_submit(&data);
 }
 
+// @Reference: https://www.giac.org/paper/gcih/467/tracing-ptrace-case-study-internal-root-compromise-incident-handling/105271
+// @Reference: https://driverxdw.github.io/2020/07/06/Linux-ptrace-so%E5%BA%93%E6%B3%A8%E5%85%A5%E5%88%86%E6%9E%90/
 SEC("tracepoint/syscalls/sys_enter_ptrace")
 int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
 {
@@ -292,21 +294,34 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
         return 0;
     data.context.type = 7;
     long request;
-    // 仅抓取两种 request 位
+    // get the request firstly
     bpf_probe_read(&request, sizeof(request), &ctx->request);
+    // PTRACE_PEEKTEXT: read
+    // PTRACE_POKEDATA: write
     if (request != PTRACE_POKETEXT && request != PTRACE_POKEDATA)
         return 0;
-    save_to_submit_buf(&data, &ctx->request, sizeof(long), 0);
-    save_to_submit_buf(&data, &ctx->pid, sizeof(long), 1);
-    save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 2);
-    save_to_submit_buf(&data, &ctx->data, sizeof(unsigned long), 3);
-    events_perf_submit(&data);
-    return 0;
+    // add exe to the buffer
+    void *exe = get_exe_from_task(data.task);
+    int ret = save_str_to_buf(&data, exe, 0);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 0);
+    }
+    // get the request
+    save_to_submit_buf(&data, &request, sizeof(long), 1);
+    // get the pid
+    save_to_submit_buf(&data, &ctx->pid, sizeof(long), 2);
+    // get the addr, which is a pointer
+    save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 3);
+    // By the way, the data is removed.
+    // get the pid tree
+    save_pid_tree_to_buf(&data, 12, 4);
+    return events_perf_submit(&data);
 }
 
 /* Below here, hook is not added in the first version*/
 
-// TODO: ptrace 的 hook, kprobe 直接挂载或者 CAP_CAPABLE, 明天开始 check 一下
 /* kill/tkill/tgkill */
 SEC("tracepoint/syscalls/sys_enter_kill")
 int sys_enter_kill(struct _sys_enter_kill *ctx)

@@ -181,7 +181,7 @@ func (t *HadesObject) Read() error {
 			process.Syscall = "commit_creds"
 			parser.CommitCreds(buffers, process)
 		}
-		if dataCtx.Type != TRACEPOINT_SYSCALLS_EXECVE {
+		if dataCtx.Type != TRACEPOINT_SYSCALLS_PTRACE {
 			continue
 		}
 		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
