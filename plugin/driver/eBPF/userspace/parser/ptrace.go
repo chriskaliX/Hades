@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"hades-ebpf/userspace/cache"
 	"io"
-	"os"
-	"strconv"
 )
 
 // TODO: unfinished
@@ -43,7 +41,6 @@ func Ptrace(buf io.Reader, process *cache.Process) (err error) {
 	}
 	// 4 pid tree
 	if process.PidTree, err = ParsePidTree(buf); err != nil {
-		os.Stderr.WriteString("err:" + err.Error() + "\n")
 		return
 	}
 	return
