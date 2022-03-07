@@ -64,11 +64,12 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 - [ ] 4. 插件 运维 模块插件(系统信息采集, 最后支持)
 - [ ] 5. Driver 模块 (和 Elkeid 一样, 把 driver 模块提取出来)
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
-    - [ ] tracepoint sys_enter_prctl 完毕, 添加了 PR_SET_MM
+    - [x] tracepoint sys_enter_prctl 完毕, 添加了 PR_SET_MM
     - [x] tracepoint sys_enter_connect (完毕)
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
-    - [ ] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM，修改中
+    - [x] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
+    - [ ] 第一轮 review 修改进行中, 根据 tracee 的重构, 优化 binary.Read 部分(因为参数接收的是interface, 使用了大量的 reflection 来判断数据类型)
     - [ ] eBPF uprobe => openjdk
     - [ ] 面向对象, ebpfmanager review 使用
     - [x] eBPF 进程监控
