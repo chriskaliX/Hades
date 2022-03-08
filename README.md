@@ -69,7 +69,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [x] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
-    - [ ] 第一轮 review 修改进行中, 根据 tracee 的重构, 优化 binary.Read 部分(因为参数接收的是interface, 使用了大量的 reflection 来判断数据类型)
+    - [ ] (50%)第一轮 review 修改进行中, 根据 tracee 的重构, 优化 binary.Read 部分(因为参数接收的是interface, 使用了大量的 reflection 来判断数据类型)
     - [ ] eBPF uprobe => openjdk
     - [ ] 面向对象, ebpfmanager review 使用
     - [x] eBPF 进程监控
@@ -89,6 +89,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 > 另外, 目前不感觉 CO-RE 会是一个很大的问题, 看了下 LKM 下也都需要 linux-kernel-header, 后期 plan 是先按照大部分 kernel version 把 .o 文件编译出来. 放在这里提供下载
 
 - [ ] LKM/Rookit
+- [ ] Linux Kernel 相关已经重开 Repo, 等记录的够多了再开吧
 
 ## Other
 
