@@ -193,6 +193,8 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 
 /* hook point id */
 // TODO: gather all and update
+#define SYS_ENTER_PTRACE 164
+#define SYS_ENTER_PRCTL 200
 #define SCHED_PROCESS_FORK 317
 #define SYS_ENTER_EXECVEAT 698
 #define SYS_ENTER_EXECVE 700

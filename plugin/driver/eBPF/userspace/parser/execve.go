@@ -1,66 +1,89 @@
 package parser
 
 import (
-	"fmt"
-	"hades-ebpf/userspace/cache"
-	"io"
+	"hades-ebpf/userspace/decoder"
 	"strings"
 )
 
-func Execve(buf io.Reader, process *cache.Process) (err error) {
-	if process.Exe, err = ParseStr(buf); err != nil {
+var DefaultExecve = &Execve{}
+
+type Execve struct {
+	Exe           string `json:"-"`
+	Cwd           string `json:"cwd"`
+	TTYName       string `json:"ttyname"`
+	Stdin         string `json:"stdin"`
+	Stdout        string `json:"stdout"`
+	RemotePort    string `json:"remoteport"`
+	RemoteAddr    string `json:"remoteaddr"`
+	PidTree       string `json:"pidtree"`
+	Cmdline       string `json:"cmdline"`
+	SSHConnection string `json:"ssh_connection"`
+	LDPreload     string `json:"ld_preload"`
+	LDLibraryPath string `json:"ld_library_path"`
+}
+
+func (Execve) ID() uint32 {
+	return 700
+}
+
+func (Execve) String() string {
+	return "execve"
+}
+
+func (e *Execve) GetExe() string {
+	return e.Exe
+}
+
+func (e *Execve) Parse() (err error) {
+	if e.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if process.Cwd, err = ParseStr(buf); err != nil {
+	if e.Cwd, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if process.TTYName, err = ParseStr(buf); err != nil {
+	if e.TTYName, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if process.Stdin, err = ParseStr(buf); err != nil {
+	if e.Stdin, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if process.Stdout, err = ParseStr(buf); err != nil {
+	if e.Stdout, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if process.RemotePort, process.RemoteAddr, err = ParseRemoteAddr(buf); err != nil {
+	if e.RemotePort, e.RemoteAddr, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
-	if process.PidTree, err = ParsePidTree(buf); err != nil {
+	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
 		return
 	}
-	// 开始读 argv
-	argsArr, err := ParseStrArray(buf)
-	if err != nil {
-		fmt.Println(err)
+	var strArr []string
+	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
 	}
-	process.Cmdline = strings.Join(argsArr, " ")
+	e.Cmdline = strings.Join(strArr, " ")
+
 	envs := make([]string, 0, 3)
 	// 开始读 envs
-	if envs, err = ParseStrArray(buf); err != nil {
+	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
 	}
-
 	for _, env := range envs {
 		if strings.HasPrefix(env, "SSH_CONNECTION=") {
-			process.SSH_connection = strings.TrimLeft(env, "SSH_CONNECTION=")
+			e.SSHConnection = strings.TrimLeft(env, "SSH_CONNECTION=")
 		} else if strings.HasPrefix(env, "LD_PRELOAD=") {
-			process.LD_Preload = strings.TrimLeft(env, "LD_PRELOAD=")
+			e.LDPreload = strings.TrimLeft(env, "LD_PRELOAD=")
 		} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
-			process.LD_Library_Path = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
+			e.LDLibraryPath = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
 		}
 	}
-
-	if len(process.SSH_connection) == 0 {
-		process.SSH_connection = "-1"
+	if len(e.SSHConnection) == 0 {
+		e.SSHConnection = "-1"
 	}
-	if len(process.LD_Preload) == 0 {
-		process.LD_Preload = "-1"
+	if len(e.LDPreload) == 0 {
+		e.LDPreload = "-1"
 	}
-	if len(process.LD_Library_Path) == 0 {
-		process.LD_Library_Path = "-1"
+	if len(e.LDLibraryPath) == 0 {
+		e.LDLibraryPath = "-1"
 	}
-
 	return
 }

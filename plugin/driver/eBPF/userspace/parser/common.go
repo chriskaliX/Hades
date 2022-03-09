@@ -2,7 +2,6 @@ package parser
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -48,34 +47,6 @@ func ParseStr(buf io.Reader) (str string, err error) {
 	return
 }
 
-func ParseStrArray(buf io.Reader) (strArr []string, err error) {
-	var (
-		index uint8
-		size  uint8
-		str   string
-		sz    uint32
-		dummy uint8
-	)
-	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
-		return
-	}
-	if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
-		return
-	}
-	strArr = make([]string, 0, 2)
-	for i := 0; i < int(size); i++ {
-		if err = binary.Read(buf, binary.LittleEndian, &sz); err != nil {
-			break
-		}
-		if str, err = getStr(buf, sz-1); err != nil {
-			return
-		}
-		strArr = append(strArr, str)
-		binary.Read(buf, binary.LittleEndian, &dummy)
-	}
-	return
-}
-
 func ParsePidTree(buf io.Reader) (pidtree string, err error) {
 	var (
 		index uint8
@@ -109,45 +80,6 @@ func ParsePidTree(buf io.Reader) (pidtree string, err error) {
 	}
 	pidtree = strings.Join(strArr, "<")
 	return
-}
-
-func ParseRemoteAddr(buf io.Reader) (sin_port, sin_addr string, err error) {
-	var (
-		index  uint8
-		family uint16
-		port   uint16
-		addr   uint32
-	)
-	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
-		return
-	}
-	err = binary.Read(buf, binary.LittleEndian, &family)
-	if err != nil {
-		return
-	}
-	err = binary.Read(buf, binary.BigEndian, &port)
-	if err != nil {
-		return
-	}
-	sin_port = strconv.FormatUint(uint64(port), 10)
-	if err = binary.Read(buf, binary.BigEndian, &addr); err != nil {
-		return
-	}
-
-	sin_addr = printUint32IP(addr)
-
-	_, err = readByteSliceFromBuff(buf, 8)
-	return
-}
-
-func readByteSliceFromBuff(buff io.Reader, len int) ([]byte, error) {
-	var err error
-	res := make([]byte, len)
-	err = binary.Read(buff, binary.LittleEndian, &res)
-	if err != nil {
-		return nil, fmt.Errorf("error reading byte array: %v", err)
-	}
-	return res, nil
 }
 
 func printUint32IP(in uint32) string {

@@ -27,6 +27,7 @@ typedef struct slim_cred
 } slim_cred_t;
 
 // Detection of privilege escalation
+// TODO: going to go through this. would this been too much for this?
 SEC("kprobe/commit_creds")
 int kprobe_commit_creds(struct pt_regs *ctx)
 {
@@ -77,8 +78,14 @@ int kprobe_commit_creds(struct pt_regs *ctx)
 
         save_to_submit_buf(&data, (void *)&old_slim, sizeof(slim_cred_t), 0);
         save_to_submit_buf(&data, (void *)&new_slim, sizeof(slim_cred_t), 1);
-        save_pid_tree_to_buf(&data, 12, 2);
-
+        void *exe = get_exe_from_task(data.task);
+        int ret = save_str_to_buf(&data, exe, 2);
+        if (ret == 0)
+        {
+            char nothing[] = "-1";
+            save_str_to_buf(&data, nothing, 2);
+        }
+        save_pid_tree_to_buf(&data, 12, 3);
         events_perf_submit(&data);
         return 1;
     }
