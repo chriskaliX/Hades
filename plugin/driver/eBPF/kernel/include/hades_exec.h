@@ -23,7 +23,7 @@ struct _sys_enter_execve
 struct _sys_enter_execveat
 {
     unsigned long long unused;
-    int syscall_nr;
+    long syscall_nr;
     int fd;
     const char *filename;
     const char *const *argv;

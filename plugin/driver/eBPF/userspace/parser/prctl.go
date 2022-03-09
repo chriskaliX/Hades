@@ -1,38 +1,51 @@
 package parser
 
-import (
-	"encoding/binary"
-	"hades-ebpf/userspace/cache"
-	"io"
-)
+import "hades-ebpf/userspace/decoder"
 
-// to be mentioned, all codes here in the userspace, it's just testing.
-func Prctl(buf io.Reader, process *cache.Process) (err error) {
-	var (
-		index uint8
-	)
-	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+var DefaultPrctl = &Prctl{}
+
+type Prctl struct {
+	Exe     string `json:"-"`
+	Option  string `json:"option"`
+	Newname string `json:"newname,omitempty"`
+	Flag    uint32 `json:"flag,omitempty"`
+}
+
+func (Prctl) ID() uint32 {
+	return 200
+}
+
+func (Prctl) String() string {
+	return "prctl"
+}
+
+func (e *Prctl) GetExe() string {
+	return e.Exe
+}
+
+func (p *Prctl) Parse() (err error) {
+	var index uint8
+	var option int32
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = binary.Read(buf, binary.LittleEndian, &process.Prctl_Option); err != nil {
+	if err = decoder.DefaultDecoder.DecodeInt32(&option); err != nil {
 		return
 	}
-	if process.Exe, err = ParseStr(buf); err != nil {
+	if p.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	switch process.Prctl_Option {
+	switch option {
 	case 15:
-		if process.Prctl_Newname, err = ParseStr(buf); err != nil {
+		p.Option = "PR_SET_NAME"
+		if p.Newname, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 			return
 		}
 	case 35:
-		if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
-			return
-		}
-		if err = binary.Read(buf, binary.LittleEndian, &process.Prctl_Flag); err != nil {
+		p.Option = "PR_SET_MM"
+		if err = decoder.DefaultDecoder.DecodeUint32(&p.Flag); err != nil {
 			return
 		}
 	}
-
 	return
 }

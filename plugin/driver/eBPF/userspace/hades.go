@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hades-ebpf/userspace/cache"
+	"hades-ebpf/userspace/decoder"
 	"hades-ebpf/userspace/helper"
 	"hades-ebpf/userspace/parser"
 	"hades-ebpf/userspace/share"
@@ -86,20 +87,20 @@ func (t *HadesObject) AttachProbe() error {
 
 // 现在这里的代码都是 demo, 目标是先跑起来, 所以实现上不优雅
 // @issue1: binary.Read use reflect
+// @issue2: json.Marshal use reflect
+// @issue3: Add a map to simplify the switch (regist to the map)
 func (t *HadesObject) Read() error {
 	var (
-		reader  *perf.Reader
-		err     error
-		dataCtx cache.DataContext
-		record  perf.Record
-		buffers *bytes.Buffer
+		reader *perf.Reader
+		err    error
+		record perf.Record
 	)
 	if reader, err = perf.NewReader(t.HadesMaps.Perfevents, 4*os.Getpagesize()); err != nil {
 		zap.S().Error(err.Error())
 		return err
 	}
 	defer reader.Close()
-
+	rawdata := make(map[string]string, 1)
 	// start to consume the eBPF msg
 	for {
 		// read first
@@ -112,85 +113,65 @@ func (t *HadesObject) Read() error {
 		}
 		// think about samples
 		if record.LostSamples != 0 {
-			rawdata := make(map[string]string)
 			rawdata["data"] = fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples)
 			rawdata["data_type"] = "999"
 			zap.S().Info(fmt.Sprintf("perf event ring buffer full, dropped %d samples", record.LostSamples))
 			continue
 		}
 
-		buffers = bytes.NewBuffer(record.RawSample)
-		// consume data context firstly
-		if err := binary.Read(buffers, binary.LittleEndian, &dataCtx); err != nil {
-			zap.S().Error(err.Error())
+		// init the buffer
+		decoder.DefaultDecoder.SetBuffer(record.RawSample)
+		ctx, err := decoder.DefaultDecoder.DecodeContext()
+		if err != nil {
+			decoder.PutContext(ctx)
 			continue
 		}
-
-		rawdata := make(map[string]string, 1)
-		process := cache.DefaultProcessPool.Get()
-		process.CgroupId = dataCtx.CgroupId
-		process.UID = strconv.Itoa(int(dataCtx.Uid))
-		process.PID = dataCtx.Pid
-		process.PPID = dataCtx.Ppid
-		process.TID = dataCtx.Tid
-		process.Source = "ebpf"
-		process.Uts_inum = dataCtx.Uts_inum
-		process.EUID = strconv.Itoa(int(dataCtx.EUid))
-		process.Eusername = cache.GetUsername(process.EUID)
-		process.NodeName = formatByte(dataCtx.Nodename[:])
-		process.Name = formatByte(dataCtx.Comm[:])
-		process.PName = formatByte(dataCtx.PComm[:])
-
-		switch dataCtx.Type {
+		switch ctx.Type {
 		case TRACEPOINT_SYSCALLS_EXECVE:
-			process.Syscall = "execve"
-			parser.Execve(buffers, process)
-		case TRACEPOINT_SYSCALLS_EXECVEAT:
-			process.Syscall = "execveat"
-			parser.Execve(buffers, process)
-		case KPROBE_DO_EXIT:
-			process.RetVal = dataCtx.RetVal
-			process.Syscall = "do_exit"
-		case KPROBE_EXIT_GROUP:
-			process.RetVal = dataCtx.RetVal
-			process.Syscall = "exit_group"
-		case KRPOBE_SECURITY_BPRM_CHECK:
-			process.Syscall = "security_bprm_check"
-			if file, err := parseStr(buffers); err == nil {
-				process.Exe = file
+			err = parser.DefaultExecve.Parse()
+			if err == nil {
+				ctx.SetEvent(parser.DefaultExecve)
 			}
+		case TRACEPOINT_SYSCALLS_EXECVEAT:
+			err = parser.DefaultExecveAt.Parse()
+			if err == nil {
+				ctx.SetEvent(parser.DefaultExecveAt)
+			}
+
+		case KRPOBE_SECURITY_BPRM_CHECK:
+			// process.Syscall = "security_bprm_check"
+			// if file, err := parseStr(buffers); err == nil {
+			// 	process.Exe = file
+			// }
 		case TRACEPOINT_SYSCALLS_PRCTL:
-			process.Syscall = "prctl"
-			parser.Prctl(buffers, process)
+			err = parser.DefaultPrctl.Parse()
+			if err == nil {
+				ctx.SetEvent(parser.DefaultPrctl)
+			}
 		case TRACEPOINT_SYSCALLS_PTRACE:
-			process.Syscall = "ptrace"
-			err = parser.Ptrace(buffers, process)
-			if err != nil {
-				os.Stderr.WriteString(err.Error() + "\n")
+			err = parser.DefaultPtrace.Parse()
+			if err == nil {
+				ctx.SetEvent(parser.DefaultPtrace)
 			}
 		case 9:
-			process.Syscall = "socket_connect"
-			err = parser.Net(buffers, process)
-			if err != nil {
-				os.Stderr.WriteString(err.Error() + "\n")
+			err = parser.DefaultSockConn.Parse()
+			if err == nil {
+				ctx.SetEvent(parser.DefaultSockConn)
 			}
 		case 10:
-			process.Syscall = "socket_bind"
-			parser.Net(buffers, process)
+			err = parser.DefaultSockBind.Parse()
+			if err == nil {
+				ctx.SetEvent(parser.DefaultSockBind)
+			}
 		case 11:
-			process.Syscall = "commit_creds"
-			parser.CommitCreds(buffers, process)
+			// process.Syscall = "commit_creds"
+			// parser.CommitCreds(buffers, process)
 		}
-		if dataCtx.Type != TRACEPOINT_SYSCALLS_PTRACE {
-			continue
-		}
-		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
-		cache.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-		process.Sha256, _ = share.GetFileHash(process.Exe)
-		process.Username = cache.GetUsername(process.UID)
-		process.StartTime = uint64(share.Time)
-		data, err := share.Marshal(process)
-		if err == nil {
+
+		ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
+		ctx.Username = cache.GetUsername(strconv.Itoa(int(ctx.Uid)))
+		ctx.StartTime = uint64(share.Time)
+		if data, err := json.Marshal(ctx); err == nil {
 			rawdata["data"] = helper.ZeroCopyString(data)
 			rec := &plugin.Record{
 				DataType:  1000,
@@ -201,7 +182,7 @@ func (t *HadesObject) Read() error {
 			}
 			share.Client.SendRecord(rec)
 		}
-		cache.DefaultProcessPool.Put(process)
+		decoder.PutContext(ctx)
 	}
 }
 

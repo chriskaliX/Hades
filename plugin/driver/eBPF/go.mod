@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/buger/jsonparser v1.1.1
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	go.uber.org/atomic v1.7.0 // indirect

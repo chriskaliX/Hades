@@ -1,46 +1,55 @@
 package parser
 
 import (
-	"encoding/binary"
-	"hades-ebpf/userspace/cache"
-	"io"
+	"hades-ebpf/userspace/decoder"
 )
 
-// TODO: unfinished
-func Ptrace(buf io.Reader, process *cache.Process) (err error) {
-	var (
-		index    uint8
-		requests int64
-		pid      int64
-		addr     uint64
-	)
-	// 0 exe
-	if process.Exe, err = ParseStr(buf); err != nil {
+var DefaultPtrace = &Ptrace{}
+
+type Ptrace struct {
+	Exe       string `json:"-"`
+	Requests  int64  `json:"request"`
+	TargetPid int64  `json:"targetpid"`
+	Addr      uint64 `json:"addr"`
+	PidTree   string `json:"pidtree"`
+}
+
+func (Ptrace) ID() uint32 {
+	return 164
+}
+
+func (Ptrace) String() string {
+	return "ptrace"
+}
+
+func (p *Ptrace) GetExe() string {
+	return p.Exe
+}
+
+func (p *Ptrace) Parse() (err error) {
+	if p.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	// 1 request
-	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+	var index uint8
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = binary.Read(buf, binary.LittleEndian, &requests); err != nil {
+	if err = decoder.DefaultDecoder.DecodeInt64(&p.Requests); err != nil {
 		return
 	}
-	// 2 pid
-	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = binary.Read(buf, binary.LittleEndian, &pid); err != nil {
+	if err = decoder.DefaultDecoder.DecodeInt64(&p.TargetPid); err != nil {
 		return
 	}
-	// 3 addr
-	if err = binary.Read(buf, binary.LittleEndian, &index); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = binary.Read(buf, binary.LittleEndian, &addr); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint64(&p.Addr); err != nil {
 		return
 	}
-	// 4 pid tree
-	if process.PidTree, err = ParsePidTree(buf); err != nil {
+	if p.PidTree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
 		return
 	}
 	return

@@ -4,43 +4,7 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-// SEC("kprobe/security_socket_accept")
-// int kprobe_security_socket_accept(struct pt_regs *ctx)
-// {
-//     event_data_t data = {};
-//     if (!init_event_data(&data, ctx))
-//         return 0;
-//     data.context.type = 8;
-
-//     struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
-//     struct sock *sk = READ_KERN(sock->sk);
-
-//     sa_family_t sa_fam = READ_KERN(sk->sk_family);
-//     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
-//     {
-//         return 0;
-//     }
-//     switch (sa_fam)
-//     {
-//     case AF_INET:
-//         net_conn_v4_t net_details = {};
-//         struct sockaddr_in local;
-//         get_network_details_from_sock_v4(sk, &net_details, 0);
-//         get_local_sockaddr_in_from_network_details(&local, &net_details, family);
-//         save_to_submit_buf(&data, (void *)&local, sizeof(struct sockaddr_in), 0);
-//         break;
-//     // case AF_INET6:
-//     //     net_conn_v6_t net_details = {};
-//     //     struct sockaddr_in6 local;
-//     //     get_network_details_from_sock_v6(sk, &net_details, 0);
-//     //     // get_local_sockaddr_in6_from_network_details(&local, &net_details, family);
-//     //     save_to_submit_buf(&data, (void *)&local, sizeof(struct sockaddr_in6), 0);
-//     //     break;
-//     default:
-//         break;
-//     }
-// }
-
+// By the way, notes for pt_regs. Kernel version over 4.17 is supported.
 // finished
 SEC("kprobe/security_socket_connect")
 int kprobe_security_socket_connect(struct pt_regs *ctx)
@@ -59,7 +23,6 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     {
         return 0;
     }
-    // TODO: switch may...
     switch (sa_fam)
     {
     case AF_INET:
@@ -81,7 +44,6 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
         char nothing[] = "-1";
         save_str_to_buf(&data, nothing, 1);
     }
-
     return events_perf_submit(&data);
 }
 
@@ -125,3 +87,41 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
 
     return events_perf_submit(&data);
 }
+
+// ===== 暂时不开启, 不做 HOOK ====
+// SEC("kprobe/security_socket_accept")
+// int kprobe_security_socket_accept(struct pt_regs *ctx)
+// {
+//     event_data_t data = {};
+//     if (!init_event_data(&data, ctx))
+//         return 0;
+//     data.context.type = 8;
+
+//     struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
+//     struct sock *sk = READ_KERN(sock->sk);
+
+//     sa_family_t sa_fam = READ_KERN(sk->sk_family);
+//     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
+//     {
+//         return 0;
+//     }
+//     switch (sa_fam)
+//     {
+//     case AF_INET:
+//         net_conn_v4_t net_details = {};
+//         struct sockaddr_in local;
+//         get_network_details_from_sock_v4(sk, &net_details, 0);
+//         get_local_sockaddr_in_from_network_details(&local, &net_details, family);
+//         save_to_submit_buf(&data, (void *)&local, sizeof(struct sockaddr_in), 0);
+//         break;
+//     // case AF_INET6:
+//     //     net_conn_v6_t net_details = {};
+//     //     struct sockaddr_in6 local;
+//     //     get_network_details_from_sock_v6(sk, &net_details, 0);
+//     //     // get_local_sockaddr_in6_from_network_details(&local, &net_details, family);
+//     //     save_to_submit_buf(&data, (void *)&local, sizeof(struct sockaddr_in6), 0);
+//     //     break;
+//     default:
+//         break;
+//     }
+// }

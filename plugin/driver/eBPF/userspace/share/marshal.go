@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 )
 
+// to opt
 func Marshal(v interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
