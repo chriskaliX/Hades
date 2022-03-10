@@ -69,7 +69,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [x] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
-    - [ ] (50%)第一轮 review 修改进行中, 根据 tracee 的重构, 优化 binary.Read 部分(因为参数接收的是interface, 使用了大量的 reflection 来判断数据类型)
+    - [ ] (60%)第一轮 review 修改进行中, 根据 tracee 的重构, 优化 binary.Read 部分(因为参数接收的是interface, 使用了大量的 reflection 来判断数据类型), 同理以 interface 作为入参的 json.Marshal 也会大量调用 reflect, 看一下 easyjson 项目等, 性能优化
     - [ ] eBPF uprobe => openjdk
     - [ ] 面向对象, ebpfmanager review 使用
     - [x] eBPF 进程监控
