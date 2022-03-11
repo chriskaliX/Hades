@@ -1,33 +1,22 @@
 package userspace
 
 import (
-	"context"
-
-	"github.com/cilium/ebpf/rlimit"
-	"go.uber.org/zap"
+	"fmt"
+	"os"
+	"time"
 )
 
 // ebpf 主程序, 真正的 runner
 func Hades() error {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	if err := rlimit.RemoveMemlock(); err != nil {
-		zap.S().Error(err)
-		return err
+	if err := DefaultDriver.Init(); err != nil {
+		os.Stderr.WriteString(err.Error() + "\n")
 	}
-
-	hadesProbe := &HadesProbe{}
-	if err := hadesProbe.Init(ctx); err != nil {
-		zap.S().Error(err)
-		return err
+	if err := DefaultDriver.Manager.Start(); err != nil {
+		os.Stderr.WriteString(err.Error() + "\n")
 	}
-
-	defer hadesProbe.Close()
-
-	if err := hadesProbe.Run(); err != nil {
-		zap.S().Error(err)
-		return err
-	}
-	zap.S().Info("tracer finished")
+	// TODO: it's just debug code here, rebuild almost done
+	fmt.Println("started")
+	time.Sleep(60 * time.Second)
+	fmt.Println("done")
 	return nil
 }
