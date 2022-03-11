@@ -90,7 +90,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1;
+    data.context.type = 700;
     // filename
     int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
     if (ret == 0)
@@ -133,7 +133,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 2;
+    data.context.type = 698;
     // filename
     int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
     if (ret == 0)
@@ -235,7 +235,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 6;
+    data.context.type = 200;
     char nothing[] = "-1";
     // read the option firstly
     int option;
@@ -292,7 +292,7 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 7;
+    data.context.type = 164;
     long request;
     // get the request firstly
     bpf_probe_read(&request, sizeof(request), &ctx->request);

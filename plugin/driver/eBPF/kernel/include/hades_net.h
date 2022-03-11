@@ -12,7 +12,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 9;
+    data.context.type = 1022;
 
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     if (!address)
@@ -53,7 +53,7 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 10;
+    data.context.type = 1024;
 
     // this is for getting protocol
     struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
