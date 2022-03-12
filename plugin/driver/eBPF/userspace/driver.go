@@ -3,7 +3,6 @@ package userspace
 import (
 	"bytes"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"hades-ebpf/userspace/cache"
 	"hades-ebpf/userspace/decoder"
@@ -45,8 +44,9 @@ func (d *Driver) Init() (err error) {
 				Name: "exec_events",
 			},
 			PerfMapOptions: manager.PerfMapOptions{
-				PerfRingBufferSize: 4 * os.Getpagesize(),
+				PerfRingBufferSize: 256 * os.Getpagesize(),
 				DataHandler:        d.dataHandler,
+				LostHandler:        d.lostHandler,
 			},
 		},
 	}
@@ -84,7 +84,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
 	ctx.Username = cache.GetUsername(strconv.Itoa(int(ctx.Uid)))
 	ctx.StartTime = uint64(share.Time)
-	if data, err := json.Marshal(ctx); err == nil {
+	if data, err := share.Marshal(ctx); err == nil {
 		rawdata["data"] = helper.ZeroCopyString(data)
 		if debug {
 			fmt.Println(rawdata)
@@ -99,4 +99,8 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		share.Client.SendRecord(rec)
 	}
 	decoder.PutContext(ctx)
+}
+
+func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
+	fmt.Println(count)
 }
