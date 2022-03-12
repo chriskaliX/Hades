@@ -69,7 +69,7 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [x] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
-    - [ ] (80%)第一轮 review 修改进行中. 使用 ebpfmanager 重构了一下. 后续进度应该会放缓一些, 会同时开始补足和更新一些重要的基础. 例如 Linux 下的 Rookit, linux 基础知识等等
+    - [ ] (85%)第一轮 review 修改进行中. 使用 ebpfmanager 重构了一下. 后续进度应该会放缓一些, 会同时开始补足和更新一些重要的基础. 例如 Linux 下的 Rookit, linux 基础知识等等. BUG remove
     - [ ] eBPF uprobe => openjdk
     - [ ] 面向对象, ebpfmanager review 使用
     - [x] eBPF 进程监控
