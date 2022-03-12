@@ -2,6 +2,7 @@ package main
 
 import (
 	"hades-ebpf/userspace"
+	_ "hades-ebpf/userspace/event"
 	"time"
 
 	// "collector/socket"

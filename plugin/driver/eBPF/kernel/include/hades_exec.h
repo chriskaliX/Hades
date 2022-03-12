@@ -90,7 +90,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 700;
+    data.context.type = SYS_ENTER_EXECVE;
     // filename
     int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
     if (ret == 0)
