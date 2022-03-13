@@ -62,18 +62,18 @@ https://stackoverflow.com/questions/1235958/ipc-performance-named-pipe-vs-socket
 - [ ] 3. 插件 **蜜罐模式** 
   这个是我认为很有意思的模式，传统的蜜罐通常在内网下需要额外部署，部署数量或者网络配置等都会比较头疼。但是 agent 本身其实就是相当于一个 controller，我们可以随机的开放一个 port（这个功能一定要不占用正常端口），相当于大量的机器可以作为我们的蜜罐
 - [ ] 4. 插件 运维 模块插件(系统信息采集, 最后支持)
-- [ ] 5. Driver 模块 (和 Elkeid 一样, 把 driver 模块提取出来)
+- [ ] 5. Driver 模块 (和 Elkeid 一样, 把 driver 模块提取出来) -> 目前支持 8 个 hook 点, 稳定测试且 debug 过. 现在开始实现字节 Elkeid 下所有为 On 的 hook 点.
     - [x] tracepoint sys_enter_execve (LRU 解决了问题)
     - [x] tracepoint sys_enter_prctl 完毕, 添加了 PR_SET_MM
     - [x] tracepoint sys_enter_connect (完毕)
     - [x] tracepoint hook (done, 但是未测试)
     - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
     - [x] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
-    - [ ] (90%)第一轮 review 修改进行中. 使用 ebpfmanager 重构了一下. 后续进度应该会放缓一些, 会同时开始补足和更新一些重要的基础. 例如 Linux 下的 Rookit, linux 基础知识等等. BUG remove. memfd_create 添加, LSM bind 函数 ipv6 添加
-    - [ ] eBPF uprobe => openjdk
+    - [x] (100%)第一轮 review 修改进行中. 使用 ebpfmanager 重构了一下. memfd_create 添加, LSM bind 函数 ipv6 添加, 有个小的问题： json 效率和 inline
+    - [ ] eBPF uprobe(openjdk/readline)...
     - [ ] 面向对象, ebpfmanager review 使用
     - [x] eBPF 进程监控
-    - [ ] socket下完全支持ipv6, 字段丰富EXE完成(跟之前一样, 无lock操作, 可能有读错的问题)
+    - [x] socket下完全支持ipv6, 字段丰富EXE完成(跟之前一样, 无lock操作, 可能有读错的问题)
     - [ ] 整理 ebpf 初版, 预备 release version
     - [ ] (20%)code review tracee 函数 get_path_str, 本周完成与 fsprobe 的方式对比以及原理, 更新在 private repo, 到时候写个小文章
     - [x] 目前非 CO-RE, 后续支持
