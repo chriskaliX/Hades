@@ -9,6 +9,8 @@ import (
 
 var DefaultSockConn = &SocketConnect{}
 
+var _ decoder.Event = (*SocketConnect)(nil)
+
 type SocketConnect struct {
 	Family     int16  `json:"family"`
 	RemotePort string `json:"remoteport"`

@@ -8,6 +8,8 @@ import (
 
 var DefaultCommitCreds = &CommitCreds{}
 
+var _ decoder.Event = (*CommitCreds)(nil)
+
 type CommitCreds struct {
 	Exe     string `json:"-"`
 	NewUid  uint32 `json:"newuid"`
@@ -20,7 +22,7 @@ func (CommitCreds) ID() uint32 {
 }
 
 func (CommitCreds) String() string {
-	return "commitcreds"
+	return "commit_creds"
 }
 
 func (c *CommitCreds) GetExe() string {

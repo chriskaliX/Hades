@@ -8,6 +8,8 @@ import (
 
 var DefaultPtrace = &Ptrace{}
 
+var _ decoder.Event = (*Ptrace)(nil)
+
 type Ptrace struct {
 	Exe       string `json:"-"`
 	Requests  int64  `json:"request"`
