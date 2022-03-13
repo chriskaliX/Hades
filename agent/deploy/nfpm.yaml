@@ -1,0 +1,45 @@
+# nfpm example config file
+#
+# check https://nfpm.goreleaser.com/configuration for detailed usage
+#
+name: "hades-agent"
+arch: "amd64"
+platform: "linux"
+version: "v1.0.0"
+section: "default"
+priority: "extra"
+maintainer: "chriskali <chriskali@163.com>"
+description: |
+  HIDS hades-agent
+vendor: "theSecHunter"
+homepage: "https://github.com/chriskaliX"
+license: "MIT"
+changelog: "changelog.yaml"
+contents:
+  - src: ./hades-agent.service
+    dst: /etc/hades/hades-agent.service
+    file_info:
+      mode: 0600
+      owner: root
+      group: root
+  - src: ./hades-agent
+    dst: /etc/hades/hades-agent
+    file_info:
+      mode: 0700
+      owner: root
+      group: root
+  - src: ./scripts/hades-agent.sysvinit
+    dst: /etc/hades/hades-agent.sysvinit
+    file_info:
+      mode: 0700
+      owner: root
+      group: root
+# -- in elkeid, there is a ctl for this
+scripts:
+  preremove: ./scripts/postremove.sh
+  preinstall: ./scripts/preinstall.sh
+  postremove: ./scripts/postremove.sh
+  postinstall: ./scripts/postinstall.sh
+# overrides:
+# don't understand for -tx thing
+# 字节在 1.7.0.1 把下面删除了，虽然我当时就没看懂这里是干嘛的...

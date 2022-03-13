@@ -5,6 +5,7 @@ agent/collector/collector
 agent/log/Hades*
 agent/log/hades.log
 agent/log/hades*
+*.stderr
+agent/main
 cert/
-agent/agent
 server/hadeserver

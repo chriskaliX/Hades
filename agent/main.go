@@ -1,41 +1,43 @@
 package main
 
 import (
-	"encoding/json"
+	"crypto/sha256"
 	"fmt"
+	"io"
+	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
-	"agent/collector"
-	"agent/global"
+	"agent/agent"
+	"agent/heartbeat"
 	"agent/log"
-	"agent/report"
-	"agent/transport"
+	"agent/plugin"
+	"agent/proto"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 func init() {
-	// TODO: 在一些 KVM 下其实可能小于 8，例如 4 核的机器，设置成大于 CPU 的数量反而可能会造成线程频繁切换
-	runtime.GOMAXPROCS(8)
+	// 在一些 KVM 下其实可能小于 8，例如 4 核的机器，设置成大于 CPU 的数量反而可能会造成线程频繁切换
+	numcpu := runtime.NumCPU()
+	if numcpu > 8 {
+		numcpu = 8
+	}
+	runtime.GOMAXPROCS(numcpu)
 }
 
 // plugin的模式，我思考了一下还是有必要的，又因为偷看了 osquery 的, 功能开放
 // 后期蜜罐之类的这种还是以 plugin 模式，年底之前的目标是跑起来
 func main() {
-	defer func() {
-		if err := recover(); err != nil {
-			panic(err)
-		}
-	}()
-
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"
@@ -43,7 +45,7 @@ func main() {
 		z.AppendString(strconv.FormatInt(t.Unix(), 10))
 	}
 	grpcEncoder := zapcore.NewJSONEncoder(config)
-	grpcWriter := zapcore.AddSync(&log.LoggerWriter{})
+	grpcWriter := zapcore.AddSync(&log.GrpcWriter{})
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "log/hades.log",
@@ -56,42 +58,59 @@ func main() {
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
+	wg := &sync.WaitGroup{}
+	// transport to server not added
+	wg.Add(2)
+	go plugin.Startup(agent.DefaultAgent.Context(), wg)
+	go heartbeat.Startup(agent.DefaultAgent.Context(), wg)
+	// test
+	cfg := make(map[string]*proto.Config)
 
-	// 默认collector也不开, 接收server指令后再开
-	// go collector.EbpfGather()
-	go collector.Run()
-	go transport.Run()
-	go report.Run()
+	file, err := os.Open("plugin/collector/collector")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+	hash := sha256.New()
+	io.Copy(hash, file)
+	sum := hash.Sum(nil)
+	fmt.Printf("%x\n", sum)
 
-	// 下面都是测试代码, 后面这里应该为走 kafka 渠道上传
-	// 可以理解为什么字节要先走 grpc 到 server 端, 可以压缩, 统计, 更加灵活
-	// 但是我还是以之前部署 osquery 的方式一样, 全部走 kafka, 控制好即可
-	// TODO: 2021-11-06 这里考虑一下, kafka 批量上传, ticker 时间过段导致切换频繁
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
+	cfg["collector"] = &proto.Config{
+		Name:    "collector",
+		Version: "1.0.0",
+		Sha256:  fmt.Sprintf("%x", sum),
+	}
+
+	file, err = os.Open("plugin/driver/driver")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+	hash = sha256.New()
+	io.Copy(hash, file)
+	sum = hash.Sum(nil)
+	fmt.Printf("%x\n", sum)
+	cfg["driver"] = &proto.Config{
+		Name:    "driver",
+		Version: "1.0.0",
+		Sha256:  fmt.Sprintf("%x", sum),
+	}
+
+	plugin.DefaultManager.Sync(cfg)
+
+	// https://colobu.com/2015/10/09/Linux-Signals/
+	// SIGTERM 信号: 结束程序(可以被捕获、阻塞或忽略)
+	// https://github.com/osquery/osquery/blob/master/osquery/process/posix/process.cpp
+	// osquery 中也是用这个方式, 作为 gracefulExit 的方式, 应该对 plugin 也如此处理
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				rd := <-global.UploadChannel
-				rd["AgentID"] = global.AgentID
-				rd["Hostname"] = global.Hostname
-				// 目前还在测试, 专门打印
-				if rd["data_type"] == "1000" {
-					fmt.Println(rd["data"])
-				} else {
-					continue
-				}
-				_, err := json.Marshal(rd)
-				if err != nil {
-					continue
-				}
-				// network.KafkaSingleton.Send(string(m))
-			}
-		}
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGTERM)
+		sig := <-sigs
+		zap.S().Error("receive signal:", sig.String())
+		zap.S().Info("wait for 5 secs to exit")
+		<-time.After(time.Second * 5)
+		agent.DefaultAgent.Cancel()
 	}()
-
-	http.ListenAndServe("0.0.0.0:6060", nil)
-	// time.Sleep(1000 * time.Second)
-	// 指令回传在这里
+	wg.Wait()
 }

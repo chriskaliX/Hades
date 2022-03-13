@@ -1,0 +1,32 @@
+# https://blog.csdn.net/qq_16268979/article/details/114771854
+# https://zhuanlan.zhihu.com/p/271071439
+[Unit]
+Description=hades-agent
+# Needs network & start after network initial
+Wants=network-online.target
+After=network-online.target network.target syslog.target
+
+[Service]
+# Configures the process start-up type for this service unit. One of simple, exec, forking, oneshot, dbus, notify or idle:
+Type=simple
+ExecStart=/etc/hades/hades-agent
+WorkingDirectory=/etc/agent
+Restart=always
+RestartSec=45
+KillMode=control-group
+# 兼容性
+MemoryMax=250M
+MemoryLimit=250M
+CPUQuota=10%
+# https://www.cnblogs.com/jimbo17/p/9107052.html
+# cgroup 自己管理, 原因? 兼容性问题? 有些是 sysvinit
+Delegate=yes
+# http://www.jinbuguo.com/systemd/systemd.service.html
+# 在代码中必须周期性的调用 WATCHDOG=1, keep-alive ping,  如果两次的周期大于 900s, 则发送 WatchdogSignal= 信号(默认为 SIGABRT)关闭
+# 字节 Elkeid 1.7.0.1 中 remove 掉了这个, 不需要 Watchdog。我猜测是因为那个 systemd 的问题
+# WatchdogSec=900
+# config file 问题
+EnvironmentFile=-/etc/hades/specified_env
+[Install]
+# 所有用于实现多用户命令行环境的单元
+WantedBy=multi-user.target

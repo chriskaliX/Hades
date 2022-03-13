@@ -1,0 +1,76 @@
+syntax = "proto3";
+option go_package = "proto";
+package grpc;
+
+// the communication format of plugins
+message EncodedRecord {
+    int32 data_type = 1;
+    int64 timestamp = 2;
+    bytes data = 3;
+}
+
+message PackagedData {
+    repeated EncodedRecord records = 1;
+    string agent_id = 2;
+    repeated string intranet_ipv4 = 3;
+    repeated string extranet_ipv4 = 4;
+    repeated string intranet_ipv6 = 5;
+    repeated string extranet_ipv6 = 6;
+    string hostname = 7;
+    string version = 8;
+    string product = 9;
+}
+
+/* Normal Data */
+message Payload { map<string, string> fields = 1; }
+
+message Record {
+    int32 data_type = 1;
+    int64 timestamp = 2;
+    Payload data = 3;
+}
+
+// task & config
+message Command {
+    Task task = 2;
+    repeated Config configs = 3;
+}
+
+// task for plugin
+message Task {
+    int32 data_type = 1;
+    string object_name = 2;
+    string data = 3;
+    string token = 4;
+}
+
+message Config {
+    string name = 1;
+    string type = 2;
+    string version = 3;
+    string sha256 = 4;
+    string signature = 5;
+    repeated string download_urls = 6;
+    string detail = 7;
+}
+
+service Transfer {
+    rpc Transfer(stream PackagedData) returns (stream Command) {}
+}
+
+message FileUploadRequest {
+    string token = 1;
+    bytes data = 2;
+}
+
+message FileUploadResponse {
+    enum StatusCode {
+        SUCCESS = 0;
+        FAILED = 1;
+    }
+    StatusCode status = 1;
+}
+  
+service FileExt {
+    rpc Upload(stream FileUploadRequest) returns (FileUploadResponse);
+}

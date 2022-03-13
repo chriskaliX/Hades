@@ -1,146 +1,83 @@
 package transport
 
 import (
-	"agent/config"
-	"agent/global"
-	"agent/transport/connection"
-	"agent/utils"
+	"agent/core"
+	"agent/proto"
 	"context"
-	"errors"
-	"os"
 	"sync"
 	"time"
 
 	_ "agent/transport/compressor"
+	"agent/transport/connection"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
-// 这里的写法是错误直接Panic
-// 但是我认为, 应该和 osquery 一样, 一直等着
-func Run() {
+// retries here, and some bugs
+// TODO: not as I expected, but run firstly
+func Startup(ctx context.Context, wg *sync.WaitGroup) {
+	// TODO:ctx fix
+	defer wg.Done()
+	subWg := &sync.WaitGroup{}
+	defer subWg.Wait()
 	for {
-		conn, err := connection.New()
+		conn, err := connection.New(ctx)
 		if err != nil {
-			zap.S().Error("No network is available")
-			continue
+			return
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		client, err := global.NewTransferClient(conn).Transfer(ctx, grpc.UseCompressor("snappy"))
-		if err != nil {
+		var client proto.Transfer_TransferClient
+		subCtx, cancel := context.WithCancel(ctx)
+		client, err = proto.NewTransferClient(conn).Transfer(subCtx, grpc.UseCompressor("snappy"))
+		if err == nil {
+			subWg.Add(2)
+			go handleSend(subCtx, subWg, client)
+			go func() {
+				// 收到错误后取消服务
+				handleReceive(subCtx, subWg, client)
+				cancel()
+			}()
+			// stuck here
+			subWg.Wait()
+		} else {
 			zap.S().Error(err)
 		}
-		wg := sync.WaitGroup{}
-		wg.Add(2)
-		go handleSend(&wg, client)
-		go handleReceive(&wg, client)
-		wg.Wait()
 		cancel()
-		conn.Close()
-		// 事件后面在考虑
-		time.Sleep(1 * time.Minute)
+		zap.S().Info("transfer has been canceled,wait next try to transfer for 5 seconds")
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second * 5):
+		}
 	}
 }
 
-func handleSend(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
+// only transport heartbeat, status and so on...
+func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_TransferClient) {
 	defer wg.Done()
-	buffer := make([]*global.Record, 0, 10000)
+	defer c.CloseSend()
+	zap.S().Info("send handler running")
 	interval := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
-		case records := <-global.GrpcChannel:
-			{
-				buffer = append(buffer, records...)
-			}
+		case <-ctx.Done():
+			return
 		case <-interval.C:
-			if len(buffer) == 0 {
-				continue
-			}
-			// Create send request packet
-			req := global.RawData{
-				IntranetIPv4: global.PrivateIPv4,
-				IntranetIPv6: global.PrivateIPv6,
-				Hostname:     global.Hostname,
-				AgentID:      global.AgentID,
-				Timestamp:    time.Now().Unix(),
-				Version:      global.Version,
-				Pkg:          buffer,
-			}
-			err := c.Send(&req)
-			// If you encounter an error when sending, exit directly
-			if err != nil {
-				zap.S().Error(err)
-				return
-			}
-			// Clear buffer
-			buffer = buffer[0:0]
+			core.DefaultTrans.Send(c)
 		}
 	}
 }
 
-func handleReceive(wg *sync.WaitGroup, c global.Transfer_TransferClient) {
-	// 这里后续可能会复杂化，目前纯采集不需要下发扫描
-	// 这里需要初始化, 没有和 server 建立连接, 不往下执行
+func handleReceive(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_TransferClient) {
 	defer wg.Done()
 	for {
-		cmd, err := c.Recv()
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
-		err = CheckAndLoad(cmd)
-		if err != nil {
-			continue
+		select {
+		case <-ctx.Done():
+		// stuck here, may not helpful
+		default:
+			if err := core.DefaultTrans.Receive(c); err != nil {
+				return
+			}
 		}
 	}
-}
-
-func CheckAndLoad(a *global.Command) error {
-	switch a.AgentCtrl {
-	case 1:
-		os.Exit(0)
-	case 2:
-		// 这里自升级, 看一下 https://github.com/inconshreveable/go-update
-		// 参考 https://github.com/sanbornm/go-selfupdate/
-		// todo:
-
-		// 开始绑定参数
-		downloadConfig := &config.Download{}
-		err := utils.Bind(a.Message, downloadConfig)
-		if err != nil {
-			return err
-		}
-		if downloadConfig.Version == global.Version {
-			return errors.New("No need to update")
-		}
-
-		// 下载
-		if err = Download([]string{downloadConfig.Url}, "Hades.tmp", downloadConfig.Sha256); err != nil {
-			return err
-		}
-		// 重命名 - 这个名字暂时还对不上, 后期直接改掉就行
-		err = os.Rename("Hades.tmp", "Hades")
-		// 直接推出, 由守护进程拉起
-		if err == nil {
-			os.Exit(0)
-		} else {
-			os.Remove("Hades")
-		}
-
-	case 3:
-		w := &config.WhiteList{}
-		if err := utils.Bind(a.Message, w); err != nil {
-			return err
-		}
-		if err := w.Check(); err != nil {
-			return err
-		}
-		if err := w.Load(); err != nil {
-			return err
-		}
-	default:
-		return errors.New("AgentCtrl flag invalid")
-	}
-	return nil
 }
