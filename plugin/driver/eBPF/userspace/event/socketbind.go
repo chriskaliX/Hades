@@ -58,6 +58,27 @@ func (s *SocketBind) Parse() (err error) {
 		if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 			return
 		}
+	case 10:
+		var _port uint16
+		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
+			return
+		}
+		s.LocalPort = strconv.FormatUint(uint64(_port), 10)
+		var _flowinfo uint32
+		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
+			return
+		}
+		var _addr []byte
+		_addr, err = decoder.DefaultDecoder.ReadByteSliceFromBuff(16)
+		if err != nil {
+			return
+		}
+		s.LocalAddr = Print16BytesSliceIP(_addr)
+		// reuse
+		err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo)
+		if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+			return
+		}
 	}
 	return
 }

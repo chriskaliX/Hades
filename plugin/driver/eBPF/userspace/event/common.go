@@ -31,3 +31,8 @@ func printUint32IP(in uint32) string {
 	binary.BigEndian.PutUint32(ip, in)
 	return ip.String()
 }
+
+func Print16BytesSliceIP(in []byte) string {
+	ip := net.IP(in)
+	return ip.String()
+}
