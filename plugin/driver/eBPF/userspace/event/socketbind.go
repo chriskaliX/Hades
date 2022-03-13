@@ -9,6 +9,8 @@ import (
 
 var DefaultSockBind = &SocketBind{}
 
+var _ decoder.Event = (*SocketBind)(nil)
+
 type SocketBind struct {
 	Family    int16  `json:"family"`
 	LocalPort string `json:"localport"`

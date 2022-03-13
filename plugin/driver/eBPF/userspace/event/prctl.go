@@ -8,6 +8,8 @@ import (
 
 var DefaultPrctl = &Prctl{}
 
+var _ decoder.Event = (*Prctl)(nil)
+
 type Prctl struct {
 	Exe     string `json:"-"`
 	Option  string `json:"option"`

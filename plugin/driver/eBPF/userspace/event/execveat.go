@@ -9,6 +9,8 @@ import (
 
 var DefaultExecveAt = &ExecveAt{}
 
+var _ decoder.Event = (*ExecveAt)(nil)
+
 type ExecveAt struct {
 	Exe           string `json:"-"`
 	Cwd           string `json:"cwd"`

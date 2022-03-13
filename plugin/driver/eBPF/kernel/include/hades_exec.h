@@ -74,6 +74,14 @@ struct _sys_enter_ptrace
     unsigned long data;
 };
 
+struct _sys_enter_memfd_create
+{
+    unsigned long long unused;
+    long syscall_nr;
+    const char *uname;
+    unsigned int flags;
+};
+
 // TODO: raw_tracepoint
 // 相比来说有一定的性能提升, 给出的 benchmark 里能看到有 5% 左右的性能提升(某个 hook)
 // 但是对于性能来说, 还是尽可能的用 tracepoint, 看起来效率比 kprobe 更好
@@ -169,53 +177,6 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
-}
-
-/* fork : nothing but just record the command line */
-SEC("tracepoint/sched/sched_process_fork")
-int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
-{
-    u32 pid = 0;
-    u32 ppid = 0;
-    bpf_probe_read(&pid, sizeof(pid), &ctx->child_pid);
-    bpf_probe_read(&ppid, sizeof(ppid), &ctx->parent_pid);
-    struct pid_cache_t cache = {};
-    cache.ppid = ppid;
-    bpf_probe_read_str(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
-    bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
-    return 0;
-}
-
-/* lsm bprm: unfinished - 看的tracee, 上次看了又忘记了... */
-// https://blog.aquasec.com/ebpf-container-tracing-malware-detection
-// 这个主要检测 dynamic code execution, 如果不捕获 payload, 是否能只做简单匹配
-SEC("kprobe/security_bprm_check")
-int kprobe_security_bprm_check(struct pt_regs *ctx)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 5;
-    struct linux_binprm *bprm = (struct linux_binprm *)PT_REGS_PARM1(ctx);
-    struct file *file = READ_KERN(bprm->file);
-    void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));
-    // 这里 tracee 和 datadog 的做法不一样, datadog 的执行都会放到一个 LRU 里面, 做存储, 来做跨 programs 的传输
-    // 但是 security_bprm_check 的 hook 原因是啥呢? 看着 tracee 下的应该是对内存执行的监控, 这种是跳过 execve 的, 所以从上下文的 LRU 里取不到就 return (datadog 做法), 可能是没有意义的
-    // 当然衍生出另外一个问题, 这个 hook 会导致 execve 下的数量翻倍, 同一个链路下的, 考虑在内核态做过滤
-    // TODO: 场景探究 & 内核过滤必要性
-    buf_t *string_p = get_buf(STRING_BUF_IDX);
-    if (string_p == NULL)
-        return 0;
-    // memfd 这个应该相当于 kprobe/memfd_create, 还有一个 shm_open https://x-c3ll.github.io/posts/fileless-memfd_create/ 可以绕过字节的 hook 吗? 字节的大佬说 execve 可以 hook
-    // 对应的也就是 /dev/shm/ | /run/shm/
-    // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
-    // TODO: optimize this function get_path_str
-    if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10))
-    {
-        save_str_to_buf(&data, file_path, 0);
-        return events_perf_submit(&data);
-    }
-    return 0;
 }
 
 // Prctl(CAP)/Ptrace(SYS_ENTER) 操作/注入进程
@@ -320,8 +281,32 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     return events_perf_submit(&data);
 }
 
-/* Below here, hook is not added in the first version*/
+// https://xeldax.top/article/linux_no_file_elf_mem_execute
+SEC("tracepoint/syscalls/sys_enter_memfd_create")
+int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 614;
+    void *exe = get_exe_from_task(data.task);
+    int ret = save_str_to_buf(&data, exe, 0);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 0);
+    }
+    ret = save_str_to_buf(&data, (char *)ctx->uname, 1);
+    if (ret == 0)
+    {
+        char nothing[] = "-1";
+        save_str_to_buf(&data, nothing, 1);
+    }
+    save_to_submit_buf(&data, &ctx->flags, sizeof(unsigned int), 2);
+    return events_perf_submit(&data);
+}
 
+/* Below here, hook is not added in the first version*/
 /* kill/tkill/tgkill */
 SEC("tracepoint/syscalls/sys_enter_kill")
 int sys_enter_kill(struct _sys_enter_kill *ctx)
@@ -370,4 +355,51 @@ int kprobe_sys_exit_group(struct pt_regs *ctx)
     long code = PT_REGS_PARM2(ctx);
     data.context.retval = code;
     return events_perf_submit(&data);
+}
+
+/* fork : nothing but just record the command line */
+SEC("tracepoint/sched/sched_process_fork")
+int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
+{
+    u32 pid = 0;
+    u32 ppid = 0;
+    bpf_probe_read(&pid, sizeof(pid), &ctx->child_pid);
+    bpf_probe_read(&ppid, sizeof(ppid), &ctx->parent_pid);
+    struct pid_cache_t cache = {};
+    cache.ppid = ppid;
+    bpf_probe_read_str(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
+    bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
+    return 0;
+}
+
+/* lsm bprm: unfinished - 看的tracee, 上次看了又忘记了... */
+// https://blog.aquasec.com/ebpf-container-tracing-malware-detection
+// 这个主要检测 dynamic code execution, 如果不捕获 payload, 是否能只做简单匹配
+SEC("kprobe/security_bprm_check")
+int kprobe_security_bprm_check(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 5;
+    struct linux_binprm *bprm = (struct linux_binprm *)PT_REGS_PARM1(ctx);
+    struct file *file = READ_KERN(bprm->file);
+    void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));
+    // 这里 tracee 和 datadog 的做法不一样, datadog 的执行都会放到一个 LRU 里面, 做存储, 来做跨 programs 的传输
+    // 但是 security_bprm_check 的 hook 原因是啥呢? 看着 tracee 下的应该是对内存执行的监控, 这种是跳过 execve 的, 所以从上下文的 LRU 里取不到就 return (datadog 做法), 可能是没有意义的
+    // 当然衍生出另外一个问题, 这个 hook 会导致 execve 下的数量翻倍, 同一个链路下的, 考虑在内核态做过滤
+    // TODO: 场景探究 & 内核过滤必要性
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return 0;
+    // memfd 这个应该相当于 kprobe/memfd_create, 还有一个 shm_open https://x-c3ll.github.io/posts/fileless-memfd_create/ 可以绕过字节的 hook 吗? 字节的大佬说 execve 可以 hook
+    // 对应的也就是 /dev/shm/ | /run/shm/
+    // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
+    // TODO: optimize this function get_path_str
+    if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10))
+    {
+        save_str_to_buf(&data, file_path, 0);
+        return events_perf_submit(&data);
+    }
+    return 0;
 }
