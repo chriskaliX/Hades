@@ -126,13 +126,13 @@ int kprobe_udp_recvmsg(struct pt_regs *ctx)
         struct iov_iter msg_iter;
         struct iovec *iov;
         int ret = 0;
-        ret = bpf_probe_read(&msg_iter, &sizeof(msg_iter), &msg->msg_iter);
+        ret = bpf_probe_read(&msg_iter, sizeof(msg_iter), &msg->msg_iter);
         if (ret != 0)
             return 0;
-        ret = bpf_probe_read(&iov, &sizeof(iov), msg_iter.iov);
+        ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.iov);
         if (ret != 0)
             return 0;
-        if (iov.iov_len == 0)
+        if (iov->iov_len == 0)
             return 0;
         // TODO: update map here
     }
