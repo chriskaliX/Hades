@@ -1,6 +1,0 @@
-2022-03-08T23:13:19.873+0800	INFO	userspace/hades.go:115	perf event ring buffer full, dropped 10 samples
-2022-03-08T23:13:19.873+0800	INFO	userspace/hades.go:115	perf event ring buffer full, dropped 24 samples
-2022-03-08T23:13:19.875+0800	INFO	userspace/hades.go:115	perf event ring buffer full, dropped 7 samples
-2022-03-08T23:13:22.356+0800	INFO	userspace/hades.go:115	perf event ring buffer full, dropped 9 samples
-2022-03-08T23:32:31.583+0800	INFO	userspace/hades.go:115	perf event ring buffer full, dropped 123 samples
-2022-03-08T23:32:31.584+0800	INFO	userspace/hades.go:115	perf event ring buffer full, dropped 52 samples
