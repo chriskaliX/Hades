@@ -15,6 +15,7 @@ type SocketBind struct {
 	Family    int16  `json:"family"`
 	LocalPort string `json:"localport"`
 	LocalAddr string `json:"localaddr"`
+	Protocol  uint16 `json:"protocol"`
 	Exe       string `json:"-"`
 }
 
@@ -55,9 +56,6 @@ func (s *SocketBind) Parse() (err error) {
 		}
 		s.LocalAddr = printUint32IP(_addr)
 		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
-		if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
-			return
-		}
 	case 10:
 		var _port uint16
 		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
@@ -76,10 +74,14 @@ func (s *SocketBind) Parse() (err error) {
 		s.LocalAddr = Print16BytesSliceIP(_addr)
 		// reuse
 		err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo)
-		if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
-			return
-		}
 	}
+	if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+		return
+	}
+	err = decoder.DefaultDecoder.DecodeUint16(&s.Protocol)
 	return
 }
 
