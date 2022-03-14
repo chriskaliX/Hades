@@ -426,6 +426,47 @@ static __always_inline void *get_exe_from_task(struct task_struct *task)
     return path;
 }
 
+// In tracee, the field protocol is generate by the function `get_sock_protocol`
+// which differ from kernel version, kinda interestring, let's find out.
+// the sock struct is defined in `net/sock.h`. It's a massive struct, but what
+// we need is only protocol.
+// In kernel version 4.18, it's like
+/*
+unsigned int		sk_padding : 1,
+            sk_kern_sock : 1,
+            sk_no_check_tx : 1,
+            sk_no_check_rx : 1,
+            sk_userlocks : 4,
+            sk_protocol  : 8,
+            sk_type      : 16;
+#define SK_PROTOCOL_MAX U8_MAX
+u16			sk_gso_max_segs;
+*/
+// while in kernel version 5.6, it changes:
+/*
+u8			sk_padding : 1,
+            sk_kern_sock : 1,
+            sk_no_check_tx : 1,
+            sk_no_check_rx : 1,
+            sk_userlocks : 4;
+u8			sk_pacing_shift;
+u16			sk_type;
+u16			sk_protocol;
+*/
+// But in lower kernel version, sk_protocol seems change too.
+// By the way, CO-RE is not archieve in Hades...But maybe someday would change(soon)...
+// So it's going to change when CO-RE enabled.
+static __always_inline u16 get_sock_protocol(struct sock *sock)
+{
+    u16 protocol = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+    bpf_probe_read(&protocol, 1, (void *)(&sock->sk_gso_max_segs) - 3);
+#else
+    protocol = READ_KERN(sock->sk_protocol);
+#endif
+    return protocol;
+}
+
 static __always_inline int init_event_data(event_data_t *data, void *ctx)
 {
     data->task = (struct task_struct *)bpf_get_current_task();
