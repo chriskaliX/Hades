@@ -34,7 +34,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     // In Elkeid, connect_syscall_handler, only AF_INET and AF_INET6 are added. But in
     // tracee, AF_UNIX is also considered.
     default:
-        break;
+        return 0;
     }
     // get exe from task
     void *exe = get_exe_from_task(data.task);
@@ -77,7 +77,7 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
         save_to_submit_buf(&data, (void *)address, sizeof(struct sockaddr_in6), 0);
         break;
     default:
-        break;
+        return 0;
     }
     // get exe from task_struct
     void *exe = get_exe_from_task(data.task);

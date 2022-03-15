@@ -35,6 +35,7 @@ func (s *SocketConnect) Parse() (err error) {
 		index  uint8
 		family int16
 	)
+	// get family firstly
 	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
@@ -55,9 +56,6 @@ func (s *SocketConnect) Parse() (err error) {
 		}
 		s.RemoteAddr = printUint32IP(_addr)
 		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
-		if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
-			return
-		}
 	case 10:
 		var _port uint16
 		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
@@ -75,11 +73,11 @@ func (s *SocketConnect) Parse() (err error) {
 		}
 		s.RemoteAddr = Print16BytesSliceIP(_addr)
 		// reuse
-		err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo)
-		if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+		if err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
 		}
 	}
+	s.Exe, err = decoder.DefaultDecoder.DecodeString()
 	return
 }
 
@@ -87,7 +85,7 @@ func (SocketConnect) GetProbe() *manager.Probe {
 	return &manager.Probe{
 		Section:          "kprobe/security_socket_connect",
 		EbpfFuncName:     "kprobe_security_socket_connect",
-		AttachToFuncName: "security_socket_bind",
+		AttachToFuncName: "security_socket_connect",
 	}
 }
 

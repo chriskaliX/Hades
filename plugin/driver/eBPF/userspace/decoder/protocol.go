@@ -68,21 +68,21 @@ func PutContext(data *Context) {
 	contextPool.Put(data)
 }
 
-// SlimCred
-type SlimCred struct {
-	Uid            uint32 /* real UID of the task */
-	Gid            uint32 /* real GID of the task */
-	Suid           uint32 /* saved UID of the task */
-	Sgid           uint32 /* saved GID of the task */
-	Euid           uint32 /* effective UID of the task */
-	Egid           uint32 /* effective GID of the task */
-	Fsuid          uint32 /* UID for VFS ops */
-	Fsgid          uint32 /* GID for VFS ops */
-	UserNamespace  uint32 /* User Namespace of the of the event */
-	SecureBits     uint32 /* SUID-less security management */
-	CapInheritable uint64 /* caps our children can inherit */
-	CapPermitted   uint64 /* caps we're permitted */
-	CapEffective   uint64 /* caps we can actually use */
-	CapBounding    uint64 /* capability bounding set */
-	CapAmbient     uint64 /* Ambient capability set */
-}
+// // SlimCred
+// type SlimCred struct {
+// 	Uid            uint32 /* real UID of the task */
+// 	Gid            uint32 /* real GID of the task */
+// 	Suid           uint32 /* saved UID of the task */
+// 	Sgid           uint32 /* saved GID of the task */
+// 	Euid           uint32 /* effective UID of the task */
+// 	Egid           uint32 /* effective GID of the task */
+// 	Fsuid          uint32 /* UID for VFS ops */
+// 	Fsgid          uint32 /* GID for VFS ops */
+// 	UserNamespace  uint32 /* User Namespace of the of the event */
+// 	SecureBits     uint32 /* SUID-less security management */
+// 	CapInheritable uint64 /* caps our children can inherit */
+// 	CapPermitted   uint64 /* caps we're permitted */
+// 	CapEffective   uint64 /* caps we can actually use */
+// 	CapBounding    uint64 /* capability bounding set */
+// 	CapAmbient     uint64 /* Ambient capability set */
+// }

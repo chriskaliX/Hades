@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"hades-ebpf/userspace/cache"
 	"hades-ebpf/userspace/decoder"
 	"hades-ebpf/userspace/helper"
 	"hades-ebpf/userspace/share"
@@ -82,7 +81,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	d.eventDecoder.Parse()
 	ctx.SetEvent(d.eventDecoder)
 	ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
-	ctx.Username = cache.GetUsername(strconv.Itoa(int(ctx.Uid)))
+	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
 	ctx.StartTime = uint64(share.Time)
 	if data, err := share.Marshal(ctx); err == nil {
 		rawdata["data"] = helper.ZeroCopyString(data)
