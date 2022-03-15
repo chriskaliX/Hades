@@ -20,13 +20,27 @@ yum install kernel-devel
 # Fedora
 dnf install kernel-devel
 # Ubuntu
-linux-headers-$(uname -r)
+apt install linux-headers-$(uname -r)
 ```
 
 2. 编译
 
-进入 eBPF 文件，make 即可(makefile 还不完备，不过问题应该不大)
+进入 eBPF 文件，make 即可
+(makefile 还不完备，不过问题应该不大)
 
 3. 运行
 
 在 driver 目录下，会看见对应的 driver 文件，启动即可
+
+## 目前支持 Hook
+
+|Hook名称|状态/说明|ID|
+|:-:|:-:|:-:|
+|tracepoint/syscalls/sys_enter_execve|ON|700|
+|tracepoint/syscalls/sys_enter_execveat|ON|698|
+|tracepoint/syscalls/sys_enter_prctl|ON(PR_SET_NAME & PR_SET_MM)|200|
+|tracepoint/syscalls/sys_enter_ptrace|ON(PTRACE_PEEKTEXT & PTRACE_POKEDATA)|164|
+|tracepoint/syscalls/sys_enter_memfd_create|ON|614|
+|kprobe/security_socket_connect|ON|1022|
+|kprobe/security_socket_bind|ON|1024|
+|kprobe/commit_creds|ON|1011|
