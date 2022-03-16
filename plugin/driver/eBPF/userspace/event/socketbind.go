@@ -85,11 +85,13 @@ func (s *SocketBind) Parse() (err error) {
 	return
 }
 
-func (SocketBind) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:          "kprobe/security_socket_bind",
-		EbpfFuncName:     "kprobe_security_socket_bind",
-		AttachToFuncName: "security_socket_bind",
+func (SocketBind) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:          "kprobe/security_socket_bind",
+			EbpfFuncName:     "kprobe_security_socket_bind",
+			AttachToFuncName: "security_socket_bind",
+		},
 	}
 }
 

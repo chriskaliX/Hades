@@ -152,14 +152,14 @@ static __always_inline void *get_path_str(struct path *path)
         if (off <= buf_off)
         { // verify no wrap occurred
             len = len & (((MAX_PERCPU_BUFSIZE) >> 1) - 1);
-            sz = bpf_probe_read_str(&(string_p->buf[off & (((MAX_PERCPU_BUFSIZE) >> 1) - 1)]), len, (void *)d_name.name);
+            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]), len, (void *)d_name.name);
         }
         else
             break;
         if (sz > 1)
         {
             buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)]), 1, &slash);
             buf_off -= sz - 1;
         }
         else

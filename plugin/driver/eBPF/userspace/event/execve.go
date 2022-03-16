@@ -92,10 +92,12 @@ func (e *Execve) Parse() (err error) {
 	return
 }
 
-func (Execve) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:      "tracepoint/syscalls/sys_enter_execve",
-		EbpfFuncName: "sys_enter_execve",
+func (Execve) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:      "tracepoint/syscalls/sys_enter_execve",
+			EbpfFuncName: "sys_enter_execve",
+		},
 	}
 }
 

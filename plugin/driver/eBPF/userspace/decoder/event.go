@@ -1,6 +1,8 @@
 package decoder
 
 import (
+	"fmt"
+
 	manager "github.com/ehids/ebpfmanager"
 )
 
@@ -9,7 +11,7 @@ type Event interface {
 	Parse() error
 	String() string
 	GetExe() string
-	GetProbe() *manager.Probe
+	GetProbe() []*manager.Probe
 }
 
 // use eventId as a key
