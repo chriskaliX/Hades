@@ -93,10 +93,12 @@ func (e *ExecveAt) Parse() (err error) {
 	return
 }
 
-func (ExecveAt) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:      "tracepoint/syscalls/sys_enter_execveat",
-		EbpfFuncName: "sys_enter_execveat",
+func (ExecveAt) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:      "tracepoint/syscalls/sys_enter_execveat",
+			EbpfFuncName: "sys_enter_execveat",
+		},
 	}
 }
 

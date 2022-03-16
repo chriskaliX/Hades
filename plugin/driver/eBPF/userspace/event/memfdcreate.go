@@ -45,10 +45,12 @@ func (m *MemfdCreate) Parse() (err error) {
 	return
 }
 
-func (m *MemfdCreate) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:      "tracepoint/syscalls/sys_enter_memfd_create",
-		EbpfFuncName: "sys_enter_memfd_create",
+func (m *MemfdCreate) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:      "tracepoint/syscalls/sys_enter_memfd_create",
+			EbpfFuncName: "sys_enter_memfd_create",
+		},
 	}
 }
 

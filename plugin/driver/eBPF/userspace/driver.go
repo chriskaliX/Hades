@@ -35,7 +35,7 @@ func (d *Driver) Init() (err error) {
 	d.Manager = &manager.Manager{}
 	events := decoder.GetEvents()
 	for _, event := range events {
-		d.Manager.Probes = append(d.Manager.Probes, event.GetProbe())
+		d.Manager.Probes = append(d.Manager.Probes, event.GetProbe()...)
 	}
 	d.Manager.PerfMaps = []*manager.PerfMap{
 		{

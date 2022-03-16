@@ -396,6 +396,7 @@ int kprobe_security_bprm_check(struct pt_regs *ctx)
     // 对应的也就是 /dev/shm/ | /run/shm/
     // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
     // TODO: optimize this function get_path_str
+    // code 有问题, 注意 string_p 的偏移, 获取当前 offset 来操作
     if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10))
     {
         save_str_to_buf(&data, file_path, 0);

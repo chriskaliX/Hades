@@ -59,10 +59,12 @@ func (p *Ptrace) Parse() (err error) {
 	return
 }
 
-func (Ptrace) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:      "tracepoint/syscalls/sys_enter_ptrace",
-		EbpfFuncName: "sys_enter_ptrace",
+func (Ptrace) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:      "tracepoint/syscalls/sys_enter_ptrace",
+			EbpfFuncName: "sys_enter_ptrace",
+		},
 	}
 }
 

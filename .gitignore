@@ -9,3 +9,5 @@ agent/log/hades*
 agent/main
 cert/
 server/hadeserver
+plugin/driver/eBPF/kernel/hades_ebpf_driver.o
+plugin/driver/driver
