@@ -22,7 +22,7 @@ func (DoInitModule) ID() uint32 {
 }
 
 func (DoInitModule) String() string {
-	return "udp_recvmsg"
+	return "do_init_module"
 }
 
 func (d *DoInitModule) GetExe() string {

@@ -61,3 +61,5 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     }
     return events_perf_submit(&data);
 }
+
+// For Hidden Rootkit. 
