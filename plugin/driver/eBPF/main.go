@@ -5,8 +5,6 @@ import (
 	_ "hades-ebpf/userspace/event"
 	"time"
 
-	// "collector/socket"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"

@@ -109,10 +109,10 @@ int kprobe_udp_recvmsg(struct pt_regs *ctx)
     // known for dns while 5353 is the mDNS
     u16 dport = READ_KERN(inet->inet_dport);
     // @ Notice:
-    // In some situation, when we use command 'dig', 'nslookup' etc., it actually 
+    // In some situation, when we use command 'dig', 'nslookup' etc., it actually
     // comes from other ports(not 53 or 5353).
     // if all udp traffic is required, remove the dport thing.
-    // By the way, I capture the Query part of dns structure and ignore TC flag, 
+    // By the way, I capture the Query part of dns structure and ignore TC flag,
     // which is somehow inaccurate though, but I'll do a uprobe hook for this all.
     if (dport == 13568 || dport == 59668)
     {
@@ -201,7 +201,7 @@ int kretprobe_udp_recvmsg(struct pt_regs *ctx)
     // TODO: upgrade here
     bpf_probe_read(&(string_p->buf[0]), iov_len & (512), &iov->iov_base);
     // The data structure of dns is here...
-    // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys()|
+    // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys...|
     // The datas that we need are flags & querys
     int qr = (string_p->buf[2] & 0x80) ? 1 : 0;
     if (qr == 1)
@@ -219,17 +219,21 @@ int kretprobe_udp_recvmsg(struct pt_regs *ctx)
         save_to_submit_buf(&data, &udata, sizeof(struct udpdata), 0);
         int len;
         int templen;
-    // change the data to a string, as max, we support 10
-    #pragma unroll
+// change the data to a string, as max, we support 10
+#pragma unroll
         for (int i = 0; i < 10; i++)
         {
             // firstly get the length
-            if (i == 0) {
+            if (i == 0)
+            {
                 len = string_p->buf[12];
                 len = 12 + len;
-            } else {
+            }
+            else
+            {
                 templen = string_p->buf[(len + 1) & (MAX_PERCPU_BUFSIZE - 1)];
-                if (templen == 0) {
+                if (templen == 0)
+                {
                     break;
                 }
                 string_p->buf[(len + 1) & (MAX_PERCPU_BUFSIZE - 1)] = 46;
