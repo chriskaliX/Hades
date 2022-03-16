@@ -195,7 +195,6 @@ int kretprobe_udp_recvmsg(struct pt_regs *ctx)
     // The reference is here: http://c.biancheng.net/view/6457.html
     // |QR|Opcode|AA|TC|RD|RA|Z|rcode|
     // QR equals 1 means is a response, so it's what we need
-
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         goto delete;

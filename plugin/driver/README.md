@@ -46,3 +46,4 @@
 |kprobe/security_socket_connect|ON|1022|
 |kprobe/security_socket_bind|ON|1024|
 |kprobe/commit_creds|ON|1011|
+|k(ret)probe/udp_recvmsg|ON(53/5353 for dns data)|1025|
