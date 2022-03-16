@@ -52,11 +52,13 @@ func (c *CommitCreds) Parse() (err error) {
 	return
 }
 
-func (CommitCreds) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:          "kprobe/commit_creds",
-		EbpfFuncName:     "kprobe_commit_creds",
-		AttachToFuncName: "commit_creds",
+func (CommitCreds) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:          "kprobe/commit_creds",
+			EbpfFuncName:     "kprobe_commit_creds",
+			AttachToFuncName: "commit_creds",
+		},
 	}
 }
 

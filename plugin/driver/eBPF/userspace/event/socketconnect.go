@@ -81,11 +81,13 @@ func (s *SocketConnect) Parse() (err error) {
 	return
 }
 
-func (SocketConnect) GetProbe() *manager.Probe {
-	return &manager.Probe{
-		Section:          "kprobe/security_socket_connect",
-		EbpfFuncName:     "kprobe_security_socket_connect",
-		AttachToFuncName: "security_socket_connect",
+func (SocketConnect) GetProbe() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			Section:          "kprobe/security_socket_connect",
+			EbpfFuncName:     "kprobe_security_socket_connect",
+			AttachToFuncName: "security_socket_connect",
+		},
 	}
 }
 
