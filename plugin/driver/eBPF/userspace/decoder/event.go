@@ -1,8 +1,6 @@
 package decoder
 
 import (
-	"fmt"
-
 	manager "github.com/ehids/ebpfmanager"
 )
 
