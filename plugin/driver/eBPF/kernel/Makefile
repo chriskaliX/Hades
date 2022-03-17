@@ -73,7 +73,6 @@ hades_ebpf_driver.o: src/hades.c
 		-I $(KERN_BLD_PATH)/include/generated/uapi \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
-		-I /usr/include/ \
 		-Wunused \
 		-Wall \
 		-Wno-frame-address \
