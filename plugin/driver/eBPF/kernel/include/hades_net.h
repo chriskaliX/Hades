@@ -93,7 +93,7 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
 }
 
 /* For DNS */
-BPF_HASH(udpmsg, u64, struct msghdr *, 1024);
+BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 1024);
 // kprobe/kretprobe are used for get dns data. Proper way to get udp data,
 // is to hook the kretprobe of the udp_recvmsg just like Elkeid does. But
 // still, a uprobe of udp (like getaddrinfo and gethostbyname) to get this

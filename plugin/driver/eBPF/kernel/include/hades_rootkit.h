@@ -62,4 +62,43 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
-// For Hidden Rootkit. 
+// For Hidden Rootkit. It's interestring in Elkeid, let's learn firstly.
+// In Elkeid, it's in anti_rootkit file, function `find_hidden_module`
+// This reference: (https://www.cnblogs.com/LoyenWang/p/13334196.html)
+// helps me understand better.
+// Before that, we should have a brief conception of sth.
+// IDT(Interrupt Description Table):
+//   It's a table shows the relationship
+//   of the Interrupt and it's process function. (x86 only)
+// sys_call_table:
+//   @Reference: https://blog.tofile.dev/2021/07/07/ebpf-hooks.html
+//   this article shows the way we do anti rootkit with stack_id. But
+//   hook inside kernel(like Reptile), like vfs_read, would be called by
+//   other part of the kernel module, so we should determine whether it's
+//   right from the stack trace... (interestring)
+// core_kernel_text:
+//   scan the sys_call_table. If the function did not point to the kernel
+//   text section, then it's more likely hooked. Since the text section
+//   is stable after the kernel builded.
+// kernel sets(ksets):
+//    kset contains kobject(s). This reference explains well:
+//    https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
+//    we go through every kobject from the kset and get all kobjs.
+//    if the kobject do not exist in the kset
+// In Elkeid, the find_hidden_module go through the kobject to judge whether
+// it's in the sys_call_table and IDT. And the kernel sets finding is also
+// considered. 
+//
+// In a really brief way, it goes like this. In userspace, we do something
+// to trigger the system interrupt.
+// It's reasonable that we can do sth with the IDT or the sys_call_table
+// to hijack the function. Also for the syscall & sys_enter/exit
+
+// At last, here is my reference:
+// @Reference: https://www.lse.epita.fr/lse-summer-week-2015/slides/lse-summer-week-2015-14-linux_rootkit.pdf
+// @Reference: https://github.com/RouNNdeL/anti-rootkit-lkm/blob/14d9f934f7f9a5bf27849c2b51b096fe585bea35/module/anti_rootkit/main.c
+// @Reference: https://github.com/JnuSimba/MiscSecNotes/blob/dacdefb60d7e5350a077b135382412cbba0f084f/Linux%E6%B8%97%E9%80%8F/Rootkit%20%E7%BB%BC%E5%90%88%E6%95%99%E7%A8%8B.md
+// @Reference: https://blog.csdn.net/dog250/article/details/105371830
+// @Reference: https://blog.csdn.net/dog250/article/details/105394840
+// @Reference: https://blog.csdn.net/dog250/article/details/105842029
+// @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
