@@ -94,12 +94,12 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 > 另外, 目前不感觉 CO-RE 会是一个很大的问题, 看了下 LKM 下也都需要 linux-kernel-header, 后期 plan 是先按照大部分 kernel version 把 .o 文件编译出来. 放在这里提供下载
 
-- [ ] LKM/Rookit
+- [ ] LKM/Rootkit
 - [ ] Linux Kernel 相关已经重开 Repo, 等记录的够多了再开吧
 
 ## Other
 
-- [阿里云 Rookit 检测产品 Simple Doc](https://help.aliyun.com/document_detail/194087.html?spm=5176.24320532.content1.3.7389ece6Exy34X)
+- [阿里云 Rootkit 检测产品 Simple Doc](https://help.aliyun.com/document_detail/194087.html?spm=5176.24320532.content1.3.7389ece6Exy34X)
 
 ## 交流群
 
