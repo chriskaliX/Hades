@@ -51,9 +51,9 @@ all:
 	# linux-headers check here
 
 	@printf "$(INFO_COLOR) Clean for the old driver...\n"
-	$(MAKE) clean -s
+	$(MAKE) clean -s --no-print-directory
 	@printf "$(INFO_COLOR) Compile driver\n"
-	$(MAKE) hades_ebpf_driver.o -s
+	$(MAKE) hades_ebpf_driver.o -s --no-print-directory
 	$(shell cp hades_ebpf_driver.o ../userspace/hades_ebpf_driver.o)
 
 hades_ebpf_driver.o: src/hades.c
