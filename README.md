@@ -74,7 +74,7 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
   - [x] tracepoint sys_enter_connect (完毕)
   - [x] tracepoint hook (done, 但是未测试)
   - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
-  - [x] 过 prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
+  - [x] 过 Prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
   - [x] (100%)第一轮 review 修改进行中. 使用 ebpfmanager 重构了一下. memfd_create 添加, LSM bind 函数 ipv6 添加, 有个小的问题： json 效率和 inline
   - [ ] eBPF uprobe(openjdk/readline)...
   - [x] 面向对象, ebpfmanager review 使用
@@ -105,4 +105,4 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 <img src="https://github.com/chriskaliX/Hades/blob/main/imgs/feishu.png" width="50%" style="float:left;"/>
 
-<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/WechatIMG119.jpeg" width="50%" style="float:left;"/>
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/WechatIMG120.jpeg" width="50%" style="float:left;"/>
