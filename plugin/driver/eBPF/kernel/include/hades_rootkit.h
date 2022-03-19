@@ -62,6 +62,37 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
+/*
+ * @kernel_read_file:
+ *	Read a file specified by userspace.
+ *	@file contains the file structure pointing to the file being read
+ *	by the kernel.
+ *	@id kernel read file identifier
+ *	@contents if a subsequent @kernel_post_read_file will be called.
+ *	Return 0 if permission is granted.
+*/
+// In datadog, security_kernel_module_from_file is hooked. But it seems not
+// work since it's been removed in kernel version 4.6...
+// security_kernel_read_file seems stable and is used by tracee
+SEC("kprobe/security_kernel_read_file")
+int kprobe_security_kernel_read_file(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 1027;
+    // get the file
+    struct file *file = (struct file *)PT_REGS_PARM1(ctx);
+    void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));
+    save_str_to_buf(&data, file_path, 0);
+
+    // get the id
+    enum kernel_read_file_id type_id = (enum kernel_read_file_id)PT_REGS_PARM2(ctx);
+    save_to_submit_buf(&data, &type_id, sizeof(int), 1);
+
+    return events_perf_submit(&data);
+}
+
 // For Hidden Rootkit. It's interestring in Elkeid, let's learn firstly.
 // In Elkeid, it's in anti_rootkit file, function `find_hidden_module`
 // This reference: (https://www.cnblogs.com/LoyenWang/p/13334196.html)
@@ -93,6 +124,11 @@ int kprobe_do_init_module(struct pt_regs *ctx)
 // to trigger the system interrupt.
 // It's reasonable that we can do sth with the IDT or the sys_call_table
 // to hijack the function. Also for the syscall & sys_enter/exit
+//
+// As for as I concerned, things like scan the idt and sys_call_table are 
+// "positive" action. eBPF progs are more "passive" in anti rootkit.
+// We can collect the syscalls from specific probes or ...
+// @Reference: https://github.com/pathtofile/bpf-hookdetect/blob/main/src/hookdetect.c
 
 // At last, here is my reference:
 // @Reference: https://www.lse.epita.fr/lse-summer-week-2015/slides/lse-summer-week-2015-14-linux_rootkit.pdf

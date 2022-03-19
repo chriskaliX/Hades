@@ -48,3 +48,5 @@
 | kprobe/commit_creds                        | ON                                    | 1011 |
 | k(ret)probe/udp_recvmsg                    | ON(53/5353 for dns data)              | 1025 |
 | kprobe/do_init_module                      | ON                                    | 1026 |
+| security_kernel_read_file                  | ON                                    | 1027 |
+| security_inode_create                      | ON                                    | 1028 |
