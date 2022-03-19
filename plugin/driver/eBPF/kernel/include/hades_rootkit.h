@@ -62,6 +62,15 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
+/*
+ * @kernel_read_file:
+ *	Read a file specified by userspace.
+ *	@file contains the file structure pointing to the file being read
+ *	by the kernel.
+ *	@id kernel read file identifier
+ *	@contents if a subsequent @kernel_post_read_file will be called.
+ *	Return 0 if permission is granted.
+*/
 // In datadog, security_kernel_module_from_file is hooked. But it seems not
 // work since it's been removed in kernel version 4.6...
 // security_kernel_read_file seems stable and is used by tracee
@@ -71,6 +80,7 @@ int kprobe_security_kernel_read_file(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    data.context.type = 1027;
     // get the file
     struct file *file = (struct file *)PT_REGS_PARM1(ctx);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));

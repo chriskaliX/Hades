@@ -239,15 +239,37 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 	if err = decoder.DecodeUint16(&family); err != nil {
 		return
 	}
-	if err = decoder.DecodeUint16BigEndian(&_port); err != nil {
-		return
+	switch family {
+	case 0, 2:
+		if err = decoder.DecodeUint16BigEndian(&_port); err != nil {
+			return
+		}
+		if err = decoder.DecodeUint32BigEndian(&_addr); err != nil {
+			return
+		}
+		port = strconv.FormatUint(uint64(_port), 10)
+		addr = printUint32IP(_addr)
+		_, err = decoder.ReadByteSliceFromBuff(8)
+	case 10:
+		if decoder.DecodeUint16BigEndian(&_port); err != nil {
+			return
+		}
+		port = strconv.FormatUint(uint64(_port), 10)
+		var _flowinfo uint32
+		if decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
+			return
+		}
+		var _addrtmp []byte
+		_addrtmp, err = decoder.ReadByteSliceFromBuff(16)
+		if err != nil {
+			return
+		}
+		addr = Print16BytesSliceIP(_addrtmp)
+		// reuse
+		if err = decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
+			return
+		}
 	}
-	if err = decoder.DecodeUint32BigEndian(&_addr); err != nil {
-		return
-	}
-	port = strconv.FormatUint(uint64(_port), 10)
-	addr = printUint32IP(_addr)
-	_, err = decoder.ReadByteSliceFromBuff(8)
 	return
 }
 
@@ -327,5 +349,10 @@ func (decoder *EbpfDecoder) ReadByteSliceFromBuff(len int) ([]byte, error) {
 func printUint32IP(in uint32) string {
 	ip := make(net.IP, net.IPv4len)
 	binary.BigEndian.PutUint32(ip, in)
+	return ip.String()
+}
+
+func Print16BytesSliceIP(in []byte) string {
+	ip := net.IP(in)
 	return ip.String()
 }

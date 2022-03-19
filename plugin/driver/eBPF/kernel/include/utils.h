@@ -7,6 +7,9 @@
 #include <linux/fdtable.h>
 #include <utils_buf.h>
 #include <linux/mm_types.h>
+#define KBUILD_MODNAME "hades"
+#include <net/ipv6.h>
+#include <linux/ipv6.h>
 
 // TODO: 后期改成动态的
 /* R3 max value is outside of the array range */
@@ -191,6 +194,65 @@ static __always_inline void *get_path_str(struct path *path)
     return &string_p->buf[buf_off];
 }
 
+// all from tracee
+static __always_inline void* get_dentry_path_str(struct dentry* dentry)
+{
+    char slash = '/';
+    int zero = 0;
+
+    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
+
+    // Get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+    #pragma unroll
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+        struct dentry *d_parent = READ_KERN(dentry->d_parent);
+        if (dentry == d_parent) {
+            break;
+        }
+        // Add this dentry name to path
+        struct qstr d_name = READ_KERN(dentry->d_name);
+        unsigned int len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        unsigned int off = buf_off - len;
+        // Is string buffer big enough for dentry name?
+        int sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & ((MAX_PERCPU_BUFSIZE >> 1)-1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1)-1)]), len, (void *)d_name.name);
+        }
+        else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)]), 1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+        // memfd files have no path in the filesystem -> extract their name
+        buf_off = 0;
+        struct qstr d_name = READ_KERN(dentry->d_name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)]), 1, &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[(MAX_PERCPU_BUFSIZE >> 1)-1]), 1, &zero);
+    }
+
+    set_buf_off(STRING_BUF_IDX, buf_off);
+    return &string_p->buf[buf_off];
+}
+
 static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details, int peer)
 {
     struct inet_sock *inet = (struct inet_sock *)sk;
@@ -208,7 +270,78 @@ static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net
         net_details->local_address = READ_KERN(inet->inet_daddr);
         net_details->local_port = READ_KERN(inet->inet_dport);
     }
+    return 0;
+}
 
+/* all down here is for the tracee */
+/* for the ipv6 thing */
+static __always_inline volatile unsigned char get_sock_state(struct sock *sock)
+{
+    volatile unsigned char sk_state_own_impl;
+    bpf_probe_read((void *)&sk_state_own_impl, sizeof(sk_state_own_impl), (const void *)&sock->sk_state);
+    return sk_state_own_impl;
+}
+
+static __always_inline struct ipv6_pinfo* get_inet_pinet6(struct inet_sock *inet)
+{
+    struct ipv6_pinfo *pinet6_own_impl;
+    bpf_probe_read(&pinet6_own_impl, sizeof(pinet6_own_impl), &inet->pinet6);
+    return pinet6_own_impl;
+}
+
+static __always_inline struct ipv6_pinfo *inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
+{
+    volatile unsigned char sk_state_own_impl;
+    sk_state_own_impl = get_sock_state(__sk);
+
+    struct ipv6_pinfo *pinet6_own_impl;
+    pinet6_own_impl = get_inet_pinet6(inet);
+
+    bool sk_fullsock = (1 << sk_state_own_impl) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
+    return sk_fullsock ? pinet6_own_impl : NULL;
+}
+
+// static inline bool ipv6_addr_any(const struct in6_addr *a)
+// {
+//     return (a->in6_u.u6_addr32[0] | a->in6_u.u6_addr32[1] | a->in6_u.u6_addr32[2] | a->in6_u.u6_addr32[3]) == 0;
+// }
+
+static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net_conn_v6_t *net_details, int peer)
+{
+    struct inet_sock *inet = (struct inet_sock *)sk;
+    struct ipv6_pinfo *np = inet6_sk_own_impl(sk, inet);
+    struct in6_addr addr = {};
+    addr = READ_KERN(sk->sk_v6_rcv_saddr);
+    if (ipv6_addr_any(&addr)){
+        addr = READ_KERN(np->saddr);
+    }
+    // the flowinfo field can be specified by the user to indicate a network
+    // flow. how it is used by the kernel, or whether it is enforced to be
+    // unique is not so obvious.  getting this value is only supported by the
+    // kernel for outgoing packets using the 'struct ipv6_pinfo'.  in any case,
+    // leaving it with value of 0 won't affect our representation of network
+    // flows.
+    net_details->flowinfo = 0;
+
+    // the scope_id field can be specified by the user to indicate the network
+    // interface from which to send a packet. this only applies for link-local
+    // addresses, and is used only by the local kernel.  getting this value is
+    // done by using the 'ipv6_iface_scope_id(const struct in6_addr *addr, int
+    // iface)' function.  in any case, leaving it with value of 0 won't affect
+    // our representation of network flows.
+    net_details->scope_id = 0;
+    if (peer) {
+        net_details->local_address = READ_KERN(sk->sk_v6_daddr);
+        net_details->local_port = READ_KERN(inet->inet_dport);
+        net_details->remote_address = addr;
+        net_details->remote_port = READ_KERN(inet->inet_sport);
+    }
+    else {
+        net_details->local_address = addr;
+        net_details->local_port = READ_KERN(inet->inet_sport);
+        net_details->remote_address = READ_KERN(sk->sk_v6_daddr);
+        net_details->remote_port = READ_KERN(inet->inet_dport);
+    }
     return 0;
 }
 
@@ -217,6 +350,17 @@ static __always_inline int get_remote_sockaddr_in_from_network_details(struct so
     addr->sin_family = family;
     addr->sin_port = net_details->remote_port;
     addr->sin_addr.s_addr = net_details->remote_address;
+    return 0;
+}
+
+static __always_inline int get_remote_sockaddr_in6_from_network_details(struct sockaddr_in6 *addr, net_conn_v6_t *net_details, u16 family)
+{
+    addr->sin6_family = family;
+    addr->sin6_port = net_details->remote_port;
+    addr->sin6_flowinfo = net_details->flowinfo;
+    addr->sin6_addr = net_details->remote_address;
+    addr->sin6_scope_id = net_details->scope_id;
+
     return 0;
 }
 
@@ -346,6 +490,15 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
                 struct sockaddr_in remote;
                 get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
                 save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+                return 1;
+            }
+            else if (family == AF_INET6)
+            {
+                net_conn_v6_t net_details = {};
+                struct sockaddr_in6 remote;
+                get_network_details_from_sock_v6(sk, &net_details, 0);
+                get_remote_sockaddr_in6_from_network_details(&remote, &net_details, family);
+                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in6), index);
                 return 1;
             }
         }
