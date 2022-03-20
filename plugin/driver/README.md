@@ -36,6 +36,8 @@
 
 > Hook 的作用和笔记记录在 `Hades/plugin/driver/eBPF/kernel/include` 下各个函数中, 持续学习并且更新。后续会讲笔记附在这个 Repo，或者新开一个 Repo 用于维护
 
+内核态 Hook
+
 | Hook 名称                                  | 状态/说明                             | ID   |
 | :----------------------------------------- | :------------------------------------ | :--- |
 | tracepoint/syscalls/sys_enter_execve       | ON                                    | 700  |
@@ -50,3 +52,11 @@
 | kprobe/do_init_module                      | ON                                    | 1026 |
 | security_kernel_read_file                  | ON                                    | 1027 |
 | security_inode_create                      | ON                                    | 1028 |
+| security_sb_mount                          | ON                                    | 1029 |
+
+用户态 Hook
+| Hook 名称 | 状态/说明 | ID |
+| :----------------------------------------- | :------------------------------------ | :--- |
+| uretprobe/bash_readline | ON(字段同 execve) | 2000 |
+
+uprobe 下 bash 执行结果大概率会和 execve 下相同，考虑后期是否移除
