@@ -2,8 +2,6 @@ package userspace
 
 import (
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
 )
 
 // ebpf 主程序, 真正的 runner
@@ -17,6 +15,6 @@ func Hades() error {
 
 	// DefaultDriver.Manager.Stop(manager.CleanAll)
 	// TODO: it's just debug code here, rebuild almost done
-	http.ListenAndServe("0.0.0.0:6060", nil)
+	// http.ListenAndServe("0.0.0.0:6060", nil)
 	return nil
 }

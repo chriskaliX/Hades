@@ -44,9 +44,6 @@ func main() {
 	// ssh 登录信息
 	go GetSSH(ctx)
 
-	// cn_proc_start()
-	// go ebpf.Tracepoint_execve()
-	// go ebpf.Tracer()
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "collector.log",

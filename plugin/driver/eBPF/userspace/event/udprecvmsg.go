@@ -14,7 +14,7 @@ type UdpRecvmsg struct {
 	Exe     string `json:"-"`
 	Opcode  int32  `json:"opcode"`
 	Rcode   int32  `json:"rcode"`
-	DnsData string `json:"dnsdata"` 
+	DnsData string `json:"dnsdata"`
 }
 
 func (UdpRecvmsg) ID() uint32 {
