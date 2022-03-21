@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"collector/share"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -94,6 +95,7 @@ func GetSSH(ctx context.Context) {
 					// 1. Session opened - Success Login
 					// 2. Received disconnect from - Port Scanner
 					// 3. Invalid user - Failed Login
+					// enhanced with the port scanner
 					fields := strings.Fields(s.Text())
 					if len(fields) < 6 {
 						continue
@@ -102,10 +104,18 @@ func GetSSH(ctx context.Context) {
 					if err != nil {
 						continue
 					}
+					// TODO: 压测这里
+					timeNow = timeNow.AddDate(time.Now().Year(), 0, 0)
 					sshlog := make(map[string]string, 5)
 					rawdata := make(map[string]string, 1)
 					// failed password
-					if len(fields) == 14 && fields[6] == "password" {
+					// Mar 22 00:21:51 localhost sshd[3246569]: Accepted password for root from xx.xx.xx.xx port 49186 ssh2
+					// Mar 22 00:21:29 localhost sshd[3246477]: Failed password for invalid user Craft from xx.xx.xx.xx port 44983 ssh2
+					if fields[6] != "password" {
+						continue
+					}
+					switch len(fields) {
+					case 14:
 						switch fields[5] {
 						case "Failed", "Accepted":
 							sshlog["reason"] = fields[5]
@@ -123,6 +133,25 @@ func GetSSH(ctx context.Context) {
 									Fields: rawdata,
 								},
 							}
+							fmt.Println(rec)
+							share.Client.SendRecord(rec)
+						}
+					// this is for the invaild user
+					case 16:
+						sshlog["reason"] = "Failed"
+						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)
+						sshlog["username"] = fields[10]
+						sshlog["port"] = fields[12]
+						if data, err := share.Marshal(sshlog); err == nil {
+							rawdata["data"] = string(data)
+							rec := &plugin.Record{
+								DataType:  3003,
+								Timestamp: time.Now().Unix(),
+								Data: &plugin.Payload{
+									Fields: rawdata,
+								},
+							}
+							fmt.Println(rec)
 							share.Client.SendRecord(rec)
 						}
 					}

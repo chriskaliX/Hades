@@ -3,6 +3,9 @@ package main
 import (
 	"hades-ebpf/userspace"
 	_ "hades-ebpf/userspace/event"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"go.uber.org/zap"
@@ -29,4 +32,10 @@ func main() {
 	zap.ReplaceGlobals(logger)
 
 	userspace.Hades()
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM)
+	sig := <-sigs
+	zap.S().Error("receive signal:", sig.String())
+	zap.S().Info("wait for 5 secs to exit")
+	<-time.After(time.Second * 5)
 }
