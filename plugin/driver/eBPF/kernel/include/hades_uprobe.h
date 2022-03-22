@@ -16,12 +16,7 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     data.context.type = 2000;
     // exe
     void *exe = get_exe_from_task(data.task);
-    int ret = save_str_to_buf(&data, exe, 0);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 0);
-    }
+    save_str_to_buf(&data, exe, 0);
     // line
     void *line = (void *)PT_REGS_RC(ctx);
     save_str_to_buf(&data, line, 1);
@@ -40,11 +35,6 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    ret = save_str_to_buf(&data, file_path, 7);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 7);
-    }
+    save_str_to_buf(&data, file_path, 7);
     return events_perf_submit(&data);
 }
