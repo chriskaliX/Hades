@@ -216,13 +216,13 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 		err = errors.New(fmt.Sprintf("string size too long, size: %d", size))
 		return
 	}
-	// bytes pool here, TODO
-	buf := make([]byte, size-1)
-	if err = decoder.DecodeBytes(buf, size-1); err != nil {
+	buf := bytepool.Get()
+	defer buf.Free()
+	if err = decoder.DecodeBytes(buf.Bytes()[:size-1], size-1); err != nil {
 		return
 	}
 	decoder.DecodeUint8(&dummy)
-	s = string(buf[:]) // zerocopy
+	s = string(buf.Bytes()[:size-1])
 	return
 }
 

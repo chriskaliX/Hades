@@ -138,20 +138,29 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
     // Satisfy validator for probe read
     if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
     {
+        int sz = 0;
         // Read into buffer
-        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, ptr);
+        // (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE) just to make BPF verifier happy
+        // added for nothing, assume that this would never failed.
+        sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, ptr);
+        if (sz < 0)
+        {
+            char nothing[] = "-1";
+            // why check it again? nothing
+            // just to make verifier happy, this will not happen
+            if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
+            sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, nothing);
+            }
+        }
         if (sz > 0)
         {
-            // Satisfy validator for probe read
+            // just to make verifier happy, this will not happen
             if ((data->buf_off + 1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
-            {
                 return 0;
-            }
             __builtin_memcpy(&(data->submit_p->buf[data->buf_off + 1]), &sz, sizeof(int));
             data->buf_off += sz + sizeof(int) + 1;
             data->context.argnum++;
             return 1;
-            // added for nothing, assume that this would never failed.
         }
     }
     return 0;

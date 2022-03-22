@@ -24,6 +24,7 @@ func init() {
 }
 
 // Get and parse SSH log
+// 2022-03-22: for now, performance is under improved.
 func GetSSH(ctx context.Context) {
 	// Redhat or Fedora Core: /var/log/secure
 	// Mandrake, FreeBSD, OpenBSD or Debian: /var/log/auth.log
@@ -136,7 +137,7 @@ func GetSSH(ctx context.Context) {
 							fmt.Println(rec)
 							share.Client.SendRecord(rec)
 						}
-					// this is for the invaild user
+					// This is for the invaild user
 					case 16:
 						sshlog["reason"] = "Failed"
 						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)
