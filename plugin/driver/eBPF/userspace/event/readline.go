@@ -3,7 +3,6 @@ package event
 import (
 	"debug/elf"
 	"errors"
-	"fmt"
 	"hades-ebpf/userspace/decoder"
 	"os"
 	"path/filepath"
@@ -119,7 +118,6 @@ func (r Readline) GetProbe() []*manager.Probe {
 	if err != nil {
 		_path = bashBinary
 	}
-	fmt.Println(_path)
 	// go back to /bin/bash since there is no libreadline.so here
 	return []*manager.Probe{
 		{

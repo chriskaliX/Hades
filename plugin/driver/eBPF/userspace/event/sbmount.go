@@ -32,6 +32,7 @@ func (s *SbMount) GetExe() string {
 }
 
 func (s *SbMount) Parse() (err error) {
+	var index uint8
 	if s.DevName, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
@@ -39,6 +40,9 @@ func (s *SbMount) Parse() (err error) {
 		return
 	}
 	if s.Type, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
 	if err = decoder.DefaultDecoder.DecodeUint64(&s.Flags); err != nil {

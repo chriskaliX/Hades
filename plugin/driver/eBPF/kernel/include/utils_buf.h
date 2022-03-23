@@ -149,7 +149,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
             // why check it again? nothing
             // just to make verifier happy, this will not happen
             if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
-            sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, nothing);
+                sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, nothing);
             }
         }
         if (sz > 0)
