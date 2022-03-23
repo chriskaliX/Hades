@@ -38,12 +38,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     }
     // get exe from task
     void *exe = get_exe_from_task(data.task);
-    int ret = save_str_to_buf(&data, exe, 1);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, exe, 1);
     return events_perf_submit(&data);
 }
 
@@ -81,12 +76,7 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
     }
     // get exe from task_struct
     void *exe = get_exe_from_task(data.task);
-    int ret = save_str_to_buf(&data, exe, 1);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, exe, 1);
     save_to_submit_buf(&data, (void *)&protocol, sizeof(protocol), 2);
 
     return events_perf_submit(&data);
@@ -243,12 +233,7 @@ int kretprobe_udp_recvmsg(struct pt_regs *ctx)
         save_str_to_buf(&data, (void *)&string_p->buf[13], 1);
         // get exe from task
         void *exe = get_exe_from_task(data.task);
-        int ret = save_str_to_buf(&data, exe, 1);
-        if (ret == 0)
-        {
-            char nothing[] = "-1";
-            save_str_to_buf(&data, nothing, 1);
-        }
+        save_str_to_buf(&data, exe, 1);
         events_perf_submit(&data);
     }
     delete : bpf_map_delete_elem(&udpmsg, &pid_tgid);

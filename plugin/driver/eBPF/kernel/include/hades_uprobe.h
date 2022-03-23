@@ -38,3 +38,17 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     save_str_to_buf(&data, file_path, 7);
     return events_perf_submit(&data);
 }
+
+// probe the java thing
+// nm -D /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server/libjvm.so
+// what we should pay attention to is the syscalls and some JVM_<function>
+// BTW, hook points like JVM_InvokeMethod is easy, but we can not get the
+// stack information by just hooking it.
+// Actually, kprobes/tracepoints we done before are good enough to capture
+// all behavior we need. Just like the thing from uprobe/bash_readline,
+// we can already get then all in execve or some other points (but in a
+// raw way)
+// And uprobe (maybe, I have not checked yet) can be used in kernel version
+// lower 4.18, above 3.18 (maybe). The way we used in k(ret)probe/uprobe, 
+// the pt_regs, seems to be used in kernel > 4.17. We need to change the 
+// format.

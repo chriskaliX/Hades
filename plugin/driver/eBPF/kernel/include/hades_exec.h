@@ -92,6 +92,7 @@ struct _sys_enter_memfd_create
 
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
+// ltp tested
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
@@ -100,22 +101,12 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
         return 0;
     data.context.type = SYS_ENTER_EXECVE;
     // filename
-    int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    ret = save_str_to_buf(&data, file_path, 1);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, file_path, 1);
     // tty
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
@@ -127,7 +118,6 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     save_str_to_buf(&data, stdout, 4);
     // socket
     get_socket_info(&data, 5);
-
     // 新增 pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
@@ -135,6 +125,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     return events_perf_submit(&data);
 }
 
+// ltp tested
 SEC("tracepoint/syscalls/sys_enter_execveat")
 int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 {
@@ -143,23 +134,12 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
         return 0;
     data.context.type = 698;
     // filename
-    int ret = save_str_to_buf(&data, (void *)ctx->filename, 0);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    // 2022-02-25, error find here, no buf was inserted here
-    ret = save_str_to_buf(&data, file_path, 1);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, file_path, 1);
     // tty
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
@@ -171,7 +151,6 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     save_str_to_buf(&data, stdout, 4);
     // socket
     get_socket_info(&data, 5);
-
     // 新增 pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
@@ -197,7 +176,6 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = 200;
-    char nothing[] = "-1";
     // read the option firstly
     int option;
     bpf_probe_read(&option, sizeof(option), &ctx->option);
@@ -208,11 +186,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     save_to_submit_buf(&data, &option, sizeof(int), 0);
     // add exe
     void *exe = get_exe_from_task(data.task);
-    int ret = save_str_to_buf(&data, exe, 1);
-    if (ret == 0)
-    {
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, exe, 1);
     // for PR_SET_NAME
     char *newname = NULL;
     // for PR_SET_MM
@@ -224,11 +198,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     case PR_SET_NAME:
         // read this probe from userspace
         bpf_probe_read_user_str(&newname, TASK_COMM_LEN, (char *)ctx->arg2);
-        ret = save_str_to_buf(&data, &newname, 2);
-        if (ret == 0)
-        {
-            save_str_to_buf(&data, nothing, 2);
-        }
+        save_str_to_buf(&data, &newname, 2);
         break;
         // @Reference: http://hermes.survey.ntua.gr/NaTUReS_Lab/ZZZ_Books/CS_IT/Hands-On_System_Programming_With_Linux__Explore_Linux_System_Programming_Interfaces,_Theory,_And_Practice.pdf
         // @Reference: https://cloud.tencent.com/developer/article/1040079
@@ -263,12 +233,7 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
         return 0;
     // add exe to the buffer
     void *exe = get_exe_from_task(data.task);
-    int ret = save_str_to_buf(&data, exe, 0);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 0);
-    }
+    save_str_to_buf(&data, exe, 0);
     // get the request
     save_to_submit_buf(&data, &request, sizeof(long), 1);
     // get the pid
@@ -290,18 +255,8 @@ int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
         return 0;
     data.context.type = 614;
     void *exe = get_exe_from_task(data.task);
-    int ret = save_str_to_buf(&data, exe, 0);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 0);
-    }
-    ret = save_str_to_buf(&data, (char *)ctx->uname, 1);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, exe, 0);
+    save_str_to_buf(&data, (char *)ctx->uname, 1);
     save_to_submit_buf(&data, &ctx->flags, sizeof(unsigned int), 2);
     return events_perf_submit(&data);
 }
