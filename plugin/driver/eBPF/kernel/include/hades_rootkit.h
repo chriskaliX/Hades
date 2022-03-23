@@ -33,32 +33,21 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = 1026;
-    char nothing[] = "-1";
 
     struct module *mod = (struct module *)PT_REGS_PARM1(ctx);
     char *modname = NULL;
-    int ret = 0;
     bpf_probe_read_str(&modname, 64 - sizeof(unsigned long), &mod->name);
     save_str_to_buf(&data, &modname, 0);
 
     // get exe from task
     void *exe = get_exe_from_task(data.task);
-    ret = save_str_to_buf(&data, exe, 1);
-    if (ret == 0)
-    {
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, exe, 1);
     save_pid_tree_to_buf(&data, 12, 2);
     // save file from current task->fs->pwd
     struct fs_struct *file;
     bpf_probe_read(&file, sizeof(file), &data.task->fs);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    ret = save_str_to_buf(&data, file_path, 1);
-    if (ret == 0)
-    {
-        char nothing[] = "-1";
-        save_str_to_buf(&data, nothing, 1);
-    }
+    save_str_to_buf(&data, file_path, 1);
     return events_perf_submit(&data);
 }
 

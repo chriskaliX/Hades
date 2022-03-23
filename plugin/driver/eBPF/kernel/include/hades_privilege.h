@@ -32,12 +32,7 @@ int kprobe_commit_creds(struct pt_regs *ctx)
         save_to_submit_buf(&data, &new_uid, sizeof(unsigned int), 0);
         save_to_submit_buf(&data, &old_uid, sizeof(unsigned int), 1);
         void *exe = get_exe_from_task(data.task);
-        int ret = save_str_to_buf(&data, exe, 2);
-        if (ret == 0)
-        {
-            char nothing[] = "-1";
-            save_str_to_buf(&data, nothing, 2);
-        }
+        save_str_to_buf(&data, exe, 2);
         save_pid_tree_to_buf(&data, 12, 3);
         events_perf_submit(&data);
         return 1;

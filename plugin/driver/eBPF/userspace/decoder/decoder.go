@@ -203,12 +203,12 @@ func (decoder *EbpfDecoder) DecodeStr(size uint32) (str string, err error) {
 // get string
 func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 	var index uint8
-	var size uint32
+	var size int32
 	var dummy uint8
 	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DecodeUint32(&size); err != nil {
+	if err = decoder.DecodeInt32(&size); err != nil {
 		return
 	}
 	// precheck size
@@ -216,13 +216,13 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 		err = errors.New(fmt.Sprintf("string size too long, size: %d", size))
 		return
 	}
-	// bytes pool here, TODO
-	buf := make([]byte, size-1)
-	if err = decoder.DecodeBytes(buf, size-1); err != nil {
+	buf := bytepool.Get()
+	defer buf.Free()
+	if err = decoder.DecodeBytes(buf.Bytes()[:size-1], uint32(size-1)); err != nil {
 		return
 	}
 	decoder.DecodeUint8(&dummy)
-	s = string(buf[:]) // zerocopy
+	s = string(buf.Bytes()[:size-1])
 	return
 }
 
