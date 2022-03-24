@@ -52,3 +52,12 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
 // lower 4.18, above 3.18 (maybe). The way we used in k(ret)probe/uprobe, 
 // the pt_regs, seems to be used in kernel > 4.17. We need to change the 
 // format.
+// SEC("uprobe/JVM_GC")
+// int uprobe_JVM_GC(struct pt_regs *ctx)
+// {
+//     event_data_t data = {};
+//     if (!init_event_data(&data, ctx))
+//         return 0;
+//     data.context.type = 2001;
+//     return events_perf_submit(&data);
+// }

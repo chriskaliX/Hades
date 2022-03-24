@@ -56,11 +56,13 @@ all:
 	$(MAKE) hades_ebpf_driver.o -s --no-print-directory
 	$(shell cp hades_ebpf_driver.o ../userspace/hades_ebpf_driver.o)
 
+# KBUILD_NAME: https://github.com/iovisor/bpftrace/pull/1352
 hades_ebpf_driver.o: src/hades.c
 	$(CMD_CLANG) src/hades.c -S \
 		-D__BPF_TRACING__ \
 		-D__KERNEL__ \
 		-D__TARGET_ARCH_$(linux_arch) \
+		-DKBUILD_MODNAME=\"hades\" \
 		-include $(KERN_SRC_PATH)/include/linux/kconfig.h \
 		-I $(KERN_SRC_PATH)/arch/$(linux_arch)/include \
 		-I $(KERN_SRC_PATH)/arch/$(linux_arch)/include/uapi \
