@@ -69,7 +69,7 @@ typedef struct data_context
 {
     u64 ts;        // timestamp
     u64 cgroup_id; // cgroup_id
-    u32 uts_inum;  //
+    u32 uts_inum;  // in Elkeid, they use pid_inum and root_pid_inum. TODO: go through this
     u32 type;      // type of struct
     u32 pid;       // processid
     u32 tid;       // thread id
@@ -80,7 +80,7 @@ typedef struct data_context
     u32 sessionid;
     char comm[TASK_COMM_LEN];  // command
     char pcomm[TASK_COMM_LEN]; // parent command
-    char nodename[64];         // uts_name => 64
+    char nodename[64];         // uts_name => 64, in tracee, it's 16 here
     u64 retval;                // return value(useful when it's exit or kill)
     u8 argnum;                 // argnum
 } context_t;
