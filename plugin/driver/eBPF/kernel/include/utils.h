@@ -7,7 +7,6 @@
 #include <linux/fdtable.h>
 #include <utils_buf.h>
 #include <linux/mm_types.h>
-#define KBUILD_MODNAME "hades"
 #include <net/ipv6.h>
 #include <linux/ipv6.h>
 
