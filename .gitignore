@@ -9,4 +9,5 @@ agent/log/hades*
 agent/main
 cert/
 server/hadeserver
-**/*.so
+**/*.o
+**/*.log
