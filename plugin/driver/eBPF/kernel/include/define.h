@@ -205,11 +205,21 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 }
 
 /* hook point id */
-// TODO: gather all and update
-#define SYS_ENTER_PTRACE 164
-#define SYS_ENTER_PRCTL 200
-#define SCHED_PROCESS_FORK 317
-#define SYS_ENTER_EXECVEAT 698
-#define SYS_ENTER_EXECVE 700
+#define SYS_ENTER_PTRACE          164
+#define SYS_ENTER_PRCTL           200
+#define SCHED_PROCESS_FORK        317
+#define SYS_ENTER_MEMFD_CREATE    614
+#define SYS_ENTER_EXECVEAT        698
+#define SYS_ENTER_EXECVE          700
+#define COMMIT_CREDS              1011
+#define SECURITY_SOCKET_CONNECT   1022
+#define SECURITY_SOCKET_BIND      1024
+#define UDP_RECVMSG               1025
+#define SECURITY_KERNEL_READ_FILE 1027
+#define SECURITY_INODE_CREATE     1028
+#define SECURITY_SB_MOUNT         1029
+#define CALL_USERMODEHELPER       1030
+// uprobe
+#define BASH_READLINE             2000
 
 #endif //__DEFINE_H

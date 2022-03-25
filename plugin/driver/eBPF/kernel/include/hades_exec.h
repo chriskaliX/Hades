@@ -132,7 +132,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 698;
+    data.context.type = SYS_ENTER_EXECVEAT;
     // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
@@ -175,7 +175,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 200;
+    data.context.type = SYS_ENTER_PRCTL;
     // read the option firstly
     int option;
     bpf_probe_read(&option, sizeof(option), &ctx->option);
@@ -223,7 +223,7 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 164;
+    data.context.type = SYS_ENTER_PTRACE;
     long request;
     // get the request firstly
     bpf_probe_read(&request, sizeof(request), &ctx->request);
@@ -253,7 +253,7 @@ int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 614;
+    data.context.type = SYS_ENTER_MEMFD_CREATE;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
     save_str_to_buf(&data, (char *)ctx->uname, 1);

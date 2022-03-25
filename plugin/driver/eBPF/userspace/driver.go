@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"fmt"
 	"hades-ebpf/userspace/decoder"
-	"hades-ebpf/userspace/helper"
 	"hades-ebpf/userspace/share"
 	"math"
 	"os"
@@ -83,10 +82,10 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
 	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
 	ctx.StartTime = uint64(share.Time)
-	if data, err := share.Marshal(ctx); err == nil {
-		rawdata["data"] = helper.ZeroCopyString(data)
+	if data, err := ctx.ToString(); err == nil {
+		rawdata["data"] = data
 		if debug {
-			fmt.Println(rawdata)
+			fmt.Println(rawdata["data"])
 		}
 		rec := &plugin.Record{
 			DataType:  1000,

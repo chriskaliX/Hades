@@ -1,7 +1,6 @@
 package decoder
 
 import (
-	"hades-ebpf/userspace/helper"
 	"hades-ebpf/userspace/share"
 	"sync"
 )
@@ -17,7 +16,7 @@ func init() {
 type Context struct {
 	Ts        uint64  `json:"timestamp"`
 	CgroupID  uint64  `json:"cgroupid"`
-	Pns		  uint32  `json:"pns"`
+	Pns       uint32  `json:"pns"`
 	Type      uint32  `json:"type"`
 	Pid       uint32  `json:"pid"`
 	Tid       uint32  `json:"tid"`
@@ -32,17 +31,30 @@ type Context struct {
 	Argnum    uint8   `json:"-"`
 	_         [7]byte `json:"-"`
 	// added
-	Sha256    string           `json:"sha256"`
-	Username  string           `json:"username"`
-	StartTime uint64           `json:"starttime"`
-	Exe       string           `json:"exe"`
-	Syscall   string           `json:"syscall"`
-	Event     `json:",inline"` // inline tag is no longer support which is been discussed for 9 years
+	Sha256    string            `json:"sha256"`
+	Username  string            `json:"username"`
+	StartTime uint64            `json:"starttime"`
+	Exe       string            `json:"exe"`
+	Syscall   string            `json:"syscall"`
+	Event     `json:"-,inline"` // inline tag is no longer support which is been discussed for 9 years
 }
 
 func (Context) GetSizeBytes() uint32 {
 	return 160
 }
+
+// Temp way to do merge or inline...
+// func (c *Context) MarshalJson() (result []byte, err error) {
+// 	ctxByte, err := share.Marshal(c)
+// 	if err != nil {
+// 		return
+// 	}
+// 	eventByte, err := share.Marshal(c.Event)
+// 	if err != nil {
+// 		return
+// 	}
+// 	return jsonpatch.MergePatch(ctxByte, eventByte)
+// }
 
 func (c *Context) SetEvent(event Event) {
 	c.Syscall = event.String()
@@ -51,12 +63,7 @@ func (c *Context) SetEvent(event Event) {
 }
 
 func (c *Context) ToString() (s string, err error) {
-	var _byte []byte
-	if _byte, err = share.Marshal(c); err != nil {
-		return
-	}
-	s = helper.ZeroCopyString(_byte)
-	return
+	return share.Marshal(c)
 }
 
 func NewContext() *Context {

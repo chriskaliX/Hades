@@ -171,6 +171,8 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
  * @structure: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
  * TODO: cache to speed up
  */
+// In Elkeid, a privilege escalation detection is added by checking the creds
+// in here. And also, pid of socket is added in here.
 static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index)
 {
     u8 elem_num = 0;

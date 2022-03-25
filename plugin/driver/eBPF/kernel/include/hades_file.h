@@ -10,7 +10,7 @@ int kprobe_security_inode_create(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1028;
+    data.context.type = SECURITY_INODE_CREATE;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
     struct dentry *dentry = (struct dentry *)PT_REGS_PARM2(ctx);
@@ -27,7 +27,7 @@ int kprobe_security_sb_mount(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1029;
+    data.context.type = SECURITY_SB_MOUNT;
     const char *dev_name = (const char *)PT_REGS_PARM1(ctx);
     struct path *path = (struct path *)PT_REGS_PARM2(ctx);
     const char *type = (const char *)PT_REGS_PARM3(ctx);

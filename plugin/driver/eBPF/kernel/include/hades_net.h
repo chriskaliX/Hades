@@ -12,7 +12,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1022;
+    data.context.type = SECURITY_SOCKET_CONNECT;
 
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     if (!address)
@@ -47,7 +47,7 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1024;
+    data.context.type = SECURITY_SOCKET_BIND;
 
     // This is for getting protocol
     // In Elkeid, the protocol is not concerned, only sa_family, sip, sport, res
@@ -198,7 +198,7 @@ int kretprobe_udp_recvmsg(struct pt_regs *ctx)
         event_data_t data = {};
         if (!init_event_data(&data, ctx))
             return 0;
-        data.context.type = 1025;
+        data.context.type = UDP_RECVMSG;
 
         int opcode = (string_p->buf[2] >> 3) & 0x0f;
         int rcode = string_p->buf[3] & 0x0f;
