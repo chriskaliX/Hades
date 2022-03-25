@@ -16,10 +16,6 @@ type Event interface {
 var eventMap map[uint32]Event = make(map[uint32]Event)
 
 func Regist(event Event) {
-	// if event.ID() != 2001 {
-	// 	return
-	// }
-	// fmt.Println(event.String(), " loaded!")
 	eventMap[event.ID()] = event
 }
 

@@ -2,35 +2,40 @@
 
 ![language](https://shields.io/github/languages/top/chriskalix/HIDS-Linux)
 
-Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内核态(ebpf)以及用户态(cn_proc)的事件进程采集。其中借鉴了非常多的代码和思想(from meituan, Elkeid, tracee)
+Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本下通过 Netlink 进行事件审计。
 
-## 架构设计以及引擎
+项目借鉴了 [Tracee](https://github.com/aquasecurity/tracee) 以及 [Elkeid](https://github.com/bytedance/Elkeid) 中的代码以及思想
 
-> 注: Agent 部分基本参照 Elkeid 1.7 部分重构, eBPF 部分借鉴 Elkeid 思路，tracee 等
+## Hades 架构图
 
-### 架构图
+> 注: Agent 部分基本参照 Elkeid 1.7 部分重构。后续考虑插件全部能兼容至 `Elkeid` 项目下
+
+### Agent 部分
 
 ![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/agent.png)
 
-### 数据处理
-
-> Agent 字段连接公司对应的 cmdb，做初步扩展。之后走入 Flink CEP 做初步的节点数据清洗。打入 HIVE 时根据情况，也可再做一次清洗减小性能消耗。清洗过后的数据走入第二个 Flink CEP 以及规则引擎，HIDS 的规则部分其实较为头疼，是一个 HIDS 能否用好的关键所在，后续会把自己的想法逐步开源
+### 数据处理流程
 
 ![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/data_analyze.png)
 
-## 目前阶段
+## 插件列表
 
-用户态基本完成，eBPF 进行中, 目前 execve 字段全部采集完毕, 包括进程树, envp, cwd...
+- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugin/driver/eBPF)
+- [Collector](https://github.com/chriskaliX/Hades/tree/main/plugin/collector)
+- HoneyPot
+- Monitor
+- Scanner
+- Logger
 
-目前在重要的字段下先对齐 Elkeid, 还有一些纰漏, 慢慢的修复
+## 目前进展
 
-![data](https://github.com/chriskaliX/HIDS-Linux/blob/main/imgs/examples.png)
+支持 `13` 种 Hook，涵盖大部分安全审计检测需求
 
 ## 开发计划
 
 > 记录一些方案选择, 目前进度等，另外 golang 1.18 上线啦~ [官方 Tutorial](https://golang.google.cn/doc/tutorial/generics)，后续会开始多试试 Generics
 
-### 插件交互
+### Agent-插件 交互
 
 > Linux 进程间通信的[方式](https://www.linuxprobe.com/linux-process-method.html)
 
@@ -76,15 +81,14 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
   - [x] channel 消费无上限, 过多会导致 ringbuffer full, 自带 drop
   - [x] 过 Prctl 部分, 字节只 hook PR_SET_NAME，考虑添加 PR_SET_MM
   - [x] (100%)第一轮 review 修改进行中. 使用 ebpfmanager 重构了一下. memfd_create 添加, LSM bind 函数 ipv6 添加, 有个小的问题： json 效率和 inline
-  - [ ] eBPF uprobe(openjdk/readline)...
+  - [x] eBPF uprobe(openjdk/readline)... (对于OpenJDK)的观测稍微延后, 需要作为一个可配置模块
   - [x] 面向对象, ebpfmanager review 使用
   - [x] eBPF 进程监控
   - [x] socket 下完全支持 ipv6, 字段丰富 EXE 完成(跟之前一样, 无 lock 操作, 可能有读错的问题)
   - [ ] 整理 ebpf 初版, 预备 release version
   - [ ] (20%)code review tracee 函数 get_path_str, 本周完成与 fsprobe 的方式对比以及原理, 更新在 private repo, 到时候写个小文章
   - [x] 目前非 CO-RE, 后续支持
-  - [ ] ehids 下有个 JVM Hook 的文章, 2022 年 3 月份内 go through , 最好能实现 rmi 等 hook
-  - [ ] 在 4 月份左右会完成 CO-RE 的兼容, 同时会开始编写配套的 BPF Rootkit(读 cfc4n 师傅有感, 另外盘古实验室的[文章](https://www.pangulab.cn/post/the_bvp47_a_top-tier_backdoor_of_us_nsa_equation_group/)好像提到了 BPF 作用于通信隐藏, 改正：内核版本太低了, 不会是 XDP... 新的任务是稍微看一下 Linux 网络协议这一块(源码级别)后续会有笔记放开)
+  - [x] ehids 下有个 JVM Hook 的文章, 2022 年 3 月份内 go through , 最好能实现 rmi 等 hook
   - [x] [cd00r.c](https://github.com/ehids/rootkit-sample)这个 2000 的 backdoor 稍微看了一下，以及对应的 pdf。本质上新颖的地方在于不会暴露端口，libpcap 的模式来监听 knock, 看起来和 tcpdump 一样, 上述盘古文章里的后门里，这个应该是很小的一环。cd00r.c 是用户态的一个 demo，如果整合进来做成 rootkit 也挺好。
 - [ ] 完成轮询交互
   - [x] Agent 端 HTTPS 心跳 & 配置检测
@@ -99,10 +103,9 @@ Hades 是一款运行在 Linux 下的 HIDS，目前还在开发中。支持内�
 
 ## Other
 
+- [Linux RootKit初窥(一)IDT](https://chriskalix.github.io/2022/03/19/linux-rootkit%E5%88%9D%E7%AA%A5-%E4%B8%80-idt)
 - [阿里云 Rootkit 检测产品 Simple Doc](https://help.aliyun.com/document_detail/194087.html?spm=5176.24320532.content1.3.7389ece6Exy34X)
 
 ## 交流群
-
-<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/feishu.png" width="50%" style="float:left;"/>
 
 <img src="https://github.com/chriskaliX/Hades/blob/main/imgs/WechatIMG120.jpeg" width="50%" style="float:left;"/>
