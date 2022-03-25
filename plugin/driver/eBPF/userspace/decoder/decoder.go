@@ -16,13 +16,7 @@ import (
 // @Reference: https://github.com/aquasecurity/tracee/blob/main/pkg/bufferdecoder/decoder.go
 // As binary.Read accept a interface as a parameter, reflection is frequently used
 // this package is to try to improve this. Also, based on tracee.
-var (
-	bytepool buffer.Pool
-)
-
-func init() {
-	bytepool = buffer.NewPool()
-}
+var bytepool buffer.Pool = buffer.NewPool()
 
 type EbpfDecoder struct {
 	buffer []byte

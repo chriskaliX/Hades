@@ -20,6 +20,7 @@ require (
 	github.com/josharian/native v1.0.0 // indirect
 	github.com/mdlayher/netlink v1.6.0 // indirect
 	github.com/mdlayher/socket v0.2.3 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
@@ -27,7 +28,9 @@ require (
 )
 
 require (
-	github.com/ehids/ebpfmanager v0.2.2
+	github.com/ehids/ebpfmanager v0.2.3-0.20220320163725-b344aabdbaf3
+	github.com/evanphx/json-patch v0.5.2
+	github.com/goccy/go-json v0.9.6
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	go.uber.org/atomic v1.9.0 // indirect

@@ -110,6 +110,7 @@ func GetFileHash(path string) (shasum string, err error) {
 	return fh.Sha256, nil
 }
 
+// os.Stat 调用了大量的 syscall
 func fileStat(path string) (modetime int64, inode uint64, size int64, err error) {
 	finfo, err := os.Stat(path)
 	if err != nil {

@@ -69,7 +69,7 @@ int kprobe_security_kernel_read_file(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1027;
+    data.context.type = SECURITY_KERNEL_READ_FILE;
     // get the file
     struct file *file = (struct file *)PT_REGS_PARM1(ctx);
     void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));
@@ -78,7 +78,33 @@ int kprobe_security_kernel_read_file(struct pt_regs *ctx)
     // get the id
     enum kernel_read_file_id type_id = (enum kernel_read_file_id)PT_REGS_PARM2(ctx);
     save_to_submit_buf(&data, &type_id, sizeof(int), 1);
+    return events_perf_submit(&data);
+}
 
+// Add rootkit detection just like in Elkeid.
+// @Notice: this is under full test
+SEC("kprobe/call_usermodehelper")
+int kprobe_call_usermodehelper(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = CALL_USERMODEHELPER;
+    void *path = (void *)PT_REGS_PARM1(ctx);
+    save_str_to_buf(&data, path, 0);
+    unsigned long argv = PT_REGS_PARM2(ctx);
+    save_str_arr_to_buf(&data, (const char *const *)argv , 1);
+    unsigned long envp = PT_REGS_PARM3(ctx);
+    // Think twice about this.
+    // I do not use `save_envp_to_buf` here, since there is not that much
+    // call_usermodehelper called... And since it's very important, it's
+    // good to just get them all.
+    save_str_arr_to_buf(&data, (const char *const *)envp , 2);
+    int wait = PT_REGS_PARM4(ctx);
+    save_to_submit_buf(&data, (void*)&wait, sizeof(int), 3);
+    // Think twice
+    void *exe = get_exe_from_task(data.task);
+    save_str_to_buf(&data, exe, 4);
     return events_perf_submit(&data);
 }
 

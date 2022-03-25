@@ -1,18 +1,26 @@
 package share
 
 import (
-	"bytes"
-	"encoding/json"
+
+	// "encoding/json"
+
+	"hades-ebpf/userspace/helper"
+
+	json "github.com/goccy/go-json"
+	"go.uber.org/zap/buffer"
 )
 
+var bytepool buffer.Pool = buffer.NewPool()
+
 // to opt
-func Marshal(v interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
+func Marshal(v interface{}) (str string, err error) {
+	var buf = bytepool.Get()
+	defer buf.Free()
+	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
-	err := enc.Encode(v)
-	if err != nil {
-		return nil, err
+	if err = enc.Encode(v); err != nil {
+		return
 	}
-	return buf.Bytes(), nil
+	str = helper.ZeroCopyString(buf.Bytes())
+	return
 }
