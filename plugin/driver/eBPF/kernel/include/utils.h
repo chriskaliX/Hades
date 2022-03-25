@@ -1,14 +1,20 @@
 #ifndef __UTILS_H
 #define __UTILS_H
-#include "bpf_helpers.h"
-#include "bpf_core_read.h"
-#include "bpf_endian.h"
+#ifndef CORE
 #include <linux/sched.h>
 #include <linux/fdtable.h>
 #include <utils_buf.h>
 #include <linux/mm_types.h>
 #include <net/ipv6.h>
 #include <linux/ipv6.h>
+#include <linux/pid_namespace.h>
+#else
+#include <vmlinux.h>
+#endif
+
+#include "bpf_helpers.h"
+#include "bpf_core_read.h"
+#include "bpf_endian.h"
 
 // TODO: 后期改成动态的
 /* R3 max value is outside of the array range */
@@ -21,10 +27,8 @@
 /* init_context */
 static __always_inline int init_context(context_t *context, struct task_struct *task)
 {
-    // 获取 timestamp
-    struct task_struct *realparent;
-    bpf_probe_read(&realparent, sizeof(realparent), &task->real_parent);
-    bpf_probe_read(&context->ppid, sizeof(context->ppid), &realparent->tgid);
+    struct task_struct *realparent = READ_KERN(task->real_parent);
+    context->ppid = READ_KERN(realparent->tgid);
     context->ts = bpf_ktime_get_ns();
     // 填充 id 相关信息
     u64 id = bpf_get_current_uid_gid();
@@ -34,24 +38,25 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     context->pid = id;
     context->tid = id >> 32;
     context->cgroup_id = bpf_get_current_cgroup_id();
-    // 读取 cred 下, 填充 id
-    struct cred *cred;
-    // 有三个 ptracer_cred, real_cred, cred, 看kernel代码即可
-    bpf_probe_read(&cred, sizeof(cred), &task->real_cred);
-    bpf_probe_read(&context->euid, sizeof(context->euid), &cred->euid);
     // 容器相关信息
     // Elkeid - ROOT_PID_NS_INUM = task->nsproxy->pid_ns_for_children->ns.inum;
     // namespace: https://zhuanlan.zhihu.com/p/307864233
-    struct nsproxy *nsp;
-    struct uts_namespace *uts_ns;
+    struct nsproxy *nsp = READ_KERN(task->nsproxy);
+    struct uts_namespace *uts_ns = READ_KERN(nsp->uts_ns);
+    struct pid_namespace *pid_ns = READ_KERN(nsp->pid_ns_for_children);
     // nodename
-    bpf_probe_read(&nsp, sizeof(nsp), &task->nsproxy);
-    bpf_probe_read(&uts_ns, sizeof(uts_ns), &nsp->uts_ns);
     bpf_probe_read_str(&context->nodename, sizeof(context->nodename), &uts_ns->name.nodename);
     // pid_namespace
-    bpf_probe_read(&context->uts_inum, sizeof(context->uts_inum), &uts_ns->ns.inum);
+    context->pns = READ_KERN(pid_ns->ns.inum);
+    // For root pid_namespace, it's not that easy in eBPF. The way that we can get pid=1 task
+    // is to lookup (task->parent) recursively. And We should not do this for every time. (cache)
+    // Also, we should considered the situation that we can not get in the very first time
+    // since we used a bounded loop to get the root pid (The NUM 1 pid)
+    // Still, I think it's fine if we just get the root pid_namespace from usersapce. I do not
+    // catch the reason that Elkeid get this in root.
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
+    // This may changed since 
     struct pid_cache_t *parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
     if (parent)
         bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm), &parent->pcomm);

@@ -17,7 +17,6 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     if (!address)
         return 0;
-
     sa_family_t sa_fam = READ_KERN(address->sa_family);
     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
     {

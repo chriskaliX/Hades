@@ -54,27 +54,26 @@ func (decoder *EbpfDecoder) ReadAmountBytes() int {
 
 func (decoder *EbpfDecoder) DecodeContext() (c *Context, err error) {
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < 168 {
+	if len(decoder.buffer[offset:]) < 160 {
 		err = fmt.Errorf("can't read context from buffer: buffer too short")
 		return
 	}
 	ctx := NewContext()
 	ctx.Ts = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+8])
 	ctx.CgroupID = binary.LittleEndian.Uint64(decoder.buffer[offset+8 : offset+16])
-	ctx.UtsInum = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
+	ctx.Pns = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
 	ctx.Type = binary.LittleEndian.Uint32(decoder.buffer[offset+20 : offset+24])
 	ctx.Pid = binary.LittleEndian.Uint32(decoder.buffer[offset+24 : offset+28])
 	ctx.Tid = binary.LittleEndian.Uint32(decoder.buffer[offset+28 : offset+32])
 	ctx.Uid = binary.LittleEndian.Uint32(decoder.buffer[offset+32 : offset+36])
-	ctx.EUid = binary.LittleEndian.Uint32(decoder.buffer[offset+36 : offset+40])
-	ctx.Gid = binary.LittleEndian.Uint32(decoder.buffer[offset+40 : offset+44])
-	ctx.Ppid = binary.LittleEndian.Uint32(decoder.buffer[offset+44 : offset+48])
-	ctx.Sessionid = binary.LittleEndian.Uint32(decoder.buffer[offset+48 : offset+52])
-	ctx.Comm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+52:offset+68], "\x00"))
-	ctx.PComm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+68:offset+84], "\x00"))
-	ctx.Nodename = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+84:offset+148], "\x00"))
-	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+148 : offset+156]))
-	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+156 : offset+168]))
+	ctx.Gid = binary.LittleEndian.Uint32(decoder.buffer[offset+36 : offset+40])
+	ctx.Ppid = binary.LittleEndian.Uint32(decoder.buffer[offset+40 : offset+44])
+	ctx.Sessionid = binary.LittleEndian.Uint32(decoder.buffer[offset+44 : offset+48])
+	ctx.Comm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+48:offset+64], "\x00"))
+	ctx.PComm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+64:offset+80], "\x00"))
+	ctx.Nodename = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+80:offset+144], "\x00"))
+	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+144 : offset+152]))
+	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+152 : offset+160]))
 	decoder.cursor += int(ctx.GetSizeBytes())
 	c = ctx
 	return
