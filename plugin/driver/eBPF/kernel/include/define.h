@@ -1,5 +1,6 @@
 #ifndef __DEFINE_H
 #define __DEFINE_H
+#ifndef CORE
 #include <linux/kconfig.h>
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
@@ -17,6 +18,10 @@
 #include <linux/fs.h>
 #include <net/inet_sock.h>
 #include <uapi/linux/un.h>
+#else
+#include <vmlinux.h>
+#endif
+
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 
@@ -25,7 +30,6 @@
 #define MAX_PERCPU_BUFSIZE (1 << 14)
 #define MAX_STRING_SIZE 256 // Same with Elkeid, but it's larger in tracee or other project
 #define MAX_STR_ARR_ELEM 32
-#define MAX_PID_LEN 7 // (up to 2^22 = 4194304)
 #define MAX_PATH_COMPONENTS 20
 
 #define MAX_BUFFERS 3
@@ -33,7 +37,7 @@
 #define SUBMIT_BUF_IDX 0
 #define STRING_BUF_IDX 1
 
-#define EXECVE_GET_SOCK_FD_LIMIT 12
+#define EXECVE_GET_SOCK_FD_LIMIT 8
 #define EXECVE_GET_SOCK_PID_LIMIT 4
 
 /* ========== MAP MICRO DEFINATION ========== */
@@ -69,12 +73,11 @@ typedef struct data_context
 {
     u64 ts;        // timestamp
     u64 cgroup_id; // cgroup_id
-    u32 uts_inum;  // in Elkeid, they use pid_inum and root_pid_inum. TODO: go through this
+    u32 pns;       // in Elkeid, they use pid_inum and root_pid_inum. TODO: go through this
     u32 type;      // type of struct
     u32 pid;       // processid
     u32 tid;       // thread id
     u32 uid;       // user id
-    u32 euid;      // effective user id
     u32 gid;       // group id
     u32 ppid;      // parent pid => which is tpid, pid is for the kernel space. In user space, it's tgid actually
     u32 sessionid;
@@ -155,7 +158,8 @@ BPF_PERF_OUTPUT(net_events, 1024);
 BPF_PERCPU_ARRAY(bufs, buf_t, 3);
 BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
 
-/* read micro */
+// CORE, just like in tracee
+#ifndef CORE
 #define READ_KERN(ptr)                                     \
     ({                                                     \
         typeof(ptr) _val;                                  \
@@ -163,6 +167,17 @@ BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
         bpf_probe_read((void *)&_val, sizeof(_val), &ptr); \
         _val;                                              \
     })
+#define GET_FIELD_ADDR(field) &field
+#else
+#define READ_KERN(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_core_read((void *)&_val, sizeof(_val), &ptr);               \
+        _val;                                                           \
+    })
+#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
+#endif
 
 /* array related function */
 static __always_inline buf_t *get_buf(int idx)
@@ -188,8 +203,6 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
     // 从结构体的一个成员变量地址, 获取到一个结构体的首地址
     return container_of(mnt, struct mount, mnt);
 }
-
-#define GET_FIELD_ADDR(field) &field
 
 /* hook point id */
 // TODO: gather all and update

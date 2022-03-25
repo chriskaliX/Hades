@@ -15,23 +15,22 @@ func init() {
 }
 
 type Context struct {
-	Ts        uint64   `json:"timestamp"`
-	CgroupID  uint64   `json:"cgroupid"`
-	UtsInum   uint32   `json:"utsinum"`
-	Type      uint32   `json:"type"`
-	Pid       uint32   `json:"pid"`
-	Tid       uint32   `json:"tid"`
-	Uid       uint32   `json:"uid"`
-	EUid      uint32   `json:"euid"`
-	Gid       uint32   `json:"gid"`
-	Ppid      uint32   `json:"ppid"`
-	Sessionid uint32   `json:"sessionid"`
-	Comm      string   `json:"comm"`
-	PComm     string   `json:"pomm"`
-	Nodename  string   `json:"nodename"`
-	RetVal    uint64   `json:"retval"`
-	Argnum    uint8    `json:"argnum"`
-	_         [11]byte `json:"-"`
+	Ts        uint64  `json:"timestamp"`
+	CgroupID  uint64  `json:"cgroupid"`
+	Pns		  uint32  `json:"pns"`
+	Type      uint32  `json:"type"`
+	Pid       uint32  `json:"pid"`
+	Tid       uint32  `json:"tid"`
+	Uid       uint32  `json:"uid"`
+	Gid       uint32  `json:"gid"`
+	Ppid      uint32  `json:"ppid"`
+	Sessionid uint32  `json:"sessionid"`
+	Comm      string  `json:"comm"`
+	PComm     string  `json:"pomm"`
+	Nodename  string  `json:"nodename"`
+	RetVal    uint64  `json:"retval"`
+	Argnum    uint8   `json:"-"`
+	_         [7]byte `json:"-"`
 	// added
 	Sha256    string           `json:"sha256"`
 	Username  string           `json:"username"`
@@ -42,7 +41,7 @@ type Context struct {
 }
 
 func (Context) GetSizeBytes() uint32 {
-	return 168
+	return 160
 }
 
 func (c *Context) SetEvent(event Event) {
