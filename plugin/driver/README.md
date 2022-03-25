@@ -53,6 +53,7 @@
 | security_kernel_read_file                  | ON                                    | 1027 |
 | security_inode_create                      | ON                                    | 1028 |
 | security_sb_mount                          | ON                                    | 1029 |
+| kprobe/call_usermodehelper                 | ON                                    | 1030 |
 
 用户态 Hook
 | Hook 名称 | 状态/说明 | ID |

@@ -13,7 +13,7 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 2000;
+    data.context.type = BASH_READLINE;
     // exe
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);

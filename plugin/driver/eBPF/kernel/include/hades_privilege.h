@@ -15,7 +15,7 @@ int kprobe_commit_creds(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1011;
+    data.context.type = COMMIT_CREDS;
 
     struct cred *new = (struct cred *)PT_REGS_PARM1(ctx);
     struct cred *old = (struct cred *)READ_KERN(data.task->real_cred);
@@ -37,6 +37,5 @@ int kprobe_commit_creds(struct pt_regs *ctx)
         events_perf_submit(&data);
         return 1;
     }
-
     return 0;
 }
