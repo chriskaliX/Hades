@@ -1,4 +1,3 @@
-// not yet
 package agent
 
 import (
