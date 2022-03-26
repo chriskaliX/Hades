@@ -1,0 +1,35 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:             hades-agent
+# Required-Start:       $local_fs $network $syslog
+# Required-Stop:        $local_fs $network $syslog
+# Default-Start:        2 3 4 5
+# Default-Stop:         0 1 6
+# Short-Description:    hades-agent
+# Description:          hades-agent security hids
+### END INIT INFO
+
+# @Reference: https://unix.stackexchange.com/questions/288596/what-are-the-variables-remote-fs-and-syslog-on-sysvinit-lsb-header
+
+# Directories and details
+control="/etc/hades/hadesctl"
+case "$1" in
+	start)
+	"${control}" start
+	;;
+	stop)
+	"${control}" stop
+	;;
+	restart)
+   	"${control}" restart
+	;;
+	status)
+	"${control}" status
+	;;
+	*)
+	echo "Usage: $0 {start|stop|restart|status}"
+	exit 1
+	;;
+esac
+
+exit 0
