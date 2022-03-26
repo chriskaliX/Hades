@@ -30,11 +30,11 @@ SUCC_COLOR = \033[32m[+]\033[0m
 FAIL_COLOR = \033[31m[-]\033[0m
 
 all:
-	@echo "| ---------------------------- |"
-	@echo "|   \033[35mHades\033[0m eBPF Kernel Driver   |"
-	@echo "|    based on Tracee/Elkeid    |"
-	@echo "|         @chriskaliX          |"
-	@echo "| ---------------------------- |"
+	@echo "┌──────────────────────────────┐"
+	@echo "│   \033[35mHades\033[0m eBPF Kernel Driver   │"
+	@echo "│    based on Tracee/Elkeid    │"
+	@echo "│         @chriskaliX          │"
+	@echo "└──────────────────────────────┘"
 
 	@printf "$(INFO_COLOR) Start to build hades_ebpf_driver\n"
 
@@ -54,7 +54,6 @@ all:
 	$(MAKE) clean -s --no-print-directory
 	@printf "$(INFO_COLOR) Compile driver\n"
 	$(MAKE) hades_ebpf_driver.o -s --no-print-directory
-	$(shell cp hades_ebpf_driver.o ../userspace/hades_ebpf_driver.o)
 
 # KBUILD_NAME: https://github.com/iovisor/bpftrace/pull/1352
 hades_ebpf_driver.o: src/hades.c
