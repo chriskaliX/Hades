@@ -9,6 +9,8 @@ import (
 	"path"
 )
 
+// agent/hids-agent agent/collector/ebpf/headers/vmlinux.h agent/agent
+
 // agent self-update
 func Update(config proto.Config) (err error) {
 	dst := path.Join("/tmp", Product+"-updater"+".pkg")
