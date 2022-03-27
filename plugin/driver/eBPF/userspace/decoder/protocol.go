@@ -3,6 +3,8 @@ package decoder
 import (
 	"hades-ebpf/userspace/share"
 	"sync"
+
+	jsonpatch "github.com/evanphx/json-patch"
 )
 
 var contextPool sync.Pool
@@ -31,12 +33,12 @@ type Context struct {
 	Argnum    uint8   `json:"-"`
 	_         [7]byte `json:"-"`
 	// added
-	Sha256    string            `json:"sha256"`
-	Username  string            `json:"username"`
-	StartTime uint64            `json:"starttime"`
-	Exe       string            `json:"exe"`
-	Syscall   string            `json:"syscall"`
-	Event     `json:"-,inline"` // inline tag is no longer support which is been discussed for 9 years
+	Sha256    string         `json:"sha256"`
+	Username  string         `json:"username"`
+	StartTime uint64         `json:"starttime"`
+	Exe       string         `json:"exe"`
+	Syscall   string         `json:"syscall"`
+	Event     `json:"event"` // inline tag is no longer support which is been discussed for 9 years
 }
 
 func (Context) GetSizeBytes() uint32 {
@@ -44,17 +46,24 @@ func (Context) GetSizeBytes() uint32 {
 }
 
 // Temp way to do merge or inline...
-// func (c *Context) MarshalJson() (result []byte, err error) {
-// 	ctxByte, err := share.Marshal(c)
-// 	if err != nil {
-// 		return
-// 	}
-// 	eventByte, err := share.Marshal(c.Event)
-// 	if err != nil {
-// 		return
-// 	}
-// 	return jsonpatch.MergePatch(ctxByte, eventByte)
-// }
+func (c *Context) MarshalJson() (result string, err error) {
+	ctxByte, err := share.MarshalBytes(c)
+	if err != nil {
+		return
+	}
+	defer ctxByte.Free()
+	eventByte, err := share.MarshalBytes(c.Event)
+	if err != nil {
+		return
+	}
+	defer eventByte.Free()
+	var resultByte []byte
+	if resultByte, err = jsonpatch.MergePatch(ctxByte.Bytes(), eventByte.Bytes()); err != nil {
+		return
+	}
+	result = string(resultByte)
+	return
+}
 
 func (c *Context) SetEvent(event Event) {
 	c.Syscall = event.String()

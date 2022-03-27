@@ -24,3 +24,14 @@ func Marshal(v interface{}) (str string, err error) {
 	str = helper.ZeroCopyString(buf.Bytes())
 	return
 }
+
+func MarshalBytes(v interface{}) (b *buffer.Buffer, err error) {
+	var buf = bytepool.Get()
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	if err = enc.Encode(v); err != nil {
+		buf.Free()
+		return
+	}
+	return buf, nil
+}
