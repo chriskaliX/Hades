@@ -1,8 +1,12 @@
+#ifndef CORE
 #include <linux/sched.h>
 #include <linux/binfmts.h>
 #include <linux/kconfig.h>
 #include <linux/prctl.h>
 #include <uapi/linux/ptrace.h>
+#else
+#include <vmlinux.h>
+#endif
 
 #include "utils_buf.h"
 #include "utils.h"
@@ -10,7 +14,6 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-// TODO: Hook ID 的标准化, 看 format 里面
 struct _sys_enter_execve
 {
     unsigned long long unused;

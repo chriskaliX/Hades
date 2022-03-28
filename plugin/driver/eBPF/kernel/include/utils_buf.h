@@ -17,7 +17,6 @@ static __always_inline int save_str_arr_to_buf(event_data_t *data, const char __
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
-
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
     {
@@ -42,7 +41,6 @@ static __always_inline int save_str_arr_to_buf(event_data_t *data, const char __
             goto out;
         }
     }
-
     /* truncate rather than read ... */
 out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
@@ -169,25 +167,25 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
 /*
  * @function: save pid_tree to buffer
  * @structure: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
- * TODO: cache to speed up
  */
 // In Elkeid, a privilege escalation detection is added by checking the creds
 // in here. And also, pid of socket is added in here.
+// Working on creds check
 static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index)
 {
     u8 elem_num = 0;
     u32 pid;
     struct task_struct *task = data->task;
+    // add creds check here
+    // pay attention that here are three cred in task_struct
+    // struct cred *cred = READ_KERN(task->real_cred);
 
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
-
+    // hard code the limit
     if (limit >= 12)
-    {
         limit = 12;
-    }
-
 #pragma unroll
     for (int i = 0; i < limit; i++)
     {
@@ -198,10 +196,11 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
         // trace until pid = 1
         if (pid == 0)
             goto out;
+        // 2022-03-28TODO: add cred check here:
+
+
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
-        {
             goto out;
-        }
         // read pid to buffer firstly
         flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &pid);
         if (flag != 0)

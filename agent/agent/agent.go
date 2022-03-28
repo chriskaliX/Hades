@@ -11,9 +11,9 @@ import (
 )
 
 var DefaultAgent = &Agent{
-	env:     "SPECIFIED_AGENT_ID",
+	env:     EnvName,
 	product: Product,
-	version: "1.0.0",
+	version: Version,
 }
 
 type Agent struct {
@@ -87,11 +87,13 @@ func (Agent) fromIDFile(file string) (id []byte, err error) {
 	return
 }
 
+// Just like in Elkeid.
 func (agent *Agent) generateID() {
 	var (
 		ok     bool
 		source []byte
 	)
+
 	// 1. from env
 	if agent.id, ok = os.LookupEnv(agent.env); ok {
 		return
@@ -106,9 +108,12 @@ func (agent *Agent) generateID() {
 	}
 	// 3. from `/sys/class/dmi/id/product_uuid`
 	// dmi information
-	// @Reference: https://stackoverflow.com/questions/35883313/dmidecode-product-uuid-and-product-serial-what-is-the-difference/35886893
-	// 我们可以看到在 osquery 里也有代码读取这个作为 UUID, https://github.com/osquery/osquery/blob/852d87b0eb6718ec527fa8484390cb4ae82b76ae/osquery/core/system.cpp
-	// 如果失效则生成另外的 uuid, this is unchangable
+	// @Reference here:
+	// https://stackoverflow.com/questions/35883313/dmidecode-product-uuid-and-product-serial-what-is-the-difference/35886893
+	// We can see that osquery used this as uuid as well:
+	// https://github.com/osquery/osquery/blob/852d87b0eb6718ec527fa8484390cb4ae82b76ae/osquery/core/system.cpp
+	// If failed with getting this file as uuid, then generate in another way
+	// By the way, this file is unchangable
 	if pdid, err := agent.fromIDFile("/sys/class/dmi/id/product_uuid"); err == nil {
 		source = append(source, pdid...)
 	}

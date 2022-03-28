@@ -5,15 +5,13 @@ import (
 	"sync"
 )
 
-var (
-	recordPool = sync.Pool{
-		New: func() interface{} {
-			return &proto.EncodedRecord{
-				Data: make([]byte, 0, 1024*2),
-			}
-		},
-	}
-)
+var recordPool = sync.Pool{
+	New: func() interface{} {
+		return &proto.EncodedRecord{
+			Data: make([]byte, 0, 1024*2),
+		}
+	},
+}
 
 func Get() *proto.EncodedRecord {
 	return recordPool.Get().(*proto.EncodedRecord)
