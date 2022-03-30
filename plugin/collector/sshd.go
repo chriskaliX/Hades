@@ -142,7 +142,8 @@ func GetSSH(ctx context.Context) {
 						sshlog["reason"] = "Failed"
 						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)
 						sshlog["username"] = fields[10]
-						sshlog["port"] = fields[12]
+						sshlog["ip"] = fields[12]
+						sshlog["port"] = fields[14]
 						if data, err := share.Marshal(sshlog); err == nil {
 							rawdata["data"] = string(data)
 							rec := &plugin.Record{

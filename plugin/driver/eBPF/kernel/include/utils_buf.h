@@ -197,7 +197,15 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
         if (pid == 0)
             goto out;
         // 2022-03-28TODO: add cred check here:
+        // skip 0, only 1 & 2 are readed.
+        // if (0 < i && i <= 2)
+        // {
+        //     struct cred *tmpcred = READ_KERN(task->real_cred);
+        //     // check here
 
+        //     // does verifier supports this? In Elkeid
+        //     cred = tmpcred;
+        // }
 
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
             goto out;
