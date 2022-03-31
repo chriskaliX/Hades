@@ -184,12 +184,14 @@ func (decoder *EbpfDecoder) DecodeBytes(msg []byte, size uint32) error {
 }
 
 func (decoder *EbpfDecoder) DecodeStr(size uint32) (str string, err error) {
-	buffer := bytepool.Get()
-	defer buffer.Free()
-	if err = decoder.DecodeBytes(buffer.Bytes()[:size], size); err != nil {
+	offset := decoder.cursor
+	castedSize := int(size)
+	if len(decoder.buffer[offset:]) < castedSize {
+		err = fmt.Errorf("can't read context from buffer: buffer too short")
 		return
 	}
-	str = string(buffer.Bytes()[:size])
+	str = string(decoder.buffer[offset : offset+castedSize])
+	decoder.cursor += castedSize
 	return
 }
 
@@ -266,7 +268,7 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 	return
 }
 
-func (decoder *EbpfDecoder) DecodePidTree() (s string, err error) {
+func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (s string, err error) {
 	var (
 		index uint8
 		size  uint8
@@ -298,7 +300,47 @@ func (decoder *EbpfDecoder) DecodePidTree() (s string, err error) {
 		decoder.DecodeUint8(&dummy)
 	}
 	s = strings.Join(strArr, "<")
+	// We add a cred check here...
+	// get the privileged flag here
+	if err = decoder.DecodeUint8(privilege_flag); err != nil {
+		return
+	}
+	// if privilege_flag is set, get the creds
+	// just testing code here...
+	if *privilege_flag == 1 {
+		var old = NewSlimCred()
+		var new = NewSlimCred()
+		if err = decoder.DecodeUint8(&index); err != nil {
+			return
+		}
+		if err = decoder.DeocdeSlimCred(old); err != nil {
+			return
+		}
+		if err = decoder.DecodeUint8(&index); err != nil {
+			return
+		}
+		if err = decoder.DeocdeSlimCred(new); err != nil {
+			return
+		}
+	}
 	return
+}
+
+func (decoder *EbpfDecoder) DeocdeSlimCred(slimCred *SlimCred) error {
+	offset := decoder.cursor
+	if len(decoder.buffer[offset:]) < 32 {
+		return fmt.Errorf("can't read context from buffer: buffer too short")
+	}
+	slimCred.Uid = binary.LittleEndian.Uint32(decoder.buffer[offset : offset+4])
+	slimCred.Gid = binary.LittleEndian.Uint32(decoder.buffer[offset+4 : offset+8])
+	slimCred.Suid = binary.LittleEndian.Uint32(decoder.buffer[offset+8 : offset+12])
+	slimCred.Sgid = binary.LittleEndian.Uint32(decoder.buffer[offset+12 : offset+16])
+	slimCred.Euid = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
+	slimCred.Egid = binary.LittleEndian.Uint32(decoder.buffer[offset+20 : offset+24])
+	slimCred.Fsuid = binary.LittleEndian.Uint32(decoder.buffer[offset+24 : offset+28])
+	slimCred.Fsgid = binary.LittleEndian.Uint32(decoder.buffer[offset+28 : offset+32])
+	decoder.cursor += int(slimCred.GetSizeBytes())
+	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeStrArray() (strArr []string, err error) {

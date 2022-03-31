@@ -18,15 +18,16 @@ var _ decoder.Event = (*Readline)(nil)
 const bashBinary = "/bin/bash"
 
 type Readline struct {
-	Exe        string `json:"-"`
-	Line       string `json:"line"`
-	TTYName    string `json:"ttyname"`
-	Stdin      string `json:"stdin"`
-	Stout      string `json:"stout"`
-	PidTree    string `json:"pidtree"`
-	RemotePort string `json:"remoteport"`
-	RemoteAddr string `json:"remoteaddr"`
-	Cwd        string `json:"cwd"`
+	Exe            string `json:"-"`
+	Line           string `json:"line"`
+	TTYName        string `json:"ttyname"`
+	Stdin          string `json:"stdin"`
+	Stout          string `json:"stout"`
+	PidTree        string `json:"pidtree"`
+	RemotePort     string `json:"remoteport"`
+	RemoteAddr     string `json:"remoteaddr"`
+	Cwd            string `json:"cwd"`
+	PrivEscalation uint8  `json:"privesca"`
 }
 
 func (Readline) ID() uint32 {
@@ -60,7 +61,7 @@ func (r *Readline) Parse() (err error) {
 	if r.RemotePort, r.RemoteAddr, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
-	if r.PidTree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
+	if r.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&r.PrivEscalation); err != nil {
 		return
 	}
 	if r.Cwd, err = decoder.DefaultDecoder.DecodeString(); err != nil {

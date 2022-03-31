@@ -11,10 +11,11 @@ var DefaultDoInitModule = &DoInitModule{}
 var _ decoder.Event = (*DoInitModule)(nil)
 
 type DoInitModule struct {
-	Exe     string `json:"-"`
-	Modname string `json:"modname"`
-	Pidtree string `json:"pidtree"`
-	Cwd     string `json:"cwd"`
+	Exe            string `json:"-"`
+	Modname        string `json:"modname"`
+	Pidtree        string `json:"pidtree"`
+	Cwd            string `json:"cwd"`
+	PrivEscalation uint8  `json:"privesca"`
 }
 
 func (DoInitModule) ID() uint32 {
@@ -36,7 +37,7 @@ func (d *DoInitModule) Parse() (err error) {
 	if d.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if d.Pidtree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
+	if d.Pidtree, err = decoder.DefaultDecoder.DecodePidTree(&d.PrivEscalation); err != nil {
 		return
 	}
 	if d.Cwd, err = decoder.DefaultDecoder.DecodeString(); err != nil {

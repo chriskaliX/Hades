@@ -12,18 +12,19 @@ var DefaultExecve = &Execve{}
 var _ decoder.Event = (*Execve)(nil)
 
 type Execve struct {
-	Exe           string `json:"-"`
-	Cwd           string `json:"cwd"`
-	TTYName       string `json:"ttyname"`
-	Stdin         string `json:"stdin"`
-	Stdout        string `json:"stdout"`
-	RemotePort    string `json:"remoteport"`
-	RemoteAddr    string `json:"remoteaddr"`
-	PidTree       string `json:"pidtree"`
-	Cmdline       string `json:"cmdline"`
-	SSHConnection string `json:"ssh_connection"`
-	LDPreload     string `json:"ld_preload"`
-	LDLibraryPath string `json:"ld_library_path"`
+	Exe            string `json:"-"`
+	Cwd            string `json:"cwd"`
+	TTYName        string `json:"ttyname"`
+	Stdin          string `json:"stdin"`
+	Stdout         string `json:"stdout"`
+	RemotePort     string `json:"remoteport"`
+	RemoteAddr     string `json:"remoteaddr"`
+	PidTree        string `json:"pidtree"`
+	Cmdline        string `json:"cmdline"`
+	PrivEscalation uint8  `json:"privesca"`
+	SSHConnection  string `json:"ssh_connection"`
+	LDPreload      string `json:"ld_preload"`
+	LDLibraryPath  string `json:"ld_library_path"`
 }
 
 func (Execve) ID() uint32 {
@@ -57,7 +58,7 @@ func (e *Execve) Parse() (err error) {
 	if e.RemotePort, e.RemoteAddr, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
-	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
+	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
 	var strArr []string

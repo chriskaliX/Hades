@@ -8,10 +8,14 @@ import (
 )
 
 var contextPool sync.Pool
+var slimCredPool sync.Pool
 
 func init() {
 	contextPool.New = func() interface{} {
 		return &Context{}
+	}
+	slimCredPool.New = func() interface{} {
+		return &SlimCred{}
 	}
 }
 
@@ -81,4 +85,27 @@ func NewContext() *Context {
 
 func PutContext(data *Context) {
 	contextPool.Put(data)
+}
+
+type SlimCred struct {
+	Uid   uint32 /* real UID of the task */
+	Gid   uint32 /* real GID of the task */
+	Suid  uint32 /* saved UID of the task */
+	Sgid  uint32 /* saved GID of the task */
+	Euid  uint32 /* effective UID of the task */
+	Egid  uint32 /* effective GID of the task */
+	Fsuid uint32 /* UID for VFS ops */
+	Fsgid uint32 /* GID for VFS ops */
+}
+
+func (s SlimCred) GetSizeBytes() uint32 {
+	return 32
+}
+
+func NewSlimCred() *SlimCred {
+	return slimCredPool.Get().(*SlimCred)
+}
+
+func PutSlimCred(data *SlimCred) {
+	slimCredPool.Put(data)
 }

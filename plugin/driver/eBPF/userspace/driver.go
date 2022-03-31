@@ -53,7 +53,7 @@ func (d *Driver) Init() (err error) {
 
 		VerifierOptions: ebpf.CollectionOptions{
 			Programs: ebpf.ProgramOptions{
-				LogSize: 2097152,
+				LogSize: 2097152 * 100,
 			},
 		},
 

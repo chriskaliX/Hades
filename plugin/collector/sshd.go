@@ -58,6 +58,12 @@ func GetSSH(ctx context.Context) {
 	}
 	defer watcher.Close()
 	watcher.Add(path)
+	// start to read
+	file, err := os.Open(path)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	// only for write now, evaluate
 	for {
 		select {
@@ -78,12 +84,6 @@ func GetSSH(ctx context.Context) {
 					if lastSize > 1024*1024 {
 						lastSize = lastSize - 1024*1024
 					}
-				}
-				// start to read
-				file, err := os.Open(path)
-				if err != nil {
-					zap.S().Error(err)
-					return
 				}
 				// 0 = Beginning of file
 				// 1 = Current position

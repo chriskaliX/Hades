@@ -1,4 +1,4 @@
-// cred
+#ifndef CORE
 #include <linux/cred.h>
 #include <linux/user_namespace.h>
 #include "utils_buf.h"
@@ -6,6 +6,9 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
+#else
+#include <vmlinux.h>
+#endif
 
 // Detection of privilege escalation
 // TODO: going to go through this. would this been too much for this?

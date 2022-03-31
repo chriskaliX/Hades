@@ -5,7 +5,12 @@
 #include "bpf_core_read.h"
 #include "define.h"
 #include "helpers.h"
+
+#ifndef CORE
 #include <linux/sched.h>
+#else
+#include <vmlinux.h>
+#endif
 
 /*
  * @function: save str array to buffer
@@ -165,6 +170,53 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
 }
 
 /*
+ * @function: save ptr(struct) to buffer
+ * @structure: [index][buffer]
+ */
+static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32 size, u8 index)
+{
+// The biggest element that can be saved with this function should be defined here
+#define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
+    // Data saved to submit buf: [index][ ... buffer[size] ... ]
+    if (size == 0)
+        return 0;
+
+    // If we don't have enough space - return
+    if (data->buf_off > MAX_PERCPU_BUFSIZE - (size + 1))
+        return 0;
+
+    // Save argument index
+    volatile int buf_off = data->buf_off;
+    data->submit_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
+
+    // Satisfy validator for probe read
+    if ((data->buf_off + 1) <= MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE)
+    {
+        // Read into buffer
+        if (bpf_probe_read(&(data->submit_p->buf[data->buf_off + 1]), size, ptr) == 0)
+        {
+            // We update buf_off only if all writes were successful
+            data->buf_off += size + 1;
+            data->context.argnum++;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// thiner than tracee. It's all we need now
+typedef struct slim_cred {
+    uid_t  uid;                    // real UID of the task
+    gid_t  gid;                    // real GID of the task
+    uid_t  suid;                   // saved UID of the task
+    gid_t  sgid;                   // saved GID of the task
+    uid_t  euid;                   // effective UID of the task
+    gid_t  egid;                   // effective GID of the task
+    uid_t  fsuid;                  // UID for VFS ops
+    gid_t  fsgid;                  // GID for VFS ops
+} slim_cred_t;
+
+/*
  * @function: save pid_tree to buffer
  * @structure: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
  */
@@ -178,7 +230,9 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     struct task_struct *task = data->task;
     // add creds check here
     // pay attention that here are three cred in task_struct
-    // struct cred *cred = READ_KERN(task->real_cred);
+    struct cred *current_cred = (struct cred *)READ_KERN(task->real_cred);
+    struct cred *parent_cred;
+    u8 privilege_flag = 0;
 
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     u32 orig_off = data->buf_off + 1;
@@ -198,14 +252,14 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
             goto out;
         // 2022-03-28TODO: add cred check here:
         // skip 0, only 1 & 2 are readed.
-        // if (0 < i && i <= 2)
-        // {
-        //     struct cred *tmpcred = READ_KERN(task->real_cred);
-        //     // check here
-
-        //     // does verifier supports this? In Elkeid
-        //     cred = tmpcred;
-        // }
+        if (((i == 1) || (i == 2)) && (privilege_flag == 0))
+        {
+            parent_cred = (struct cred *)READ_KERN(task->real_cred);
+            // check here
+            privilege_flag = check_cred(current_cred, parent_cred);
+            // does verifier supports this? In Elkeid
+            current_cred = parent_cred;
+        }
 
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
             goto out;
@@ -237,43 +291,34 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
 out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
     data->context.argnum++;
+    // add the logic of privilege escalation
+    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = privilege_flag;
+    data->buf_off += 1;
+    if(privilege_flag)
+    {
+        slim_cred_t slim = {0};
+        slim.uid = READ_KERN(current_cred->uid.val);
+        slim.gid = READ_KERN(current_cred->gid.val);
+        slim.suid = READ_KERN(current_cred->suid.val);
+        slim.sgid = READ_KERN(current_cred->sgid.val);
+        slim.euid = READ_KERN(current_cred->euid.val);
+        slim.egid = READ_KERN(current_cred->egid.val);
+        slim.fsuid = READ_KERN(current_cred->fsuid.val);
+        slim.fsgid = READ_KERN(current_cred->fsgid.val);
+        // this index maybe misleading...but anyway
+        save_to_submit_buf(data, (void*)&slim, sizeof(slim_cred_t), index);
+        slim.uid = READ_KERN(parent_cred->uid.val);
+        slim.gid = READ_KERN(parent_cred->gid.val);
+        slim.suid = READ_KERN(parent_cred->suid.val);
+        slim.sgid = READ_KERN(parent_cred->sgid.val);
+        slim.euid = READ_KERN(parent_cred->euid.val);
+        slim.egid = READ_KERN(parent_cred->egid.val);
+        slim.fsuid = READ_KERN(parent_cred->fsuid.val);
+        slim.fsgid = READ_KERN(parent_cred->fsgid.val);
+        save_to_submit_buf(data, (void*)&slim, sizeof(slim_cred_t), index);
+    }
     return 1;
 }
-/*
- * @function: save ptr(struct) to buffer
- * @structure: [index][buffer]
- */
-static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32 size, u8 index)
-{
-// The biggest element that can be saved with this function should be defined here
-#define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
 
-    // Data saved to submit buf: [index][ ... buffer[size] ... ]
-
-    if (size == 0)
-        return 0;
-
-    // If we don't have enough space - return
-    if (data->buf_off > MAX_PERCPU_BUFSIZE - (size + 1))
-        return 0;
-
-    // Save argument index
-    volatile int buf_off = data->buf_off;
-    data->submit_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
-
-    // Satisfy validator for probe read
-    if ((data->buf_off + 1) <= MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE)
-    {
-        // Read into buffer
-        if (bpf_probe_read(&(data->submit_p->buf[data->buf_off + 1]), size, ptr) == 0)
-        {
-            // We update buf_off only if all writes were successful
-            data->buf_off += size + 1;
-            data->context.argnum++;
-            return 1;
-        }
-    }
-    return 0;
-}
 
 #endif //__UTILS_BUF_H

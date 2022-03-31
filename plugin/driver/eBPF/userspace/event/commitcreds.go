@@ -11,10 +11,11 @@ var DefaultCommitCreds = &CommitCreds{}
 var _ decoder.Event = (*CommitCreds)(nil)
 
 type CommitCreds struct {
-	Exe     string `json:"-"`
-	NewUid  uint32 `json:"newuid"`
-	OldUid  uint32 `json:"olduid"`
-	PidTree string `json:"pidtree"`
+	Exe            string `json:"-"`
+	NewUid         uint32 `json:"newuid"`
+	OldUid         uint32 `json:"olduid"`
+	PidTree        string `json:"pidtree"`
+	PrivEscalation uint8  `json:"privesca"`
 }
 
 func (CommitCreds) ID() uint32 {
@@ -46,7 +47,7 @@ func (c *CommitCreds) Parse() (err error) {
 	if c.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if c.PidTree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
+	if c.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&c.PrivEscalation); err != nil {
 		return
 	}
 	return

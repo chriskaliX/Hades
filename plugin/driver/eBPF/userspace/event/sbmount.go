@@ -11,12 +11,13 @@ var DefaultSbMount = &SbMount{}
 var _ decoder.Event = (*SbMount)(nil)
 
 type SbMount struct {
-	Exe     string `json:"-"`
-	DevName string `json:"dev_name"`
-	Path    string `json:"path"`
-	Type    string `json:"type"`
-	Flags   uint64 `json:"flags"`
-	PidTree string `json:"pidtree"`
+	Exe            string `json:"-"`
+	DevName        string `json:"dev_name"`
+	Path           string `json:"path"`
+	Type           string `json:"type"`
+	Flags          uint64 `json:"flags"`
+	PidTree        string `json:"pidtree"`
+	PrivEscalation uint8  `json:"privesca"`
 }
 
 func (SbMount) ID() uint32 {
@@ -51,7 +52,7 @@ func (s *SbMount) Parse() (err error) {
 	if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if s.PidTree, err = decoder.DefaultDecoder.DecodePidTree(); err != nil {
+	if s.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&s.PrivEscalation); err != nil {
 		return
 	}
 	return
