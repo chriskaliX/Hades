@@ -37,46 +37,41 @@ func (p ProcessPool) Put(pr *Process) {
 
 var emptyProcess = &Process{}
 
-// process 定期采集的进程, cn_proc/ebpf 采集的进程, 共用这个结构体
+// process 定期采集的进程, cn_proc 采集的进程, 共用这个结构体
 type Process struct {
-	CgroupId        int    `json:"cgroupid,omitempty"`
-	Uts_inum        int    `json:"uts_inum,omitempty"`
-	PID             int    `json:"pid"`
-	TID             int    `json:"tid,omitempty"`
-	PPID            int    `json:"ppid"`
-	Name            string `json:"name"`
-	PName           string `json:"pname,omitempty"`
-	Cmdline         string `json:"cmdline"`
-	Exe             string `json:"exe"`
-	Sha256          string `json:"sha256"`
-	UID             string `json:"uid"`
-	Username        string `json:"username"`
-	EUID            string `json:"euid"`
-	Eusername       string `json:"eusername"`
-	Cwd             string `json:"cwd"`
-	Session         int    `json:"session"`
-	TTY             int    `json:"tty,omitempty"`
-	TTYName         string `json:"ttyname,omitempty"`
-	StartTime       uint64 `json:"starttime"`
-	RemoteAddr      string `json:"remoteaddr,omitempty"`
-	RemotePort      string `json:"remoteport,omitempty"`
-	LocalAddr       string `json:"localaddr,omitempty"`
-	LocalPort       string `json:"localport,omitempty"`
-	PidTree         string `json:"pidtree,omitempty"`
-	Source          string `json:"source"`
-	Syscall         string `json:"syscall,omitempty"`
-	RetVal          int    `json:"retval"`
-	NodeName        string `json:"nodename"`
-	Stdin           string `json:"stdin,omitempty"`
-	Stdout          string `json:"stdout,omitempty"`
-	LD_Preload      string `json:"ld_preload,omitempty"`
-	LD_Library_Path string `json:"ld_library_path,omitempty"`
-	SSH_connection  string `json:"ssh_connection,omitempty"`
-	Utime           uint64 `json:"utime,omitempty"`
-	Stime           uint64 `json:"stime,omitempty"`
-	Rss             uint64 `json:"resmem,omitempty"`
-	Vsize           uint64 `json:"virmem,omitempty"`
-	Cpu             string `json:"cpu,omitempty"`
+	CgroupId   int    `json:"cgroupid,omitempty"`
+	Uts_inum   int    `json:"uts_inum,omitempty"`
+	PID        int    `json:"pid"`
+	TID        int    `json:"tid,omitempty"`
+	PPID       int    `json:"ppid"`
+	Name       string `json:"name"`
+	PName      string `json:"pname,omitempty"`
+	Cmdline    string `json:"cmdline"`
+	Exe        string `json:"exe"`
+	Sha256     string `json:"sha256"`
+	UID        string `json:"uid"`
+	Username   string `json:"username"`
+	EUID       string `json:"euid"`
+	Eusername  string `json:"eusername"`
+	Cwd        string `json:"cwd"`
+	Session    int    `json:"session"`
+	TTY        int    `json:"tty,omitempty"`
+	TTYName    string `json:"ttyname,omitempty"`
+	StartTime  uint64 `json:"starttime"`
+	RemoteAddr string `json:"remoteaddr,omitempty"`
+	RemotePort string `json:"remoteport,omitempty"`
+	LocalAddr  string `json:"localaddr,omitempty"`
+	LocalPort  string `json:"localport,omitempty"`
+	PidTree    string `json:"pidtree,omitempty"`
+	Source     string `json:"source"`
+	NodeName   string `json:"nodename"`
+	Stdin      string `json:"stdin,omitempty"`
+	Stdout     string `json:"stdout,omitempty"`
+	Utime      uint64 `json:"utime,omitempty"`
+	Stime      uint64 `json:"stime,omitempty"`
+	Rss        uint64 `json:"resmem,omitempty"`
+	Vsize      uint64 `json:"virmem,omitempty"`
+	Cpu        string `json:"cpu,omitempty"`
 }
 
 // readonly, change to readfile

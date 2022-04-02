@@ -15,3 +15,14 @@ func Marshal(v interface{}) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+func MarshalString(v interface{}) (string, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(v)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}

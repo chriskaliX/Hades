@@ -80,14 +80,14 @@ func GetProcessInfo(pid int) (proc *cache.Process, err error) {
 	if err = proc.GetExe(); err != nil {
 		return
 	}
-	proc.Sha256, _ = share.GetFileHash(proc.Exe)
+	proc.Sha256, _ = cache.GetFileHash(proc.Exe)
 	if err = proc.GetStat(); err != nil {
 		return
 	}
 	// 修改本地缓存加速
-	proc.Username = share.GetUsername(proc.UID)
+	proc.Username = cache.GetUsername(proc.UID)
 	// 修改本地缓存加速
-	proc.Eusername = share.GetUsername(proc.EUID)
+	proc.Eusername = cache.GetUsername(proc.EUID)
 	// inodes 于 fd 关联, 获取 remote_ip
 	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点
 	// 剔除了这部分对于 inodes 的关联, 默认不检测 socket 了
@@ -102,8 +102,8 @@ func GetProcessJob() error {
 		return err
 	}
 	for _, process := range processes {
-		share.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-		share.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
+		cache.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
+		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 	}
 	data, _ := json.Marshal(processes)
 	rec := &plugin.Record{

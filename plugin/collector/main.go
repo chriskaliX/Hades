@@ -42,7 +42,7 @@ func main() {
 	go SshConfigJob(ctx)
 
 	// ssh 登录信息
-	go GetSSH(ctx)
+	// go GetSSH(ctx)
 
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
@@ -61,5 +61,5 @@ func main() {
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 	// yum 信息
-	GetYumJob(ctx)
+	// GetYumJob(ctx)
 }

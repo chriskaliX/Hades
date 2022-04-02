@@ -150,7 +150,7 @@ func handleProcEvent(data []byte) {
 		defer ProcEventForkPool.Put(event)
 		binary.Read(buf, network.BYTE_ORDER, event)
 		// 进程树补充
-		share.ProcessCache.Add(event.ChildPid, event.ParentPid)
+		cache.ProcessCache.Add(event.ChildPid, event.ParentPid)
 	case network.PROC_EVENT_EXEC:
 		// 对象池获取
 		event := ProcEventExecPool.Get().(*ProcEventExec)
@@ -170,11 +170,11 @@ func handleProcEvent(data []byte) {
 			cache.DefaultProcessPool.Put(process)
 			return
 		}
-		share.ProcessCmdlineCache.Add(pid, process.Exe)
-		if ppid, ok := share.ProcessCache.Get(pid); ok {
+		cache.ProcessCmdlineCache.Add(pid, process.Exe)
+		if ppid, ok := cache.ProcessCache.Get(pid); ok {
 			process.PPID = int(ppid.(uint32))
 		}
-		process.PidTree = share.GetPstree(uint32(process.PID))
+		process.PidTree = cache.GetPstree(uint32(process.PID))
 		data, err := share.Marshal(process)
 
 		// map 对象池
