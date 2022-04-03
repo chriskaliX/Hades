@@ -20,6 +20,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// 时间不是我们关注的, 执行了什么才是比较关键的, 所以我们取cmd的hash作为关键值来去重
+var (
+	CronCache, _   = lru.New(240)
+	CronSearchDirs = []string{
+		"/etc/cron.d",
+		"/var/spool/cron/",
+		"/var/spool/cron/crontabs",
+	}
+)
+
+const CRON_DATATYPE = 2001
+
 type Cron struct {
 	Minute     string `json:"minute"`
 	Hour       string `json:"hour"`
@@ -31,17 +43,8 @@ type Cron struct {
 	Path       string `json:"path"`
 }
 
-// 时间不是我们关注的, 执行了什么才是比较关键的, 所以我们取cmd的hash作为关键值来去重
-var CronCache *lru.Cache
-
-func init() {
-	CronCache, _ = lru.New(240)
-}
-
-var CronSearchDirs = []string{
-	"/etc/cron.d",
-	"/var/spool/cron/",
-	"/var/spool/cron/crontabs",
+func (Cron) DataType() int {
+	return CRON_DATATYPE
 }
 
 // https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/tests/integration/tables/crontab.cpp

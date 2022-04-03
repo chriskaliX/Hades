@@ -4,7 +4,7 @@ import (
 	"time"
 
 	// "collector/socket"
-	"context"
+
 	"runtime"
 
 	"go.uber.org/zap"
@@ -20,26 +20,26 @@ func init() {
 // 统一上传结构体然后Marshal上传
 func main() {
 	// 先获取User刷新, 临时代码, 先理清函数
-	GetUser()
+	// GetUser()
 
 	// 上下文控制, 有点不统一, 待会更新
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
 
 	// 定期刷新进程树, 一小时一次
-	go ProcessUpdateJob(ctx)
+	// go ProcessUpdateJob(ctx)
 
 	// socket 定期采集
 	// go socket.SocketJob(ctx)
 
 	// crontab 信息采集
-	go CronJob(ctx)
+	// go CronJob(ctx)
 
 	// sshd 信息
-	go SshdConfigJob(ctx)
+	// go SshdConfigJob(ctx)
 
 	// sshconfig信息
-	go SshConfigJob(ctx)
+	// go SshConfigJob(ctx)
 
 	// ssh 登录信息
 	// go GetSSH(ctx)
