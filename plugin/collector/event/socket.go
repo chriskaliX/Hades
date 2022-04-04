@@ -90,3 +90,7 @@ func (s Socket) Run() (result map[string]string, err error) {
 	}
 	return
 }
+
+func init() {
+	RegistEvent(&Socket{})
+}

@@ -69,3 +69,7 @@ func (Process) getProcess() (procs []*cache.Process, err error) {
 	}
 	return
 }
+
+func init() {
+	RegistEvent(&Process{})
+}

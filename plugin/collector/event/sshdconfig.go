@@ -29,6 +29,7 @@ func (Sshd) String() string {
 }
 
 func (Sshd) Run() (result map[string]string, err error) {
+	result = make(map[string]string, 0)
 	var (
 		file *os.File
 		scan *bufio.Scanner
@@ -74,4 +75,8 @@ func (Sshd) Run() (result map[string]string, err error) {
 		}
 	}
 	return
+}
+
+func init() {
+	RegistEvent(&Sshd{})
 }

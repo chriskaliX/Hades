@@ -37,6 +37,7 @@ func (SshConfig) String() string {
 }
 
 func (s SshConfig) Run() (result map[string]string, err error) {
+	result = make(map[string]string, 0)
 	// get user configuration
 	configPath := s.sshConfigPath()
 	configs := make([]sshConfig, 0)
@@ -130,4 +131,8 @@ func (s *SshConfig) getSshConfig(uid string, path string) (configs []sshConfig, 
 	}
 	configs = append(configs, config)
 	return
+}
+
+func init() {
+	RegistEvent(&SshConfig{})
 }

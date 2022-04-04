@@ -51,6 +51,7 @@ func (User) String() string {
 
 // get user and update the usercache
 func (User) Run() (result map[string]string, err error) {
+	result = make(map[string]string, 8)
 	var (
 		passwd  *os.File
 		userMap = make(map[string]cache.User, 20)
@@ -106,4 +107,8 @@ func (User) Run() (result map[string]string, err error) {
 		cache.DefaultUserCache.Update(&user)
 	}
 	return
+}
+
+func init() {
+	RegistEvent(&User{})
 }

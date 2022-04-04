@@ -1,6 +1,8 @@
 package main
 
 import (
+	"collector/event"
+	"context"
 	"time"
 
 	// "collector/socket"
@@ -19,31 +21,7 @@ func init() {
 // 这里采集的数据, 统一不带上主机基础信息
 // 统一上传结构体然后Marshal上传
 func main() {
-	// 先获取User刷新, 临时代码, 先理清函数
-	// GetUser()
-
-	// 上下文控制, 有点不统一, 待会更新
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-
-	// 定期刷新进程树, 一小时一次
-	// go ProcessUpdateJob(ctx)
-
-	// socket 定期采集
-	// go socket.SocketJob(ctx)
-
-	// crontab 信息采集
-	// go CronJob(ctx)
-
-	// sshd 信息
-	// go SshdConfigJob(ctx)
-
-	// sshconfig信息
-	// go SshConfigJob(ctx)
-
-	// ssh 登录信息
-	// go GetSSH(ctx)
-
+	// logs
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "collector.log",
@@ -60,6 +38,49 @@ func main() {
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
-	// yum 信息
-	// GetYumJob(ctx)
+
+	// context for all jobs
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// user
+	user, _ := event.GetEvent("user")
+	user.SetMode(event.Differential)
+	user.SetInterval(600)
+	go event.RunEvent(user, true, ctx)
+
+	// processes
+	process, _ := event.GetEvent("process")
+	process.SetMode(event.Differential)
+	process.SetInterval(3600)
+	go event.RunEvent(process, false, ctx)
+
+	// yum
+	yum, _ := event.GetEvent("yum")
+	yum.SetMode(event.Differential)
+	yum.SetInterval(3600)
+	go event.RunEvent(yum, false, ctx)
+
+	// sshdconfig
+	sshdconfig, _ := event.GetEvent("sshdconfig")
+	sshdconfig.SetMode(event.Differential)
+	sshdconfig.SetInterval(3600)
+	go event.RunEvent(sshdconfig, false, ctx)
+
+	// socket 定期采集
+	sshconfig, _ := event.GetEvent("sshconfig")
+	sshconfig.SetMode(event.Differential)
+	sshconfig.SetInterval(3600)
+	go event.RunEvent(sshconfig, false, ctx)
+
+	// crontab 信息采集
+	// go CronJob(ctx)
+
+	// ssh 登录信息
+	// go GetSSH(ctx)
+
+	socket, _ := event.GetEvent("socket")
+	socket.SetMode(event.Differential)
+	socket.SetInterval(300)
+	event.RunEvent(socket, false, ctx)
 }

@@ -36,6 +36,7 @@ func (Yum) String() string {
 }
 
 func (y Yum) Run() (result map[string]string, err error) {
+	result = make(map[string]string, 0)
 	files := y.getfiles(yumReposDir)
 	files = append(files, yumConfig)
 Loop:
@@ -76,4 +77,8 @@ func (Yum) getfiles(pth string) (files []string) {
 		return nil
 	})
 	return files
+}
+
+func init() {
+	RegistEvent(&Yum{})
 }

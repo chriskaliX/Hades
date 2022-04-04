@@ -1,6 +1,8 @@
 package event
 
-import "sync"
+import (
+	"sync"
+)
 
 const (
 	Snapshot = iota
@@ -29,9 +31,10 @@ type BasicEvent struct {
 	_filter sync.Map
 }
 
-func (b BasicEvent) Init(name string) {
+func (b *BasicEvent) Init(name string) {
 	_cache, _ := _cacheMap.LoadOrStore(name, &sync.Map{})
 	b._cache = _cache.(*sync.Map)
+	b.SetStatus(true)
 	b.mode = Differential
 }
 
@@ -62,7 +65,7 @@ func (b *BasicEvent) SetMode(mode int) {
 // Check if the key in here, check in different
 func (b *BasicEvent) Diff(key string) (loaded bool) {
 	_, loaded = b._cache.LoadOrStore(key, true)
-	return !loaded
+	return loaded
 }
 
 // TODO: finish this.
