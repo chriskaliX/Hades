@@ -7,9 +7,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jinzhu/copier"
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 const (
@@ -30,7 +32,11 @@ func (SshConfig) DataType() int {
 	return SSHCONFIG_DATATYPE
 }
 
-func (s SshConfig) Run() (result string, err error) {
+func (SshConfig) String() string {
+	return "sshconfig"
+}
+
+func (s SshConfig) Run() (result map[string]string, err error) {
 	// get user configuration
 	configPath := s.sshConfigPath()
 	configs := make([]sshConfig, 0)
@@ -43,7 +49,15 @@ func (s SshConfig) Run() (result string, err error) {
 	if config, err := s.getSshConfig("0", systemSshConfig); err == nil {
 		configs = append(configs, config...)
 	}
-	result, err = share.MarshalString(configs)
+	// TODO: performance?
+	for _, config := range configs {
+		hash, _err := hashstructure.Hash(config, hashstructure.FormatV2, nil)
+		if _err != nil {
+			// TODO: log here
+			continue
+		}
+		result[strconv.FormatUint(hash, 10)], err = share.MarshalString(config)
+	}
 	return
 }
 

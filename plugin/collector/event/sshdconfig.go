@@ -24,7 +24,11 @@ func (Sshd) DataType() int {
 	return SSHD_DATATYPE
 }
 
-func (Sshd) Run() (result string, err error) {
+func (Sshd) String() string {
+	return "sshdconfig"
+}
+
+func (Sshd) Run() (result map[string]string, err error) {
 	var (
 		file *os.File
 		scan *bufio.Scanner
@@ -60,6 +64,14 @@ func (Sshd) Run() (result string, err error) {
 			}
 		}
 	}
-	result, err = share.MarshalString(config)
+	// set key+value as a primary key
+	for key, value := range config {
+		result[key+value], err = share.MarshalString(map[string]string{
+			key: value,
+		})
+		// TODO: process here
+		if err != nil {
+		}
+	}
 	return
 }

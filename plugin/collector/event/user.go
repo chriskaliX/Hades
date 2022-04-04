@@ -3,6 +3,7 @@ package event
 import (
 	"bufio"
 	"collector/cache"
+	"collector/share"
 	"encoding/binary"
 	"net"
 	"os"
@@ -12,6 +13,8 @@ import (
 )
 
 const USER_DATATYPE = 3004
+
+var _ Event = (*User)(nil)
 
 type User struct {
 	BasicEvent
@@ -42,12 +45,15 @@ func (User) DataType() int {
 	return USER_DATATYPE
 }
 
+func (User) String() string {
+	return "user"
+}
+
 // get user and update the usercache
-func (User) getUser() (result string, err error) {
+func (User) Run() (result map[string]string, err error) {
 	var (
 		passwd  *os.File
 		userMap = make(map[string]cache.User, 20)
-		users   []cache.User
 	)
 	if passwd, err = os.Open("/etc/passwd"); err != nil {
 		return
@@ -93,12 +99,11 @@ func (User) getUser() (result string, err error) {
 	}
 	// append all
 	for _, user := range userMap {
-		users = append(users, user)
+		result[strconv.FormatUint(uint64(user.UID), 10)], err = share.MarshalString(user)
+		if err != nil {
+			// TODO: here
+		}
 		cache.DefaultUserCache.Update(&user)
 	}
-	// A feature here, like osquery, we can specific the mode here
-	// wheater it's diff, or snapshot
-	// TODO: unfinished result
-
 	return
 }

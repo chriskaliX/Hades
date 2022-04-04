@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// use inode key as primary key
 const SOCKET_DATATYPE = 5001
 
 var _ Event = (*Socket)(nil)
@@ -23,7 +24,12 @@ func (Socket) DataType() int {
 	return SOCKET_DATATYPE
 }
 
-func (s Socket) Run() (result string, err error) {
+func (Socket) String() string {
+	return "socket"
+}
+
+func (s Socket) Run() (result map[string]string, err error) {
+	result = make(map[string]string)
 	var (
 		sockets []socket.Socket
 		pids    []int
@@ -78,8 +84,9 @@ func (s Socket) Run() (result string, err error) {
 			}
 		}
 	Next:
+		socket := sockets[index]
+		result[strconv.Itoa(int(socket.Inode))], err = share.MarshalString(socket)
 		time.Sleep(100 * time.Millisecond)
 	}
-	result, err = share.MarshalString(sockets)
 	return
 }

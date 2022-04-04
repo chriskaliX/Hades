@@ -15,6 +15,8 @@ require (
 	golang.org/x/sys v0.0.0-20210906170528-6f6e22806c34
 )
 
+require github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+
 require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect

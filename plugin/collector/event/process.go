@@ -3,6 +3,7 @@ package event
 import (
 	"collector/cache"
 	"collector/share"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -25,7 +26,13 @@ func (Process) DataType() int {
 	return PROCESS_DATATYPE
 }
 
-func (p Process) Run() (result string, err error) {
+func (Process) String() string {
+	return "process"
+}
+
+// TODO: Log process
+func (p Process) Run() (result map[string]string, err error) {
+	result = make(map[string]string)
 	var processes []*cache.Process
 	processes, err = p.getProcess()
 	if err != nil {
@@ -36,8 +43,11 @@ func (p Process) Run() (result string, err error) {
 		cache.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
 		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 	}
-	result, err = share.MarshalString(processes)
 	for _, process := range processes {
+		result[strconv.Itoa(process.PID)], err = share.MarshalString(process)
+		if err != nil {
+			continue
+		}
 		cache.DefaultProcessPool.Put(process)
 	}
 	return

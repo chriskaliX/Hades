@@ -3,7 +3,6 @@ package event
 import (
 	"bufio"
 	"collector/share"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,9 +31,11 @@ func (Yum) DataType() int {
 	return YUM_DATATYPE
 }
 
-func (y Yum) Run() (result string, err error) {
-	config := make(map[string]string)
-	sourcesList := make([]string, 0, 20)
+func (Yum) String() string {
+	return "yum"
+}
+
+func (y Yum) Run() (result map[string]string, err error) {
 	files := y.getfiles(yumReposDir)
 	files = append(files, yumConfig)
 Loop:
@@ -47,8 +48,9 @@ Loop:
 		for s.Scan() {
 			fields := strings.Split(s.Text(), "=")
 			if len(fields) == 2 && strings.TrimSpace(fields[0]) == "baseurl" {
-				sourcesList = append(sourcesList, strings.TrimSpace(fields[1]))
-				if len(sourcesList) > YUM_RECORDLIMIT {
+				url := strings.TrimSpace(fields[1])
+				result[share.MD5(url)] = url
+				if len(result) > YUM_RECORDLIMIT {
 					f.Close()
 					break Loop
 				}
@@ -56,14 +58,6 @@ Loop:
 		}
 		f.Close()
 	}
-	if len(sourcesList) > 0 {
-		if encodedsource, err := share.Marshal(sourcesList); err == nil {
-			config["sources"] = string(encodedsource)
-		}
-	} else {
-		err = errors.New("yum config is empty")
-	}
-	result, err = share.MarshalString(config)
 	return
 }
 
