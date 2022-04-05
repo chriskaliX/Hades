@@ -28,7 +28,7 @@ func GetEvent(name string) (Event, bool) {
 
 type Event interface {
 	// init for event
-	Init(string)
+	Init(string) error
 	// Name for the event
 	String() string
 	// Get the status
@@ -46,6 +46,9 @@ type Event interface {
 	// Key is the unique key as we used
 	// in Differential mode.
 	Run() (map[string]string, error)
+	// RunSync for cn-proc/sshd/cron
+	// Now it's just a demo
+	RunSync() error
 	// Filter, do the event filter with
 	// Field/Value type. I found it's
 	// more like osquery right now...
@@ -53,24 +56,32 @@ type Event interface {
 	// Check in diff here. Use this when we
 	// use Differential mode here
 	Diff(string) bool
+	// Type of event
+	Type() int
+	SetType(int)
 }
 
 func RunEvent(event Event, immediately bool, ctx context.Context) {
 	// init the event
 	event.Init(event.String())
-	if immediately {
-		eventTask(event)
-	}
-	ticker := time.NewTicker(time.Second * time.Duration(event.Interval()))
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			event.SetStatus(false)
-			return
-		case <-ticker.C:
+	switch event.Type() {
+	case Periodicity:
+		if immediately {
 			eventTask(event)
 		}
+		ticker := time.NewTicker(time.Second * time.Duration(event.Interval()))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				event.SetStatus(false)
+				return
+			case <-ticker.C:
+				eventTask(event)
+			}
+		}
+	case Realtime:
+		event.RunSync()
 	}
 }
 
@@ -108,6 +119,7 @@ func eventTask(event Event) error {
 	if err != nil {
 		return err
 	}
+	// testcode
 	fmt.Println(rawdata)
 	data["data"] = rawdata
 	rec := &plugin.Record{

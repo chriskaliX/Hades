@@ -80,6 +80,11 @@ func main() {
 	// ssh 登录信息
 	// go GetSSH(ctx)
 
+	// ncp = netlink/cn_proc
+	ncp, _ := event.GetEvent("ncp")
+	ncp.SetType(event.Realtime)
+	event.RunEvent(ncp, false, ctx)
+
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Differential)
 	socket.SetInterval(300)

@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"errors"
 	"sync"
 )
@@ -31,9 +30,9 @@ type BasicEvent struct {
 	// and it's a default way
 	mode int
 
-	// // event type. It's periodicity or realtime. As default
-	// // it's periodicity
-	// _type int
+	// event type. It's periodicity or realtime. As default
+	// it's periodicity
+	_type int
 	// // the speed of the realtime event, it's 100 as default
 	// speed uint
 	// // cache size for the realtime event channel
@@ -49,11 +48,12 @@ type BasicEvent struct {
 	_filter *sync.Map
 }
 
-func (b *BasicEvent) Init(name string) {
+func (b *BasicEvent) Init(name string) error {
 	_cache, _ := _cacheMap.LoadOrStore(name, &sync.Map{})
 	b._cache = _cache.(*sync.Map)
 	b.SetStatus(true)
 	b.mode = Differential
+	return nil
 }
 
 func (b BasicEvent) Status() bool {
@@ -80,13 +80,13 @@ func (b *BasicEvent) SetMode(mode int) {
 	b.mode = mode
 }
 
-// func (b BasicEvent) Type() int {
-// 	return b._type
-// }
+func (b BasicEvent) Type() int {
+	return b._type
+}
 
-// func (b *BasicEvent) SetType(_type int) {
-// 	b._type = _type
-// }
+func (b *BasicEvent) SetType(_type int) {
+	b._type = _type
+}
 
 // func (b *BasicEvent) SetChan(size uint) {
 // 	b._chan = make(chan string, size)
@@ -120,7 +120,7 @@ func (b BasicEvent) Run() (result map[string]string, err error) {
 	return
 }
 
-func (b BasicEvent) RunSync(ctx context.Context) (err error) {
+func (b BasicEvent) RunSync() (err error) {
 	err = errors.New("nothing")
 	return
 }
