@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"bufio"
@@ -32,6 +32,8 @@ var (
 
 const CRON_DATATYPE = 2001
 
+var _ Event = (*Cron)(nil)
+
 type Cron struct {
 	Minute     string `json:"minute"`
 	Hour       string `json:"hour"`
@@ -41,6 +43,7 @@ type Cron struct {
 	User       string `json:"user"`
 	Command    string `json:"command"`
 	Path       string `json:"path"`
+	BasicEvent
 }
 
 func (Cron) DataType() int {
@@ -185,13 +188,14 @@ func GetCron() (crons []Cron, err error) {
 	return
 }
 
-func CronJob(ctx context.Context) {
+func (Cron) RunSync(ctx context.Context) (err error) {
 	init := true
 	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(6)+1))
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		zap.S().Error(err)
+		return
 	}
 	defer watcher.Close()
 
@@ -263,4 +267,8 @@ func CronJob(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func init() {
+	RegistEvent(&Cron{})
 }

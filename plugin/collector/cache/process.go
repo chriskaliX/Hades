@@ -101,7 +101,7 @@ func (p *Process) GetCwd() (err error) {
 }
 
 func (p *Process) GetExe() (err error) {
-	p.Cwd, err = os.Readlink("/proc/" + strconv.Itoa(int(p.PID)) + "/exe")
+	p.Exe, err = os.Readlink("/proc/" + strconv.Itoa(int(p.PID)) + "/exe")
 	return
 }
 

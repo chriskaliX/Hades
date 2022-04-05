@@ -75,17 +75,19 @@ func main() {
 
 	// for crontab and sshd and cn_proc. It's sync job
 	// crontab 信息采集
-	// go CronJob(ctx)
+	cron, _ := event.GetEvent("cron")
+	cron.SetType(event.Realtime)
+	go event.RunEvent(cron, false, ctx)
 
 	// ssh login events
 	ssh, _ := event.GetEvent("ssh")
 	ssh.SetType(event.Realtime)
-	event.RunEvent(ssh, false, ctx)
+	go event.RunEvent(ssh, false, ctx)
 
 	// ncp = netlink/cn_proc
 	ncp, _ := event.GetEvent("ncp")
 	ncp.SetType(event.Realtime)
-	event.RunEvent(ncp, false, ctx)
+	go event.RunEvent(ncp, false, ctx)
 
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Differential)

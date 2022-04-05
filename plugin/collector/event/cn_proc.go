@@ -82,26 +82,25 @@ func (n *Netlink) Init(name string) (err error) {
 
 // TODO: The speed control things in here
 func (n *Netlink) RunSync(ctx context.Context) (err error) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				msgs, from, err := n.sock.Receive()
-				if err != nil {
-					continue
-				}
-				if from.Pid != nl.PidKernel {
-					continue
-				}
-				for _, msg := range msgs {
-					if msg.Header.Type == syscall.NLMSG_DONE {
-						n.Handle(msg.Data)
-					}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			msgs, from, err := n.sock.Receive()
+			if err != nil {
+				continue
+			}
+			if from.Pid != nl.PidKernel {
+				continue
+			}
+			for _, msg := range msgs {
+				if msg.Header.Type == syscall.NLMSG_DONE {
+					n.Handle(msg.Data)
 				}
 			}
 		}
-	}()
-	return
+	}
 }
 
 func (n *Netlink) SetBuffer(_byte []byte) {

@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-// 参考字节的, 以 osquery 的为标准开发
-
+// Based on Elkeid and osquery
 const (
 	yumConfig              = "/etc/yum.conf"
 	yumReposDir            = "/etc/yum.repos.d"
