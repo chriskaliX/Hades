@@ -3,6 +3,7 @@ package share
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 )
 
 func Marshal(v interface{}) ([]byte, error) {
@@ -25,5 +26,5 @@ func MarshalString(v interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return buf.String(), nil
+	return strings.TrimRight(buf.String(), "\n"), nil
 }

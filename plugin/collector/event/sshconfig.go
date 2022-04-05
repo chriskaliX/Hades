@@ -40,7 +40,7 @@ func (s SshConfig) Run() (result map[string]string, err error) {
 	result = make(map[string]string, 0)
 	// get user configuration
 	configPath := s.sshConfigPath()
-	configs := make([]sshConfig, 0)
+	configs := make([]sshConfig, 0, 20)
 	for uid, path := range configPath {
 		if config, err := s.getSshConfig(string(rune(uid)), path); err == nil {
 			configs = append(configs, config...)
@@ -64,6 +64,7 @@ func (s SshConfig) Run() (result map[string]string, err error) {
 
 // Depend on usercache, execute after GetUser
 func (SshConfig) sshConfigPath() (configs map[uint32]string) {
+	configs = make(map[uint32]string)
 	users := cache.DefaultUserCache.GetUsers()
 	for _, user := range users {
 		configs[user.UID] = filepath.Join(user.HomeDir, userSshConfig)

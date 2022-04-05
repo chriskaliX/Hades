@@ -36,13 +36,16 @@ func (u *UserCache) GetUser(userid uint32) *User {
 	if tmp, err := user.LookupId(useridstr); err == nil {
 		gid, _ := strconv.ParseInt(tmp.Gid, 10, 32)
 		uid, _ := strconv.ParseInt(tmp.Uid, 10, 32)
-		u._cache.Add(useridstr, &User{
+		user := &User{
 			Username: tmp.Username,
 			HomeDir:  tmp.HomeDir,
 			GID:      uint32(gid),
 			UID:      uint32(uid),
-		}, time.Minute*time.Duration(rand.Intn(60)+60))
+		}
+		u._cache.Add(useridstr, user, time.Minute*time.Duration(rand.Intn(60)+60))
+		return user
 	}
+
 	return nil
 }
 
@@ -55,7 +58,7 @@ func (u *UserCache) GetUsers() (users []*User) {
 
 func (u *UserCache) Update(usr *User) {
 	useridstr := strconv.FormatUint(uint64(usr.UID), 10)
-	u._cache.Add(useridstr, usr, time.Minute*time.Duration(rand.Intn(60)+60))
+	u._cache.Set(useridstr, usr, time.Minute*time.Duration(rand.Intn(60)+60))
 }
 
 var DefaultUserCache = &UserCache{

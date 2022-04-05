@@ -13,9 +13,6 @@ import (
 // now it's only one event every time
 var eventMap = sync.Map{}
 
-// global lock for events
-var _lock sync.Mutex
-
 func RegistEvent(event Event) {
 	eventMap.LoadOrStore(event.String(), event)
 }
@@ -84,11 +81,9 @@ func eventTask(event Event) error {
 
 	_data := make(map[string]string)
 	// run the event
-	_lock.Lock()
 	if _data, err = event.Run(); err != nil {
 		return err
 	}
-	_lock.Unlock()
 	data := make(map[string]string, 1)
 	datalist := make([]string, 0, 20)
 
@@ -109,7 +104,6 @@ func eventTask(event Event) error {
 			datalist = append(datalist, value)
 		}
 	}
-	// TODO:Double JSON?
 	rawdata, err = share.MarshalString(datalist)
 	if err != nil {
 		return err
@@ -117,7 +111,7 @@ func eventTask(event Event) error {
 	fmt.Println(rawdata)
 	data["data"] = rawdata
 	rec := &plugin.Record{
-		DataType:  3003,
+		DataType:  int32(event.DataType()),
 		Timestamp: time.Now().Unix(),
 		Data: &plugin.Payload{
 			Fields: data,

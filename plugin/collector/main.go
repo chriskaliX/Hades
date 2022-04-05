@@ -67,12 +67,13 @@ func main() {
 	sshdconfig.SetInterval(3600)
 	go event.RunEvent(sshdconfig, false, ctx)
 
-	// socket 定期采集
+	// socket
 	sshconfig, _ := event.GetEvent("sshconfig")
 	sshconfig.SetMode(event.Differential)
 	sshconfig.SetInterval(3600)
 	go event.RunEvent(sshconfig, false, ctx)
 
+	// for crontab and sshd and cn_proc. It's sync job
 	// crontab 信息采集
 	// go CronJob(ctx)
 
