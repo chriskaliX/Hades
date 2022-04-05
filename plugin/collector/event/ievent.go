@@ -48,7 +48,7 @@ type Event interface {
 	Run() (map[string]string, error)
 	// RunSync for cn-proc/sshd/cron
 	// Now it's just a demo
-	RunSync() error
+	RunSync(context.Context) error
 	// Filter, do the event filter with
 	// Field/Value type. I found it's
 	// more like osquery right now...
@@ -81,7 +81,7 @@ func RunEvent(event Event, immediately bool, ctx context.Context) {
 			}
 		}
 	case Realtime:
-		event.RunSync()
+		event.RunSync(ctx)
 	}
 }
 

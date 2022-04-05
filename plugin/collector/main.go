@@ -77,8 +77,10 @@ func main() {
 	// crontab 信息采集
 	// go CronJob(ctx)
 
-	// ssh 登录信息
-	// go GetSSH(ctx)
+	// ssh login events
+	ssh, _ := event.GetEvent("ssh")
+	ssh.SetType(event.Realtime)
+	event.RunEvent(ssh, false, ctx)
 
 	// ncp = netlink/cn_proc
 	ncp, _ := event.GetEvent("ncp")

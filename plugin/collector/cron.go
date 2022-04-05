@@ -47,6 +47,10 @@ func (Cron) DataType() int {
 	return CRON_DATATYPE
 }
 
+func (Cron) String() string {
+	return "cron"
+}
+
 // https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/tests/integration/tables/crontab.cpp
 // osquery 做了一个对于 Cron 的校验, 可能有个好处? 防止乱写 cron 然后上传
 /*

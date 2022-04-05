@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"bufio"
@@ -18,14 +18,31 @@ import (
 
 var _, _platformfamily, _, _ = host.PlatformInformation()
 
+const (
+	SSH_DATATYPE = 3003
+)
+
+var _ Event = (*SSH)(nil)
+
+type SSH struct {
+	BasicEvent
+}
+
+func (SSH) DataType() int {
+	return SSH_DATATYPE
+}
+
+func (SSH) String() string {
+	return "ssh"
+}
+
 // Get and parse SSH log
 // 2022-03-22: for now, performance is under improved.
-func GetSSH(ctx context.Context) {
+func (SSH) RunSync(ctx context.Context) (err error) {
 	// Redhat or Fedora Core: /var/log/secure
 	// Mandrake, FreeBSD, OpenBSD or Debian: /var/log/auth.log
 	// Format: Month Day Time Hostname ProcessName[ActionID] Message
 	var (
-		err     error
 		watcher *fsnotify.Watcher
 		path    string
 		// record the last size
@@ -154,11 +171,15 @@ func GetSSH(ctx context.Context) {
 				// before we exit
 				lastSize = fs.Size()
 			}
-		case err := <-watcher.Errors:
+		case err = <-watcher.Errors:
 			zap.S().Error(err)
 			return
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func init() {
+	RegistEvent(&SSH{})
 }

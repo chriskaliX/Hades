@@ -1,6 +1,7 @@
 package event
 
 import (
+	"context"
 	"errors"
 	"sync"
 )
@@ -120,7 +121,7 @@ func (b BasicEvent) Run() (result map[string]string, err error) {
 	return
 }
 
-func (b BasicEvent) RunSync() (err error) {
+func (b BasicEvent) RunSync(c context.Context) (err error) {
 	err = errors.New("nothing")
 	return
 }
