@@ -30,17 +30,9 @@ type BasicEvent struct {
 	// Differential logs or Snapshot, just like osquery
 	// and it's a default way
 	mode int
-
 	// event type. It's periodicity or realtime. As default
 	// it's periodicity
 	_type int
-	// // the speed of the realtime event, it's 100 as default
-	// speed uint
-	// // cache size for the realtime event channel
-	// chansize uint
-	// // channel for realtime event
-	// _chan chan string
-
 	// The cache in here.
 	// The key should be unique. It's just like the primary
 	// key we used in SQL.

@@ -6,12 +6,9 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"os"
 	"syscall"
-	"time"
 
-	"github.com/chriskaliX/plugin"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -21,6 +18,7 @@ import (
 var (
 	DefaultNetlink = &Netlink{}
 	ErrTooShort    = errors.New("buffer too short")
+	ErrNothing     = errors.New("nothing")
 )
 
 const (
@@ -172,16 +170,13 @@ type ProcEventPtrace struct {
 	TracerTgid  int32
 }
 
-func (n *Netlink) Handle(data []byte) {
-	var err error
+func (n *Netlink) Handle(data []byte) (result string, err error) {
 	var hdrwhat uint32
 	DefaultNetlink.SetBuffer(data)
 	if err = DefaultNetlink.DecodeMsg(); err != nil {
-		fmt.Println(err)
 		return
 	}
 	if err = DefaultNetlink.DecodeHdr(&hdrwhat); err != nil {
-		fmt.Println(err)
 		return
 	}
 
@@ -196,8 +191,9 @@ func (n *Netlink) Handle(data []byte) {
 	case PROC_EVENT_EXEC:
 		var pid uint32
 		var tpid uint32
+		var process *cache.Process
 		DefaultNetlink.DecodeExec(&pid, &tpid)
-		process, err := cache.GetProcessInfo(int(pid))
+		process, err = cache.GetProcessInfo(int(pid))
 		process.Source = "netlink"
 		process.TID = int(tpid)
 		defer cache.DefaultProcessPool.Put(process)
@@ -214,22 +210,8 @@ func (n *Netlink) Handle(data []byte) {
 			process.PPID = int(ppid.(uint32))
 		}
 		process.PidTree = cache.GetPstree(tpid)
-		data, err := share.Marshal(process)
-
-		// map 对象池
-		if err == nil {
-			rawdata := make(map[string]string)
-			fmt.Println(string(data))
-			rawdata["data"] = string(data)
-			rec := &plugin.Record{
-				DataType:  1000,
-				Timestamp: time.Now().Unix(),
-				Data: &plugin.Payload{
-					Fields: rawdata,
-				},
-			}
-			share.Client.SendRecord(rec)
-		}
+		result, err = share.MarshalString(process)
+		return
 	// skip exit
 	case PROC_EVENT_EXIT:
 	case PROC_EVENT_UID:
@@ -237,10 +219,12 @@ func (n *Netlink) Handle(data []byte) {
 	case PROC_EVENT_SID:
 	// TODO: ptrace
 	case PROC_EVENT_PTRACE:
+	// TODO: Comm
 	case PROC_EVENT_COMM:
 	case PROC_EVENT_COREDUMP:
-	default:
 	}
+	err = ErrNothing
+	return
 }
 
 func init() {

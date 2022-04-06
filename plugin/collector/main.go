@@ -4,9 +4,6 @@ import (
 	"collector/event"
 	"context"
 	"time"
-
-	// "collector/socket"
-
 	"runtime"
 
 	"go.uber.org/zap"
@@ -43,6 +40,10 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// For furthur information collection. All events come with a specific order.
+	// User -> processes -> ncp should be strictly ordered to avoid lack of data.
+	// Use sync.Cond maybe
+
 	// user
 	user, _ := event.GetEvent("user")
 	user.SetMode(event.Differential)
@@ -61,7 +62,7 @@ func main() {
 	yum.SetInterval(3600)
 	go event.RunEvent(yum, false, ctx)
 
-	// sshdconfig
+	// sshdconfidg
 	sshdconfig, _ := event.GetEvent("sshdconfig")
 	sshdconfig.SetMode(event.Differential)
 	sshdconfig.SetInterval(3600)
@@ -73,8 +74,8 @@ func main() {
 	sshconfig.SetInterval(3600)
 	go event.RunEvent(sshconfig, false, ctx)
 
-	// for crontab and sshd and cn_proc. It's sync job
-	// crontab 信息采集
+	// for crontab and sshd and cn_proc and crontab . It's sync job
+	// By the way a limit to pid tree should be strictly considered.
 	cron, _ := event.GetEvent("cron")
 	cron.SetType(event.Realtime)
 	go event.RunEvent(cron, false, ctx)
