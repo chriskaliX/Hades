@@ -6,9 +6,12 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"syscall"
+	"time"
 
+	"github.com/chriskaliX/plugin"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -80,6 +83,7 @@ func (n *Netlink) Init(name string) (err error) {
 
 // TODO: The speed control things in here
 func (n *Netlink) RunSync(ctx context.Context) (err error) {
+	var result string
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,7 +98,20 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 			}
 			for _, msg := range msgs {
 				if msg.Header.Type == syscall.NLMSG_DONE {
-					n.Handle(msg.Data)
+					if result, err = n.Handle(msg.Data); err != nil {
+						continue
+					}
+					rawdata := make(map[string]string)
+					fmt.Println(result)
+					rawdata["data"] = string(result)
+					rec := &plugin.Record{
+						DataType:  Netlink_DATATYPE,
+						Timestamp: time.Now().Unix(),
+						Data: &plugin.Payload{
+							Fields: rawdata,
+						},
+					}
+					share.Client.SendRecord(rec)
 				}
 			}
 		}
@@ -193,6 +210,7 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 		var tpid uint32
 		var process *cache.Process
 		DefaultNetlink.DecodeExec(&pid, &tpid)
+		// TODO: skip memory here
 		process, err = cache.GetProcessInfo(int(pid))
 		process.Source = "netlink"
 		process.TID = int(tpid)
