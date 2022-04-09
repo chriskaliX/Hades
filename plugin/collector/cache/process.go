@@ -27,7 +27,6 @@ func NewPool() *ProcessPool {
 
 func (p ProcessPool) Get() *Process {
 	pr := p.p.Get().(*Process)
-	pr.Reset()
 	return pr
 }
 
@@ -35,9 +34,7 @@ func (p ProcessPool) Put(pr *Process) {
 	p.p.Put(pr)
 }
 
-var emptyProcess = &Process{}
-
-// process 定期采集的进程, cn_proc 采集的进程, 共用这个结构体
+// Process struct, shared with both netlink and
 type Process struct {
 	CgroupId   int    `json:"cgroupid,omitempty"`
 	Uts_inum   int    `json:"uts_inum,omitempty"`
@@ -167,10 +164,6 @@ func (p *Process) GetStat() (err error) {
 	return
 }
 
-func (p *Process) Reset() {
-	*p = *emptyProcess
-}
-
 func GetFds(pid int) ([]string, error) {
 	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")
 	if err != nil {
@@ -212,7 +205,7 @@ func GetPids(limit int) (pids []int, err error) {
 	return
 }
 
-// 获取单个 process 信息
+// get single process information by it's pid
 func GetProcessInfo(pid int) (proc *Process, err error) {
 	// 对象池获取
 	proc = DefaultProcessPool.Get()

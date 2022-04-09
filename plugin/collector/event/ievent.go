@@ -66,6 +66,7 @@ func RunEvent(event Event, immediately bool, ctx context.Context) {
 	event.Init(event.String())
 	switch event.Type() {
 	case Periodicity:
+		// set random time for the very first time.
 		if immediately {
 			eventTask(event)
 		}
