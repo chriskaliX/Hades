@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"collector/share"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -147,6 +148,9 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 								},
 							}
 							share.Client.SendRecord(rec)
+							if share.Env == "debug" {
+								fmt.Println(string(data))
+							}
 						}
 					// This is for the invaild user
 					case 16:
@@ -163,6 +167,9 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 								Data: &plugin.Payload{
 									Fields: rawdata,
 								},
+							}
+							if share.Env == "debug" {
+								fmt.Println(string(data))
 							}
 							share.Client.SendRecord(rec)
 						}

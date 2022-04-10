@@ -10,6 +10,8 @@ import (
 	"github.com/chriskaliX/plugin"
 )
 
+var debug = false
+
 // now it's only one event every time
 var eventMap = sync.Map{}
 
@@ -45,7 +47,7 @@ type Event interface {
 	// Run the task and get the result
 	// Key is the unique key as we used
 	// in Differential mode.
-	Run() (map[string]string, error)
+	Run() (map[string]interface{}, error)
 	// RunSync for cn-proc/sshd/cron
 	// Now it's just a demo
 	RunSync(context.Context) error
@@ -87,17 +89,16 @@ func RunEvent(event Event, immediately bool, ctx context.Context) {
 }
 
 // run the real task
-func eventTask(event Event) error {
+func eventTask(event Event) (err error) {
 	var rawdata string
-	var err error
 
-	_data := make(map[string]string)
+	_data := make(map[string]interface{})
 	// run the event
 	if _data, err = event.Run(); err != nil {
 		return err
 	}
 	data := make(map[string]string, 1)
-	datalist := make([]string, 0, 20)
+	datalist := make([]interface{}, 0, 20)
 
 	if !event.Status() {
 		return nil
@@ -120,8 +121,10 @@ func eventTask(event Event) error {
 	if err != nil {
 		return err
 	}
-	// testcode
-	fmt.Println(rawdata)
+	// debug code here
+	if share.Env == "debug" {
+		fmt.Println(rawdata)
+	}
 	data["data"] = rawdata
 	rec := &plugin.Record{
 		DataType:  int32(event.DataType()),

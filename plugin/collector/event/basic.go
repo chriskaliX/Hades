@@ -81,22 +81,6 @@ func (b *BasicEvent) SetType(_type int) {
 	b._type = _type
 }
 
-// func (b *BasicEvent) SetChan(size uint) {
-// 	b._chan = make(chan string, size)
-// }
-
-// func (b BasicEvent) Speed() uint {
-// 	return b.speed
-// }
-
-// func (b *BasicEvent) SetSpeed(speed uint) {
-// 	b.speed = speed
-// }
-
-// func (b *BasicEvent) ReadChan() string {
-// 	return <-b._chan
-// }
-
 // Check if the key in here, check in different
 func (b *BasicEvent) Diff(key string) (loaded bool) {
 	_, loaded = b._cache.LoadOrStore(key, true)
@@ -108,7 +92,7 @@ func (b *BasicEvent) Filter() (flag bool) {
 	return
 }
 
-func (b BasicEvent) Run() (result map[string]string, err error) {
+func (b BasicEvent) Run() (result map[string]interface{}, err error) {
 	err = errors.New("nothing")
 	return
 }

@@ -34,8 +34,8 @@ func (Yum) String() string {
 	return "yum"
 }
 
-func (y Yum) Run() (result map[string]string, err error) {
-	result = make(map[string]string, 0)
+func (y Yum) Run() (result map[string]interface{}, err error) {
+	result = make(map[string]interface{})
 	files := y.getfiles(yumReposDir)
 	files = append(files, yumConfig)
 Loop:

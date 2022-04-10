@@ -3,7 +3,6 @@ package event
 import (
 	"bufio"
 	"collector/cache"
-	"collector/share"
 	"io"
 	"os"
 	"path/filepath"
@@ -36,8 +35,8 @@ func (SshConfig) String() string {
 	return "sshconfig"
 }
 
-func (s SshConfig) Run() (result map[string]string, err error) {
-	result = make(map[string]string, 0)
+func (s SshConfig) Run() (result map[string]interface{}, err error) {
+	result = make(map[string]interface{})
 	// get user configuration
 	configPath := s.sshConfigPath()
 	configs := make([]sshConfig, 0, 20)
@@ -57,7 +56,7 @@ func (s SshConfig) Run() (result map[string]string, err error) {
 			// TODO: log here
 			continue
 		}
-		result[strconv.FormatUint(hash, 10)], err = share.MarshalString(config)
+		result[strconv.FormatUint(hash, 10)] = config
 	}
 	return
 }

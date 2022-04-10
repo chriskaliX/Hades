@@ -102,7 +102,9 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 						continue
 					}
 					rawdata := make(map[string]string)
-					fmt.Println(result)
+					if share.Env == "debug" {
+						fmt.Println(result)
+					}
 					rawdata["data"] = string(result)
 					rec := &plugin.Record{
 						DataType:  Netlink_DATATYPE,
@@ -211,7 +213,7 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 		var process *cache.Process
 		DefaultNetlink.DecodeExec(&pid, &tpid)
 		// TODO: skip memory here
-		process, err = cache.GetProcessInfo(int(pid))
+		process, err = cache.GetProcessInfo(int(pid), true)
 		process.Source = "netlink"
 		process.TID = int(tpid)
 		defer cache.DefaultProcessPool.Put(process)
@@ -219,10 +221,7 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 			return
 		}
 		// whitelist to check
-		// unfinished
-		if share.WhiteListCheck(*process) {
-			return
-		}
+		// filter here
 		cache.ProcessCmdlineCache.Add(pid, process.Exe)
 		if ppid, ok := cache.ProcessCache.Get(pid); ok {
 			process.PPID = int(ppid.(uint32))

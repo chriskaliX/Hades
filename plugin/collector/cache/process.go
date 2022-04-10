@@ -3,6 +3,7 @@ package cache
 import (
 	"bufio"
 	"bytes"
+	"collector/share"
 	"errors"
 	"io"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 )
+
+const MaxCmdline = 512
 
 var DefaultProcessPool = NewPool()
 
@@ -46,9 +49,9 @@ type Process struct {
 	Cmdline    string `json:"cmdline"`
 	Exe        string `json:"exe"`
 	Sha256     string `json:"sha256"`
-	UID        string `json:"uid"`
+	UID        uint32 `json:"uid"`
 	Username   string `json:"username"`
-	EUID       string `json:"euid"`
+	EUID       uint32 `json:"euid"`
 	Eusername  string `json:"eusername"`
 	Cwd        string `json:"cwd"`
 	Session    int    `json:"session"`
@@ -61,7 +64,7 @@ type Process struct {
 	LocalPort  string `json:"localport,omitempty"`
 	PidTree    string `json:"pidtree,omitempty"`
 	Source     string `json:"source"`
-	NodeName   string `json:"nodename"`
+	NodeName   string `json:"nodename,omitempty"` // TODO: support this in netlink
 	Stdin      string `json:"stdin,omitempty"`
 	Stdout     string `json:"stdout,omitempty"`
 	Utime      uint64 `json:"utime,omitempty"`
@@ -84,8 +87,8 @@ func (p *Process) GetStatus() (err error) {
 			p.Name = strings.Fields(s.Text())[1]
 		} else if strings.HasPrefix(s.Text(), "Uid:") {
 			fields := strings.Fields(s.Text())
-			p.UID = fields[1]
-			p.EUID = fields[2]
+			p.UID = share.ParseUint32(fields[1])
+			p.EUID = share.ParseUint32(fields[2])
 			break
 		}
 	}
@@ -102,6 +105,8 @@ func (p *Process) GetExe() (err error) {
 	return
 }
 
+// In some situation, cmdline can be extremely large. A limit should
+// be done here. In Elkeid LKM it's 256 as default.
 func (p *Process) GetCmdline() (err error) {
 	var res []byte
 	if res, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/cmdline"); err != nil {
@@ -113,13 +118,16 @@ func (p *Process) GetCmdline() (err error) {
 	res = bytes.ReplaceAll(res, []byte{0}, []byte{' '})
 	res = bytes.TrimSpace(res)
 	p.Cmdline = string(res)
+	if len(p.Cmdline) > MaxCmdline {
+		p.Cmdline = p.Cmdline[:MaxCmdline]
+	}
 	return
 }
 
 // TODO: unfinished with CPUPercentage. And FDs havn't go through
 // the format of `stat`:
 // @Reference: https://stackoverflow.com/questions/39066998/what-are-the-meaning-of-values-at-proc-pid-stat
-func (p *Process) GetStat() (err error) {
+func (p *Process) GetStat(simple bool) (err error) {
 	var stat []byte
 	if stat, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/stat"); err != nil {
 		return
@@ -138,6 +146,10 @@ func (p *Process) GetStat() (err error) {
 	p.PPID, _ = strconv.Atoi(fields[3])
 	p.Session, _ = strconv.Atoi(fields[5])
 	p.TTY, _ = strconv.Atoi(fields[6])
+	// simple
+	if simple {
+		return
+	}
 	p.Utime, _ = strconv.ParseUint(fields[13], 10, 64)
 	p.Stime, _ = strconv.ParseUint(fields[14], 10, 64)
 	p.StartTime, _ = strconv.ParseUint(fields[21], 10, 64)
@@ -169,7 +181,7 @@ func GetFds(pid int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	files := []string{}
+	files := make([]string, 0, 4)
 	for _, fd := range fds {
 		file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + fd.Name())
 		if err != nil {
@@ -206,8 +218,7 @@ func GetPids(limit int) (pids []int, err error) {
 }
 
 // get single process information by it's pid
-func GetProcessInfo(pid int) (proc *Process, err error) {
-	// 对象池获取
+func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	proc = DefaultProcessPool.Get()
 	proc.PID = pid
 	if err = proc.GetStatus(); err != nil {
@@ -223,13 +234,11 @@ func GetProcessInfo(pid int) (proc *Process, err error) {
 		return
 	}
 	proc.Sha256, _ = GetFileHash(proc.Exe)
-	if err = proc.GetStat(); err != nil {
+	if err = proc.GetStat(simple); err != nil {
 		return
 	}
-	// 修改本地缓存加速
-	proc.Username = GetUsername(proc.UID)
-	// 修改本地缓存加速
-	proc.Eusername = GetUsername(proc.EUID)
+	proc.Username = DefaultUserCache.GetUsername(proc.UID)
+	proc.Eusername = DefaultUserCache.GetUsername(proc.EUID)
 	// inodes 于 fd 关联, 获取 remote_ip
 	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点
 	// 剔除了这部分对于 inodes 的关联, 默认不检测 socket 了

@@ -21,7 +21,9 @@ func MarshalString(v interface{}) (string, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "")
+	if Env == "debug" {
+		enc.SetIndent("", "\t")
+	}
 	err := enc.Encode(v)
 	if err != nil {
 		return "", err

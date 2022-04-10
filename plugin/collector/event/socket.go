@@ -2,7 +2,6 @@ package event
 
 import (
 	"collector/cache"
-	"collector/share"
 	"collector/socket"
 	"strconv"
 	"strings"
@@ -28,8 +27,8 @@ func (Socket) String() string {
 	return "socket"
 }
 
-func (s Socket) Run() (result map[string]string, err error) {
-	result = make(map[string]string)
+func (s Socket) Run() (result map[string]interface{}, err error) {
+	result = make(map[string]interface{})
 	var (
 		sockets []socket.Socket
 		pids    []int
@@ -76,7 +75,7 @@ func (s Socket) Run() (result map[string]string, err error) {
 			sockets[index].PID = pid
 			proc := cache.DefaultProcessPool.Get()
 			proc.PID = pid
-			if err = proc.GetStat(); err == nil {
+			if err = proc.GetStat(false); err == nil {
 				sockets[index].Comm = proc.Name
 			}
 			if err = proc.GetCmdline(); err == nil {
@@ -85,7 +84,7 @@ func (s Socket) Run() (result map[string]string, err error) {
 		}
 	Next:
 		socket := sockets[index]
-		result[strconv.Itoa(int(socket.Inode))], err = share.MarshalString(socket)
+		result[strconv.Itoa(int(socket.Inode))] = socket
 		time.Sleep(100 * time.Millisecond)
 	}
 	return

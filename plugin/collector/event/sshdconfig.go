@@ -2,7 +2,6 @@ package event
 
 import (
 	"bufio"
-	"collector/share"
 	"io"
 	"os"
 	"strings"
@@ -28,8 +27,8 @@ func (Sshd) String() string {
 	return "sshdconfig"
 }
 
-func (Sshd) Run() (result map[string]string, err error) {
-	result = make(map[string]string, 0)
+func (Sshd) Run() (result map[string]interface{}, err error) {
+	result = make(map[string]interface{})
 	var (
 		file *os.File
 		scan *bufio.Scanner
@@ -67,9 +66,9 @@ func (Sshd) Run() (result map[string]string, err error) {
 	}
 	// set key+value as a primary key
 	for key, value := range config {
-		result[key+value], err = share.MarshalString(map[string]string{
+		result[key+value] = map[string]string{
 			key: value,
-		})
+		}
 		// TODO: process here
 		if err != nil {
 		}

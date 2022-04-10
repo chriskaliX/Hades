@@ -2,7 +2,6 @@ package event
 
 import (
 	"collector/cache"
-	"collector/share"
 	"strconv"
 	"time"
 
@@ -31,8 +30,8 @@ func (Process) String() string {
 }
 
 // TODO: Log process
-func (p Process) Run() (result map[string]string, err error) {
-	result = make(map[string]string)
+func (p Process) Run() (result map[string]interface{}, err error) {
+	result = make(map[string]interface{})
 	var processes []*cache.Process
 	processes, err = p.getProcess()
 	if err != nil {
@@ -44,11 +43,10 @@ func (p Process) Run() (result map[string]string, err error) {
 		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
 	}
 	for _, process := range processes {
-		result[strconv.Itoa(process.PID)], err = share.MarshalString(process)
+		result[strconv.Itoa(process.PID)] = process
 		if err != nil {
 			continue
 		}
-		cache.DefaultProcessPool.Put(process)
 	}
 	return
 }
@@ -60,7 +58,7 @@ func (Process) getProcess() (procs []*cache.Process, err error) {
 		return
 	}
 	for _, pid := range pids {
-		proc, err := cache.GetProcessInfo(pid)
+		proc, err := cache.GetProcessInfo(pid, false)
 		if err != nil {
 			continue
 		}

@@ -23,6 +23,10 @@ type User struct {
 	LastLoginIP   net.IP `json:"last_login_ip"`
 }
 
+var DefaultUserCache = &UserCache{
+	_cache: cache.New(time.Hour*time.Duration(2), time.Minute*time.Duration(30)),
+}
+
 type UserCache struct {
 	_cache *cache.Cache
 }
@@ -45,8 +49,16 @@ func (u *UserCache) GetUser(userid uint32) *User {
 		u._cache.Add(useridstr, user, time.Minute*time.Duration(rand.Intn(60)+60))
 		return user
 	}
-
 	return nil
+}
+
+func (u *UserCache) GetUsername(userid uint32) (username string) {
+	user := u.GetUser(userid)
+	if user == nil {
+		return
+	}
+	username = user.Username
+	return
 }
 
 func (u *UserCache) GetUsers() (users []*User) {
@@ -59,10 +71,6 @@ func (u *UserCache) GetUsers() (users []*User) {
 func (u *UserCache) Update(usr *User) {
 	useridstr := strconv.FormatUint(uint64(usr.UID), 10)
 	u._cache.Set(useridstr, usr, time.Minute*time.Duration(rand.Intn(60)+60))
-}
-
-var DefaultUserCache = &UserCache{
-	_cache: cache.New(time.Hour*time.Duration(2), time.Minute*time.Duration(30)),
 }
 
 func init() {
