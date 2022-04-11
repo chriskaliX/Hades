@@ -19,9 +19,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
         return 0;
     sa_family_t sa_fam = READ_KERN(address->sa_family);
     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
-    {
         return 0;
-    }
     switch (sa_fam)
     {
     case AF_INET:
@@ -59,9 +57,8 @@ int kprobe_security_socket_bind(struct pt_regs *ctx)
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     sa_family_t sa_fam = READ_KERN(address->sa_family);
     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
-    {
         return 0;
-    }
+    
     switch (sa_fam)
     {
     case AF_INET:
@@ -111,16 +108,10 @@ int kprobe_udp_recvmsg(struct pt_regs *ctx)
         // https://github.com/trichimtrich/dns-tcp-ebpf, they judge by the
         // (type != ITER_IOVEC). But just as I said, be careful about the name of
         // `type` or `iter_type`
-        struct iov_iter msg_iter;
-        struct iovec *iov;
-        int ret = bpf_probe_read(&msg_iter, sizeof(msg_iter), &msg->msg_iter);
-        if (ret != 0)
+        struct iovec *iov = (struct iovec *)READ_KERN(msg->msg_iter.iov);
+        if (iov == NULL)
             return 0;
-        ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.iov);
-        if (ret != 0)
-            return 0;
-        unsigned long iov_len;
-        bpf_probe_read(&iov_len, sizeof(iov_len), &iov->iov_len);
+        unsigned long iov_len = READ_KERN(iov->iov_len);
         if (iov_len == 0)
             return 0;
         // maybe bpf_get_prandom_u32() as a key...
@@ -160,21 +151,10 @@ int kretprobe_udp_recvmsg(struct pt_regs *ctx)
     // By the way this struct(msghdr) is defined in socket.h
     struct msghdr *msg = (struct msghdr *)*msgpp;
     // Check the msghdr length
-    struct iov_iter msg_iter;
-    // struct iovec
-    // {
-    // 	void __user *iov_base;	/* BSD uses caddr_t (1003.1g requires void *) */
-    // 	__kernel_size_t iov_len; /* Must be size_t (1003.1g) */
-    // };
-    struct iovec *iov;
-    int ret = bpf_probe_read(&msg_iter, sizeof(msg_iter), &msg->msg_iter);
-    if (ret != 0)
+    struct iovec *iov = (struct iovec *) READ_KERN(msg->msg_iter.iov);
+    if (iov == NULL)
         goto delete;
-    ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.iov);
-    if (ret != 0)
-        goto delete;
-    unsigned long iov_len;
-    bpf_probe_read(&iov_len, sizeof(iov_len), &iov->iov_len);
+    unsigned long iov_len = READ_KERN(iov->iov_len);
     if (iov_len < 20)
         goto delete;
     // truncated here, do not drop, as in dns

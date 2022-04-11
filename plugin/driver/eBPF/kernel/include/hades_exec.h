@@ -85,13 +85,10 @@ struct _sys_enter_memfd_create
     unsigned int flags;
 };
 
-// TODO: raw_tracepoint
-// 相比来说有一定的性能提升, 给出的 benchmark 里能看到有 5% 左右的性能提升(某个 hook)
-// 但是对于性能来说, 还是尽可能的用 tracepoint, 看起来效率比 kprobe 更好
+// raw_tracepoint is 5% quicker than tracepoint, while tracepoint is better than using kprobe.
 // @Reference: TRACEE - https://github.com/aquasecurity/tracee/pull/205
 // @Reference: https://lwn.net/Articles/748352/
-// @Prerequisties: kernel version > 4.17
-// @Notes: 看起来对兼容性要做一定处理，在 tracee 中对于这些 hook 点的处理方式都是统一入口点，之后尾调具体处理函数
+// @Prerequisties: kernel version > 4.17 (pt_regs for kprobe)
 
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
@@ -106,8 +103,9 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
-    struct fs_struct *file;
-    bpf_probe_read(&file, sizeof(file), &data.task->fs);
+    struct fs_struct *file = READ_KERN(data.task->fs);
+    if (file == NULL)
+        return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     // tty
@@ -139,8 +137,9 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
-    struct fs_struct *file;
-    bpf_probe_read(&file, sizeof(file), &data.task->fs);
+    struct fs_struct *file = READ_KERN(data.task->fs);
+    if (file == NULL)
+        return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     // tty
@@ -161,7 +160,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     return events_perf_submit(&data);
 }
 
-// Prctl(CAP)/Ptrace(SYS_ENTER) 操作/注入进程
+// Prctl(CAP)/Ptrace(SYS_ENTER) inject process
 // @2022-03-02: in Elkeid, only PR_SET_NAME is collected, in function "prctl_pre_handler".
 // using PR_SET_NAME to set name for a process or thread. prctl is the function that we
 // used for change(or get?) the attribute of threads. But the options are too much. And
@@ -180,8 +179,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
         return 0;
     data.context.type = SYS_ENTER_PRCTL;
     // read the option firstly
-    int option;
-    bpf_probe_read(&option, sizeof(option), &ctx->option);
+    int option = READ_KERN(ctx->option);
     // pre-filter, now this is all I get.
     if (option != PR_SET_NAME && option != PR_SET_MM)
         return 0;

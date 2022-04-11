@@ -23,11 +23,9 @@ int kprobe_commit_creds(struct pt_regs *ctx)
     struct cred *new = (struct cred *)PT_REGS_PARM1(ctx);
     struct cred *old = (struct cred *)READ_KERN(data.task->real_cred);
 
-    unsigned int new_uid;
-    unsigned int old_uid;
+    unsigned int new_uid = READ_KERN(new->uid.val);
+    unsigned int old_uid = READ_KERN(old->uid.val);
 
-    bpf_probe_read(&new_uid, sizeof(new_uid), &new->uid.val);
-    bpf_probe_read(&old_uid, sizeof(old_uid), &old->uid.val);
     // in Elkeid: privilege escalation only detect uid none zero to zero
     // But in tracee, any uid changes will lead to detection of this
     if (new_uid == 0 && old_uid != 0)
