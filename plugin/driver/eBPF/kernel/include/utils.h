@@ -82,18 +82,23 @@ static __always_inline int filter(context_t context)
 
 static __always_inline void *get_task_tty_str(struct task_struct *task)
 {
-    struct signal_struct *signal;
-    bpf_probe_read(&signal, sizeof(signal), &task->signal);
-    struct tty_struct *tty;
-    bpf_probe_read(&tty, sizeof(tty), &signal->tty);
     // Get per-cpu string buffer
     buf_t *string_p = get_buf(STRING_BUF_IDX);
+    int size = 0;
     if (string_p == NULL)
         return NULL;
-    int size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
-    char nothing[] = "-1";
-    if (size < 1)
+    struct signal_struct *signal = (struct signal_struct *)READ_KERN(task->signal);
+    if (signal == NULL)
+        goto exit;
+    struct tty_struct *tty = (struct tty_struct *)READ_KERN(signal->tty);
+    if (tty == NULL)
+        goto exit;
+    size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
+exit:
+    if (size < 1) {
+        char nothing[] = "-1";
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
+    }
     return &string_p->buf[0];
 }
 

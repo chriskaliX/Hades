@@ -31,7 +31,7 @@ type Context struct {
 	Ppid      uint32  `json:"ppid"`
 	Sessionid uint32  `json:"sessionid"`
 	Comm      string  `json:"comm"`
-	PComm     string  `json:"pomm"`
+	PComm     string  `json:"pcomm"`
 	Nodename  string  `json:"nodename"`
 	RetVal    uint64  `json:"retval"`
 	Argnum    uint8   `json:"-"`

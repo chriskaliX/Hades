@@ -30,10 +30,11 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     save_str_to_buf(&data, stdout, 4);
     // socket
     get_socket_info(&data, 5);
-    // 新增 pid_tree
+    // add pid_tree to the field
     save_pid_tree_to_buf(&data, 8, 6);
-    struct fs_struct *file;
-    bpf_probe_read(&file, sizeof(file), &data.task->fs);
+    struct fs_struct *file = READ_KERN(data.task->fs);
+    if (file == NULL)
+        return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 7);
     return events_perf_submit(&data);

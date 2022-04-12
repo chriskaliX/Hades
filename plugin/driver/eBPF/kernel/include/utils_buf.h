@@ -244,9 +244,8 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     for (int i = 0; i < limit; i++)
     {
         // check pid
-        int flag = bpf_probe_read(&pid, sizeof(pid), &task->tgid);
-        if (flag != 0)
-            goto out;
+        int flag;
+        pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)
             goto out;

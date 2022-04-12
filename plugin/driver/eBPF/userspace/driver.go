@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const debug = true
+var Env = "prod"
 
 //go:embed hades_ebpf_driver.o
 var _bytecode []byte
@@ -84,7 +84,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	ctx.StartTime = uint64(share.Time)
 	if data, err := ctx.ToString(); err == nil {
 		rawdata["data"] = data
-		if debug {
+		if Env == "debug" {
 			fmt.Println(rawdata["data"])
 		}
 		rec := &plugin.Record{
