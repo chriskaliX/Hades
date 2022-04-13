@@ -16,8 +16,8 @@ type SbMount struct {
 	Path           string `json:"path"`
 	Type           string `json:"type"`
 	Flags          uint64 `json:"flags"`
-	PidTree        string `json:"pidtree"`
-	PrivEscalation uint8  `json:"privesca"`
+	PidTree        string `json:"pid_tree"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (SbMount) ID() uint32 {

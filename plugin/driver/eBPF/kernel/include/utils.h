@@ -10,6 +10,7 @@
 #include <linux/pid_namespace.h>
 #else
 #include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 #include "bpf_helpers.h"
@@ -309,11 +310,6 @@ static __always_inline struct ipv6_pinfo *inet6_sk_own_impl(struct sock *__sk, s
     bool sk_fullsock = (1 << sk_state_own_impl) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
     return sk_fullsock ? pinet6_own_impl : NULL;
 }
-
-// static inline bool ipv6_addr_any(const struct in6_addr *a)
-// {
-//     return (a->in6_u.u6_addr32[0] | a->in6_u.u6_addr32[1] | a->in6_u.u6_addr32[2] | a->in6_u.u6_addr32[3]) == 0;
-// }
 
 static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net_conn_v6_t *net_details, int peer)
 {

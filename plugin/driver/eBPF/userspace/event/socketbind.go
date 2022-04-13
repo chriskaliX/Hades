@@ -13,8 +13,8 @@ var _ decoder.Event = (*SocketBind)(nil)
 
 type SocketBind struct {
 	Family    int16  `json:"family"`
-	LocalPort string `json:"localport"`
-	LocalAddr string `json:"localaddr"`
+	LocalPort string `json:"local_port"`
+	LocalAddr string `json:"local_addr"`
 	Protocol  uint16 `json:"protocol"`
 	Exe       string `json:"-"`
 }

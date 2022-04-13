@@ -13,8 +13,8 @@ var _ decoder.Event = (*SocketConnect)(nil)
 
 type SocketConnect struct {
 	Family     int16  `json:"family"`
-	RemotePort string `json:"remoteport"`
-	RemoteAddr string `json:"remoteaddr"`
+	RemotePort string `json:"remote_port"`
+	RemoteAddr string `json:"remote_addr"`
 	Exe        string `json:"-"`
 }
 

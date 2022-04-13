@@ -14,8 +14,8 @@ var _ decoder.Event = (*InodeCreate)(nil)
 type InodeCreate struct {
 	Exe        string `json:"exe"`
 	Filename   string `json:"filename"`
-	RemotePort string `json:"remoteport"`
-	RemoteAddr string `json:"remoteaddr"`
+	RemotePort string `json:"remote_port"`
+	RemoteAddr string `json:"remote_addr"`
 }
 
 func (InodeCreate) ID() uint32 {

@@ -14,14 +14,14 @@ var _ decoder.Event = (*ExecveAt)(nil)
 type ExecveAt struct {
 	Exe            string `json:"-"`
 	Cwd            string `json:"cwd"`
-	TTYName        string `json:"ttyname"`
+	TTYName        string `json:"tty_name"`
 	Stdin          string `json:"stdin"`
 	Stdout         string `json:"stdout"`
-	RemotePort     string `json:"remoteport"`
-	RemoteAddr     string `json:"remoteaddr"`
-	PidTree        string `json:"pidtree"`
+	RemotePort     string `json:"remote_port"`
+	RemoteAddr     string `json:"remote_addr"`
+	PidTree        string `json:"pid_tree"`
 	Cmdline        string `json:"cmdline"`
-	PrivEscalation uint8  `json:"privesca"`
+	PrivEscalation uint8  `json:"priv_esca"`
 	SSHConnection  string `json:"ssh_connection"`
 	LDPreload      string `json:"ld_preload"`
 	LDLibraryPath  string `json:"ld_library_path"`

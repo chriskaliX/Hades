@@ -13,9 +13,9 @@ var _ decoder.Event = (*DoInitModule)(nil)
 type DoInitModule struct {
 	Exe            string `json:"-"`
 	Modname        string `json:"modname"`
-	Pidtree        string `json:"pidtree"`
+	Pidtree        string `json:"pidt_ree"`
 	Cwd            string `json:"cwd"`
-	PrivEscalation uint8  `json:"privesca"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (DoInitModule) ID() uint32 {

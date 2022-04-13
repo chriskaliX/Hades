@@ -14,8 +14,8 @@ type CommitCreds struct {
 	Exe            string `json:"-"`
 	NewUid         uint32 `json:"newuid"`
 	OldUid         uint32 `json:"olduid"`
-	PidTree        string `json:"pidtree"`
-	PrivEscalation uint8  `json:"privesca"`
+	PidTree        string `json:"pid_tree"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (CommitCreds) ID() uint32 {

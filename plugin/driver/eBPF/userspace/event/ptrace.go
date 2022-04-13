@@ -15,8 +15,8 @@ type Ptrace struct {
 	Requests       int64  `json:"request"`
 	TargetPid      int64  `json:"targetpid"`
 	Addr           uint64 `json:"addr"`
-	PidTree        string `json:"pidtree"`
-	PrivEscalation uint8  `json:"privesca"`
+	PidTree        string `json:"pid_tree"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (Ptrace) ID() uint32 {

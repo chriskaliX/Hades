@@ -20,14 +20,14 @@ const bashBinary = "/bin/bash"
 type Readline struct {
 	Exe            string `json:"-"`
 	Line           string `json:"line"`
-	TTYName        string `json:"ttyname"`
+	TTYName        string `json:"tty_name"`
 	Stdin          string `json:"stdin"`
 	Stout          string `json:"stout"`
 	PidTree        string `json:"pidtree"`
-	RemotePort     string `json:"remoteport"`
-	RemoteAddr     string `json:"remoteaddr"`
+	RemotePort     string `json:"remote_port"`
+	RemoteAddr     string `json:"remote_addr"`
 	Cwd            string `json:"cwd"`
-	PrivEscalation uint8  `json:"privesca"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (Readline) ID() uint32 {

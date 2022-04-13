@@ -5,10 +5,6 @@ import java.lang.Thread;
 
 public class Foo {
     public static void main(String[] args) {
-        // String requestMsg = "client xml or json 数据";
-        // String address = "47.102.155.13";
-        // int port = 22;
-        // send(address,port,requestMsg);
         for (int i = 0 ; i < 10; i++) {
             try {
                 Thread.sleep(1000);
