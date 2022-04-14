@@ -154,3 +154,7 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://blog.csdn.net/dog250/article/details/105394840
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
+
+// It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
+// Do a trigger to scan. It's brilliant and I'll go through this and 
+// do the same thing in Hades. And it's done by @itamarmaouda101

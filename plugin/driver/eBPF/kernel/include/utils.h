@@ -383,31 +383,21 @@ static __always_inline struct file *file_get_raw(u64 fd_num)
     // get current task
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL)
-    {
         return NULL;
-    }
     // get files
     struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
     if (files == NULL)
-    {
         return NULL;
-    }
     // get fdtable
     struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
     if (fdt == NULL)
-    {
         return NULL;
-    }
     struct file **fd = (struct file **)READ_KERN(fdt->fd);
     if (fd == NULL)
-    {
         return NULL;
-    }
     struct file *f = (struct file *)READ_KERN(fd[fd_num]);
     if (f == NULL)
-    {
         return NULL;
-    }
 
     return f;
 }
@@ -485,7 +475,6 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
             bpf_probe_read(&sk, sizeof(sk), &socket->sk);
             if (!sk)
                 continue;
-            // 先不支持 IPv6, 跑通先
             family = READ_KERN(sk->sk_family);
             if (family == AF_INET)
             {
@@ -527,7 +516,7 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
 #pragma unroll
     for (int i = 0; i < 4; i++)
     {
-        bpf_probe_read(&pid, sizeof(pid), &task->pid);
+        pid = READ_KERN(task->pid);
         // 0 for failed...
         if (pid == 1)
             break;
@@ -544,7 +533,7 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
         if (flag == 1)
             return 0;
     next_task:
-        bpf_probe_read(&task, sizeof(task), &task->real_parent);
+        task = READ_KERN(task->real_parent);
     }
 exit:
     remote.sin_family = 0;
@@ -569,17 +558,15 @@ static __always_inline void *get_exe_from_task(struct task_struct *task)
     char nothing[] = "-1";
     bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
 
-    struct mm_struct *mm;
-    struct file *_file;
-    bpf_probe_read(&mm, sizeof(mm), &task->mm);
-    if (!mm)
+    struct mm_struct *mm = READ_KERN(task->mm);
+    if (mm == NULL)
         return &string_p->buf[0];
-    bpf_probe_read(&_file, sizeof(_file), &mm->exe_file);
-    if (!_file)
+    struct file *file = READ_KERN(mm->exe_file);
+    if (file == NULL)
         return &string_p->buf[0];
-    struct path p = READ_KERN(_file->f_path);
+    struct path p = READ_KERN(file->f_path);
     void *path = get_path_str(GET_FIELD_ADDR(p));
-    if (!path)
+    if (path == NULL)
         return &string_p->buf[0];
     return path;
 }

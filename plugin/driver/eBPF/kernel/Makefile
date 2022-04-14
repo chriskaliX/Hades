@@ -53,10 +53,31 @@ all:
 	@printf "$(INFO_COLOR) Clean for the old driver...\n"
 	$(MAKE) clean -s --no-print-directory
 	@printf "$(INFO_COLOR) Compile driver\n"
-	$(MAKE) hades_ebpf_driver.o -s --no-print-directory
+	$(MAKE) hades_ebpf_driver.bpf.o -s --no-print-directory
 
+# libbpf
+LIBBPF_CFLAGS = "-fPIC"
+LIBBPF_LDLAGS =
+LIBBPF_SRC = ./headers/libbpf/src
+headers/libbpf.a: \
+	$(LIBBPF_SRC) \
+	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
+
+	CC="$(CMD_CLANG)" \
+		CFLAGS="$(LIBBPF_CFLAGS)" \
+		LD_FLAGS="$(LIBBPF_LDFLAGS)" \
+		$(MAKE) \
+		-C $(LIBBPF_SRC) \
+		BUILD_STATIC_ONLY=1 \
+		DESTDIR=$(abspath ./headers/libbpf/) \
+		OBJDIR=$(abspath ./headers/libbpf/obj) \
+		INCLUDEDIR= LIBDIR= UAPIDIR= prefix= libdir= \
+		install install_uapi_headers
+
+
+# NOT CO-RE
 # KBUILD_NAME: https://github.com/iovisor/bpftrace/pull/1352
-hades_ebpf_driver.o: src/hades.c
+hades_ebpf_driver.bpf.o: src/hades.c
 	$(CMD_CLANG) src/hades.c -S \
 		-D__BPF_TRACING__ \
 		-D__KERNEL__ \
@@ -95,5 +116,31 @@ hades_ebpf_driver.o: src/hades.c
 	$(CMD_LLC) -march=bpf -filetype=obj -o $@ $(@:.o=.ll)
 	rm $(@:.o=.ll)
 
+# CO-RE
+# Since CO-RE needs the BTF embeded on the kernel. Portable can only be archieved in
+# some lastest kernel version. But, thanks to libbpf and btfhub, we can make bpf prog
+# CO-RE in lower kernel version since external raw BTF files is supported in libbpf
+# and here is the commit:
+# https://github.com/libbpf/libbpf/commit/4920031c8809696debf43f7b0c8f95ea24b8f61c
+# It's a great idea and it's been done is Tracee v0.7.0
+# But still, BTFhub is used for portable. Distribution like CentOS 7 based on kernel
+# version 3.x get very limited eBPF features. For the HIDS programs like Tracee or 
+# Hades, it would be limited by eBPF features and it's nothing to do with CO-RE.
+# Again, we need to know that the mininum kernel version of Hades is 4.18.
+# And we use BTFhub to support CO-RE in some distribution that NOT support BTF.
+# BTFhub helps us to backport CO-RE in some kernel versions.
+hades_ebpf_driver.bpf.core.o: src/hades.c
+	$(CMD_CLANG) src/hades.c \
+		-D__TARGET_ARCH_$(LINUX_ARCH) \
+		-D__BPF_TRACING__ \
+		-DCORE \
+		-I $(BPF_HEADERS) \
+		-target bpf \
+		-O2 -g \
+		-march=bpf -mcpu=v2 \
+		-o $@
+
+.PHONY:clean
 clean:
-	rm -f hades_ebpf_driver.o
+	rm -f hades_ebpf_driver.bpf.o
+	rm -f hades_ebpf_driver.bpf.core.o
