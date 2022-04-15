@@ -21,3 +21,6 @@ cert/
 plugin/driver/driver
 plugin/collector/collector
 server/hadeserver
+
+# libbpf test
+plugin/driver/eBPF/kernel/headers/libbpf

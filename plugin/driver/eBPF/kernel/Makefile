@@ -50,6 +50,8 @@ all:
 
 	# linux-headers check here
 
+	# CORE pre check for this all(test)
+
 	@printf "$(INFO_COLOR) Clean for the old driver...\n"
 	$(MAKE) clean -s --no-print-directory
 	@printf "$(INFO_COLOR) Compile driver\n"
@@ -58,7 +60,8 @@ all:
 # libbpf
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
-LIBBPF_SRC = ./headers/libbpf/src
+LIBBPF_SRC = ./libbpf/src
+
 headers/libbpf.a: \
 	$(LIBBPF_SRC) \
 	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
@@ -129,12 +132,19 @@ hades_ebpf_driver.bpf.o: src/hades.c
 # Again, we need to know that the mininum kernel version of Hades is 4.18.
 # And we use BTFhub to support CO-RE in some distribution that NOT support BTF.
 # BTFhub helps us to backport CO-RE in some kernel versions.
-hades_ebpf_driver.bpf.core.o: src/hades.c
+.PHONY: bpf-core
+bpf-core: hades_ebpf_driver.bpf.core.o
+
+hades_ebpf_driver.bpf.core.o: \
+	src/hades.c \
+	headers/libbpf.a
+
 	$(CMD_CLANG) src/hades.c \
-		-D__TARGET_ARCH_$(LINUX_ARCH) \
+		-D__TARGET_ARCH_$(linux_arch) \
 		-D__BPF_TRACING__ \
 		-DCORE \
 		-I $(BPF_HEADERS) \
+		-I $(INCLUDE_PATH) \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \

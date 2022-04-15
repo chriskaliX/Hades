@@ -104,12 +104,24 @@ typedef struct string
     char str[MAX_STR_FILTER_SIZE];
 } string_t;
 
+#ifndef CORE
 struct mnt_namespace
 {
     atomic_t count;
     struct ns_common ns;
     // ...
 };
+
+// use this in get_path_str thing...
+struct mount
+{
+    struct hlist_node mnt_hash;
+    struct mount *mnt_parent;
+    struct dentry *mnt_mountpoint;
+    struct vfsmount mnt;
+    // ...
+};
+#endif
 
 typedef struct network_connection_v4
 {
@@ -128,16 +140,6 @@ typedef struct network_connection_v6
     u32 flowinfo;
     u32 scope_id;
 } net_conn_v6_t;
-
-// use this in get_path_str thing...
-struct mount
-{
-    struct hlist_node mnt_hash;
-    struct mount *mnt_parent;
-    struct dentry *mnt_mountpoint;
-    struct vfsmount mnt;
-    // ...
-};
 
 struct pid_cache_t
 {
