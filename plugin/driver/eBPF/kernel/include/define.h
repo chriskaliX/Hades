@@ -20,6 +20,7 @@
 #include <uapi/linux/un.h>
 #else
 #include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 #include "bpf_helpers.h"

@@ -8,6 +8,7 @@
 #include "bpf_tracing.h"
 #else
 #include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 // Detection of privilege escalation

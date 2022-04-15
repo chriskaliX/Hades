@@ -1,4 +1,9 @@
+#ifndef CORE
 #include <linux/module.h>
+#else
+#include <vmlinux.h>
+#include <missing_definitions.h>
+#endif
 
 #include "utils_buf.h"
 #include "utils.h"
