@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #else
 #include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 /*

@@ -24,14 +24,12 @@
 // 在每次调 index 之前都需要 check 一下，所以看源码的时候很多地方会写：To satisfied the verifier...
 // TODO: 写一个文章记录一下这个...
 
-// TODO: 判断 kernel version, 使用 ringbuf, 传输优化
 /* init_context */
 static __always_inline int init_context(context_t *context, struct task_struct *task)
 {
     struct task_struct *realparent = READ_KERN(task->real_parent);
     context->ppid = READ_KERN(realparent->tgid);
     context->ts = bpf_ktime_get_ns();
-    // 填充 id 相关信息
     u64 id = bpf_get_current_uid_gid();
     context->uid = id;
     context->gid = id >> 32;
@@ -39,7 +37,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     context->pid = id;
     context->tid = id >> 32;
     context->cgroup_id = bpf_get_current_cgroup_id();
-    // 容器相关信息
+    // namespace information
     // Elkeid - ROOT_PID_NS_INUM = task->nsproxy->pid_ns_for_children->ns.inum;
     // namespace: https://zhuanlan.zhihu.com/p/307864233
     struct nsproxy *nsp = READ_KERN(task->nsproxy);
@@ -461,8 +459,7 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
         int size = bpf_probe_read_str(&(string_p->buf[0]), len, (void *)d_name.name);
         if (size <= 0)
             continue;
-        // TODO: TCP4/6
-        if (prefix("TCP", &(string_p->buf[0]), 3))
+        if (prefix("TCP", (char *)&(string_p->buf[0]), 3))
         {
             bpf_probe_read(&socket, sizeof(socket), &file->private_data);
             if (socket == NULL)

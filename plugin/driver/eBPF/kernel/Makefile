@@ -139,7 +139,7 @@ hades_ebpf_driver.bpf.core.o: \
 	src/hades.c \
 	headers/libbpf.a
 
-	$(CMD_CLANG) src/hades.c \
+	$(CMD_CLANG) \
 		-D__TARGET_ARCH_$(linux_arch) \
 		-D__BPF_TRACING__ \
 		-DCORE \
@@ -148,6 +148,7 @@ hades_ebpf_driver.bpf.core.o: \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \
+		-c src/hades.c \
 		-o $@
 
 .PHONY:clean

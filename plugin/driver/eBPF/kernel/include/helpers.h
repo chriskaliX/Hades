@@ -5,6 +5,7 @@
 #include <linux/uidgid.h>
 #else
 #include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 static __inline int has_prefix(char *prefix, char *str, int n)

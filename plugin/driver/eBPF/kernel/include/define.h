@@ -26,12 +26,13 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 
-#define TASK_COMM_LEN 16
+#define TASK_COMM_LEN       16
 #define MAX_STR_FILTER_SIZE 128
-#define MAX_PERCPU_BUFSIZE (1 << 14)
-#define MAX_STRING_SIZE 256 // Same with Elkeid, but it's larger in tracee or other project
-#define MAX_STR_ARR_ELEM 32
+#define MAX_PERCPU_BUFSIZE  (1 << 14)
+#define MAX_STRING_SIZE     256 // Same with Elkeid, but it's larger in tracee or other project
+#define MAX_STR_ARR_ELEM    32
 #define MAX_PATH_COMPONENTS 20
+#define MAX_NODENAME        64
 
 #define MAX_BUFFERS 3
 #define TMP_BUF_IDX 1
@@ -70,6 +71,7 @@ typedef struct simple_buf
 } buf_t;
 
 /* general context for all hook point */
+// pid in the namespace maybe useful
 typedef struct data_context
 {
     u64 ts;        // timestamp
@@ -82,20 +84,20 @@ typedef struct data_context
     u32 gid;       // group id
     u32 ppid;      // parent pid => which is tpid, pid is for the kernel space. In user space, it's tgid actually
     u32 sessionid;
-    char comm[TASK_COMM_LEN];  // command
-    char pcomm[TASK_COMM_LEN]; // parent command
-    char nodename[64];         // uts_name => 64, in tracee, it's 16 here
-    u64 retval;                // return value(useful when it's exit or kill)
-    u8 argnum;                 // argnum
+    char comm[TASK_COMM_LEN];       // command
+    char pcomm[TASK_COMM_LEN];      // parent command
+    char nodename[MAX_NODENAME];    // uts_name => 64, in tracee, it's 16 here
+    u64 retval;                     // return value(useful when it's exit or kill)
+    u8 argnum;                      // argnum
 } context_t;
 
 /* general field for event */
 typedef struct event_data
 {
-    struct task_struct *task; // current task_struct
-    context_t context;        // context: general fields for all hooks
+    struct task_struct *task;   // current task_struct
+    context_t context;          // context: general fields for all hooks
     buf_t *submit_p;
-    u32 buf_off; // offset of the buf_t
+    u32 buf_off;                // offset of the buf_t
     void *ctx;
 } event_data_t;
 

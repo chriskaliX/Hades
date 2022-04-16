@@ -42,6 +42,35 @@
 #define PTRACE_POKETEXT		4
 #define PTRACE_POKEDATA		5
 
+// according to tracee, it's arch specific
+#if defined(__TARGET_ARCH_x86)
+
+#define TS_COMPAT 0x0002    /* 32bit syscall active (64BIT)*/
+
+// arch/x86/include/asm/page_64_types.h
+#define KASAN_STACK_ORDER   0  /* We implicitly assume here that KASAN (memory debugger) is disabled */
+#define THREAD_SIZE_ORDER   (2 + KASAN_STACK_ORDER)
+#define THREAD_SIZE         (PAGE_SIZE << THREAD_SIZE_ORDER)
+
+#define PAGE_SHIFT          12
+#define PAGE_SIZE           (_AC(1,UL) << PAGE_SHIFT)
+#define PAGE_MASK           (~(PAGE_SIZE-1))
+
+#define TOP_OF_KERNEL_STACK_PADDING 0
+
+
+#elif defined(__TARGET_ARCH_arm64)
+//extern bool CONFIG_ARM64_PAGE_SHIFT __kconfig;
+// arch/arm64/include/asm/page-def.h
+//#define PAGE_SHIFT        CONFIG_ARM64_PAGE_SHIFT
+// as a temporary workaround for failing builds, use the default value of PAGE_SHIFT
+#define PAGE_SHIFT          12
+#define PAGE_SIZE           (_AC(1, UL) << PAGE_SHIFT)
+
+// arch/arm64/include/asm/thread_info.h
+#define _TIF_32BIT          (1 << 22)
+#endif
+
 #define AF_UNSPEC      0
 #define AF_UNIX        1          /* Unix domain sockets */
 #define AF_LOCAL       1          /* POSIX name for AF_UNIX */

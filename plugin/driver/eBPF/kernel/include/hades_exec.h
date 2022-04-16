@@ -90,6 +90,8 @@ struct _sys_enter_memfd_create
 // @Reference: TRACEE - https://github.com/aquasecurity/tracee/pull/205
 // @Reference: https://lwn.net/Articles/748352/
 // @Prerequisties: kernel version > 4.17 (pt_regs for kprobe)
+// TODO:
+// In Elkeid, stdout and stdin are filename, need to check for that.
 
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
@@ -97,6 +99,9 @@ struct _sys_enter_memfd_create
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
+    // it's very strange that we reach the 512 bytes BPF stack limit
+    // in CO-RE. some reference:
+    // https://blog.aquasec.com/ebf-portable-code
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
@@ -120,7 +125,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     save_str_to_buf(&data, stdout, 4);
     // socket
     get_socket_info(&data, 5);
-    // 新增 pid_tree
+    // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
@@ -154,7 +159,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     save_str_to_buf(&data, stdout, 4);
     // socket
     get_socket_info(&data, 5);
-    // 新增 pid_tree
+    // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
