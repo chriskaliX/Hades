@@ -76,6 +76,7 @@ headers/libbpf.a: \
 		OBJDIR=$(abspath ./headers/libbpf/obj) \
 		INCLUDEDIR= LIBDIR= UAPIDIR= prefix= libdir= \
 		install install_uapi_headers
+	install -m 0640 ./headers/libbpf/bpf/*.h ./headers/
 
 
 # NOT CO-RE
@@ -135,6 +136,8 @@ hades_ebpf_driver.bpf.o: src/hades.c
 .PHONY: bpf-core
 bpf-core: hades_ebpf_driver.bpf.core.o
 
+CORE_HEADERS = ./coreheaders/
+
 hades_ebpf_driver.bpf.core.o: \
 	src/hades.c \
 	headers/libbpf.a
@@ -145,6 +148,7 @@ hades_ebpf_driver.bpf.core.o: \
 		-DCORE \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
+		-I $(CORE_HEADERS) \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \

@@ -24,3 +24,4 @@ server/hadeserver
 
 # libbpf test
 plugin/driver/eBPF/kernel/headers/libbpf
+plugin/driver/eBPF/kernel/headers/*.h
