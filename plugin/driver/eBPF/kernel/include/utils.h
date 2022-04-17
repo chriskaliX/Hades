@@ -401,6 +401,7 @@ static __always_inline struct file *file_get_raw(u64 fd_num)
 }
 
 // TODO: op
+// change this as filename rather than f_path
 static __always_inline void *get_fraw_str(u64 num)
 {
     char nothing[] = "-1";
@@ -424,12 +425,17 @@ static __always_inline void *get_fraw_str(u64 num)
 /* Reference: http://jinke.me/2018-08-23-socket-and-linux-file-system/ */
 static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtable *fdt, u8 index)
 {
-    u16 family;
     struct socket *socket;
     struct sock *sk;
     struct file **fd;
     struct file *file;
+    struct path f_path;
+    struct dentry *dentry;
+    struct qstr d_name;
+
+    u16 family;
     int state;
+    int size;
     // 跨 bpf program 做 read 数据传输
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
@@ -449,14 +455,12 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
         file = (struct file *)READ_KERN(fd[i]);
         if (!file)
             continue;
-        struct path f_path;
-        struct dentry *dentry;
-        struct qstr d_name;
         bpf_probe_read(&f_path, sizeof(struct path), &file->f_path);
         dentry = f_path.dentry;
+        // name or path
         d_name = READ_KERN(dentry->d_name);
         unsigned int len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
-        int size = bpf_probe_read_str(&(string_p->buf[0]), len, (void *)d_name.name);
+        size = bpf_probe_read_str(&(string_p->buf[0]), len, (void *)d_name.name);
         if (size <= 0)
             continue;
         if (prefix("TCP", (char *)&(string_p->buf[0]), 3))
@@ -505,6 +509,9 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
 static __always_inline int get_socket_info(event_data_t *data, u8 index)
 {
     struct sockaddr_in remote;
+    struct files_struct *files = NULL;
+    struct fdtable *fdt = NULL;
+
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL)
         goto exit;
@@ -518,11 +525,11 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
         if (pid == 1)
             break;
         // get files
-        struct files_struct *files = (struct files_struct *)READ_KERN(task->files);
+        files = (struct files_struct *)READ_KERN(task->files);
         if (files == NULL)
             goto next_task;
         // get fdtable
-        struct fdtable *fdt = (struct fdtable *)READ_KERN(files->fdt);
+        fdt = (struct fdtable *)READ_KERN(files->fdt);
         if (fdt == NULL)
             goto next_task;
         // find out

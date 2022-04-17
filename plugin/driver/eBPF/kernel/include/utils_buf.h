@@ -227,13 +227,15 @@ typedef struct slim_cred {
 static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index)
 {
     u8 elem_num = 0;
+    u8 privilege_flag = 0;
     u32 pid;
+    int flag;
+
     struct task_struct *task = data->task;
     // add creds check here
     // pay attention that here are three cred in task_struct
     struct cred *current_cred = (struct cred *)READ_KERN(task->real_cred);
-    struct cred *parent_cred;
-    u8 privilege_flag = 0;
+    struct cred *parent_cred = NULL;
 
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     u32 orig_off = data->buf_off + 1;
@@ -244,8 +246,6 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
 #pragma unroll
     for (int i = 0; i < limit; i++)
     {
-        // check pid
-        int flag;
         pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)

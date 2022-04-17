@@ -164,6 +164,9 @@ BPF_PERCPU_ARRAY(bufs, buf_t, 3);
 BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
 
 // CORE, just like in tracee
+// https://blog.aquasec.com/ebf-portable-code
+// In bpf_probe_read we do not exceed the 512 bytes BPF stack limit.
+// But in bpf_core_read we hit the limit in a pretty weird way.
 #ifndef CORE
 #define READ_KERN(ptr)                                     \
     ({                                                     \
