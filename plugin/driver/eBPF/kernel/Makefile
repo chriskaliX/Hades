@@ -29,15 +29,11 @@ FAIL_COLOR = \033[31m[-]\033[0m
 
 nocore: \
 	pre_show
-	@printf "$(INFO_COLOR) Clean for the old driver...\n"
-	$(MAKE) clean -s --no-print-directory
-	@printf "$(INFO_COLOR) Compile no CO-RE driver\n"
+	@printf "$(INFO_COLOR) Compile driver from kernel headers\n"
 	$(MAKE) hades_ebpf_driver.bpf.o -s --no-print-directory
 
 core: \
 	pre_show
-	@printf "$(INFO_COLOR) Clean for the old driver...\n"
-	$(MAKE) clean -s --no-print-directory
 	@printf "$(INFO_COLOR) Compile CO-RE driver\n"
 	$(MAKE) bpf-core -s --no-print-directory
 
@@ -48,24 +44,24 @@ pre_show:
 	@echo "│    based on Tracee/Elkeid    │"
 	@echo "│         @chriskaliX          │"
 	@echo "└──────────────────────────────┘"
-
 	@printf "$(INFO_COLOR) Start to build hades_ebpf_driver\n"
-
 	@printf "$(INFO_COLOR) Pre-check for compile tools exists\n"
 	$(CHECK_TOOLS_EXSITS)
 	@printf "$(SUCC_COLOR) Tools all exist\n"
-
 	@printf "$(INFO_COLOR) Pre-check for clang version\n"
 	@if [ $(CLANG_VERSION) -lt 12 ]; \
 		then echo "$(FAIL_COLOR) clang mininum version 12 is required" && exit 1;\
 	fi;
 	@printf "$(SUCC_COLOR) Clang version pass\n"
+	@printf "$(INFO_COLOR) Clean for the old driver...\n"
+	$(MAKE) clean -s --no-print-directory
 
 # libbpf
+# Build libbpf to get the common headers for both core and no-core
+# some helpers, defs and macros
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
 LIBBPF_SRC = ./libbpf/src
-
 headers/libbpf.a: \
 	$(LIBBPF_SRC) \
 	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
@@ -143,9 +139,6 @@ hades_ebpf_driver.bpf.o: \
 # BTFhub helps us to backport CO-RE in some kernel versions.
 .PHONY: bpf-core
 bpf-core: hades_ebpf_driver.bpf.core.o
-
-CORE_HEADERS = ./coreheaders/
-
 hades_ebpf_driver.bpf.core.o: \
 	$(HADES_SRC) \
 	headers/libbpf.a
@@ -156,7 +149,7 @@ hades_ebpf_driver.bpf.core.o: \
 		-DCORE \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
-		-I $(CORE_HEADERS) \
+		-I ./coreheaders/ \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \

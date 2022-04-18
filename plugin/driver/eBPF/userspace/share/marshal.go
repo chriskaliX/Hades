@@ -14,6 +14,7 @@ func Marshal(v interface{}) (str string, err error) {
 	var buf = bytepool.Get()
 	defer buf.Free()
 	enc := json.NewEncoder(buf)
+	enc.SetIndent("", "\t")
 	enc.SetEscapeHTML(false)
 	if err = enc.Encode(v); err != nil {
 		return
@@ -25,6 +26,7 @@ func Marshal(v interface{}) (str string, err error) {
 func MarshalBytes(v interface{}) (b *buffer.Buffer, err error) {
 	var buf = bytepool.Get()
 	enc := json.NewEncoder(buf)
+	enc.SetIndent("", "\t")
 	enc.SetEscapeHTML(false)
 	if err = enc.Encode(v); err != nil {
 		buf.Free()

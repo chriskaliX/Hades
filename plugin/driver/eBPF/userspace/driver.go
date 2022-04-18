@@ -82,7 +82,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
 	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
 	ctx.StartTime = uint64(share.Time)
-	if data, err := ctx.ToString(); err == nil {
+	if data, err := ctx.MarshalJson(); err == nil {
 		rawdata["data"] = data
 		if Env == "debug" {
 			fmt.Println(rawdata["data"])
