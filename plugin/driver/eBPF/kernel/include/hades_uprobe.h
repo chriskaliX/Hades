@@ -1,6 +1,7 @@
 // For uprobe, here are things that I want!
 // uprobe is really useful, we can use this in lower kernel version. Since
 // re-location is not needed, CO-RE seems not that important...
+#include "define.h"
 #include "utils.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -32,7 +33,7 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     get_socket_info(&data, 5);
     // add pid_tree to the field
     save_pid_tree_to_buf(&data, 8, 6);
-    struct fs_struct *file = READ_KERN(data.task->fs);
+    struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));

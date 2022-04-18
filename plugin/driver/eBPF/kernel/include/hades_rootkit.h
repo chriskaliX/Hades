@@ -5,6 +5,7 @@
 #include <missing_definitions.h>
 #endif
 
+#include "define.h"
 #include "utils_buf.h"
 #include "utils.h"
 #include "bpf_helpers.h"
@@ -49,7 +50,7 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     save_str_to_buf(&data, exe, 1);
     save_pid_tree_to_buf(&data, 12, 2);
     // save file from current task->fs->pwd
-    struct fs_struct *file = READ_KERN(data.task->fs);
+    struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));

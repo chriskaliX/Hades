@@ -6,6 +6,7 @@
 #include <missing_definitions.h>
 #endif
 
+#include "define.h"
 #include "utils_buf.h"
 #include "utils.h"
 #include "bpf_helpers.h"
@@ -23,7 +24,7 @@ int kprobe_commit_creds(struct pt_regs *ctx)
     data.context.type = COMMIT_CREDS;
 
     struct cred *new = (struct cred *)PT_REGS_PARM1(ctx);
-    struct cred *old = (struct cred *)READ_KERN(data.task->real_cred);
+    struct cred *old = (struct cred *)get_task_real_cred(data.task);
 
     unsigned int new_uid = READ_KERN(new->uid.val);
     unsigned int old_uid = READ_KERN(old->uid.val);

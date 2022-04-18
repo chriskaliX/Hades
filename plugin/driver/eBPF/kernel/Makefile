@@ -1,16 +1,12 @@
-# tools
+# Precheck for tools and their versions.
 CMD_TR ?= tr
 CMD_CUT ?= cut
 CMD_LLC ?= llc
-CMD_CLANG ?= clang-12 # this may be changed to clang, it's fine
+CMD_CLANG ?= clang-12
 CMD_LLVM_STRIP ?= llvm-strip
-
-# pre-check tool exists
 EXECUTABLES = $(CMD_TR) $(CMD_CUT) $(CMD_LLC) $(CMD_CLANG) $(CMD_LLVM_STRIP)
 CHECK_TOOLS_EXSITS := $(foreach exec,$(EXECUTABLES),\
         $(if $(shell command -v $(exec) 2> /dev/null), ,then $(error "No $(exec) in PATH")) )
-
-# pre-check tool version
 CLANG_VERSION := $(shell $(CMD_CLANG) --version 2>/dev/null | \
 	head -1 | $(CMD_TR) -d '[:alpha:]' | $(CMD_TR) -d '[:space:]' | $(CMD_CUT) -d'.' -f1)
 
@@ -19,17 +15,34 @@ KERN_RELEASE ?= $(shell uname -r)
 ARCH_UNAME := $(shell uname -m)
 ARCH ?= $(ARCH_UNAME:aarch64=arm64)
 linux_arch := $(ARCH:x86_64=x86)
+ # some different with tracee. Need to check for this
 KERN_SRC_PATH := /usr/src/linux-headers-$(KERN_RELEASE)
 KERN_BLD_PATH := /usr/lib/modules/$(KERN_RELEASE)/build
 BPF_HEADERS := headers
 INCLUDE_PATH := include
+HADES_SRC := src/hades.c
 
 # colors
 INFO_COLOR = \033[34m[*]\033[0m
 SUCC_COLOR = \033[32m[+]\033[0m
 FAIL_COLOR = \033[31m[-]\033[0m
 
-all:
+nocore: \
+	pre_show
+	@printf "$(INFO_COLOR) Clean for the old driver...\n"
+	$(MAKE) clean -s --no-print-directory
+	@printf "$(INFO_COLOR) Compile no CO-RE driver\n"
+	$(MAKE) hades_ebpf_driver.bpf.o -s --no-print-directory
+
+core: \
+	pre_show
+	@printf "$(INFO_COLOR) Clean for the old driver...\n"
+	$(MAKE) clean -s --no-print-directory
+	@printf "$(INFO_COLOR) Compile CO-RE driver\n"
+	$(MAKE) bpf-core -s --no-print-directory
+
+.PHONY: pre_show
+pre_show:
 	@echo "┌──────────────────────────────┐"
 	@echo "│   \033[35mHades\033[0m eBPF Kernel Driver   │"
 	@echo "│    based on Tracee/Elkeid    │"
@@ -47,15 +60,6 @@ all:
 		then echo "$(FAIL_COLOR) clang mininum version 12 is required" && exit 1;\
 	fi;
 	@printf "$(SUCC_COLOR) Clang version pass\n"
-
-	# linux-headers check here
-
-	# CORE pre check for this all(test)
-
-	@printf "$(INFO_COLOR) Clean for the old driver...\n"
-	$(MAKE) clean -s --no-print-directory
-	@printf "$(INFO_COLOR) Compile driver\n"
-	$(MAKE) hades_ebpf_driver.bpf.o -s --no-print-directory
 
 # libbpf
 LIBBPF_CFLAGS = "-fPIC"
@@ -81,8 +85,11 @@ headers/libbpf.a: \
 
 # NOT CO-RE
 # KBUILD_NAME: https://github.com/iovisor/bpftrace/pull/1352
-hades_ebpf_driver.bpf.o: src/hades.c
-	$(CMD_CLANG) src/hades.c -S \
+hades_ebpf_driver.bpf.o: \
+	headers/libbpf.a \
+	$(HADES_SRC)
+
+	$(CMD_CLANG) -S \
 		-D__BPF_TRACING__ \
 		-D__KERNEL__ \
 		-D__TARGET_ARCH_$(linux_arch) \
@@ -116,6 +123,7 @@ hades_ebpf_driver.bpf.o: src/hades.c
 		-fno-asynchronous-unwind-tables \
 		-xc \
 		-nostdinc \
+		-c $(HADES_SRC) \
 		-O2 -emit-llvm -c -g -o $(@:.o=.ll)
 	$(CMD_LLC) -march=bpf -filetype=obj -o $@ $(@:.o=.ll)
 	rm $(@:.o=.ll)
@@ -139,7 +147,7 @@ bpf-core: hades_ebpf_driver.bpf.core.o
 CORE_HEADERS = ./coreheaders/
 
 hades_ebpf_driver.bpf.core.o: \
-	src/hades.c \
+	$(HADES_SRC) \
 	headers/libbpf.a
 
 	$(CMD_CLANG) \
@@ -152,7 +160,7 @@ hades_ebpf_driver.bpf.core.o: \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \
-		-c src/hades.c \
+		-c $(HADES_SRC) \
 		-o $@
 
 .PHONY:clean

@@ -9,6 +9,7 @@
 #include <missing_definitions.h>
 #endif
 
+#include "define.h"
 #include "utils_buf.h"
 #include "utils.h"
 #include "bpf_helpers.h"
@@ -109,7 +110,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
-    struct fs_struct *file = READ_KERN(data.task->fs);
+    struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
@@ -143,7 +144,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
-    struct fs_struct *file = READ_KERN(data.task->fs);
+    struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
@@ -185,7 +186,8 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
         return 0;
     data.context.type = SYS_ENTER_PRCTL;
     // read the option firstly
-    int option = READ_KERN(ctx->option);
+    int option;
+    bpf_probe_read(&option, sizeof(option), &ctx->option);
     // pre-filter, now this is all I get.
     if (option != PR_SET_NAME && option != PR_SET_MM)
         return 0;

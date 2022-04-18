@@ -164,20 +164,54 @@ BPF_PERF_OUTPUT(net_events, 1024);
 BPF_PERCPU_ARRAY(bufs, buf_t, 3);
 BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
 
+// kconfig
+
+#ifdef CORE
+#define get_kconfig(x) get_kconfig_val(x)
+#else
+#define get_kconfig(x) CONFIG_##x
+#endif
+
+#ifdef CORE
+
+#define ARCH_HAS_SYSCALL_WRAPPER        1000U
+
+#else
+
+#ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
+#define CONFIG_ARCH_HAS_SYSCALL_WRAPPER 0
+#endif
+
+#endif // CORE
+
 // CORE, just like in tracee
 // https://blog.aquasec.com/ebf-portable-code
 // In bpf_probe_read we do not exceed the 512 bytes BPF stack limit.
 // But in bpf_core_read we hit the limit in a pretty weird way.
 #ifndef CORE
-#define READ_KERN(ptr)                                     \
-    ({                                                     \
-        typeof(ptr) _val;                                  \
-        __builtin_memset((void *)&_val, 0, sizeof(_val));  \
-        bpf_probe_read((void *)&_val, sizeof(_val), &ptr); \
-        _val;                                              \
-    })
+
 #define GET_FIELD_ADDR(field) &field
-#else
+
+#define READ_KERN(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
+        _val;                                                           \
+    })
+
+#define READ_USER(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_probe_read_user((void *)&_val, sizeof(_val), &ptr);         \
+        _val;                                                           \
+    })
+
+#else // CORE
+
+#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
+
 #define READ_KERN(ptr)                                                  \
     ({                                                                  \
         typeof(ptr) _val;                                               \
@@ -185,7 +219,14 @@ BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
         bpf_core_read((void *)&_val, sizeof(_val), &ptr);               \
         _val;                                                           \
     })
-#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
+
+#define READ_USER(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_core_read_user((void *)&_val, sizeof(_val), &ptr);          \
+        _val;                                                           \
+    })
 #endif
 
 /* array related function */

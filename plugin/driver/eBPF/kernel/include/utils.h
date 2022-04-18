@@ -400,6 +400,16 @@ static __always_inline struct file *file_get_raw(u64 fd_num)
     return f;
 }
 
+static __always_inline struct fs_struct *get_task_fs(struct task_struct *task)
+{
+    return READ_KERN(task->fs);
+}
+
+static __always_inline const struct cred *get_task_real_cred(struct task_struct *task)
+{
+    return READ_KERN(task->real_cred);
+}
+
 // TODO: op
 // change this as filename rather than f_path
 static __always_inline void *get_fraw_str(u64 num)
