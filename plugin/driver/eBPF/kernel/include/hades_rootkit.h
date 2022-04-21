@@ -164,3 +164,7 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
 // Do a trigger to scan. It's brilliant and I'll go through this and 
 // do the same thing in Hades. And it's done by @itamarmaouda101
+// 2022-04-21: start to review the invoke_print_syscall_table_event function
+static __always_inline void syscall_scan(event_data_t *data) {
+    return NULL;
+}
