@@ -42,6 +42,10 @@
 #define EXECVE_GET_SOCK_FD_LIMIT 8
 #define EXECVE_GET_SOCK_PID_LIMIT 4
 
+// from tracee, but why 18 and 14?
+#define NUMBER_OF_SYSCALLS_TO_CHECK_X86 18
+#define NUMBER_OF_SYSCALLS_TO_CHECK_ARM 14
+
 /* ========== MAP MICRO DEFINATION ========== */
 // update since bpf_map_def is marked as deprecated
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries)     \

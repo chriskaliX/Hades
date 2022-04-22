@@ -161,10 +161,61 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 
+
+// We take Reptile as example.
+BPF_HASH(ksymbols_map, ksym_name_t, u64);
+
+// get symbol_addr from user_space
+static __always_inline void * get_symbol_addr(char *symbol_name)
+{
+    char new_ksym_name[MAX_KSYM_NAME_SIZE] = {};
+    bpf_probe_read_str(new_ksym_name, MAX_KSYM_NAME_SIZE, symbol_name);
+    void **sym = bpf_map_lookup_elem(&ksymbols_map, (void *)&new_ksym_name);
+
+    if (sym == NULL)
+        return 0;
+
+    return *sym;
+}
 // It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
 // Do a trigger to scan. It's brilliant and I'll go through this and 
 // do the same thing in Hades. And it's done by @itamarmaouda101
 // 2022-04-21: start to review the invoke_print_syscall_table_event function
-static __always_inline void syscall_scan(event_data_t *data) {
+static __always_inline void sys_call_table_scan(event_data_t *data) {
+
+    char syscall_table[15] = "sys_call_table";
+    unsigned long *sys_call_table_addr = (unsigned long *) get_symbol_addr(sys_call_table);
+    
+    int monitored_syscalls_amount = 0;
+    #if defined(bpf_target_x86)
+        monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_X86;
+        u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_X86];
+    #elif defined(bpf_target_arm64)
+        monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_ARM;
+        u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_ARM];
+    #else
+        return
+    #endif
+
+    __builtin_memset(syscall_address, 0, sizeof(syscall_address));
+    // the map should look like [syscall number 1][syscall number 2][syscall number 3]...
+    // the unroll are limited 
+    #pragma unroll
+    for(int i =0; i < monitored_syscalls_amount; i++){
+        idx = i;
+        syscall_num_p = bpf_map_lookup_elem(&syscalls_to_check_map, (void *)&idx);
+        if (syscall_num_p == NULL){
+            continue;
+        }
+        syscall_num = (u64)*syscall_num_p;
+        syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
+        if (syscall_addr == 0){
+            return;
+        }
+        syscall_address[i] = syscall_addr;
+    }
+    save_u64_arr_to_buf(data, (const u64 *)syscall_address, monitored_syscalls_amount, 0);
+    events_perf_submit(data, PRINT_SYSCALL_TABLE, 0);
+
     return NULL;
 }
