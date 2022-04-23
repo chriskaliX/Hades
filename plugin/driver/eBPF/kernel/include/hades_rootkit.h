@@ -162,8 +162,9 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 
 
-// We take Reptile as example.
+// https://github.com/m0nad/Diamorphine/blob/master/diamorphine.c
 BPF_HASH(ksymbols_map, ksym_name_t, u64);
+BPF_HASH(syscalls_to_check_map, int, u64);
 
 // get symbol_addr from user_space
 static __always_inline void * get_symbol_addr(char *symbol_name)
@@ -181,6 +182,10 @@ static __always_inline void * get_symbol_addr(char *symbol_name)
 // Do a trigger to scan. It's brilliant and I'll go through this and 
 // do the same thing in Hades. And it's done by @itamarmaouda101
 // 2022-04-21: start to review the invoke_print_syscall_table_event function
+
+// The way Elkeid does can not be simply done in eBPF program since the limit of 4096
+// under kernel version 5.2. In Elkeid, it always go through the syscalls or idt_entries
+// to find any hidden kernel module in this.
 static __always_inline void sys_call_table_scan(event_data_t *data) {
 
     char syscall_table[15] = "sys_call_table";
@@ -196,6 +201,10 @@ static __always_inline void sys_call_table_scan(event_data_t *data) {
     #else
         return
     #endif
+
+    u64 idx;
+    u64* syscall_num_p;
+    u64 syscall_num;
 
     __builtin_memset(syscall_address, 0, sizeof(syscall_address));
     // the map should look like [syscall number 1][syscall number 2][syscall number 3]...
@@ -218,4 +227,12 @@ static __always_inline void sys_call_table_scan(event_data_t *data) {
     events_perf_submit(data, PRINT_SYSCALL_TABLE, 0);
 
     return NULL;
+}
+
+// Just like in Elkeid, sth different maybe
+static void *get_modules(unsigned long addr)
+{
+    const char *mod_name = NULL;
+    struct kobject *cur;
+    struct module_kobject *kobj;
 }
