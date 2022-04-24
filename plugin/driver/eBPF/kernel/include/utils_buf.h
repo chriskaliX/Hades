@@ -169,6 +169,7 @@ out:
     data->submit_p->buf[orig_off & (MAX_PERCPU_BUFSIZE-1)] = elem_num;
     data->context.argnum++;
     return 1;
+}
 
 /*
  * @function: save str to buffer

@@ -66,7 +66,7 @@ int kprobe_do_init_module(struct pt_regs *ctx)
  *	@id kernel read file identifier
  *	@contents if a subsequent @kernel_post_read_file will be called.
  *	Return 0 if permission is granted.
-*/
+ */
 // In datadog, security_kernel_module_from_file is hooked. But it seems not
 // work since it's been removed in kernel version 4.6...
 // security_kernel_read_file seems stable and is used by tracee
@@ -100,15 +100,15 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
     void *path = (void *)PT_REGS_PARM1(ctx);
     save_str_to_buf(&data, path, 0);
     unsigned long argv = PT_REGS_PARM2(ctx);
-    save_str_arr_to_buf(&data, (const char *const *)argv , 1);
+    save_str_arr_to_buf(&data, (const char *const *)argv, 1);
     unsigned long envp = PT_REGS_PARM3(ctx);
     // Think twice about this.
     // I do not use `save_envp_to_buf` here, since there is not that much
     // call_usermodehelper called... And since it's very important, it's
     // good to just get them all.
-    save_str_arr_to_buf(&data, (const char *const *)envp , 2);
+    save_str_arr_to_buf(&data, (const char *const *)envp, 2);
     int wait = PT_REGS_PARM4(ctx);
-    save_to_submit_buf(&data, (void*)&wait, sizeof(int), 3);
+    save_to_submit_buf(&data, (void *)&wait, sizeof(int), 3);
     // Think twice
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 4);
@@ -140,14 +140,14 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 //    if the kobject do not exist in the kset
 // In Elkeid, the find_hidden_module go through the kobject to judge whether
 // it's in the sys_call_table and IDT. And the kernel sets finding is also
-// considered. 
+// considered.
 //
 // In a really brief way, it goes like this. In userspace, we do something
 // to trigger the system interrupt.
 // It's reasonable that we can do sth with the IDT or the sys_call_table
 // to hijack the function. Also for the syscall & sys_enter/exit
 //
-// As for as I concerned, things like scan the idt and sys_call_table are 
+// As for as I concerned, things like scan the idt and sys_call_table are
 // "positive" action. eBPF progs are more "passive" in anti rootkit.
 // We can collect the syscalls from specific probes or ...
 // @Reference: https://github.com/pathtofile/bpf-hookdetect/blob/main/src/hookdetect.c
@@ -161,78 +161,85 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 
-
 // https://github.com/m0nad/Diamorphine/blob/master/diamorphine.c
-BPF_HASH(ksymbols_map, ksym_name_t, u64);
-BPF_HASH(syscalls_to_check_map, int, u64);
+// BPF_HASH(ksymbols_map, ksym_name_t, u64);
+// BPF_HASH(syscalls_to_check_map, int, u64);
 
-// get symbol_addr from user_space
-static __always_inline void * get_symbol_addr(char *symbol_name)
-{
-    char new_ksym_name[MAX_KSYM_NAME_SIZE] = {};
-    bpf_probe_read_str(new_ksym_name, MAX_KSYM_NAME_SIZE, symbol_name);
-    void **sym = bpf_map_lookup_elem(&ksymbols_map, (void *)&new_ksym_name);
+// get symbol_addr from user_space in /proc/kallsyms
+// static __always_inline void *get_symbol_addr(char *symbol_name)
+// {
+//     char new_ksym_name[MAX_KSYM_NAME_SIZE] = {};
+//     bpf_probe_read_str(new_ksym_name, MAX_KSYM_NAME_SIZE, symbol_name);
+//     void **sym = bpf_map_lookup_elem(&ksymbols_map, (void *)&new_ksym_name);
 
-    if (sym == NULL)
-        return 0;
+//     if (sym == NULL)
+//         return 0;
 
-    return *sym;
-}
-// It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
-// Do a trigger to scan. It's brilliant and I'll go through this and 
-// do the same thing in Hades. And it's done by @itamarmaouda101
-// 2022-04-21: start to review the invoke_print_syscall_table_event function
+//     return *sym;
+// }
+// // It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
+// // Do a trigger to scan. It's brilliant and I'll go through this and
+// // do the same thing in Hades. And it's done by @itamarmaouda101
+// // 2022-04-21: start to review the invoke_print_syscall_table_event function
 
-// The way Elkeid does can not be simply done in eBPF program since the limit of 4096
-// under kernel version 5.2. In Elkeid, it always go through the syscalls or idt_entries
-// to find any hidden kernel module in this.
-static __always_inline void sys_call_table_scan(event_data_t *data) {
+// // The way Elkeid does can not be simply done in eBPF program since the limit of 4096
+// // under kernel version 5.2. In Elkeid, it always go through the syscalls or idt_entries
+// // to find any hidden kernel module in this.
+// // Back to Elkeid anti_rootkit, which is based on https://github.com/nbulischeck/tyton
+// // detecting syscall_hooks/interrupt_hooks(IDT)/modules/fops(/proc). And I think a BAD
+// // eBPF program should also be considered.
+// static __always_inline void sys_call_table_scan(event_data_t *data)
+// {
 
-    char syscall_table[15] = "sys_call_table";
-    unsigned long *sys_call_table_addr = (unsigned long *) get_symbol_addr(sys_call_table);
-    
-    int monitored_syscalls_amount = 0;
-    #if defined(bpf_target_x86)
-        monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_X86;
-        u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_X86];
-    #elif defined(bpf_target_arm64)
-        monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_ARM;
-        u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_ARM];
-    #else
-        return
-    #endif
+//     char syscall_table[15] = "sys_call_table";
+//     unsigned long *sys_call_table_addr = (unsigned long *)get_symbol_addr(sys_call_table);
 
-    u64 idx;
-    u64* syscall_num_p;
-    u64 syscall_num;
+//     int monitored_syscalls_amount = 0;
+// #if defined(bpf_target_x86)
+//     monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_X86;
+//     u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_X86];
+// #elif defined(bpf_target_arm64)
+//     monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_ARM;
+//     u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_ARM];
+// #else
+//     return
+// #endif
 
-    __builtin_memset(syscall_address, 0, sizeof(syscall_address));
-    // the map should look like [syscall number 1][syscall number 2][syscall number 3]...
-    // the unroll are limited 
-    #pragma unroll
-    for(int i =0; i < monitored_syscalls_amount; i++){
-        idx = i;
-        syscall_num_p = bpf_map_lookup_elem(&syscalls_to_check_map, (void *)&idx);
-        if (syscall_num_p == NULL){
-            continue;
-        }
-        syscall_num = (u64)*syscall_num_p;
-        syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
-        if (syscall_addr == 0){
-            return;
-        }
-        syscall_address[i] = syscall_addr;
-    }
-    save_u64_arr_to_buf(data, (const u64 *)syscall_address, monitored_syscalls_amount, 0);
-    events_perf_submit(data, PRINT_SYSCALL_TABLE, 0);
+//     u64 idx;
+//     u64 *syscall_num_p;
+//     u64 syscall_num;
+//     unsigned long syscall_addr = 0;
 
-    return NULL;
-}
+//     __builtin_memset(syscall_address, 0, sizeof(syscall_address));
+// // the map should look like [syscall number 1][syscall number 2][syscall number 3]...
+// // the unroll are limited
+// #pragma unroll
+//     for (int i = 0; i < monitored_syscalls_amount; i++)
+//     {
+//         idx = i;
+//         syscall_num_p = bpf_map_lookup_elem(&syscalls_to_check_map, (void *)&idx);
+//         if (syscall_num_p == NULL)
+//         {
+//             continue;
+//         }
+//         syscall_num = (u64)*syscall_num_p;
+//         syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
+//         if (syscall_addr == 0)
+//         {
+//             return;
+//         }
+//         syscall_address[i] = syscall_addr;
+//     }
+//     save_u64_arr_to_buf(data, (const u64 *)syscall_address, monitored_syscalls_amount, 0);
+//     events_perf_submit(data, PRINT_SYSCALL_TABLE, 0);
 
-// Just like in Elkeid, sth different maybe
-static void *get_modules(unsigned long addr)
-{
-    const char *mod_name = NULL;
-    struct kobject *cur;
-    struct module_kobject *kobj;
-}
+//     return NULL;
+// }
+
+// // x86 only
+// static void analyze_interrupts(void)
+// {
+// #ifdef __TARGET_ARCH_x86
+
+// #endif
+// }
