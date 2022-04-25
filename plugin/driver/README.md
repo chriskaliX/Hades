@@ -10,9 +10,7 @@
 
 > 环境要求：内核版本高于 4.18, golang 版本 >= 1.17
 
-> 由于目前不支持 CO-RE，需要手动下载 kernel-header 后编译
-
-1. 下载 Header
+1. 下载 Header (如果支持 BTF, 跳过此步骤)
 
    ```bash
    # CentOS/RHEL 7
@@ -25,8 +23,15 @@
 
 2. 编译
 
-   进入 eBPF 文件，make 即可
-   (makefile 还不完备，不过问题应该不大)
+   进入 eBPF 文件夹 `cd /eBPF`
+
+   - CORE 编译
+
+     `make debug-core`(结果输出至终端)
+
+   - 非 CO-RE 编译(从 kernel-header)
+
+     `make debug`(结果输出至终端)
 
 3. 运行
 
@@ -61,3 +66,7 @@
 | uretprobe/bash_readline | ON(字段同 execve) | 2000 |
 
 uprobe 下 bash 执行结果大概率会和 execve 下相同，考虑后期是否移除
+
+## 内核扫描
+
+> still working

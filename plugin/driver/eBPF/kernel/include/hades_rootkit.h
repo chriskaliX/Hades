@@ -1,3 +1,12 @@
+/*
+ * hades_rookit_detection
+ *
+ * The methods and codes are mainly based on Elkeid(tyton) and tracee.
+ * Mainly, hades detect syscalls, idt and bad eBPF. Also, hooks like
+ * do_init_module, security_kernel_read_file, call_usermodehelper are
+ * added for general rookit detection.
+ */
+
 #ifndef CORE
 #include <linux/module.h>
 #else
@@ -11,7 +20,6 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
-// TODO: how to deal with rookit that already exists
 
 // Firstly, a rootkit would be loaded into kernel space. There are some
 // hooks that we should pay attention to. I get these information from
@@ -161,85 +169,89 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 
+#define MAX_KSYM_NAME_SIZE 64
+typedef struct ksym_name
+{
+    char str[MAX_KSYM_NAME_SIZE];
+} ksym_name_t;
 // https://github.com/m0nad/Diamorphine/blob/master/diamorphine.c
-// BPF_HASH(ksymbols_map, ksym_name_t, u64);
-// BPF_HASH(syscalls_to_check_map, int, u64);
+BPF_HASH(ksymbols_map, ksym_name_t, u64, 64);
+BPF_HASH(syscalls_to_check_map, int, u64, 512);
 
 // get symbol_addr from user_space in /proc/kallsyms
-// static __always_inline void *get_symbol_addr(char *symbol_name)
-// {
-//     char new_ksym_name[MAX_KSYM_NAME_SIZE] = {};
-//     bpf_probe_read_str(new_ksym_name, MAX_KSYM_NAME_SIZE, symbol_name);
-//     void **sym = bpf_map_lookup_elem(&ksymbols_map, (void *)&new_ksym_name);
+static __always_inline void *get_symbol_addr(char *symbol_name)
+{
+    char new_ksym_name[MAX_KSYM_NAME_SIZE] = {};
+    bpf_probe_read_str(new_ksym_name, MAX_KSYM_NAME_SIZE, symbol_name);
+    void **sym = bpf_map_lookup_elem(&ksymbols_map, (void *)&new_ksym_name);
 
-//     if (sym == NULL)
-//         return 0;
+    if (sym == NULL)
+        return 0;
 
-//     return *sym;
-// }
-// // It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
-// // Do a trigger to scan. It's brilliant and I'll go through this and
-// // do the same thing in Hades. And it's done by @itamarmaouda101
-// // 2022-04-21: start to review the invoke_print_syscall_table_event function
+    return *sym;
+}
+// It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
+// Do a trigger to scan. It's brilliant and I'll go through this and
+// do the same thing in Hades. And it's done by @itamarmaouda101
+// 2022-04-21: start to review the invoke_print_syscall_table_event function
 
-// // The way Elkeid does can not be simply done in eBPF program since the limit of 4096
-// // under kernel version 5.2. In Elkeid, it always go through the syscalls or idt_entries
-// // to find any hidden kernel module in this.
-// // Back to Elkeid anti_rootkit, which is based on https://github.com/nbulischeck/tyton
-// // detecting syscall_hooks/interrupt_hooks(IDT)/modules/fops(/proc). And I think a BAD
-// // eBPF program should also be considered.
-// static __always_inline void sys_call_table_scan(event_data_t *data)
-// {
+// The way Elkeid does can not be simply done in eBPF program since the limit of 4096
+// under kernel version 5.2. In Elkeid, it always go through the syscalls or idt_entries
+// to find any hidden kernel module in this.
+// Back to Elkeid anti_rootkit, which is based on https://github.com/nbulischeck/tyton
+// detecting syscall_hooks/interrupt_hooks(IDT)/modules/fops(/proc). And I think a BAD
+// eBPF program should also be considered.
+static __always_inline void sys_call_table_scan(event_data_t *data)
+{
 
-//     char syscall_table[15] = "sys_call_table";
-//     unsigned long *sys_call_table_addr = (unsigned long *)get_symbol_addr(sys_call_table);
+    char syscall_table[15] = "sys_call_table";
+    unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
 
-//     int monitored_syscalls_amount = 0;
-// #if defined(bpf_target_x86)
-//     monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_X86;
-//     u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_X86];
-// #elif defined(bpf_target_arm64)
-//     monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_ARM;
-//     u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_ARM];
-// #else
-//     return
-// #endif
+    int monitored_syscalls_amount = 0;
+#if defined(bpf_target_x86)
+    monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_X86;
+    u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_X86];
+#elif defined(bpf_target_arm64)
+    monitored_syscalls_amount = NUMBER_OF_SYSCALLS_TO_CHECK_ARM;
+    u64 syscall_address[NUMBER_OF_SYSCALLS_TO_CHECK_ARM];
+#else
+    return
+#endif
 
-//     u64 idx;
-//     u64 *syscall_num_p;
-//     u64 syscall_num;
-//     unsigned long syscall_addr = 0;
+    u64 idx;
+    u64 *syscall_num_p;
+    u64 syscall_num;
+    unsigned long syscall_addr = 0;
 
-//     __builtin_memset(syscall_address, 0, sizeof(syscall_address));
-// // the map should look like [syscall number 1][syscall number 2][syscall number 3]...
-// // the unroll are limited
-// #pragma unroll
-//     for (int i = 0; i < monitored_syscalls_amount; i++)
-//     {
-//         idx = i;
-//         syscall_num_p = bpf_map_lookup_elem(&syscalls_to_check_map, (void *)&idx);
-//         if (syscall_num_p == NULL)
-//         {
-//             continue;
-//         }
-//         syscall_num = (u64)*syscall_num_p;
-//         syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
-//         if (syscall_addr == 0)
-//         {
-//             return;
-//         }
-//         syscall_address[i] = syscall_addr;
-//     }
-//     save_u64_arr_to_buf(data, (const u64 *)syscall_address, monitored_syscalls_amount, 0);
-//     events_perf_submit(data, PRINT_SYSCALL_TABLE, 0);
+    __builtin_memset(syscall_address, 0, sizeof(syscall_address));
+// the map should look like [syscall number 1][syscall number 2][syscall number 3]...
+// TODO: change into multi-time check
+#pragma unroll
+    for (int i = 0; i < monitored_syscalls_amount; i++)
+    {
+        idx = i;
+        syscall_num_p = bpf_map_lookup_elem(&syscalls_to_check_map, (void *)&idx);
+        if (syscall_num_p == NULL)
+            continue;
+        syscall_num = (u64)*syscall_num_p;
+        syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
+        if (syscall_addr == 0)
+            return;
+        syscall_address[i] = syscall_addr;
+    }
+    save_u64_arr_to_buf(data, (const u64 *)syscall_address, monitored_syscalls_amount, 0);
+    events_perf_submit(data);
+}
 
-//     return NULL;
-// }
-
-// // x86 only
-// static void analyze_interrupts(void)
-// {
-// #ifdef __TARGET_ARCH_x86
-
-// #endif
-// }
+// interrupts detection
+// x86 only, and since loops should be bounded in BPF(for compatibility),
+// We can trigger this for mulitiple times. Like 256, we can split into
+// 16 * 16, and get some data from userspace through BPF_MAP
+static void analyze_interrupts(void)
+{
+#ifdef bpf_target_x86
+    char syscall_table[18] = "idt_table";
+    unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
+    // #pargma unroll
+#endif
+}
