@@ -15,7 +15,7 @@ KERN_RELEASE ?= $(shell uname -r)
 ARCH_UNAME := $(shell uname -m)
 ARCH ?= $(ARCH_UNAME:aarch64=arm64)
 linux_arch := $(ARCH:x86_64=x86)
- # some different with tracee. Need to check for this
+# some different with tracee. Need to check for this
 KERN_BLD_PATH := $(if $(KERN_HEADERS),$(KERN_HEADERS),/lib/modules/$(KERN_RELEASE)/build)
 KERN_SRC_PATH := $(if $(KERN_HEADERS),$(KERN_HEADERS),$(if $(wildcard /lib/modules/$(KERN_RELEASE)/source),/lib/modules/$(KERN_RELEASE)/source,$(KERN_BLD_PATH)))
 

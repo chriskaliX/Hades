@@ -127,7 +127,7 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     // socket
     get_socket_info(&data, 5);
     // pid_tree
-    save_pid_tree_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 4, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
@@ -161,7 +161,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     // socket
     get_socket_info(&data, 5);
     // pid_tree
-    save_pid_tree_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 4, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
@@ -251,7 +251,7 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 3);
     // By the way, the data is removed.
     // get the pid tree
-    save_pid_tree_to_buf(&data, 12, 4);
+    save_pid_tree_to_buf(&data, 6, 4);
     return events_perf_submit(&data);
 }
 

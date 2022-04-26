@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <net/inet_sock.h>
 #include <uapi/linux/un.h>
+#include <linux/bpf.h>
 #else
 #include <vmlinux.h>
 #include <missing_definitions.h>
@@ -31,7 +32,7 @@
 #define MAX_PERCPU_BUFSIZE  (1 << 14)
 #define MAX_STRING_SIZE     256 // Same with Elkeid, but it's larger in tracee or other project
 #define MAX_STR_ARR_ELEM    32
-#define MAX_PATH_COMPONENTS 20
+#define MAX_PATH_COMPONENTS 16
 #define MAX_NODENAME        64
 
 #define MAX_BUFFERS 3

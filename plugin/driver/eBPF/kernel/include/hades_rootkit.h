@@ -56,7 +56,7 @@ int kprobe_do_init_module(struct pt_regs *ctx)
     // get exe from task
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 1);
-    save_pid_tree_to_buf(&data, 12, 2);
+    save_pid_tree_to_buf(&data, 6, 2);
     // save file from current task->fs->pwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
@@ -243,7 +243,6 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     events_perf_submit(data);
 }
 
-
 // local cache for analyze_cache
 BPF_HASH(analyze_cache, int, u32, 20);
 #define IDT_CACHE 0
@@ -276,19 +275,23 @@ static void *analyze_interrupts(void)
     unsigned long addr;
 
 #pragma unroll
-    for(int i = start * 16; i < loop_end; i++) {
+    for (int i = start * 16; i < loop_end; i++)
+    {
         addr = READ_KERN(idt_table_addr[i]);
         if (addr == 0)
             return NULL;
         mod = get_module_from_addr(addr);
     }
 
-    if (start == 15) {
+    if (start == 15)
+    {
         update_cache(IDT_CACHE, 0);
-    } else {
+    }
+    else
+    {
         update_cache(IDT_CACHE, (start + 1));
     }
     return NULL;
-    
+
 #endif
 }

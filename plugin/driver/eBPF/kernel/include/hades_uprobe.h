@@ -32,7 +32,7 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     // socket
     get_socket_info(&data, 5);
     // add pid_tree to the field
-    save_pid_tree_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 4, 6);
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
@@ -51,8 +51,8 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
 // we can already get then all in execve or some other points (but in a
 // raw way)
 // And uprobe (maybe, I have not checked yet) can be used in kernel version
-// lower 4.18, above 3.18 (maybe). The way we used in k(ret)probe/uprobe, 
-// the pt_regs, seems to be used in kernel > 4.17. We need to change the 
+// lower 4.18, above 3.18 (maybe). The way we used in k(ret)probe/uprobe,
+// the pt_regs, seems to be used in kernel > 4.17. We need to change the
 // format.
 // SEC("uprobe/JVM_GC")
 // int uprobe_JVM_GC(struct pt_regs *ctx)
