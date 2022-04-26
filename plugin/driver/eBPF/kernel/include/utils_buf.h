@@ -67,11 +67,11 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     // update the buf_off
     data->buf_off += 2;
     // flags for collection
-    int ssh_connection_flag = 0, ld_preload_flag = 0, ld_library_path_flag = 0, tmp_flag = 0;
+    int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0;
 /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
 #pragma unroll
     /* changed since double loops here, change to macros later TODO: */
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 8; i++)
     {
         const char *argp = NULL;
         /* read to argp and check */
@@ -100,11 +100,11 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
                 tmp_flag = 1;
             }
 
-            if (ld_library_path_flag == 0 && sz > 16 && prefix("LD_LIBRARY_", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 11))
-            {
-                ld_library_path_flag = 1;
-                tmp_flag = 1;
-            }
+            // if (ld_library_path_flag == 0 && sz > 16 && prefix("LD_LIBRARY_", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 11))
+            // {
+            //     ld_library_path_flag = 1;
+            //     tmp_flag = 1;
+            // }
 
             if (tmp_flag == 0)
             {
