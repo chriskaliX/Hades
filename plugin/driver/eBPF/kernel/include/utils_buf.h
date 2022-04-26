@@ -70,7 +70,8 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     int ssh_connection_flag = 0, ld_preload_flag = 0, ld_library_path_flag = 0, tmp_flag = 0;
 /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
 #pragma unroll
-    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
+    /* changed since double loops here, change to macros later TODO: */
+    for (int i = 0; i < 16; i++)
     {
         const char *argp = NULL;
         /* read to argp and check */
@@ -93,13 +94,13 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
                 tmp_flag = 1;
             }
 
-            if (ssh_connection_flag == 0 && sz > 15 && prefix("SSH_CONNECTION=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 15))
+            if (ssh_connection_flag == 0 && sz > 15 && prefix("SSH_CONN", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 8))
             {
                 ssh_connection_flag = 1;
                 tmp_flag = 1;
             }
 
-            if (ld_library_path_flag == 0 && sz > 16 && prefix("LD_LIBRARY_PATH=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 16))
+            if (ld_library_path_flag == 0 && sz > 16 && prefix("LD_LIBRARY_", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 11))
             {
                 ld_library_path_flag = 1;
                 tmp_flag = 1;
@@ -130,43 +131,48 @@ out:
     return 1;
 }
 
-static __always_inline int save_u64_arr_to_buf(event_data_t *data, const u64 __user *ptr,int len , u8 index){
+static __always_inline int save_u64_arr_to_buf(event_data_t *data, const u64 __user *ptr, int len, u8 index)
+{
     // Data saved to submit buf: [index][u64 count][u64 1][u64 2][u64 3]...
     u8 elem_num = 0;
     // Save argument index
-    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE-1)] = index;
+    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     // Save space for number of elements (1 byte)
-    u32 orig_off = data->buf_off+1;
+    u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
 
-    #pragma unroll
-    for (int i = 0; i < len; i++) {
+#pragma unroll
+    for (int i = 0; i < len; i++)
+    {
         u64 element = 0;
         int err = bpf_probe_read(&element, sizeof(u64), &ptr[i]);
-        if (err !=0)
+        if (err != 0)
             goto out;
-        if (data->buf_off > MAX_PERCPU_BUFSIZE - sizeof(u64) )
-                // not enough space - return
-                goto out;
+        if (data->buf_off > MAX_PERCPU_BUFSIZE - sizeof(u64))
+            // not enough space - return
+            goto out;
 
-        void *addr = &(data->submit_p->buf[data->buf_off ]);
+        void *addr = &(data->submit_p->buf[data->buf_off]);
         int sz = bpf_probe_read(addr, sizeof(u64), (void *)&element);
-        if (sz == 0) {
+        if (sz == 0)
+        {
             elem_num++;
-            if (data->buf_off > MAX_PERCPU_BUFSIZE )
+            if (data->buf_off > MAX_PERCPU_BUFSIZE)
                 // Satisfy validator
                 goto out;
 
             data->buf_off += sizeof(u64);
             continue;
-        } else {
+        }
+        else
+        {
             goto out;
         }
     }
     goto out;
 out:
     // save number of elements in the array
-    data->submit_p->buf[orig_off & (MAX_PERCPU_BUFSIZE-1)] = elem_num;
+    data->submit_p->buf[orig_off & (MAX_PERCPU_BUFSIZE - 1)] = elem_num;
     data->context.argnum++;
     return 1;
 }
@@ -194,7 +200,8 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
             char nothing[] = "-1";
             // why check it again? nothing
             // just to make verifier happy, this will not happen
-            if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
+            if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+            {
                 sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, nothing);
             }
         }
@@ -248,15 +255,16 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32
 }
 
 // thiner than tracee. It's all we need now
-typedef struct slim_cred {
-    uid_t  uid;                    // real UID of the task
-    gid_t  gid;                    // real GID of the task
-    uid_t  suid;                   // saved UID of the task
-    gid_t  sgid;                   // saved GID of the task
-    uid_t  euid;                   // effective UID of the task
-    gid_t  egid;                   // effective GID of the task
-    uid_t  fsuid;                  // UID for VFS ops
-    gid_t  fsgid;                  // GID for VFS ops
+typedef struct slim_cred
+{
+    uid_t uid;   // real UID of the task
+    gid_t gid;   // real GID of the task
+    uid_t suid;  // saved UID of the task
+    gid_t sgid;  // saved GID of the task
+    uid_t euid;  // effective UID of the task
+    gid_t egid;  // effective GID of the task
+    uid_t fsuid; // UID for VFS ops
+    gid_t fsgid; // GID for VFS ops
 } slim_cred_t;
 
 /*
@@ -336,7 +344,7 @@ out:
     // add the logic of privilege escalation
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = privilege_flag;
     data->buf_off += 1;
-    if(privilege_flag)
+    if (privilege_flag)
     {
         slim_cred_t slim = {0};
         slim.uid = READ_KERN(current_cred->uid.val);
@@ -348,7 +356,7 @@ out:
         slim.fsuid = READ_KERN(current_cred->fsuid.val);
         slim.fsgid = READ_KERN(current_cred->fsgid.val);
         // this index maybe misleading...but anyway
-        save_to_submit_buf(data, (void*)&slim, sizeof(slim_cred_t), index);
+        save_to_submit_buf(data, (void *)&slim, sizeof(slim_cred_t), index);
         slim.uid = READ_KERN(parent_cred->uid.val);
         slim.gid = READ_KERN(parent_cred->gid.val);
         slim.suid = READ_KERN(parent_cred->suid.val);
@@ -357,10 +365,9 @@ out:
         slim.egid = READ_KERN(parent_cred->egid.val);
         slim.fsuid = READ_KERN(parent_cred->fsuid.val);
         slim.fsgid = READ_KERN(parent_cred->fsgid.val);
-        save_to_submit_buf(data, (void*)&slim, sizeof(slim_cred_t), index);
+        save_to_submit_buf(data, (void *)&slim, sizeof(slim_cred_t), index);
     }
     return 1;
 }
-
 
 #endif //__UTILS_BUF_H
