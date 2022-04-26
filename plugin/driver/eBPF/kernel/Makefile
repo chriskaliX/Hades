@@ -2,7 +2,7 @@
 CMD_TR ?= tr
 CMD_CUT ?= cut
 CMD_LLC ?= llc
-CMD_CLANG ?= clang-12
+CMD_CLANG ?= clang
 CMD_LLVM_STRIP ?= llvm-strip
 EXECUTABLES = $(CMD_TR) $(CMD_CUT) $(CMD_LLC) $(CMD_CLANG) $(CMD_LLVM_STRIP)
 CHECK_TOOLS_EXSITS := $(foreach exec,$(EXECUTABLES),\
@@ -16,8 +16,9 @@ ARCH_UNAME := $(shell uname -m)
 ARCH ?= $(ARCH_UNAME:aarch64=arm64)
 linux_arch := $(ARCH:x86_64=x86)
  # some different with tracee. Need to check for this
-KERN_SRC_PATH := /usr/src/linux-headers-$(KERN_RELEASE)
-KERN_BLD_PATH := /usr/lib/modules/$(KERN_RELEASE)/build
+KERN_BLD_PATH := $(if $(KERN_HEADERS),$(KERN_HEADERS),/lib/modules/$(KERN_RELEASE)/build)
+KERN_SRC_PATH := $(if $(KERN_HEADERS),$(KERN_HEADERS),$(if $(wildcard /lib/modules/$(KERN_RELEASE)/source),/lib/modules/$(KERN_RELEASE)/source,$(KERN_BLD_PATH)))
+
 BPF_HEADERS := headers
 INCLUDE_PATH := include
 HADES_SRC := src/hades.c

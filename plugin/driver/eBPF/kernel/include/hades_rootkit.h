@@ -243,15 +243,52 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     events_perf_submit(data);
 }
 
+
+// local cache for analyze_cache
+BPF_HASH(analyze_cache, int, u32, 20);
+#define IDT_CACHE 0
+static __always_inline int get_cache(int key)
+{
+    u32 *config = bpf_map_lookup_elem(&analyze_cache, &key);
+    if (config == NULL)
+        return 0;
+    return *config;
+}
+static __always_inline void update_cache(int key, u32 value)
+{
+    bpf_map_update_elem(&analyze_cache, &key, &value, BPF_ANY);
+}
+static struct module *(*get_module_from_addr)(unsigned long addr);
+
 // interrupts detection
 // x86 only, and since loops should be bounded in BPF(for compatibility),
 // We can trigger this for mulitiple times. Like 256, we can split into
 // 16 * 16, and get some data from userspace through BPF_MAP
-static void analyze_interrupts(void)
+#define IDT_ENTRIES 256
+static void *analyze_interrupts(void)
 {
 #ifdef bpf_target_x86
-    char syscall_table[18] = "idt_table";
-    unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
-    // #pargma unroll
+    char idt_table[18] = "idt_table";
+    unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
+    int start = get_cache(IDT_CACHE);
+    int loop_end = (start + 1) * 16;
+    struct module *mod;
+    unsigned long addr;
+
+#pragma unroll
+    for(int i = start * 16; i < loop_end; i++) {
+        addr = READ_KERN(idt_table_addr[i]);
+        if (addr == 0)
+            return NULL;
+        mod = get_module_from_addr(addr);
+    }
+
+    if (start == 15) {
+        update_cache(IDT_CACHE, 0);
+    } else {
+        update_cache(IDT_CACHE, (start + 1));
+    }
+    return NULL;
+    
 #endif
 }
