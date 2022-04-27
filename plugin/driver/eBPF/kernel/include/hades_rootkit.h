@@ -267,7 +267,7 @@ static struct module *(*get_module_from_addr)(unsigned long addr);
 static void *analyze_interrupts(void)
 {
 #ifdef bpf_target_x86
-    char idt_table[18] = "idt_table";
+    char idt_table[10] = "idt_table";
     unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
     int start = get_cache(IDT_CACHE);
     int loop_end = (start + 1) * 16;
@@ -284,13 +284,9 @@ static void *analyze_interrupts(void)
     }
 
     if (start == 15)
-    {
         update_cache(IDT_CACHE, 0);
-    }
     else
-    {
         update_cache(IDT_CACHE, (start + 1));
-    }
     return NULL;
 
 #endif

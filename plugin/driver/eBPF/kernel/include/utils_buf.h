@@ -70,8 +70,10 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0;
 /* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
 #pragma unroll
-    /* changed since double loops here, change to macros later TODO: */
-    for (int i = 0; i < 8; i++)
+    /* changed since double loops here
+     * remove the ld_library for speed up and do not hit the limitation...
+     */
+    for (int i = 0; i < 12; i++)
     {
         const char *argp = NULL;
         /* read to argp and check */
@@ -88,7 +90,7 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - (MAX_STRING_SIZE))
                 goto out;
             // Add & ((MAX_PERCPU_BUFSIZE)-1)] for verifier if the index is not checked
-            if (ld_preload_flag == 0 && sz > 11 && prefix("LD_PRELOAD=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 11))
+            if (ld_preload_flag == 0 && sz > 11 && prefix("LD_PRELOAD=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 6))
             {
                 ld_preload_flag = 1;
                 tmp_flag = 1;
@@ -100,20 +102,10 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
                 tmp_flag = 1;
             }
 
-            // if (ld_library_path_flag == 0 && sz > 16 && prefix("LD_LIBRARY_", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 11))
-            // {
-            //     ld_library_path_flag = 1;
-            //     tmp_flag = 1;
-            // }
-
             if (tmp_flag == 0)
-            {
                 continue;
-            }
             else
-            {
                 tmp_flag = 0;
-            }
 
             bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
             data->buf_off += sz + sizeof(int);

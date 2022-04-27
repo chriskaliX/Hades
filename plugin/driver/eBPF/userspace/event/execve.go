@@ -77,8 +77,6 @@ func (e *Execve) Parse() (err error) {
 			e.SSHConnection = strings.TrimLeft(env, "SSH_CONNECTION=")
 		} else if strings.HasPrefix(env, "LD_PRELOAD=") {
 			e.LDPreload = strings.TrimLeft(env, "LD_PRELOAD=")
-		} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
-			e.LDLibraryPath = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
 		}
 	}
 	if len(e.SSHConnection) == 0 {

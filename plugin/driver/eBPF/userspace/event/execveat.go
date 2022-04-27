@@ -24,7 +24,6 @@ type ExecveAt struct {
 	PrivEscalation uint8  `json:"priv_esca"`
 	SSHConnection  string `json:"ssh_connection"`
 	LDPreload      string `json:"ld_preload"`
-	LDLibraryPath  string `json:"ld_library_path"`
 	Syscall        string `json:"syscall"`
 }
 
@@ -78,8 +77,6 @@ func (e *ExecveAt) Parse() (err error) {
 			e.SSHConnection = strings.TrimLeft(env, "SSH_CONNECTION=")
 		} else if strings.HasPrefix(env, "LD_PRELOAD=") {
 			e.LDPreload = strings.TrimLeft(env, "LD_PRELOAD=")
-		} else if strings.HasPrefix(env, "LD_LIBRARY_PATH=") {
-			e.LDLibraryPath = strings.TrimLeft(env, "LD_LIBRARY_PATH=")
 		}
 	}
 	if len(e.SSHConnection) == 0 {
@@ -87,9 +84,6 @@ func (e *ExecveAt) Parse() (err error) {
 	}
 	if len(e.LDPreload) == 0 {
 		e.LDPreload = "-1"
-	}
-	if len(e.LDLibraryPath) == 0 {
-		e.LDLibraryPath = "-1"
 	}
 	return
 }
