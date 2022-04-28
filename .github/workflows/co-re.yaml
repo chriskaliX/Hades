@@ -1,0 +1,21 @@
+# core build
+name: CO-RE
+on: push
+
+jobs:
+  CO-RE:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+    matrix:
+      kernel:
+        - "4.19.238-stable"
+    steps:
+      - name: "Git checkout"
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: "Set up Go"
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
