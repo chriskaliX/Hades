@@ -96,6 +96,8 @@ struct _sys_enter_memfd_create
 
 /* execve hooks */
 // TODO: filter to pid, file_path, swicher in kernel space!
+// TODO: sys_enter_execve failed with ../../ stuff, need to check out
+// kprobe method or get this from sys_exit_execve
 // ltp tested
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct _sys_enter_execve *ctx)

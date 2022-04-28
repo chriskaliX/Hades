@@ -257,12 +257,26 @@ static __always_inline void update_cache(int key, u32 value)
 {
     bpf_map_update_elem(&analyze_cache, &key, &value, BPF_ANY);
 }
+
 static struct module *(*get_module_from_addr)(unsigned long addr);
+
+#define BETWEEN_PTR(x, y, z) ( \
+    ((uintptr_t)x >= (uintptr_t)y) && \
+    ((uintptr_t)x < ((uintptr_t)y+(uintptr_t)z)) \
+)
+
+static const char *find_hidden_module(unsigned long addr)
+{
+    char module_kset[12] = "module_kset";
+    unsigned long *module_kset_addr = (unsigned long *)get_symbol_addr(module_kset);
+    return NULL;
+}
 
 // interrupts detection
 // x86 only, and since loops should be bounded in BPF(for compatibility),
 // We can trigger this for mulitiple times. Like 256, we can split into
 // 16 * 16, and get some data from userspace through BPF_MAP
+// TODO: unfinished
 #define IDT_ENTRIES 256
 static void *analyze_interrupts(void)
 {
@@ -277,10 +291,14 @@ static void *analyze_interrupts(void)
 #pragma unroll
     for (int i = start * 16; i < loop_end; i++)
     {
+        const char *mod_name = "-1";
         addr = READ_KERN(idt_table_addr[i]);
         if (addr == 0)
             return NULL;
         mod = get_module_from_addr(addr);
+        if(mod) {
+            mod_name = READ_KERN(mod->name);
+        }
     }
 
     if (start == 15)
