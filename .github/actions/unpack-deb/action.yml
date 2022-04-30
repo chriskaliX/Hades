@@ -1,0 +1,21 @@
+name: Unpack DEB package
+
+description: Unppack DEB Package
+
+inputs:
+  input-path:
+    description: "Path to search for packages to unpack"
+    required: true
+  output-path:
+    description: "Path to unpack packages into"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Unpack
+      shell: sh
+      run: |
+        find "${{ inputs.input-path }}" -type f -name "*.deb" -print0 | \
+          xargs -t -r -0 -n 1 -I "{}" \
+            dpkg -x "{}" "${{ inputs.output-path }}"
