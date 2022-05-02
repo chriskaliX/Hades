@@ -1,0 +1,26 @@
+name: Build Dependencies
+description: |
+  Install build denpendencies
+inputs:
+  go-version:
+    description: Version of Go
+    required: true
+    default: "1.17"
+runs:
+  using: composite
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ inputs.go-version }}
+    - name: Install Compilers
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes build-essential pkgconf libelf-dev llvm-12 clang-12
+        for tool in "clang" "llc" "llvm-strip"
+        do
+          sudo rm -f /usr/bin/$tool
+          sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+        done
+      shell: bash
+      

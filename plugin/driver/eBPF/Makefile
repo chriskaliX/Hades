@@ -1,20 +1,24 @@
+EBPF_BUILD := +$(MAKE) -C kernel
+EBPF_CO-RE_FLAG := core
+EBPF_SOURCE_PATH = kernel/hades_ebpf_driver.bpf.o
+EBPF_SOURCE_CO-RE_PATH = kernel/hades_ebpf_driver.bpf.core.o
+EBPF_TARGET_PATH = userspace/hades_ebpf_driver.o
+GO_DEBUG_FLAG := -ldflags="-X hades-ebpf/userspace.Env=debug"
+GO_TARGET_PATH := -o ../driver
+
 no-core:
-	cd kernel && make && cd ../
-	mv kernel/hades_ebpf_driver.bpf.o userspace/hades_ebpf_driver.o
-	go build .
-	mv hades-ebpf ../driver
+	$(EBPF_BUILD)
+	mv $(EBPF_SOURCE_PATH) $(EBPF_TARGET_PATH)
+	go build $(GO_TARGET_PATH) .
 core:
-	cd kernel && make core && cd ../
-	mv kernel/hades_ebpf_driver.bpf.core.o userspace/hades_ebpf_driver.o
-	go build .
-	mv hades-ebpf ../driver
+	$(EBPF_BUILD) $(EBPF_CO-RE_FLAG)
+	mv $(EBPF_SOURCE_CO-RE_PATH) $(EBPF_TARGET_PATH)
+	go build $(GO_TARGET_PATH) .
 debug:
-	cd kernel && make && cd ../
-	mv kernel/hades_ebpf_driver.bpf.o userspace/hades_ebpf_driver.o
-	go build -ldflags="-X hades-ebpf/userspace.Env=debug" .
-	mv hades-ebpf ../driver
-debug-core:
-	cd kernel && make core && cd ../
-	mv kernel/hades_ebpf_driver.bpf.core.o userspace/hades_ebpf_driver.o
-	go build -ldflags="-X hades-ebpf/userspace.Env=debug" .
-	mv hades-ebpf ../driver
+	$(EBPF_BUILD)
+	mv $(EBPF_SOURCE_PATH) $(EBPF_TARGET_PATH)
+	go build $(GO_DEBUG_FLAG) $(GO_TARGET_PATH) .
+core-debug:
+	$(EBPF_BUILD) $(EBPF_CO-RE_FLAG)
+	mv $(EBPF_SOURCE_CO-RE_PATH) $(EBPF_TARGET_PATH)
+	go build $(GO_DEBUG_FLAG) $(GO_TARGET_PATH) .

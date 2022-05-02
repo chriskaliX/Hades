@@ -100,5 +100,14 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 }
 
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
-	fmt.Println(count)
+	rawdata := make(map[string]string)
+	rawdata["data"] = strconv.FormatUint(count, 10)
+	rec := &plugin.Record{
+		DataType:  999,
+		Timestamp: int64(share.Time),
+		Data: &plugin.Payload{
+			Fields: rawdata,
+		},
+	}
+	share.Client.SendRecord(rec)
 }
