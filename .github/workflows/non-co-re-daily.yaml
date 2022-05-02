@@ -1,6 +1,8 @@
 # non-core build
 name: non-CO-RE-daily
 on:
+  schedule:
+    - cron: '0 0 * * *'
 
 env:
   DOWNLOAD: ".download"
@@ -10,7 +12,7 @@ env:
   GO_VERSION: "1.17"
 
 jobs:
-  non-CO-RE:
+  non-CO-RE-ubuntu-18.04:
     name: "Build eBPF driver(header)"
     runs-on: ubuntu-${{ matrix.release.name }}
     timeout-minutes: 90
@@ -18,12 +20,7 @@ jobs:
       MIRROR: "https://mirrors.edge.kernel.org/ubuntu"
       FLAVOUR: generic
     strategy:
-      matrix:
-        kernel:
-          [
-            { "name": "20.04", "kernel": "5.4.0" },
-            { "name": "18.04", "kernel": "4.19.0" },
-          ]
+      fail-fast: false
     steps:
       - name: "Git checkout"
         uses: actions/checkout@v3
@@ -33,8 +30,11 @@ jobs:
         uses: ./.github/actions/build-dependencies
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: ""
-
+      - name: "Download Kernel Headers"
+        run: |
+          sudo apt-get install build-essential
+          sudo apt-get update
+          sudo apt-get install linux-headers($uname -r)
       - name: Build non-CO-RE
         run: |
           cd plugin/driver/eBPF
