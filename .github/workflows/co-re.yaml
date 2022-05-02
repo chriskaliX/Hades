@@ -13,7 +13,6 @@ jobs:
   CO-RE:
     name: "Build eBPF driver(CO-RE)"
     runs-on: ubuntu-latest
-    shell: bash
     strategy:
       fail-fast: false
     steps:
