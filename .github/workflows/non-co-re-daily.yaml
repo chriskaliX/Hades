@@ -8,7 +8,7 @@ env:
   GO_VERSION: "1.17"
 
 jobs:
-  non-CO-RE-ubuntu-18.04:
+  non-CO-RE-ubuntu-18-04:
     name: "Build eBPF driver(header)"
     runs-on: ubuntu-lastest
     timeout-minutes: 90

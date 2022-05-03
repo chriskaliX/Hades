@@ -1,5 +1,7 @@
 # Hades
 
+[![CO-RE](https://github.com/chriskaliX/Hades/actions/workflows/co-re.yaml/badge.svg)](https://github.com/chriskaliX/Hades/actions/workflows/co-re.yaml)
+
 Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本下通过 Netlink 进行事件审计。
 
 项目借鉴了 [Tracee](https://github.com/aquasecurity/tracee) 以及 [Elkeid](https://github.com/bytedance/Elkeid) 中的代码以及思想

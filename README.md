@@ -1,14 +1,16 @@
 # Hades
 
+[![CO-RE](https://github.com/chriskaliX/Hades/actions/workflows/co-re.yaml/badge.svg)](https://github.com/chriskaliX/Hades/actions/workflows/co-re.yaml)
+
 English | [中文](README-zh_CN.md)
 
-Hades is a Host-based Intrusion Detection System based on both eBPF and Netlink/cn_proc. Now it's still under development. PRs and issues are welcomed!
+Hades is a Host-based Intrusion Detection System based on eBPF and netlink/cn_proc. Now it's still under development. PRs and issues are welcome!
 
 This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [Elkeid](https://github.com/bytedance/Elkeid). Thanks for these awesome open-source projects.
 
 ## Architecture
 
-> Agent part is mainly based on [Elkeid](https://github.com/bytedance/Elkeid) version 1.7. And I am gonna make plugin/driver compatible for Elkeid.
+> Agent part is mainly based on [Elkeid](https://github.com/bytedance/Elkeid) version 1.7. And I am going to make plugins(including the driver) compatible with Elkeid.
 
 ### Agent Part
 
