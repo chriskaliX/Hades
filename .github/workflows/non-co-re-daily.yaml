@@ -27,7 +27,7 @@ jobs:
         run: |
           sudo apt-get install build-essential
           sudo apt-get update
-          sudo apt-get install linux-headers($uname -r)
+          sudo apt-get install linux-headers-$(uname -r)
       - name: Build non-CO-RE
         run: |
           cd plugin/driver/eBPF
