@@ -40,6 +40,6 @@ int kprobe_security_sb_mount(struct pt_regs *ctx)
     save_to_submit_buf(&data, &flags, sizeof(unsigned long), 3);
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 4);
-    save_pid_tree_to_buf(&data, 4, 5);
+    save_pid_tree_to_buf(&data, 8, 5);
     return events_perf_submit(&data);
 }

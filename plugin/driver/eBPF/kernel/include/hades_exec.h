@@ -25,6 +25,13 @@ struct _sys_enter_execve
     const char *const *envp;
 };
 
+struct _sys_exit_execve
+{
+    unsigned long long unused;
+    long syscall_nr;
+    long ret;
+};
+
 struct _sys_enter_execveat
 {
     unsigned long long unused;
@@ -94,11 +101,10 @@ struct _sys_enter_memfd_create
 // TODO:
 // In Elkeid, stdout and stdin are filename, need to check for that.
 
-/* execve hooks */
-// TODO: filter to pid, file_path, swicher in kernel space!
-// TODO: sys_enter_execve failed with ../../ stuff, need to check out
+// Key: pid_tid, Value: event_data_t
+BPF_LRU_HASH(execve_cache, u64, struct event_data_t, 1024);
+/* execve hooks pairs */
 // kprobe method or get this from sys_exit_execve
-// ltp tested
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
@@ -109,7 +115,15 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = SYS_ENTER_EXECVE;
-    // filename
+    /* filename
+     * The filename contains dot slash thing. It's not abs path,
+     * but the args[0] of execve(at)
+     * like Elkeid, we should get this in kretprobe/exit from
+     * the get_exe_from_task function. (current->mm->exe_file->f_path)
+     * and it's safe to access path in it's own context
+     */
+    // void *exe = get_exe_from_task(data.task);
+    // save_str_to_buf(&data, exe, 0);
     save_str_to_buf(&data, (void *)ctx->filename, 0);
     // cwd
     struct fs_struct *file = get_task_fs(data.task);
@@ -129,11 +143,23 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     // socket
     get_socket_info(&data, 5);
     // pid_tree
-    save_pid_tree_to_buf(&data, 4, 6);
+    save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
+    // u64 id = bpf_get_current_pid_tgid();
+    // return bpf_map_update_elem(&execve_cache, &id, &data, BPF_ANY);
 }
+
+// SEC("tracepoint/syscalls/sys_exit_execve")
+// int sys_exit_execve(struct _sys_exit_execve *ctx)
+// {
+//     u64 id = bpf_get_current_pid_tgid();
+//     event_data_t *data = bpf_map_lookup_elem(&execve_cache, &id);
+//     if (data == NULL)
+//         return 0;
+//     return events_perf_submit(data);
+// }
 
 // ltp tested
 SEC("tracepoint/syscalls/sys_enter_execveat")
@@ -163,7 +189,7 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     // socket
     get_socket_info(&data, 5);
     // pid_tree
-    save_pid_tree_to_buf(&data, 4, 6);
+    save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
@@ -253,7 +279,7 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 3);
     // By the way, the data is removed.
     // get the pid tree
-    save_pid_tree_to_buf(&data, 6, 4);
+    save_pid_tree_to_buf(&data, 12, 4);
     return events_perf_submit(&data);
 }
 
@@ -335,38 +361,5 @@ int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
     cache.ppid = ppid;
     bpf_probe_read_str(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
     bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
-    return 0;
-}
-
-/* lsm bprm: unfinished - 看的tracee, 上次看了又忘记了... */
-// https://blog.aquasec.com/ebpf-container-tracing-malware-detection
-// 这个主要检测 dynamic code execution, 如果不捕获 payload, 是否能只做简单匹配
-SEC("kprobe/security_bprm_check")
-int kprobe_security_bprm_check(struct pt_regs *ctx)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 5;
-    struct linux_binprm *bprm = (struct linux_binprm *)PT_REGS_PARM1(ctx);
-    struct file *file = READ_KERN(bprm->file);
-    void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));
-    // 这里 tracee 和 datadog 的做法不一样, datadog 的执行都会放到一个 LRU 里面, 做存储, 来做跨 programs 的传输
-    // 但是 security_bprm_check 的 hook 原因是啥呢? 看着 tracee 下的应该是对内存执行的监控, 这种是跳过 execve 的, 所以从上下文的 LRU 里取不到就 return (datadog 做法), 可能是没有意义的
-    // 当然衍生出另外一个问题, 这个 hook 会导致 execve 下的数量翻倍, 同一个链路下的, 考虑在内核态做过滤
-    // TODO: 场景探究 & 内核过滤必要性
-    buf_t *string_p = get_buf(STRING_BUF_IDX);
-    if (string_p == NULL)
-        return 0;
-    // memfd 这个应该相当于 kprobe/memfd_create, 还有一个 shm_open https://x-c3ll.github.io/posts/fileless-memfd_create/ 可以绕过字节的 hook 吗? 字节的大佬说 execve 可以 hook
-    // 对应的也就是 /dev/shm/ | /run/shm/
-    // 这样 hook 考虑到性能问题, 需要看 datadog 下对这个的加速
-    // TODO: optimize this function get_path_str
-    // code 有问题, 注意 string_p 的偏移, 获取当前 offset 来操作
-    if (has_prefix("memfd://", (char *)&string_p->buf[0], 9) || has_prefix("/dev/shm/", (char *)&string_p->buf[0], 10), has_prefix("/run/shm/", (char *)&string_p->buf[0], 10))
-    {
-        save_str_to_buf(&data, file_path, 0);
-        return events_perf_submit(&data);
-    }
     return 0;
 }

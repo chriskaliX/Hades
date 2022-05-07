@@ -97,6 +97,10 @@ func (Execve) GetProbe() []*manager.Probe {
 			Section:      "tracepoint/syscalls/sys_enter_execve",
 			EbpfFuncName: "sys_enter_execve",
 		},
+		{
+			Section:      "tracepoint/syscalls/sys_exit_execve",
+			EbpfFuncName: "sys_exit_execve",
+		},
 	}
 }
 

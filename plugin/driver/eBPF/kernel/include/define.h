@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <net/inet_sock.h>
 #include <uapi/linux/un.h>
+#include <uapi/linux/bpf.h>
 #include <linux/bpf.h>
 #else
 #include <vmlinux.h>

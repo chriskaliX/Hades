@@ -32,7 +32,7 @@ int uretprobe_bash_readline(struct pt_regs *ctx)
     // socket
     get_socket_info(&data, 5);
     // add pid_tree to the field
-    save_pid_tree_to_buf(&data, 4, 6);
+    save_pid_tree_to_buf(&data, 8, 6);
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
