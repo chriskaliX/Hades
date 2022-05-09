@@ -1,11 +1,12 @@
 #ifndef __DEFINE_H
 #define __DEFINE_H
 #ifndef CORE
+#include <uapi/linux/btf.h>
+#include <linux/btf.h>
 #include <linux/kconfig.h>
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
 #include <linux/utsname.h>
-#include <linux/types.h>
 #include <linux/ns_common.h>
 #include <linux/sched/signal.h>
 #include <linux/tty.h>
@@ -114,6 +115,7 @@ typedef struct string
     char str[MAX_STR_FILTER_SIZE];
 } string_t;
 
+// Both mnt_namespace & mount are defined in <fs/mount.h>
 #ifndef CORE
 struct mnt_namespace
 {
@@ -122,7 +124,6 @@ struct mnt_namespace
     // ...
 };
 
-// use this in get_path_str thing...
 struct mount
 {
     struct hlist_node mnt_hash;

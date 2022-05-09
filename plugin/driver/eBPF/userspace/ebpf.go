@@ -1,18 +1,19 @@
 package userspace
 
 import (
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+
+	"go.uber.org/zap"
 )
 
 // ebpf 主程序, 真正的 runner
 func Hades() error {
 	if err := DefaultDriver.Init(); err != nil {
-		fmt.Println(err.Error())
+		zap.S().Error(err)
 	}
 	if err := DefaultDriver.Manager.Start(); err != nil {
-		fmt.Println(err.Error())
+		zap.S().Error(err)
 	}
 
 	// DefaultDriver.Manager.Stop(manager.CleanAll)

@@ -9,6 +9,9 @@
 
 #ifndef CORE
 #include <linux/module.h>
+#include <linux/kobject.h>
+#include <linux/kthread.h>
+#include <linux/err.h>
 #else
 #include <vmlinux.h>
 #include <missing_definitions.h>
@@ -169,7 +172,66 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 
+// Pre define for all
+#define IDT_CACHE 0
+#define IDT_ENTRIES 256
 #define MAX_KSYM_NAME_SIZE 64
+#define BETWEEN_PTR(x, y, z) ( \
+    ((uintptr_t)x >= (uintptr_t)y) && \
+    ((uintptr_t)x < ((uintptr_t)y+(uintptr_t)z)) \
+)
+// CO-RE only since macros not in vmlinux.h
+// TODO: need to look into `list_for_each_entry`
+#ifdef CORE
+#define list_first_entry(ptr, type, member) \
+	list_entry((ptr)->next, type, member)
+#define list_entry(ptr, type, member) \
+	container_of(ptr, type, member)
+#define list_entry_is_head(pos, head, member)				\
+	(&pos->member == (head))
+#define list_next_entry(pos, member) \
+	list_entry((pos)->member.next, typeof(*(pos)), member)
+#define list_for_each_entry(pos, head, member)				\
+	for (pos = list_first_entry(head, typeof(*pos), member);	\
+	    !list_entry_is_head(pos, head, member);			\
+	    pos = list_next_entry(pos, member))
+
+#define MAX_ERRNO	4095
+#define unlikely(x)	__builtin_expect(!!(x), 0)
+#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
+#endif
+
+// Map pre-define, will be moved to define.h
+// local cache for analyze_cache
+BPF_HASH(analyze_cache, int, u32, 20);
+
+// pre-define function
+static struct module *(*get_module_from_addr)(unsigned long addr);
+
+static __always_inline int get_cache(int key)
+{
+    u32 *config = bpf_map_lookup_elem(&analyze_cache, &key);
+    if (config == NULL)
+        return 0;
+    return *config;
+}
+
+static __always_inline void update_cache(int key, u32 value)
+{
+    bpf_map_update_elem(&analyze_cache, &key, &value, BPF_ANY);
+}
+
+//
+static inline bool HADES_IS_ERR_OR_NULL(const void *ptr)
+{
+	return unlikely(!ptr) || IS_ERR_VALUE((unsigned long)ptr);
+}
+
+static inline const char *get_kobject_name(const struct kobject *kobj)
+{
+    return kobj->name;
+}
+
 typedef struct ksym_name
 {
     char str[MAX_KSYM_NAME_SIZE];
@@ -243,69 +305,60 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     events_perf_submit(data);
 }
 
-// local cache for analyze_cache
-BPF_HASH(analyze_cache, int, u32, 20);
-#define IDT_CACHE 0
-static __always_inline int get_cache(int key)
-{
-    u32 *config = bpf_map_lookup_elem(&analyze_cache, &key);
-    if (config == NULL)
-        return 0;
-    return *config;
-}
-static __always_inline void update_cache(int key, u32 value)
-{
-    bpf_map_update_elem(&analyze_cache, &key, &value, BPF_ANY);
-}
-
-static struct module *(*get_module_from_addr)(unsigned long addr);
-
-#define BETWEEN_PTR(x, y, z) ( \
-    ((uintptr_t)x >= (uintptr_t)y) && \
-    ((uintptr_t)x < ((uintptr_t)y+(uintptr_t)z)) \
-)
-
 static const char *find_hidden_module(unsigned long addr)
 {
+    const char *mod_name = NULL;
+    struct kobject *cur;
+    struct module_kobject *kobj;
+    
+    // get module_kset address
     char module_kset[12] = "module_kset";
-    unsigned long *module_kset_addr = (unsigned long *)get_symbol_addr(module_kset);
-    return NULL;
+    struct kset *mod_kset = (struct kset *)get_symbol_addr(module_kset);
+    if (mod_kset == NULL)
+        return NULL;
+    // `list_for_each_entry` should be used here. BUT, again, loop...
+    #pragma unroll 16
+    list_for_each_entry(cur, &mod_kset->list, entry) {
+        if(!get_kobject_name(cur))
+            break;
+        kobj = container_of(cur, struct module_kobject, kobj);
+        if (!kobj || !kobj->mod)
+            continue;
+        if (BETWEEN_PTR(addr, kobj->mod->core_layout.base,
+			kobj->mod->core_layout.size))
+			mod_name = kobj->mod->name;
+    }
+    return mod_name;
 }
 
 // interrupts detection
-// x86 only, and since loops should be bounded in BPF(for compatibility),
-// We can trigger this for mulitiple times. Like 256, we can split into
-// 16 * 16, and get some data from userspace through BPF_MAP
-// TODO: unfinished
-#define IDT_ENTRIES 256
-static void *analyze_interrupts(void)
+static void analyze_interrupts(event_data_t* data)
 {
 #ifdef bpf_target_x86
     char idt_table[10] = "idt_table";
     unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
-    int start = get_cache(IDT_CACHE);
-    int loop_end = (start + 1) * 16;
+    int index = get_cache(IDT_CACHE);
     struct module *mod;
     unsigned long addr;
-
-#pragma unroll
-    for (int i = start * 16; i < loop_end; i++)
-    {
-        const char *mod_name = "-1";
-        addr = READ_KERN(idt_table_addr[i]);
-        if (addr == 0)
-            return NULL;
-        mod = get_module_from_addr(addr);
-        if(mod) {
-            mod_name = READ_KERN(mod->name);
+    const char *mod_name = "-1";
+    addr = READ_KERN(idt_table_addr[index]);
+    if (addr == 0)
+        return;
+    mod = get_module_from_addr(addr);
+    if(mod) {
+        mod_name = READ_KERN(mod->name);
+    } else {
+        const char * name = find_hidden_module(addr);
+        if (!HADES_IS_ERR_OR_NULL(name)) {
+            mod_name = name;
+            save_str_to_buf(data, &name, 0);
+            events_perf_submit(data);
         }
     }
-
-    if (start == 15)
+    if (index == 255)
         update_cache(IDT_CACHE, 0);
     else
-        update_cache(IDT_CACHE, (start + 1));
-    return NULL;
-
+        update_cache(IDT_CACHE, (index + 1));
+    return;
 #endif
 }

@@ -104,7 +104,7 @@ struct _sys_enter_memfd_create
 // Key: pid_tid, Value: event_data_t
 // Reference: https://facebookmicrosites.github.io/bpf/blog/2018/11/14/btf-enhancement.html
 // BTF_KIND_FWD
-BPF_LRU_HASH(execve_cache, u64, event_data_t, 1024);
+// BPF_LRU_HASH(execve_cache, u64, struct event_data_t, 1024);
 /* execve hooks pairs */
 // kprobe method or get this from sys_exit_execve
 SEC("tracepoint/syscalls/sys_enter_execve")
@@ -148,20 +148,20 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
-    // return events_perf_submit(&data);
-    u64 id = bpf_get_current_pid_tgid();
-    return bpf_map_update_elem(&execve_cache, &id, &data, BPF_ANY);
+    return events_perf_submit(&data);
+    // u64 id = bpf_get_current_pid_tgid();
+    // return bpf_map_update_elem(&execve_cache, &id, &data, BPF_ANY);
 }
 
-SEC("tracepoint/syscalls/sys_exit_execve")
-int sys_exit_execve(struct _sys_exit_execve *ctx)
-{
-    u64 id = bpf_get_current_pid_tgid();
-    event_data_t *data = bpf_map_lookup_elem(&execve_cache, &id);
-    if (data == NULL)
-        return 0;
-    return events_perf_submit(data);
-}
+// SEC("tracepoint/syscalls/sys_exit_execve")
+// int sys_exit_execve(struct _sys_exit_execve *ctx)
+// {
+//     u64 id = bpf_get_current_pid_tgid();
+//     event_data_t *data = bpf_map_lookup_elem(&execve_cache, &id);
+//     if (data == NULL)
+//         return 0;
+//     return events_perf_submit(data);
+// }
 
 // ltp tested
 SEC("tracepoint/syscalls/sys_enter_execveat")
