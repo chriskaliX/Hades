@@ -8,7 +8,7 @@
 
 ## eBPF 快速启动
 
-> 环境要求：内核版本高于 4.18, golang 版本 >= 1.17
+> 环境要求：内核版本高于 4.18, golang 版本 >= 1.17。非常建议使用 ubuntu 21.04 或者以上版本, 可以减少环境配置的时间成本
 
 1. 下载 Header (如果支持 BTF, 跳过此步骤)
 
@@ -27,7 +27,7 @@
 
    - CORE 编译
 
-     `make debug-core`(结果输出至终端)
+     `make core-debug`(结果输出至终端)
 
    - 非 CO-RE 编译(从 kernel-header)
 
