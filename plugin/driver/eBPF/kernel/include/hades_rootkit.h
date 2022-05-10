@@ -171,9 +171,9 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // @Reference: https://blog.csdn.net/dog250/article/details/105394840
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
-
 // Pre define for all
 #define IDT_CACHE 0
+#define SYSCALL_CACHE 1
 #define IDT_ENTRIES 256
 #define MAX_KSYM_NAME_SIZE 64
 #define BETWEEN_PTR(x, y, z) ( \
@@ -205,9 +205,7 @@ int kprobe_call_usermodehelper(struct pt_regs *ctx)
 // local cache for analyze_cache
 BPF_HASH(analyze_cache, int, u32, 20);
 
-// pre-define function
-static struct module *(*get_module_from_addr)(unsigned long addr);
-
+// pre-define functions
 static __always_inline int get_cache(int key)
 {
     u32 *config = bpf_map_lookup_elem(&analyze_cache, &key);
@@ -221,7 +219,7 @@ static __always_inline void update_cache(int key, u32 value)
     bpf_map_update_elem(&analyze_cache, &key, &value, BPF_ANY);
 }
 
-//
+// Just for rename...
 static inline bool HADES_IS_ERR_OR_NULL(const void *ptr)
 {
 	return unlikely(!ptr) || IS_ERR_VALUE((unsigned long)ptr);
@@ -263,6 +261,120 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 // Back to Elkeid anti_rootkit, which is based on https://github.com/nbulischeck/tyton
 // detecting syscall_hooks/interrupt_hooks(IDT)/modules/fops(/proc). And I think a BAD
 // eBPF program should also be considered.
+static const char *find_hidden_module(unsigned long addr)
+{
+    const char *mod_name = NULL;
+    struct kobject *cur;
+    struct module_kobject *kobj;
+    // get module_kset address
+    char module_kset[12] = "module_kset";
+    struct kset *mod_kset = (struct kset *)get_symbol_addr(module_kset);
+    if (mod_kset == NULL)
+        return NULL;
+    // `list_for_each_entry` should be used here. BUT, again, loop...
+    #pragma unroll 32
+    list_for_each_entry(cur, &mod_kset->list, entry) {
+        if(!get_kobject_name(cur))
+            break;
+        kobj = container_of(cur, struct module_kobject, kobj);
+        if (!kobj || !kobj->mod)
+            continue;
+        if (BETWEEN_PTR(addr, kobj->mod->core_layout.base,
+			kobj->mod->core_layout.size))
+			mod_name = kobj->mod->name;
+    }
+    return mod_name;
+}
+
+// interrupts detection
+static void analyze_interrupts(event_data_t* data)
+{
+#ifdef bpf_target_x86
+    char idt_table[10] = "idt_table";
+    unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
+    int index = get_cache(IDT_CACHE);
+    struct module *mod;
+    unsigned long addr;
+    const char *mod_name = "-1";
+    addr = READ_KERN(idt_table_addr[index]);
+    if (addr == 0)
+        return;
+    mod = (struct module *)addr;
+    if(mod) {
+        mod_name = READ_KERN(mod->name);
+    } else {
+        const char *name = find_hidden_module(addr);
+        if (!HADES_IS_ERR_OR_NULL(name)) {
+            mod_name = name;
+            save_str_to_buf(data, &name, 0);
+            save_to_submit_buf(data, &index, sizeof(int), 1);
+            int field = ANTI_ROOTKIT_IDT;
+            save_to_submit_buf(data, &field, sizeof(int), 2);
+            events_perf_submit(data);
+        }
+    }
+    return;
+#endif
+}
+
+static void analyze_syscalls(event_data_t *data)
+{
+    char syscall_table[15] = "sys_call_table";
+    unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
+    int index = get_cache(SYSCALL_CACHE);
+
+    struct module *mod;
+    unsigned long addr;
+    const char *mod_name = "-1";
+    addr = READ_KERN(syscall_table_addr[index]);
+    if (addr == 0)
+        return;
+    mod = (struct module *)addr;
+    if(mod) {
+        mod_name = READ_KERN(mod->name);
+    } else {
+        const char * name = find_hidden_module(addr);
+        if (!HADES_IS_ERR_OR_NULL(name)) {
+            mod_name = name;
+            save_str_to_buf(data, &name, 0);
+            save_to_submit_buf(data, &index, sizeof(int), 1);
+            int field = ANTI_ROOTKIT_SYSCALL;
+            save_to_submit_buf(data, &field, sizeof(int), 2);
+            events_perf_submit(data);
+        }
+    }
+    return;
+}
+
+#define IOCTL_SCAN_SYSCALLS 65
+#define IOCTL_SCAN_IDTS     66
+
+SEC("kprobe/security_file_ioctl")
+int BPF_KPROBE(kprobe_security_file_ioctl)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    
+    unsigned int cmd = PT_REGS_PARM2(ctx);
+    // Skip if not the pid we need
+    if(get_config(CONFIG_HADES_PID) != data.context.pid)
+        return 0;
+
+    if (cmd == IOCTL_SCAN_SYSCALLS)
+    {
+        data.context.type = ANTI_ROOTKIT_SYSCALL;
+        analyze_syscalls(&data);
+    } 
+    else if (cmd == IOCTL_SCAN_IDTS)
+    {
+        data.context.type = ANTI_ROOTKIT_IDT;
+        analyze_interrupts(&data);
+    }
+    return 0;
+}
+
+// Below here, Tracee... scan limited syscal_table_addr ... 
 static __always_inline void sys_call_table_scan(event_data_t *data)
 {
 
@@ -303,62 +415,4 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     }
     save_u64_arr_to_buf(data, (const u64 *)syscall_address, monitored_syscalls_amount, 0);
     events_perf_submit(data);
-}
-
-static const char *find_hidden_module(unsigned long addr)
-{
-    const char *mod_name = NULL;
-    struct kobject *cur;
-    struct module_kobject *kobj;
-    
-    // get module_kset address
-    char module_kset[12] = "module_kset";
-    struct kset *mod_kset = (struct kset *)get_symbol_addr(module_kset);
-    if (mod_kset == NULL)
-        return NULL;
-    // `list_for_each_entry` should be used here. BUT, again, loop...
-    #pragma unroll 16
-    list_for_each_entry(cur, &mod_kset->list, entry) {
-        if(!get_kobject_name(cur))
-            break;
-        kobj = container_of(cur, struct module_kobject, kobj);
-        if (!kobj || !kobj->mod)
-            continue;
-        if (BETWEEN_PTR(addr, kobj->mod->core_layout.base,
-			kobj->mod->core_layout.size))
-			mod_name = kobj->mod->name;
-    }
-    return mod_name;
-}
-
-// interrupts detection
-static void analyze_interrupts(event_data_t* data)
-{
-#ifdef bpf_target_x86
-    char idt_table[10] = "idt_table";
-    unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
-    int index = get_cache(IDT_CACHE);
-    struct module *mod;
-    unsigned long addr;
-    const char *mod_name = "-1";
-    addr = READ_KERN(idt_table_addr[index]);
-    if (addr == 0)
-        return;
-    mod = get_module_from_addr(addr);
-    if(mod) {
-        mod_name = READ_KERN(mod->name);
-    } else {
-        const char * name = find_hidden_module(addr);
-        if (!HADES_IS_ERR_OR_NULL(name)) {
-            mod_name = name;
-            save_str_to_buf(data, &name, 0);
-            events_perf_submit(data);
-        }
-    }
-    if (index == 255)
-        update_cache(IDT_CACHE, 0);
-    else
-        update_cache(IDT_CACHE, (index + 1));
-    return;
-#endif
 }

@@ -49,6 +49,12 @@
 #define NUMBER_OF_SYSCALLS_TO_CHECK_X86 18
 #define NUMBER_OF_SYSCALLS_TO_CHECK_ARM 14
 
+// Configurations and filters
+enum hades_ebpf_config {
+    CONFIG_HADES_PID,
+    CONFIG_FILTERS
+};
+
 /* ========== MAP MICRO DEFINATION ========== */
 // update since bpf_map_def is marked as deprecated
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries)     \
@@ -160,6 +166,7 @@ struct pid_cache_t
 
 /* filters that communicate with user_space prog */
 BPF_ARRAY(path_filter, string_t, 32);
+BPF_ARRAY(config_map, u32, 4);
 BPF_HASH(pid_filter, u32, u32, 32);
 BPF_HASH(cgroup_id_filter, u64, u32, 32);
 /* for pid -> parent cmdline */
@@ -255,10 +262,16 @@ static __always_inline u32 *get_buf_off(int buf_idx)
 // mount
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
-    // @Note
-    // #define container_of(ptr, type, member) ({ \ const typeof( ((type *)0)->member ) *__mptr = (ptr); \ (type *)( (char *)__mptr - offsetof(type,member) );})
-    // 从结构体的一个成员变量地址, 获取到一个结构体的首地址
+    // get address from member
     return container_of(mnt, struct mount, mnt);
+}
+
+static __always_inline int get_config(u32 key)
+{
+    u32 *config = bpf_map_lookup_elem(&config_map, &key);
+    if (config == NULL)
+        return 0;
+    return *config;
 }
 
 /* hook point id */
@@ -276,7 +289,10 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 #define SECURITY_INODE_CREATE     1028
 #define SECURITY_SB_MOUNT         1029
 #define CALL_USERMODEHELPER       1030
+#define ANTI_ROOTKIT              1031    
 // uprobe
 #define BASH_READLINE             2000
-
+// rootkit field
+#define ANTI_ROOTKIT_SYSCALL      1500
+#define ANTI_ROOTKIT_IDT          1501
 #endif //__DEFINE_H
