@@ -11,10 +11,11 @@ var DefaultPrctl = &Prctl{}
 var _ decoder.Event = (*Prctl)(nil)
 
 type Prctl struct {
-	Exe     string `json:"-"`
-	Option  string `json:"option"`
-	Newname string `json:"newname,omitempty"`
-	Flag    uint32 `json:"flag,omitempty"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Option             string `json:"option"`
+	Newname            string `json:"newname,omitempty"`
+	Flag               uint32 `json:"flag,omitempty"`
 }
 
 func (Prctl) ID() uint32 {

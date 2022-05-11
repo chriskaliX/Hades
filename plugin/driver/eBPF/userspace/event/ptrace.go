@@ -11,12 +11,13 @@ var DefaultPtrace = &Ptrace{}
 var _ decoder.Event = (*Ptrace)(nil)
 
 type Ptrace struct {
-	Exe            string `json:"-"`
-	Requests       int64  `json:"request"`
-	TargetPid      int64  `json:"targetpid"`
-	Addr           uint64 `json:"addr"`
-	PidTree        string `json:"pid_tree"`
-	PrivEscalation uint8  `json:"priv_esca"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Requests           int64  `json:"request"`
+	TargetPid          int64  `json:"targetpid"`
+	Addr               uint64 `json:"addr"`
+	PidTree            string `json:"pid_tree"`
+	PrivEscalation     uint8  `json:"priv_esca"`
 }
 
 func (Ptrace) ID() uint32 {

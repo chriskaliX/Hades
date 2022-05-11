@@ -13,6 +13,7 @@ import (
 	"github.com/chriskaliX/plugin"
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
+	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 )
 
@@ -33,9 +34,12 @@ type Driver struct {
 func (d *Driver) Init() (err error) {
 	d.Manager = &manager.Manager{}
 	events := decoder.GetEvents()
+	// Get all Probes and Maps
 	for _, event := range events {
 		d.Manager.Probes = append(d.Manager.Probes, event.GetProbe()...)
+		d.Manager.Maps = append(d.Manager.Maps, event.GetMaps()...)
 	}
+	// Regist main events which should not be regist in events
 	d.Manager.PerfMaps = []*manager.PerfMap{
 		{
 			Map: manager.Map{
@@ -48,6 +52,13 @@ func (d *Driver) Init() (err error) {
 			},
 		},
 	}
+	// Regist common maps which is globally used
+	d.Manager.Maps = append(d.Manager.Maps, []*manager.Map{
+		{
+			Name: "config_map",
+		},
+	}...)
+	// init manager options, TODO: LogSize is test only now.
 	err = d.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
 		DefaultKProbeMaxActive: 512,
 
@@ -56,7 +67,6 @@ func (d *Driver) Init() (err error) {
 				LogSize: 2097152 * 100,
 			},
 		},
-
 		RLimit: &unix.Rlimit{
 			Cur: math.MaxUint64,
 			Max: math.MaxUint64,
@@ -65,8 +75,31 @@ func (d *Driver) Init() (err error) {
 	return
 }
 
-func (d *Driver) Run() error {
+func (d *Driver) Start() error {
 	return d.Manager.Start()
+}
+
+// This is used for after-run initialization for global maps(some common values)
+func (d *Driver) AfterRunInitialization() error {
+	configMap, found, err := d.Manager.GetMap("config_map")
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("config_map not found")
+	}
+	// enum hades_ebpf_config {
+	// 	CONFIG_HADES_PID,
+	// 	CONFIG_FILTERS
+	// };
+	var syscall_index uint32 = 0
+	var pid uint32 = uint32(os.Getpid())
+	err = configMap.Update(syscall_index, pid, ebpf.UpdateAny)
+	if err != nil {
+		return err
+	}
+	// TODO: filters are not added for now
+	return nil
 }
 
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
@@ -77,7 +110,11 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		return
 	}
 	d.eventDecoder = decoder.GetEvent(ctx.Type)
-	d.eventDecoder.Parse()
+	err = d.eventDecoder.Parse()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	ctx.SetEvent(d.eventDecoder)
 	ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
 	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))

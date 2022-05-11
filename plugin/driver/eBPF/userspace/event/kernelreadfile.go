@@ -12,10 +12,11 @@ var DefaultKernelReadFile = &KernelReadFile{}
 var _ decoder.Event = (*KernelReadFile)(nil)
 
 type KernelReadFile struct {
-	TypeId   int32  `json:"typeid"`
-	Exe      string `json:"-"`
-	Filename string `json:"filename"`
-	Sha256   string `json:"sha256"`
+	decoder.BasicEvent `json:"-"`
+	TypeId             int32  `json:"typeid"`
+	Exe                string `json:"-"`
+	Filename           string `json:"filename"`
+	Sha256             string `json:"sha256"`
 }
 
 func (KernelReadFile) ID() uint32 {

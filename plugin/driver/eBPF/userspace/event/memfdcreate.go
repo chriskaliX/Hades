@@ -11,9 +11,10 @@ var DefaultMemfdCreate = &MemfdCreate{}
 var _ decoder.Event = (*MemfdCreate)(nil)
 
 type MemfdCreate struct {
-	Exe   string `json:"-"`
-	Uname string `json:"uname"`
-	Flags uint32 `json:"flags"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Uname              string `json:"uname"`
+	Flags              uint32 `json:"flags"`
 }
 
 func (MemfdCreate) ID() uint32 {

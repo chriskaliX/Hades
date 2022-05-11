@@ -12,10 +12,11 @@ var DefaultSockConn = &SocketConnect{}
 var _ decoder.Event = (*SocketConnect)(nil)
 
 type SocketConnect struct {
-	Family     int16  `json:"family"`
-	RemotePort string `json:"remote_port"`
-	RemoteAddr string `json:"remote_addr"`
-	Exe        string `json:"-"`
+	decoder.BasicEvent `json:"-"`
+	Family             int16  `json:"family"`
+	RemotePort         string `json:"remote_port"`
+	RemoteAddr         string `json:"remote_addr"`
+	Exe                string `json:"-"`
 }
 
 func (SocketConnect) ID() uint32 {

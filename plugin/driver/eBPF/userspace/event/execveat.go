@@ -12,19 +12,20 @@ var DefaultExecveAt = &ExecveAt{}
 var _ decoder.Event = (*ExecveAt)(nil)
 
 type ExecveAt struct {
-	Exe            string `json:"-"`
-	Cwd            string `json:"cwd"`
-	TTYName        string `json:"tty_name"`
-	Stdin          string `json:"stdin"`
-	Stdout         string `json:"stdout"`
-	RemotePort     string `json:"remote_port"`
-	RemoteAddr     string `json:"remote_addr"`
-	PidTree        string `json:"pid_tree"`
-	Cmdline        string `json:"cmdline"`
-	PrivEscalation uint8  `json:"priv_esca"`
-	SSHConnection  string `json:"ssh_connection"`
-	LDPreload      string `json:"ld_preload"`
-	Syscall        string `json:"syscall"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Cwd                string `json:"cwd"`
+	TTYName            string `json:"tty_name"`
+	Stdin              string `json:"stdin"`
+	Stdout             string `json:"stdout"`
+	RemotePort         string `json:"remote_port"`
+	RemoteAddr         string `json:"remote_addr"`
+	PidTree            string `json:"pid_tree"`
+	Cmdline            string `json:"cmdline"`
+	PrivEscalation     uint8  `json:"priv_esca"`
+	SSHConnection      string `json:"ssh_connection"`
+	LDPreload          string `json:"ld_preload"`
+	Syscall            string `json:"syscall"`
 }
 
 func (ExecveAt) ID() uint32 {

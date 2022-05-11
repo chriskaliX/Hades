@@ -12,11 +12,12 @@ var DefaultSockBind = &SocketBind{}
 var _ decoder.Event = (*SocketBind)(nil)
 
 type SocketBind struct {
-	Family    int16  `json:"family"`
-	LocalPort string `json:"local_port"`
-	LocalAddr string `json:"local_addr"`
-	Protocol  uint16 `json:"protocol"`
-	Exe       string `json:"-"`
+	decoder.BasicEvent `json:"-"`
+	Family             int16  `json:"family"`
+	LocalPort          string `json:"local_port"`
+	LocalAddr          string `json:"local_addr"`
+	Protocol           uint16 `json:"protocol"`
+	Exe                string `json:"-"`
 }
 
 func (SocketBind) ID() uint32 {

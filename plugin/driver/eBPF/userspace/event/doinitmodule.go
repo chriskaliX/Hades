@@ -11,11 +11,12 @@ var DefaultDoInitModule = &DoInitModule{}
 var _ decoder.Event = (*DoInitModule)(nil)
 
 type DoInitModule struct {
-	Exe            string `json:"-"`
-	Modname        string `json:"modname"`
-	Pidtree        string `json:"pidt_ree"`
-	Cwd            string `json:"cwd"`
-	PrivEscalation uint8  `json:"priv_esca"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Modname            string `json:"modname"`
+	Pidtree            string `json:"pidt_ree"`
+	Cwd                string `json:"cwd"`
+	PrivEscalation     uint8  `json:"priv_esca"`
 }
 
 func (DoInitModule) ID() uint32 {

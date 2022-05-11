@@ -12,10 +12,11 @@ var _ decoder.Event = (*InodeCreate)(nil)
 
 // Sha256 maybe, and others
 type InodeCreate struct {
-	Exe        string `json:"exe"`
-	Filename   string `json:"filename"`
-	RemotePort string `json:"remote_port"`
-	RemoteAddr string `json:"remote_addr"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"exe"`
+	Filename           string `json:"filename"`
+	RemotePort         string `json:"remote_port"`
+	RemoteAddr         string `json:"remote_addr"`
 }
 
 func (InodeCreate) ID() uint32 {

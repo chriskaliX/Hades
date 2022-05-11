@@ -11,10 +11,11 @@ var DefaultUdpRecvmsg = &UdpRecvmsg{}
 var _ decoder.Event = (*UdpRecvmsg)(nil)
 
 type UdpRecvmsg struct {
-	Exe     string `json:"-"`
-	Opcode  int32  `json:"opcode"`
-	Rcode   int32  `json:"rcode"`
-	DnsData string `json:"dns_data"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Opcode             int32  `json:"opcode"`
+	Rcode              int32  `json:"rcode"`
+	DnsData            string `json:"dns_data"`
 }
 
 func (UdpRecvmsg) ID() uint32 {

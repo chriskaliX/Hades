@@ -12,11 +12,12 @@ var DefaultCallUsermodeHelper = &CallUsermodeHelper{}
 var _ decoder.Event = (*CallUsermodeHelper)(nil)
 
 type CallUsermodeHelper struct {
-	Exe  string `json:"-"`
-	Path string `json:"path"`
-	Argv string `json:"argv"`
-	Envp string `json:"envp"`
-	Wait int32  `json:"wait"`
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Path               string `json:"path"`
+	Argv               string `json:"argv"`
+	Envp               string `json:"envp"`
+	Wait               int32  `json:"wait"`
 }
 
 func (CallUsermodeHelper) ID() uint32 {

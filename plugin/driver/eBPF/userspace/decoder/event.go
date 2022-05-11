@@ -10,12 +10,17 @@ type Event interface {
 	String() string
 	GetExe() string
 	GetProbe() []*manager.Probe
+	GetMaps() []*manager.Map
 }
 
 // use eventId as a key
 var eventMap map[uint32]Event = make(map[uint32]Event)
 
 func Regist(event Event) {
+	// TEST
+	if event.ID() != 1031 {
+		return
+	}
 	eventMap[event.ID()] = event
 }
 
