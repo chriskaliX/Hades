@@ -108,6 +108,21 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			zap.S().Error(err)
 			return
 		}
+
+		updateKMap := func(key string, value string) error {
+			v, err := strconv.ParseUint(value, 16, 64)
+			if err != nil {
+				return err
+			}
+			k := make([]byte, 64)
+			copy(k, "sys_call_table")
+			err = ksymbolsMap.Update(unsafe.Pointer(&k[0]), unsafe.Pointer(&v), ebpf.UpdateAny)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
 		buf := bufio.NewReader(f)
 		for {
 			line, err := buf.ReadString('\n')
@@ -124,38 +139,12 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			}
 			switch fields[2] {
 			case "sys_call_table":
-				value, err := strconv.ParseUint(fields[0], 16, 64)
-				if err != nil {
-					zap.S().Error(err)
-					break
-				}
-				key := make([]byte, 64)
-				copy(key, "sys_call_table")
-				err = ksymbolsMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value), ebpf.UpdateAny)
+				err = updateKMap("sys_call_table", fields[0])
 				if err != nil {
 					zap.S().Error(err)
 				}
 			case "idt_table":
-				value, err := strconv.ParseUint(fields[0], 16, 64)
-				if err != nil {
-					zap.S().Error(err)
-					break
-				}
-				key := make([]byte, 64)
-				copy(key, "idt_table")
-				err = ksymbolsMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value), ebpf.UpdateAny)
-				if err != nil {
-					zap.S().Error(err)
-				}
-			case "module_kset":
-				value, err := strconv.ParseUint(fields[0], 16, 64)
-				if err != nil {
-					zap.S().Error(err)
-					break
-				}
-				key := make([]byte, 64)
-				copy(key, "module_kset")
-				err = ksymbolsMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value), ebpf.UpdateAny)
+				err = updateKMap("idt_table", fields[0])
 				if err != nil {
 					zap.S().Error(err)
 				}
