@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/userspace/helper"
 	"io"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/aquasecurity/libbpfgo/helpers"
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 	"go.uber.org/zap"
@@ -81,11 +83,17 @@ func (AntiRootkit) GetMaps() []*manager.Map {
 }
 
 var once sync.Once
+var kernelSymbols *helper.KernelSymbolTableByAddr
 
-const IDT_CACHE = 0
-const SYSCALL_CACHE = 1
-const TRIGGER_IDT int = 66
-const TRIGGER_SYSCALL int = 65
+const (
+	IDT_CACHE = iota
+	SYSCALL_CACHE
+)
+
+const (
+	TRIGGER_SYSCALL int = iota + 65
+	TRIGGER_IDT
+)
 
 // Scan for userspace to work with the kernel part
 func (AntiRootkit) Scan(m *manager.Manager) error {
@@ -108,21 +116,21 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			zap.S().Error(err)
 			return
 		}
-
+		// update function
 		updateKMap := func(key string, value string) error {
 			v, err := strconv.ParseUint(value, 16, 64)
 			if err != nil {
 				return err
 			}
 			k := make([]byte, 64)
-			copy(k, "sys_call_table")
+			copy(k, key)
 			err = ksymbolsMap.Update(unsafe.Pointer(&k[0]), unsafe.Pointer(&v), ebpf.UpdateAny)
 			if err != nil {
 				return err
 			}
 			return nil
 		}
-
+		// start to read
 		buf := bufio.NewReader(f)
 		for {
 			line, err := buf.ReadString('\n')
@@ -151,6 +159,7 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			}
 		}
 	})
+
 	analyzeCache, found, err := m.GetMap("analyze_cache")
 	if err != nil {
 		return err
@@ -181,7 +190,27 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 	return nil
 }
 
+var globalSymbolOwner = "system"
+
+// From tracee.
+func LoadKallsymsValues(ksymsTable *helpers.KernelSymbolTable, ksymbols []string) map[string]*helpers.KernelSymbol {
+	kallsymsMap := make(map[string]*helpers.KernelSymbol)
+	for _, name := range ksymbols {
+		symbol, err := ksymsTable.GetSymbolByName(globalSymbolOwner, name)
+		if err == nil {
+			kallsymsMap[name] = symbol
+		}
+	}
+	return kallsymsMap
+}
+
 // Regist and trigger
 func init() {
+	var err error
+	kernelSymbols, err = helper.NewKernelSymbolsMapByAddr()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	decoder.Regist(DefaultAntiRootkit)
 }
