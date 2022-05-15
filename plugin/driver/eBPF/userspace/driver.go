@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/userspace/event"
 	"hades-ebpf/userspace/share"
 	"math"
 	"os"
@@ -112,6 +113,9 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	d.eventDecoder = decoder.GetEvent(ctx.Type)
 	err = d.eventDecoder.Parse()
 	if err != nil {
+		if err == event.ErrIgnore {
+			return
+		}
 		zap.S().Error(err)
 		return
 	}

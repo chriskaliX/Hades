@@ -7,6 +7,7 @@ go 1.17
 require (
 	github.com/chriskaliX/plugin v0.0.0-00010101000000-000000000000
 	github.com/cilium/ebpf v0.8.1
+	github.com/mitchellh/hashstructure/v2 v2.0.2
 	go.uber.org/zap v1.21.0
 )
 
@@ -20,7 +21,6 @@ require (
 	github.com/josharian/native v1.0.0 // indirect
 	github.com/mdlayher/netlink v1.6.0 // indirect
 	github.com/mdlayher/socket v0.2.3 // indirect
-	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
@@ -35,7 +35,6 @@ require (
 	github.com/goccy/go-json v0.9.7
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/jwangsadinata/go-multimap v0.0.0-20190620162914-c29f3d7f33b6
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a

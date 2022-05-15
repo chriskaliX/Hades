@@ -7,10 +7,8 @@ import (
 	"os"
 	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 
-	"github.com/aquasecurity/libbpfgo/helpers"
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 	"go.uber.org/zap"
@@ -22,7 +20,7 @@ var _ decoder.Event = (*AntiRootkit)(nil)
 
 type AntiRootkit struct {
 	decoder.BasicEvent `json:"-"`
-	Index              uint32 `json:"index"`
+	Index              uint64 `json:"index"`
 	Field              string `json:"field"`
 }
 
@@ -36,27 +34,26 @@ func (AntiRootkit) String() string {
 
 func (a *AntiRootkit) Parse() (err error) {
 	var (
-		addr   uint64
-		field  int32
-		index  uint64
-		_index uint8
+		addr  uint64
+		field int32
+		index uint8
 	)
 	// get addr
-	if err = decoder.DefaultDecoder.DecodeUint8(&_index); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
 	if err = decoder.DefaultDecoder.DecodeUint64(&addr); err != nil {
 		return
 	}
 	// get index
-	if err = decoder.DefaultDecoder.DecodeUint8(&_index); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint64(&index); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint64(&a.Index); err != nil {
 		return
 	}
 	// get field
-	if err = decoder.DefaultDecoder.DecodeUint8(&_index); err != nil {
+	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
 		return
 	}
 	if err = decoder.DefaultDecoder.DecodeInt32(&field); err != nil {
@@ -73,9 +70,11 @@ func (a *AntiRootkit) Parse() (err error) {
 
 	data := kernelSymbols.Get(addr)
 	if data == nil {
-		fmt.Printf("\033[1;31;40m%s %d is hooked\033[0m\n", a.Field, index)
+		// TEST CODE
+		fmt.Printf("\033[1;31;40m%s %d is hooked\033[0m\n", a.Field, a.Index)
+		return
 	}
-
+	err = ErrIgnore
 	return
 }
 
@@ -142,25 +141,28 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			}
 			return nil
 		}
-
+		// update sys_call_table address to map
 		sct := kernelSymbols.Get("sys_call_table")
-
 		if sct != nil {
 			err = updateKMap("sys_call_table", sct.Address)
 			if err != nil {
 				zap.S().Error(err)
 			}
+		} else {
+			zap.S().Error("sys_call_table is not found")
 		}
-
+		// update idt_table address to map
 		idt := kernelSymbols.Get("idt_table")
 		if sct != nil {
 			err = updateKMap("idt_table", idt.Address)
 			if err != nil {
 				zap.S().Error(err)
 			}
+		} else {
+			zap.S().Error("idt_table is not found")
 		}
 	})
-	time.Sleep(5 * time.Second)
+	// update the analyzeCache
 	analyzeCache, found, err := m.GetMap("analyze_cache")
 	if err != nil {
 		return err
@@ -168,17 +170,18 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 	if !found {
 		return fmt.Errorf("analyze_cache not found")
 	}
-	// Update the map_value and trigger, 300 just for test
-	ptmx, err := os.OpenFile("test", os.O_RDONLY, 0444)
+	// Update the map_value and trigger
+	ptmx, err := os.OpenFile("/proc/self/cmdline", os.O_RDONLY, 0444)
 	if err != nil {
 		return err
 	}
 	defer ptmx.Close()
 	var (
 		syscall_cache int32 = SYSCALL_CACHE
+		idt_cache     int32 = IDT_CACHE
 		value         uint64
 	)
-
+	// syscall scan
 	for i := 0; i <= 302; i++ {
 		// update the syscall index we want to scan
 		value = uint64(i)
@@ -190,21 +193,18 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 		// trigger by the syscall
 		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_SYSCALL), 0)
 	}
-	return nil
-}
 
-var globalSymbolOwner = "system"
-
-// From tracee.
-func LoadKallsymsValues(ksymsTable *helpers.KernelSymbolTable, ksymbols []string) map[string]*helpers.KernelSymbol {
-	kallsymsMap := make(map[string]*helpers.KernelSymbol)
-	for _, name := range ksymbols {
-		symbol, err := ksymsTable.GetSymbolByName(globalSymbolOwner, name)
-		if err == nil {
-			kallsymsMap[name] = symbol
+	for i := 0; i < 256; i++ {
+		value = uint64(i)
+		err := analyzeCache.Update(unsafe.Pointer(&idt_cache), unsafe.Pointer(&value), ebpf.UpdateAny)
+		if err != nil {
+			zap.S().Error(err)
+			return err
 		}
+		// trigger by the syscall
+		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_IDT), 0)
 	}
-	return kallsymsMap
+	return nil
 }
 
 // Regist and trigger

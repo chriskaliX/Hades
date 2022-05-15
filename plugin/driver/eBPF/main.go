@@ -4,6 +4,7 @@ import (
 	"flag"
 	"hades-ebpf/userspace"
 	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/userspace/event"
 	_ "hades-ebpf/userspace/event"
 	"os"
 	"os/signal"
@@ -37,8 +38,38 @@ func main() {
 	filter := flag.Uint64("f", 0, "filter")
 	flag.Parse()
 	decoder.SetFilter(*filter)
-
-	userspace.Hades()
+	// the real functions
+	var err error
+	if err = userspace.DefaultDriver.Init(); err != nil {
+		zap.S().Error(err)
+		return
+	}
+	if err = userspace.DefaultDriver.Start(); err != nil {
+		zap.S().Error(err)
+		return
+	}
+	if err = userspace.DefaultDriver.AfterRunInitialization(); err != nil {
+		zap.S().Error(err)
+		return
+	}
+	// scan job here
+	go func() {
+		init := true
+		ticker := time.NewTicker(time.Second * 5)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if init {
+					ticker.Reset(time.Minute * 15)
+					init = false
+				}
+				if err = event.DefaultAntiRootkit.Scan(userspace.DefaultDriver.Manager); err != nil {
+					zap.S().Error(err)
+				}
+			}
+		}
+	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)

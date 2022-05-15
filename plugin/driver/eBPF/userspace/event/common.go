@@ -3,6 +3,7 @@ package event
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 	"net"
@@ -14,7 +15,8 @@ import (
 )
 
 var (
-	bytepool buffer.Pool
+	bytepool  buffer.Pool
+	ErrIgnore = errors.New("ignore")
 )
 
 func init() {
