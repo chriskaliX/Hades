@@ -1,16 +1,13 @@
 package event
 
 import (
-	"bufio"
 	"fmt"
 	"hades-ebpf/userspace/decoder"
 	"hades-ebpf/userspace/helper"
-	"io"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/aquasecurity/libbpfgo/helpers"
@@ -38,20 +35,47 @@ func (AntiRootkit) String() string {
 }
 
 func (a *AntiRootkit) Parse() (err error) {
-	var addr uint32
-	var field int32
-	var index uint64
-
-	if err = decoder.DefaultDecoder.DecodeUint32(&addr); err != nil {
+	var (
+		addr   uint64
+		field  int32
+		index  uint64
+		_index uint8
+	)
+	// get addr
+	if err = decoder.DefaultDecoder.DecodeUint8(&_index); err != nil {
 		return
 	}
-	fmt.Println(addr)
+	if err = decoder.DefaultDecoder.DecodeUint64(&addr); err != nil {
+		return
+	}
+	// get index
+	if err = decoder.DefaultDecoder.DecodeUint8(&_index); err != nil {
+		return
+	}
 	if err = decoder.DefaultDecoder.DecodeUint64(&index); err != nil {
+		return
+	}
+	// get field
+	if err = decoder.DefaultDecoder.DecodeUint8(&_index); err != nil {
 		return
 	}
 	if err = decoder.DefaultDecoder.DecodeInt32(&field); err != nil {
 		return
 	}
+
+	d := kernelSymbols.Get("sys_call_table")
+	if d != nil {
+		fmt.Println(d.Address)
+	}
+
+	data := kernelSymbols.Get(addr)
+	if data != nil {
+		fmt.Println(data.Name)
+	} else {
+		fmt.Printf("\033[1;31;40m%d\033[0m\n", index)
+	}
+	fmt.Println(addr, index, field)
+	// select field
 	switch field {
 	case 1500:
 		a.Field = "syscall"
@@ -83,7 +107,7 @@ func (AntiRootkit) GetMaps() []*manager.Map {
 }
 
 var once sync.Once
-var kernelSymbols *helper.KernelSymbolTableByAddr
+var kernelSymbols *helper.KernelSymbolTable
 
 const (
 	IDT_CACHE = iota
@@ -110,56 +134,39 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			zap.S().Error(err)
 			return
 		}
-		// Read the kallsyms
-		f, err := os.Open("/proc/kallsyms")
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
 		// update function
-		updateKMap := func(key string, value string) error {
-			v, err := strconv.ParseUint(value, 16, 64)
+		updateKMap := func(key string, value uint64) error {
 			if err != nil {
 				return err
 			}
 			k := make([]byte, 64)
 			copy(k, key)
+			v := value
 			err = ksymbolsMap.Update(unsafe.Pointer(&k[0]), unsafe.Pointer(&v), ebpf.UpdateAny)
 			if err != nil {
 				return err
 			}
 			return nil
 		}
-		// start to read
-		buf := bufio.NewReader(f)
-		for {
-			line, err := buf.ReadString('\n')
+
+		sct := kernelSymbols.Get("sys_call_table")
+
+		if sct != nil {
+			err = updateKMap("sys_call_table", sct.Address)
 			if err != nil {
-				if err == io.EOF {
-					break
-				} else {
-					return
-				}
+				zap.S().Error(err)
 			}
-			fields := strings.Fields(line)
-			if len(fields) != 3 {
-				continue
-			}
-			switch fields[2] {
-			case "sys_call_table":
-				err = updateKMap("sys_call_table", fields[0])
-				if err != nil {
-					zap.S().Error(err)
-				}
-			case "idt_table":
-				err = updateKMap("idt_table", fields[0])
-				if err != nil {
-					zap.S().Error(err)
-				}
+		}
+
+		idt := kernelSymbols.Get("idt_table")
+		if sct != nil {
+			err = updateKMap("idt_table", idt.Address)
+			if err != nil {
+				zap.S().Error(err)
 			}
 		}
 	})
-
+	time.Sleep(5 * time.Second)
 	analyzeCache, found, err := m.GetMap("analyze_cache")
 	if err != nil {
 		return err
@@ -183,7 +190,6 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			zap.S().Error(err)
 			return err
 		}
-		fmt.Println("triggered: ", i)
 		// trigger by the syscall
 		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_SYSCALL), 0)
 	}
@@ -207,7 +213,7 @@ func LoadKallsymsValues(ksymsTable *helpers.KernelSymbolTable, ksymbols []string
 // Regist and trigger
 func init() {
 	var err error
-	kernelSymbols, err = helper.NewKernelSymbolsMapByAddr()
+	kernelSymbols, err = helper.NewKernelSymbolsMap()
 	if err != nil {
 		zap.S().Error(err)
 		return

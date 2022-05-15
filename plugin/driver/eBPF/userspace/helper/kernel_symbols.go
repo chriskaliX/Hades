@@ -8,23 +8,55 @@ import (
 	"strings"
 
 	"github.com/aquasecurity/libbpfgo/helpers"
-	"github.com/jwangsadinata/go-multimap/setmultimap"
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 /*
  * The helpers in this file based on libbpfgo.
  *
  * The key of the kernel map is changed into address for this project only.
+ * Multikey should be considered. Since we search by both key and name
+ *
+ * key1 --
+ * 			-- map[key]hashcode => map[hashcode]struct
+ * key2 --
  */
 
-type KernelSymbolTableByAddr struct {
-	symbolMap   *setmultimap.MultiMap
+type KernelSymbolTable struct {
+	hashmap     map[interface{}]uint64
+	symbolMap   map[uint64]helpers.KernelSymbol
 	initialized bool
 }
 
-func NewKernelSymbolsMapByAddr() (*KernelSymbolTableByAddr, error) {
-	var KernelSymbols = KernelSymbolTableByAddr{}
-	KernelSymbols.symbolMap = setmultimap.New()
+func (k *KernelSymbolTable) set(key interface{}, value helpers.KernelSymbol) error {
+	hashcode, err := hashstructure.Hash(key, hashstructure.FormatV2, nil)
+	if err != nil {
+		return err
+	}
+	k.hashmap[key] = hashcode
+	if _, ok := k.symbolMap[hashcode]; !ok {
+		k.symbolMap[hashcode] = value
+	}
+	return nil
+}
+
+func (k *KernelSymbolTable) Get(key interface{}) *helpers.KernelSymbol {
+	value, ok := k.hashmap[key]
+	if !ok {
+		return nil
+	}
+	if v, ok := k.symbolMap[value]; ok {
+		return &v
+	}
+	return nil
+}
+
+func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
+	var KernelSymbols = KernelSymbolTable{
+		hashmap:   make(map[interface{}]uint64),
+		symbolMap: make(map[uint64]helpers.KernelSymbol),
+	}
+
 	file, err := os.Open("/proc/kallsyms")
 	if err != nil {
 		return nil, fmt.Errorf("Could not open /proc/kallsyms")
@@ -53,10 +85,10 @@ func NewKernelSymbolsMapByAddr() (*KernelSymbolTableByAddr, error) {
 			Name:    symbolName,
 			Type:    symbolType,
 			Address: symbolAddr,
-			Owner:   symbolOwner}
-
-		KernelSymbols.symbolMap.Put(symbolAddr, symbol)
-		KernelSymbols.symbolMap.Put(symbolName, symbol)
+			Owner:   symbolOwner,
+		}
+		KernelSymbols.set(symbolName, symbol)
+		KernelSymbols.set(symbolAddr, symbol)
 	}
 	KernelSymbols.initialized = true
 	return &KernelSymbols, nil

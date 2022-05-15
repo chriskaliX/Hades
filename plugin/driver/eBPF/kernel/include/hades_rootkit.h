@@ -388,7 +388,7 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
         return;
     
     save_to_submit_buf(data, &syscall_addr, sizeof(unsigned long), 0);
-    save_to_submit_buf(data, &idx, sizeof(u64), 1);
+    save_to_submit_buf(data, &syscall_num, sizeof(u64), 1);
 
     int field = ANTI_ROOTKIT_SYSCALL;
     save_to_submit_buf(data, &field, sizeof(int), 2);
