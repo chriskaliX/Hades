@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ebpf 主程序, 真正的 runner
+// eBPF main function
 func Hades() (err error) {
 	if err = DefaultDriver.Init(); err != nil {
 		zap.S().Error(err)

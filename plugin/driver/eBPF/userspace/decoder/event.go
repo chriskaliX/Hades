@@ -17,10 +17,6 @@ type Event interface {
 var eventMap map[uint32]Event = make(map[uint32]Event)
 
 func Regist(event Event) {
-	// TEST
-	if event.ID() != 1031 {
-		return
-	}
 	eventMap[event.ID()] = event
 }
 
@@ -30,4 +26,16 @@ func GetEvent(id uint32) Event {
 
 func GetEvents() map[uint32]Event {
 	return eventMap
+}
+
+// Set filter use this.
+func SetFilter(i uint64) {
+	if i == 0 {
+		return
+	}
+	for k := range eventMap {
+		if uint64(k) != i {
+			delete(eventMap, k)
+		}
+	}
 }

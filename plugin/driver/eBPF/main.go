@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"hades-ebpf/userspace"
+	"hades-ebpf/userspace/decoder"
 	_ "hades-ebpf/userspace/event"
 	"os"
 	"os/signal"
@@ -31,7 +33,13 @@ func main() {
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
+	// filters for command line
+	filter := flag.Uint64("f", 0, "filter")
+	flag.Parse()
+	decoder.SetFilter(*filter)
+
 	userspace.Hades()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 	sig := <-sigs

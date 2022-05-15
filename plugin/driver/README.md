@@ -37,6 +37,11 @@
 
    在 driver 目录下，会看见对应的 driver 文件，启动即可
 
+4. 过滤 id
+
+   cmdline 支持 `-f` 选项，根据下面的 ID 可以指定 filter
+   例如: `./driver -f 1031`， 只运行 `kprobe/security_file_ioctl` 即 anti_rootkit hook
+
 ## 目前支持 Hook
 
 > Hook 的作用和笔记记录在 `Hades/plugin/driver/eBPF/kernel/include` 下各个函数中, 持续学习并且更新。后续会讲笔记附在这个 Repo，或者新开一个 Repo 用于维护
@@ -59,6 +64,7 @@
 | security_inode_create                      | ON                                    | 1028 |
 | security_sb_mount                          | ON                                    | 1029 |
 | kprobe/call_usermodehelper                 | ON                                    | 1030 |
+| kprobe/security_file_ioctl                 | ON(anti rootkit scan)                 | 1031 |
 
 用户态 Hook
 | Hook 名称 | 状态/说明 | ID |
@@ -69,4 +75,9 @@ uprobe 下 bash 执行结果大概率会和 execve 下相同，考虑后期是�
 
 ## 内核扫描
 
-> still working
+> 扫描方式: 通过内核态 eBPF 程序获取对应 table 的函数地址, 与用户态读取的 kallsyms 比对判断是否被 hook
+
+目前支持:
+
+|Scan field|
+|sys_call_table|

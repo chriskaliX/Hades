@@ -63,18 +63,6 @@ func (a *AntiRootkit) Parse() (err error) {
 		return
 	}
 
-	d := kernelSymbols.Get("sys_call_table")
-	if d != nil {
-		fmt.Println(d.Address)
-	}
-
-	data := kernelSymbols.Get(addr)
-	if data != nil {
-		fmt.Println(data.Name)
-	} else {
-		fmt.Printf("\033[1;31;40m%d\033[0m\n", index)
-	}
-	fmt.Println(addr, index, field)
 	// select field
 	switch field {
 	case 1500:
@@ -82,6 +70,12 @@ func (a *AntiRootkit) Parse() (err error) {
 	case 1501:
 		a.Field = "idt"
 	}
+
+	data := kernelSymbols.Get(addr)
+	if data == nil {
+		fmt.Printf("\033[1;31;40m%s %d is hooked\033[0m\n", a.Field, index)
+	}
+
 	return
 }
 
@@ -180,9 +174,12 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 		return err
 	}
 	defer ptmx.Close()
-	var syscall_cache int32 = SYSCALL_CACHE
-	var value uint64
-	for i := 0; i < 300; i++ {
+	var (
+		syscall_cache int32 = SYSCALL_CACHE
+		value         uint64
+	)
+
+	for i := 0; i <= 302; i++ {
 		// update the syscall index we want to scan
 		value = uint64(i)
 		err := analyzeCache.Update(unsafe.Pointer(&syscall_cache), unsafe.Pointer(&value), ebpf.UpdateAny)
