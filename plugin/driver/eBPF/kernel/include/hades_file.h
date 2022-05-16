@@ -6,7 +6,7 @@
 
 // ltp tested
 SEC("kprobe/security_inode_create")
-int kprobe_security_inode_create(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_security_inode_create)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -23,7 +23,7 @@ int kprobe_security_inode_create(struct pt_regs *ctx)
 
 // ltp tested
 SEC("kprobe/security_sb_mount")
-int kprobe_security_sb_mount(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_security_sb_mount)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))

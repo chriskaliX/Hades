@@ -14,9 +14,8 @@
 #include "bpf_tracing.h"
 
 // Detection of privilege escalation
-// TODO: going to go through this. would this been too much for this?
 SEC("kprobe/commit_creds")
-int kprobe_commit_creds(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_commit_creds)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))

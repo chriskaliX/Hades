@@ -44,7 +44,7 @@
 // Firstly, do_init_module is the thing that we need. Any mod that loaded should
 // be monitored.
 SEC("kprobe/do_init_module")
-int kprobe_do_init_module(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_do_init_module)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -82,7 +82,7 @@ int kprobe_do_init_module(struct pt_regs *ctx)
 // work since it's been removed in kernel version 4.6...
 // security_kernel_read_file seems stable and is used by tracee
 SEC("kprobe/security_kernel_read_file")
-int kprobe_security_kernel_read_file(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_security_kernel_read_file)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -102,7 +102,7 @@ int kprobe_security_kernel_read_file(struct pt_regs *ctx)
 // Add rootkit detection just like in Elkeid.
 // @Notice: this is under full test
 SEC("kprobe/call_usermodehelper")
-int kprobe_call_usermodehelper(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_call_usermodehelper)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -245,8 +245,8 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 // eBPF program should also be considered.
 
 // Below here is the Elkeid way of anti_rootkit by scanning the syscall_table
-// idt_table and ... to get the mod of the function to figure out if it's a 
-// hidden module. But this a little bit tricky in eBPF program since the 
+// idt_table and ... to get the mod of the function to figure out if it's a
+// hidden module. But this a little bit tricky in eBPF program since the
 // __module_address to the the mod of the address.
 // static const char *find_hidden_module(unsigned long addr, event_data_t *data)
 // {
@@ -341,7 +341,7 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 //     addr = READ_KERN(syscall_table_addr[syscall_num]);
 //     if (addr == 0)
 //         return;
-//     // Can't not use the __module_address API function here. We have to 
+//     // Can't not use the __module_address API function here. We have to
 //     // a lot of work of this...
 //     mod = (struct module *)addr;
 //     if (mod)
@@ -386,7 +386,7 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
     if (syscall_addr == 0)
         return;
-    
+
     save_to_submit_buf(data, &syscall_addr, sizeof(unsigned long), 0);
     save_to_submit_buf(data, &syscall_num, sizeof(u64), 1);
 

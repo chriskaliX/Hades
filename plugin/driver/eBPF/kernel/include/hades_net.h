@@ -8,7 +8,7 @@
 // By the way, notes for pt_regs. Kernel version over 4.17 is supported.
 // finished
 SEC("kprobe/security_socket_connect")
-int kprobe_security_socket_connect(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_security_socket_connect)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -41,7 +41,7 @@ int kprobe_security_socket_connect(struct pt_regs *ctx)
 }
 
 SEC("kprobe/security_socket_bind")
-int kprobe_security_socket_bind(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_security_socket_bind)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -87,7 +87,7 @@ BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 1024);
 // all.
 // @Reference: https://www.nlnetlabs.nl/downloads/publications/DNS-augmentation-with-eBPF.pdf
 SEC("kprobe/udp_recvmsg")
-int kprobe_udp_recvmsg(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_udp_recvmsg)
 {
     // get the sock
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
@@ -131,7 +131,7 @@ struct udpdata
 
 // @Reference: https://en.wikipedia.org/wiki/Domain_Name_System
 SEC("kretprobe/udp_recvmsg")
-int kretprobe_udp_recvmsg(struct pt_regs *ctx)
+int BPF_KRETPROBE(kretprobe_udp_recvmsg)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     struct msghdr **msgpp = bpf_map_lookup_elem(&udpmsg, &pid_tgid);

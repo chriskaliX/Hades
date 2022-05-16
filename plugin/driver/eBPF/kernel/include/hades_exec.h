@@ -315,15 +315,15 @@ int sys_enter_kill(struct _sys_enter_kill *ctx)
 }
 
 /* exit hooks */
-// 日志量很大...开启的必要性是... 默认第一版本不开启吧, 字节他们好像也很少开启...
-// reference of exit & exit_group: https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
+// reference of exit & exit_group:
+// https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
 SEC("kprobe/do_exit")
-int kprobe_do_exit(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_do_exit)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u32 tgid = pid_tgid >> 32;
     u32 pid = pid_tgid;
-    // TODO: figure - 线程退出
+    // TODO: figure out this
     if (tgid != pid)
     {
         return 0;
@@ -338,9 +338,8 @@ int kprobe_do_exit(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
-// 默认不开启
 SEC("kprobe/sys_exit_group")
-int kprobe_sys_exit_group(struct pt_regs *ctx)
+int BPF_KPROBE(kprobe_sys_exit_group)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
