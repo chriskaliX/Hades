@@ -59,7 +59,7 @@ int BPF_KPROBE(kprobe_security_socket_bind)
     sa_family_t sa_fam = READ_KERN(address->sa_family);
     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
         return 0;
-    
+
     switch (sa_fam)
     {
     case AF_INET:
@@ -152,10 +152,19 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
     // By the way this struct(msghdr) is defined in socket.h
     struct msghdr *msg = (struct msghdr *)*msgpp;
     // Check the msghdr length
-    struct iovec *iov = (struct iovec *) READ_KERN(msg->msg_iter.iov);
-    if (iov == NULL)
+    // issue #39 BUG fix:
+    // due to wrong usage of READ_KERN
+    struct iov_iter msg_iter;
+    int ret = bpf_probe_read(&msg_iter, sizeof(msg_iter), &msg->msg_iter);
+    if (ret != 0)
         goto delete;
+    struct iovec *iov;
+    ret = bpf_probe_read(&iov, sizeof(struct iovec), msg_iter.iov);
+    if (ret != 0)
+        goto delete;
+
     unsigned long iov_len = READ_KERN(iov->iov_len);
+    bpf_printk("iov_len: %d", iov_len);
     if (iov_len < 20)
         goto delete;
     // truncated here, do not drop, as in dns
@@ -169,7 +178,8 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
     if (string_p == NULL)
         goto delete;
     // TODO: upgrade here
-    bpf_probe_read(&(string_p->buf[0]), iov_len & (512), &iov->iov_base);
+    bpf_probe_read_user(&(string_p->buf[0]), iov_len & (512), &iov->iov_base);
+    bpf_printk("iov_len: %d\n", iov_len);
     // The data structure of dns is here...
     // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys...|
     // The datas that we need are flags & querys
