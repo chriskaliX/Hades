@@ -164,7 +164,6 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
         goto delete;
 
     unsigned long iov_len = READ_KERN(iov->iov_len);
-    bpf_printk("iov_len: %d", iov_len);
     if (iov_len < 20)
         goto delete;
     // truncated here, do not drop, as in dns
@@ -179,7 +178,6 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
         goto delete;
     // TODO: upgrade here
     bpf_probe_read_user(&(string_p->buf[0]), iov_len & (512), &iov->iov_base);
-    bpf_printk("iov_len: %d\n", iov_len);
     // The data structure of dns is here...
     // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys...|
     // The datas that we need are flags & querys
