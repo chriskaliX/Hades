@@ -21,7 +21,7 @@ static __always_inline int save_str_arr_to_buf(event_data_t *data, const char __
 {
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
-    u32 orig_off = data->buf_off + 1;
+    __u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
@@ -63,7 +63,7 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
     // Save space for number of elements (1 byte): [string count]
-    u32 orig_off = data->buf_off + 1;
+    __u32 orig_off = data->buf_off + 1;
     // update the buf_off
     data->buf_off += 2;
     // flags for collection
@@ -123,29 +123,29 @@ out:
     return 1;
 }
 
-static __always_inline int save_u64_arr_to_buf(event_data_t *data, const u64 __user *ptr, int len, u8 index)
+static __always_inline int save___u64_arr_to_buf(event_data_t *data, const __u64 __user *ptr, int len, u8 index)
 {
-    // Data saved to submit buf: [index][u64 count][u64 1][u64 2][u64 3]...
+    // Data saved to submit buf: [index][__u64 count][__u64 1][__u64 2][__u64 3]...
     u8 elem_num = 0;
     // Save argument index
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     // Save space for number of elements (1 byte)
-    u32 orig_off = data->buf_off + 1;
+    __u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
 
 #pragma unroll
     for (int i = 0; i < len; i++)
     {
-        u64 element = 0;
-        int err = bpf_probe_read(&element, sizeof(u64), &ptr[i]);
+        __u64 element = 0;
+        int err = bpf_probe_read(&element, sizeof(__u64), &ptr[i]);
         if (err != 0)
             goto out;
-        if (data->buf_off > MAX_PERCPU_BUFSIZE - sizeof(u64))
+        if (data->buf_off > MAX_PERCPU_BUFSIZE - sizeof(__u64))
             // not enough space - return
             goto out;
 
         void *addr = &(data->submit_p->buf[data->buf_off]);
-        int sz = bpf_probe_read(addr, sizeof(u64), (void *)&element);
+        int sz = bpf_probe_read(addr, sizeof(__u64), (void *)&element);
         if (sz == 0)
         {
             elem_num++;
@@ -153,7 +153,7 @@ static __always_inline int save_u64_arr_to_buf(event_data_t *data, const u64 __u
                 // Satisfy validator
                 goto out;
 
-            data->buf_off += sizeof(u64);
+            data->buf_off += sizeof(__u64);
             continue;
         }
         else
@@ -215,7 +215,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
  * @function: save ptr(struct) to buffer
  * @structure: [index][buffer]
  */
-static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, u32 size, u8 index)
+static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, __u32 size, u8 index)
 {
 // The biggest element that can be saved with this function should be defined here
 #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
@@ -270,7 +270,7 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
 {
     u8 elem_num = 0;
     u8 privilege_flag = 0;
-    u32 pid;
+    __u32 pid;
     int flag;
 
     struct task_struct *task = data->task;
@@ -280,7 +280,7 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     struct cred *parent_cred = NULL;
 
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
-    u32 orig_off = data->buf_off + 1;
+    __u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
     // hard code the limit
     if (limit >= 12)

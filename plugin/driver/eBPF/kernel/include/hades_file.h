@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Authors: chriskalix@protonmail.com
+ */
 #include "define.h"
 #include "utils.h"
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-// ltp tested
 SEC("kprobe/security_inode_create")
 int BPF_KPROBE(kprobe_security_inode_create)
 {
@@ -21,7 +24,6 @@ int BPF_KPROBE(kprobe_security_inode_create)
     return events_perf_submit(&data);
 }
 
-// ltp tested
 SEC("kprobe/security_sb_mount")
 int BPF_KPROBE(kprobe_security_sb_mount)
 {

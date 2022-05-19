@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Authors: chriskalix@protonmail.com
+ */
+#ifndef CORE
+#include <net/sock.h>
+#include <linux/uio.h>
+#endif
+
 #include "define.h"
 #include "utils_buf.h"
 #include "utils.h"
@@ -5,8 +14,6 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-// By the way, notes for pt_regs. Kernel version over 4.17 is supported.
-// finished
 SEC("kprobe/security_socket_connect")
 int BPF_KPROBE(kprobe_security_socket_connect)
 {
@@ -29,12 +36,10 @@ int BPF_KPROBE(kprobe_security_socket_connect)
     case AF_INET6:
         save_to_submit_buf(&data, (void *)address, sizeof(struct sockaddr_in6), 0);
         break;
-    // In Elkeid, connect_syscall_handler, only AF_INET and AF_INET6 are added. But in
-    // tracee, AF_UNIX is also considered.
     default:
         return 0;
     }
-    // get exe from task
+
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 1);
     return events_perf_submit(&data);
@@ -53,7 +58,7 @@ int BPF_KPROBE(kprobe_security_socket_bind)
     // Maybe it's useful, so we need to work on this.
     struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
     struct sock *sk = READ_KERN(sock->sk);
-    u16 protocol = get_sock_protocol(sk);
+    __u16 protocol = get_sock_protocol(sk);
 
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     sa_family_t sa_fam = READ_KERN(address->sa_family);
@@ -94,7 +99,7 @@ int BPF_KPROBE(kprobe_udp_recvmsg)
     struct inet_sock *inet = (struct inet_sock *)sk;
     // only port 53 and 5353 is considered useful here. Port 53 is well
     // known for dns while 5353 is the mDNS
-    u16 dport = READ_KERN(inet->inet_dport);
+    __u16 dport = READ_KERN(inet->inet_dport);
     // @ Notice:
     // In some situation, when we use command 'dig', 'nslookup' etc., it actually
     // comes from other ports(not 53 or 5353).
@@ -227,41 +232,3 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
     delete : bpf_map_delete_elem(&udpmsg, &pid_tgid);
     return 0;
 }
-
-// ===== 暂时不开启, 不做 HOOK ====
-// SEC("kprobe/security_socket_accept")
-// int kprobe_security_socket_accept(struct pt_regs *ctx)
-// {
-//     event_data_t data = {};
-//     if (!init_event_data(&data, ctx))
-//         return 0;
-//     data.context.type = 8;
-
-//     struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
-//     struct sock *sk = READ_KERN(sock->sk);
-
-//     sa_family_t sa_fam = READ_KERN(sk->sk_family);
-//     if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
-//     {
-//         return 0;
-//     }
-//     switch (sa_fam)
-//     {
-//     case AF_INET:
-//         net_conn_v4_t net_details = {};
-//         struct sockaddr_in local;
-//         get_network_details_from_sock_v4(sk, &net_details, 0);
-//         get_local_sockaddr_in_from_network_details(&local, &net_details, family);
-//         save_to_submit_buf(&data, (void *)&local, sizeof(struct sockaddr_in), 0);
-//         break;
-//     // case AF_INET6:
-//     //     net_conn_v6_t net_details = {};
-//     //     struct sockaddr_in6 local;
-//     //     get_network_details_from_sock_v6(sk, &net_details, 0);
-//     //     // get_local_sockaddr_in6_from_network_details(&local, &net_details, family);
-//     //     save_to_submit_buf(&data, (void *)&local, sizeof(struct sockaddr_in6), 0);
-//     //     break;
-//     default:
-//         break;
-//     }
-// }

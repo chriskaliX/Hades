@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Authors: chriskalix@protonmail.com
+ */
 #ifndef CORE
 #include <linux/sched.h>
 #include <linux/binfmts.h>
@@ -94,25 +98,22 @@ struct _sys_enter_memfd_create
     unsigned int flags;
 };
 
-// raw_tracepoint is 5% quicker than tracepoint, while tracepoint is better than using kprobe.
-// @Reference: TRACEE - https://github.com/aquasecurity/tracee/pull/205
-// @Reference: https://lwn.net/Articles/748352/
-// @Prerequisties: kernel version > 4.17 (pt_regs for kprobe)
-// TODO:
-// In Elkeid, stdout and stdin are filename, need to check for that.
-
-// Key: pid_tid, Value: event_data_t
-// Reference: https://facebookmicrosites.github.io/bpf/blog/2018/11/14/btf-enhancement.html
-// BTF_KIND_FWD
-// BPF_LRU_HASH(execve_cache, u64, struct event_data_t, 1024);
-/* execve hooks pairs */
-// kprobe method or get this from sys_exit_execve
+/*
+ * raw_tracepoint should be considered since it's perform better than
+ * tracepoint and kprobe. References are here:
+ * https://github.com/aquasecurity/tracee/pull/205
+ * https://lwn.net/Articles/748352/
+ *
+ * Also, fields like stdin/stdout are not same as Elkeid. Need check
+ * for this.
+ *
+ * issue #34: the filename from ctx is not the execute path we
+ * expected. We need to get the right execute path from kretprobe or
+ * sys_exit_execve in task_struct->mm
+ */
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
-    // it's very strange that we reach the 512 bytes BPF stack limit
-    // in CO-RE. some reference:
-    // https://blog.aquasec.com/ebf-portable-code
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
@@ -127,43 +128,42 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     // void *exe = get_exe_from_task(data.task);
     // save_str_to_buf(&data, exe, 0);
     save_str_to_buf(&data, (void *)ctx->filename, 0);
-    // cwd
+
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
-    // tty
+
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
-    // stdin
+
     void *stdin = get_fraw_str(0);
     save_str_to_buf(&data, stdin, 3);
-    // stdout
+
     void *stdout = get_fraw_str(1);
     save_str_to_buf(&data, stdout, 4);
-    // socket
+
     get_socket_info(&data, 5);
-    // pid_tree
+
     save_pid_tree_to_buf(&data, 8, 6);
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
-    // u64 id = bpf_get_current_pid_tgid();
+    // __u64 id = bpf_get_current_pid_tgid();
     // return bpf_map_update_elem(&execve_cache, &id, &data, BPF_ANY);
 }
 
 // SEC("tracepoint/syscalls/sys_exit_execve")
 // int sys_exit_execve(struct _sys_exit_execve *ctx)
 // {
-//     u64 id = bpf_get_current_pid_tgid();
+//     __u64 id = bpf_get_current_pid_tgid();
 //     event_data_t *data = bpf_map_lookup_elem(&execve_cache, &id);
 //     if (data == NULL)
 //         return 0;
 //     return events_perf_submit(data);
 // }
 
-// ltp tested
 SEC("tracepoint/syscalls/sys_enter_execveat")
 int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 {
@@ -197,17 +197,17 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     return events_perf_submit(&data);
 }
 
-// Prctl(CAP)/Ptrace(SYS_ENTER) inject process
-// @2022-03-02: in Elkeid, only PR_SET_NAME is collected, in function "prctl_pre_handler".
-// using PR_SET_NAME to set name for a process or thread. prctl is the function that we
-// used for change(or get?) the attribute of threads. But the options are too much. And
-// @Refenrence: http://www.leveryd.top/2021-12-26-%E5%A6%82%E4%BD%95%E4%BC%AA%E8%A3%85%E8%BF%9B%E7%A8%8B%E4%BF%A1%E6%81%AF/
-// @Refenrence: https://stackoverflow.com/questions/57749629/manipulating-process-name-and-arguments-by-way-of-argv
-// @Refenrence: https://www.blackhat.com/docs/us-16/materials/us-16-Leibowitz-Horse-Pill-A-New-Type-Of-Linux-Rootkit.pdf
-// as far as I consider, "PR_SET_MM" may should also be added.
-// TODO: By the way, PR_SET_SECCOMP/PR_SET_SECUREBITS/PR_SET_MM all should be reviewed.
-// Pay attention that the syscall_nr is long instead of int.
-// Finished
+/*
+ * Prctl(CAP)/Ptrace(SYS_ENTER) inject process
+ * In Elkeid, only PR_SET_NAME is collected, in function "prctl_pre_handler".
+ * using PR_SET_NAME to set name for a process or thread. prctl is the
+ * function that we use for change(get) the attribute of threads. But there
+ * are too many options for this function. Some references:
+ *
+ * http://www.leveryd.top/2021-12-26-%E5%A6%82%E4%BD%95%E4%BC%AA%E8%A3%85%E8%BF%9B%E7%A8%8B%E4%BF%A1%E6%81%AF/
+ * https://stackoverflow.com/questions/57749629/manipulating-process-name-and-arguments-by-way-of-argv
+ * https://www.blackhat.com/docs/us-16/materials/us-16-Leibowitz-Horse-Pill-A-New-Type-Of-Linux-Rootkit.pdf
+ */
 SEC("tracepoint/syscalls/sys_enter_prctl")
 int sys_enter_prctl(struct _sys_enter_prctl *ctx)
 {
@@ -215,35 +215,30 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = SYS_ENTER_PRCTL;
-    // read the option firstly
+
     int option;
+    char *newname = NULL;
+    unsigned long flag2;
+
     bpf_probe_read(&option, sizeof(option), &ctx->option);
-    // pre-filter, now this is all I get.
     if (option != PR_SET_NAME && option != PR_SET_MM)
         return 0;
-    // save the option
     save_to_submit_buf(&data, &option, sizeof(int), 0);
-    // add exe
+
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 1);
-    // for PR_SET_NAME
-    char *newname = NULL;
-    // for PR_SET_MM
-    unsigned long flag2;
+
     switch (option)
     {
-    // PR_SET_NAME: to change the name of process or thread to deceptive
-    // prctl(PR_SET_NAME, <newname>)
     case PR_SET_NAME:
-        // read this probe from userspace
         bpf_probe_read_user_str(&newname, TASK_COMM_LEN, (char *)ctx->arg2);
         save_str_to_buf(&data, &newname, 2);
         break;
-        // @Reference: http://hermes.survey.ntua.gr/NaTUReS_Lab/ZZZ_Books/CS_IT/Hands-On_System_Programming_With_Linux__Explore_Linux_System_Programming_Interfaces,_Theory,_And_Practice.pdf
-        // @Reference: https://cloud.tencent.com/developer/article/1040079
-        // @Reference: https://man7.org/linux/man-pages/man2/prctl.2.html
-        // To analyze this would be a little bit tricky... if it's PR_SET_MM_MAP, we need to extract the prctl_mm_map
-        // and parse. What we care should be, PR_SET_MM_EXE_FILE, PR_SET_MM_MAP... By the way, we just send the flag of this.
+        /*
+         * Some reference:
+         * https://man7.org/linux/man-pages/man2/prctl.2.html
+         * https://cloud.tencent.com/developer/article/1040079
+         */
     case PR_SET_MM:
         bpf_probe_read_user(&flag2, sizeof(flag2), &ctx->arg2);
         save_to_submit_buf(&data, &flag2, sizeof(unsigned long), 2);
@@ -264,23 +259,19 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
         return 0;
     data.context.type = SYS_ENTER_PTRACE;
     long request;
-    // get the request firstly
     bpf_probe_read(&request, sizeof(request), &ctx->request);
-    // PTRACE_PEEKTEXT: read
-    // PTRACE_POKEDATA: write
     if (request != PTRACE_POKETEXT && request != PTRACE_POKEDATA)
         return 0;
-    // add exe to the buffer
+
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
-    // get the request
+
     save_to_submit_buf(&data, &request, sizeof(long), 1);
-    // get the pid
+
     save_to_submit_buf(&data, &ctx->pid, sizeof(long), 2);
-    // get the addr, which is a pointer
+
     save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 3);
-    // By the way, the data is removed.
-    // get the pid tree
+
     save_pid_tree_to_buf(&data, 12, 4);
     return events_perf_submit(&data);
 }
@@ -298,69 +289,4 @@ int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
     save_str_to_buf(&data, (char *)ctx->uname, 1);
     save_to_submit_buf(&data, &ctx->flags, sizeof(unsigned int), 2);
     return events_perf_submit(&data);
-}
-
-/* Below here, hook is not added in the first version*/
-/* kill/tkill/tgkill */
-SEC("tracepoint/syscalls/sys_enter_kill")
-int sys_enter_kill(struct _sys_enter_kill *ctx)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 8;
-    save_to_submit_buf(&data, &ctx->pid, sizeof(u32), 0);
-    save_to_submit_buf(&data, &ctx->sig, sizeof(int), 1);
-    return 0;
-}
-
-/* exit hooks */
-// reference of exit & exit_group:
-// https://stackoverflow.com/questions/27154256/what-is-the-difference-between-exit-and-exit-group
-SEC("kprobe/do_exit")
-int BPF_KPROBE(kprobe_do_exit)
-{
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    u32 tgid = pid_tgid >> 32;
-    u32 pid = pid_tgid;
-    // TODO: figure out this
-    if (tgid != pid)
-    {
-        return 0;
-    }
-
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 3;
-    long code = PT_REGS_PARM1(ctx);
-    data.context.retval = code;
-    return events_perf_submit(&data);
-}
-
-SEC("kprobe/sys_exit_group")
-int BPF_KPROBE(kprobe_sys_exit_group)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 4;
-    long code = PT_REGS_PARM2(ctx);
-    data.context.retval = code;
-    return events_perf_submit(&data);
-}
-
-/* fork : nothing but just record the command line */
-SEC("tracepoint/sched/sched_process_fork")
-int tracepoint_sched_process_fork(struct _tracepoint_sched_process_fork *ctx)
-{
-    u32 pid = 0;
-    u32 ppid = 0;
-    bpf_probe_read(&pid, sizeof(pid), &ctx->child_pid);
-    bpf_probe_read(&ppid, sizeof(ppid), &ctx->parent_pid);
-    struct pid_cache_t cache = {};
-    cache.ppid = ppid;
-    bpf_probe_read_str(&cache.pcomm, sizeof(cache.pcomm), &ctx->parent_comm);
-    bpf_map_update_elem(&pid_cache_lru, &pid, &cache, BPF_ANY);
-    return 0;
 }

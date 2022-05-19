@@ -57,6 +57,13 @@ func (s *SocketConnect) Parse() (err error) {
 		}
 		s.RemoteAddr = printUint32IP(_addr)
 		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
+		// if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
+		// 	return
+		// }
+		// s.RemotePort = strconv.FormatUint(uint64(_port), 10)
+		// if decoder.DefaultDecoder.DecodeUint32BigEndian(&_addr); err != nil {
+		// 	return
+		// }
 	case 10:
 		var _port uint16
 		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {

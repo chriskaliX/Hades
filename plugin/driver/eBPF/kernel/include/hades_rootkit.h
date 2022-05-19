@@ -217,8 +217,8 @@ typedef struct ksym_name
     char str[MAX_KSYM_NAME_SIZE];
 } ksym_name_t;
 // https://github.com/m0nad/Diamorphine/blob/master/diamorphine.c
-BPF_HASH(ksymbols_map, ksym_name_t, u64, 64);
-BPF_HASH(analyze_cache, int, u64, 2);
+BPF_HASH(ksymbols_map, ksym_name_t, __u64, 64);
+BPF_HASH(analyze_cache, int, __u64, 2);
 
 // get symbol_addr from user_space in /proc/kallsyms
 static __always_inline void *get_symbol_addr(char *symbol_name)
@@ -285,13 +285,13 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 //     char idt_table[10] = "idt_table";
 //     unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
 
-//     u64 idx = SYSCALL_CACHE;
-//     u64 *syscall_num_p;
-//     u64 syscall_num;
+//     __u64 idx = SYSCALL_CACHE;
+//     __u64 *syscall_num_p;
+//     __u64 syscall_num;
 //     syscall_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
 //     if (syscall_num_p == NULL)
 //         return;
-//     syscall_num = (u64)*syscall_num_p;
+//     syscall_num = (__u64)*syscall_num_p;
 
 //     struct module *mod;
 //     unsigned long addr;
@@ -326,13 +326,13 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 //     char syscall_table[15] = "sys_call_table";
 //     unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
 
-//     u64 idx = SYSCALL_CACHE;
-//     u64 *syscall_num_p;
-//     u64 syscall_num;
+//     __u64 idx = SYSCALL_CACHE;
+//     __u64 *syscall_num_p;
+//     __u64 syscall_num;
 //     syscall_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
 //     if (syscall_num_p == NULL)
 //         return;
-//     syscall_num = (u64)*syscall_num_p;
+//     syscall_num = (__u64)*syscall_num_p;
 
 //     struct module *mod;
 //     unsigned long addr = 0;
@@ -374,21 +374,21 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     char syscall_table[15] = "sys_call_table";
     unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
 
-    u64 idx = SYSCALL_CACHE;
-    u64 *syscall_num_p;
-    u64 syscall_num;
+    __u64 idx = SYSCALL_CACHE;
+    __u64 *syscall_num_p;
+    __u64 syscall_num;
     unsigned long syscall_addr = 0;
 
     syscall_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
     if (syscall_num_p == NULL)
         return;
-    syscall_num = (u64)*syscall_num_p;
+    syscall_num = (__u64)*syscall_num_p;
     syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
     if (syscall_addr == 0)
         return;
 
     save_to_submit_buf(data, &syscall_addr, sizeof(unsigned long), 0);
-    save_to_submit_buf(data, &syscall_num, sizeof(u64), 1);
+    save_to_submit_buf(data, &syscall_num, sizeof(__u64), 1);
 
     int field = ANTI_ROOTKIT_SYSCALL;
     save_to_submit_buf(data, &field, sizeof(int), 2);
