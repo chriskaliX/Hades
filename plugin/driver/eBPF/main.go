@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"hades-ebpf/userspace"
 	"hades-ebpf/userspace/decoder"
 	"hades-ebpf/userspace/event"
@@ -71,10 +70,6 @@ func main() {
 			}
 		}
 	}()
-
-	fmt.Println("start to close")
-	err = userspace.DefaultDriver.Close("TpSysEnterExecve")
-	fmt.Println(err)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
