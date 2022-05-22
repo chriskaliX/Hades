@@ -110,7 +110,15 @@ struct _sys_enter_memfd_create
  * issue #34: the filename from ctx is not the execute path we
  * expected. We need to get the right execute path from kretprobe or
  * sys_exit_execve in task_struct->mm
+ * 
+ * Also, in tracee, they said that the argv/envp pointers are invaild
+ * in both entry and exit, be careful if we change the hook to raw_
+ * tracepoint.
  */
+
+// With *bpf.Fwd, reconsider
+// BPF_LRU_HASH(execve_cache, __u64, struct event_data, 10240);
+
 SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
@@ -150,18 +158,28 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
     save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
-    // __u64 id = bpf_get_current_pid_tgid();
-    // return bpf_map_update_elem(&execve_cache, &id, &data, BPF_ANY);
+    // __u64 pid = bpf_get_current_pid_tgid();
+    // return bpf_map_update_elem(&execve_cache, &pid, &data, BPF_ANY);
 }
 
 // SEC("tracepoint/syscalls/sys_exit_execve")
 // int sys_exit_execve(struct _sys_exit_execve *ctx)
 // {
-//     __u64 id = bpf_get_current_pid_tgid();
-//     event_data_t *data = bpf_map_lookup_elem(&execve_cache, &id);
+//     __u64 pid = bpf_get_current_pid_tgid();
+//     event_data_t *data = NULL;
+//     data = bpf_map_lookup_elem(&execve_cache, &pid);
 //     if (data == NULL)
 //         return 0;
-//     return events_perf_submit(data);
+//     if (ctx->ret < 0)
+//         goto clean;
+//     // events_perf_submit(data);
+//     bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t), &data->context);
+//     int size = data->buf_off & (MAX_PERCPU_BUFSIZE - 1);
+//     void *output_data = data->submit_p->buf;
+//     bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU, output_data, size);
+// clean:
+//     bpf_map_delete_elem(&execve_cache, &pid);
+//     return 0;
 // }
 
 SEC("tracepoint/syscalls/sys_enter_execveat")

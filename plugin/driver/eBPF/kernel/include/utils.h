@@ -56,11 +56,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
     // This may changed since 
-    struct pid_cache_t *parent = bpf_map_lookup_elem(&pid_cache_lru, &context->pid);
-    if (parent)
-        bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm), &parent->pcomm);
-    else
-        bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm), &realparent->comm);
+    bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm), &realparent->comm);
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
     return 0;

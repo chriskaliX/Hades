@@ -100,8 +100,10 @@ func (Execve) GetProbe() []*manager.Probe {
 			AttachToFuncName: "sys_enter_execve",
 		},
 		// {
-		// 	Section:      "tracepoint/syscalls/sys_exit_execve",
-		// 	EbpfFuncName: "sys_exit_execve",
+		// 	UID:              "TpSysExitExecve",
+		// 	Section:          "tracepoint/syscalls/sys_exit_execve",
+		// 	EbpfFuncName:     "sys_exit_execve",
+		// 	AttachToFuncName: "sys_exit_execve",
 		// },
 	}
 }

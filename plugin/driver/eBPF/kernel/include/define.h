@@ -157,12 +157,6 @@ typedef struct network_connection_v6
     __u32 scope_id;
 } net_conn_v6_t;
 
-struct pid_cache_t
-{
-    __u32 ppid;
-    char pcomm[TASK_COMM_LEN];
-};
-
 /* filters */
 BPF_ARRAY(path_filter, string_t, 32);
 BPF_ARRAY(config_map, __u32, 4);
@@ -172,7 +166,6 @@ BPF_HASH(cgroup_id_filter, __u64, __u32, 32);
  * pid to pid_parent
  * May be decaptured in future
  */
-BPF_LRU_HASH(pid_cache_lru, __u32, struct pid_cache_t, 1024);
 /* perf_output for events */
 BPF_PERF_OUTPUT(exec_events, 1024);
 BPF_PERF_OUTPUT(file_events, 1024);
