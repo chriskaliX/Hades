@@ -53,11 +53,13 @@ func (u *UdpRecvmsg) Parse() (err error) {
 func (u *UdpRecvmsg) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeUdpRecvmsg",
 			Section:          "kprobe/udp_recvmsg",
 			EbpfFuncName:     "kprobe_udp_recvmsg",
 			AttachToFuncName: "udp_recvmsg",
 		},
 		{
+			UID:              "KretprobeUdpRecvmsg",
 			Section:          "kretprobe/udp_recvmsg",
 			EbpfFuncName:     "kretprobe_udp_recvmsg",
 			AttachToFuncName: "udp_recvmsg",

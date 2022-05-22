@@ -69,7 +69,6 @@ func (e *Execve) Parse() (err error) {
 	e.Cmdline = strings.Join(strArr, " ")
 
 	envs := make([]string, 0, 3)
-	// 开始读 envs
 	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
 	}
@@ -95,8 +94,10 @@ func (e *Execve) Parse() (err error) {
 func (Execve) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			Section:      "tracepoint/syscalls/sys_enter_execve",
-			EbpfFuncName: "sys_enter_execve",
+			UID:              "TpSysEnterExecve",
+			Section:          "tracepoint/syscalls/sys_enter_execve",
+			EbpfFuncName:     "sys_enter_execve",
+			AttachToFuncName: "sys_enter_execve",
 		},
 		// {
 		// 	Section:      "tracepoint/syscalls/sys_exit_execve",

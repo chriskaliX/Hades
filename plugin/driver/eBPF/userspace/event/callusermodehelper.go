@@ -56,6 +56,7 @@ func (c *CallUsermodeHelper) Parse() (err error) {
 func (CallUsermodeHelper) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeCallUsermodehelper",
 			Section:          "kprobe/call_usermodehelper",
 			EbpfFuncName:     "kprobe_call_usermodehelper",
 			AttachToFuncName: "call_usermodehelper",

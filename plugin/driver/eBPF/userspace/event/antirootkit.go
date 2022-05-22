@@ -81,6 +81,7 @@ func (a *AntiRootkit) Parse() (err error) {
 func (AntiRootkit) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "SecurityFileIoctl",
 			Section:          "kprobe/security_file_ioctl",
 			EbpfFuncName:     "kprobe_security_file_ioctl",
 			AttachToFuncName: "security_file_ioctl",

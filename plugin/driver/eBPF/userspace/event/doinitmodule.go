@@ -50,6 +50,7 @@ func (d *DoInitModule) Parse() (err error) {
 func (d *DoInitModule) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeDoInitModule",
 			Section:          "kprobe/do_init_module",
 			EbpfFuncName:     "kprobe_do_init_module",
 			AttachToFuncName: "do_init_module",

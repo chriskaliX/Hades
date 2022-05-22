@@ -123,6 +123,7 @@ func (r Readline) GetProbe() []*manager.Probe {
 	// go back to /bin/bash since there is no libreadline.so here
 	return []*manager.Probe{
 		{
+			UID:              "UretprobeBashReadline",
 			Section:          "uretprobe/bash_readline",
 			EbpfFuncName:     "uretprobe_bash_readline",
 			AttachToFuncName: "readline",

@@ -45,6 +45,7 @@ func (k *KernelReadFile) Parse() (err error) {
 func (KernelReadFile) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeSecurityKernelReadFile",
 			Section:          "kprobe/security_kernel_read_file",
 			EbpfFuncName:     "kprobe_security_kernel_read_file",
 			AttachToFuncName: "security_kernel_read_file",

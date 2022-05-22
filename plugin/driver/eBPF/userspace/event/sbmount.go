@@ -62,6 +62,7 @@ func (s *SbMount) Parse() (err error) {
 func (SbMount) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeSecuritySbMount",
 			Section:          "kprobe/security_sb_mount",
 			EbpfFuncName:     "kprobe_security_sb_mount",
 			AttachToFuncName: "security_sb_mount",

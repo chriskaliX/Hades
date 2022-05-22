@@ -40,6 +40,10 @@ func (d *Driver) Init() (err error) {
 		d.Manager.Probes = append(d.Manager.Probes, event.GetProbe()...)
 		d.Manager.Maps = append(d.Manager.Maps, event.GetMaps()...)
 	}
+
+	/*
+	 * Init events and their ebpfmanager mapping
+	 */
 	// Regist main events which should not be regist in events
 	d.Manager.PerfMaps = []*manager.PerfMap{
 		{
@@ -89,10 +93,12 @@ func (d *Driver) AfterRunInitialization() error {
 	if !found {
 		return fmt.Errorf("config_map not found")
 	}
-	// enum hades_ebpf_config {
-	// 	CONFIG_HADES_PID,
-	// 	CONFIG_FILTERS
-	// };
+	/*
+	 * enum hades_ebpf_config {
+	 *	 CONFIG_HADES_PID,
+	 *	 CONFIG_FILTERS
+	 *};
+	 */
 	var syscall_index uint32 = 0
 	var pid uint32 = uint32(os.Getpid())
 	err = configMap.Update(syscall_index, pid, ebpf.UpdateAny)
@@ -101,6 +107,19 @@ func (d *Driver) AfterRunInitialization() error {
 	}
 	// TODO: filters are not added for now
 	return nil
+}
+
+/*
+ * Close by the UID
+ */
+func (d *Driver) Close(UID string) (err error) {
+	for _, probe := range d.Manager.Probes {
+		if UID == probe.UID {
+			return probe.Stop()
+		}
+	}
+	_, err = fmt.Printf("UID %s not found", UID)
+	return err
 }
 
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {

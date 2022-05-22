@@ -49,8 +49,10 @@ func (m *MemfdCreate) Parse() (err error) {
 func (m *MemfdCreate) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			Section:      "tracepoint/syscalls/sys_enter_memfd_create",
-			EbpfFuncName: "sys_enter_memfd_create",
+			UID:              "TpSysEnterMemfdCreate",
+			Section:          "tracepoint/syscalls/sys_enter_memfd_create",
+			EbpfFuncName:     "sys_enter_memfd_create",
+			AttachToFuncName: "sys_enter_memfd_create",
 		},
 	}
 }

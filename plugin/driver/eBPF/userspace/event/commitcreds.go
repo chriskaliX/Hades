@@ -57,6 +57,7 @@ func (c *CommitCreds) Parse() (err error) {
 func (CommitCreds) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeCommitCreds",
 			Section:          "kprobe/commit_creds",
 			EbpfFuncName:     "kprobe_commit_creds",
 			AttachToFuncName: "commit_creds",

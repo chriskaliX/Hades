@@ -64,8 +64,10 @@ func (p *Ptrace) Parse() (err error) {
 func (Ptrace) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			Section:      "tracepoint/syscalls/sys_enter_ptrace",
-			EbpfFuncName: "sys_enter_ptrace",
+			UID:              "TpSysEnterPtrace",
+			Section:          "tracepoint/syscalls/sys_enter_ptrace",
+			EbpfFuncName:     "sys_enter_ptrace",
+			AttachToFuncName: "sys_enter_ptrace",
 		},
 	}
 }

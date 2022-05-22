@@ -47,6 +47,7 @@ func (i *InodeCreate) Parse() (err error) {
 func (InodeCreate) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeSecurityInodeCreate",
 			Section:          "kprobe/security_inode_create",
 			EbpfFuncName:     "kprobe_security_inode_create",
 			AttachToFuncName: "security_inode_create",

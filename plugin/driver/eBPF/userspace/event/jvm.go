@@ -34,6 +34,7 @@ func (j *JVM) Parse() (err error) {
 func (j JVM) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "UprobeJVMGC",
 			Section:          "uprobe/JVM_GC",
 			EbpfFuncName:     "uprobe_JVM_GC",
 			AttachToFuncName: "JVM_GC",
