@@ -16,6 +16,7 @@ cert/
 **/*.o
 **/*.log
 **/*.stderr
+**/*.gz
 
 # ignore binary
 plugin/driver/driver
