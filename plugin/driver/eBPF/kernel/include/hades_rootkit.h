@@ -219,7 +219,6 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 // Below here, Tracee... scan limited syscal_table_addr ...
 static __always_inline void sys_call_table_scan(event_data_t *data)
 {
-
     char syscall_table[15] = "sys_call_table";
     unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
 
@@ -244,12 +243,40 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     events_perf_submit(data);
 }
 
+// Below here, Tracee... scan limited syscal_table_addr ...
+static __always_inline void idt_table_scan(event_data_t *data)
+{
+    char idt_table[10] = "idt_table";
+    unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
+
+    __u64 idx = IDT_CACHE;
+    __u64 *idt_num_p;
+    __u64 idt_num;
+    unsigned long idt_addr = 0;
+
+    idt_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
+    if (idt_num_p == NULL)
+        return;
+    idt_num = (__u64)*idt_num_p;
+    idt_addr = READ_KERN(idt_table_addr[idt_num]);
+    if (idt_addr == 0)
+        return;
+
+    save_to_submit_buf(data, &idt_addr, sizeof(unsigned long), 0);
+    save_to_submit_buf(data, &idt_num, sizeof(__u64), 1);
+
+    int field = ANTI_ROOTKIT_IDT;
+    save_to_submit_buf(data, &field, sizeof(int), 2);
+    events_perf_submit(data);
+}
+
 SEC("kprobe/security_file_ioctl")
 int BPF_KPROBE(kprobe_security_file_ioctl)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    data.context.type = ANTI_ROOTKIT;
 
     unsigned int cmd = PT_REGS_PARM2(ctx);
     // Skip if not the pid we need
@@ -258,8 +285,9 @@ int BPF_KPROBE(kprobe_security_file_ioctl)
 
     if (cmd == IOCTL_SCAN_SYSCALLS)
     {
-        data.context.type = ANTI_ROOTKIT;
         sys_call_table_scan(&data);
+    } else if (cmd == IOCTL_SCAN_IDTS) {
+        idt_table_scan(&data);
     }
     return 0;
 }

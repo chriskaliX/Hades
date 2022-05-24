@@ -194,7 +194,7 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 		// trigger by the syscall
 		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_SYSCALL), 0)
 	}
-
+	// TODO: update for x86 only
 	for i := 0; i < 256; i++ {
 		value = uint64(i)
 		err := analyzeCache.Update(unsafe.Pointer(&idt_cache), unsafe.Pointer(&value), ebpf.UpdateAny)
