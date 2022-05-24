@@ -21,7 +21,7 @@ int BPF_KPROBE(kprobe_security_socket_connect)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = SECURITY_SOCKET_CONNECT;
-
+    
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     if (!address)
         return 0;

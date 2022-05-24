@@ -172,45 +172,12 @@ int BPF_KPROBE(kprobe_call_usermodehelper)
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 // Pre define for all
-#define IDT_CACHE 0
-#define SYSCALL_CACHE 1
-#define IDT_ENTRIES 256
-#define MAX_KSYM_NAME_SIZE 64
-#define BETWEEN_PTR(x, y, z) (        \
-    ((uintptr_t)x >= (uintptr_t)y) && \
-    ((uintptr_t)x < ((uintptr_t)y + (uintptr_t)z)))
-// CO-RE only since macros not in vmlinux.h
-// TODO: need to look into `list_for_each_entry`
-#ifdef CORE
-#define list_first_entry(ptr, type, member) \
-    list_entry((ptr)->next, type, member)
-#define list_entry(ptr, type, member) \
-    container_of(ptr, type, member)
-#define list_entry_is_head(pos, head, member) \
-    (&pos->member == (head))
-#define list_next_entry(pos, member) \
-    list_entry((pos)->member.next, typeof(*(pos)), member)
-#define list_for_each_entry(pos, head, member)               \
-    for (pos = list_first_entry(head, typeof(*pos), member); \
-         !list_entry_is_head(pos, head, member);             \
-         pos = list_next_entry(pos, member))
-
-#define MAX_ERRNO 4095
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
-#endif
-
-// Map pre-define, will be moved to define.h
-// Just for rename...
-static inline bool HADES_IS_ERR_OR_NULL(const void *ptr)
-{
-    return unlikely(!ptr) || IS_ERR_VALUE((unsigned long)ptr);
-}
-
-static inline const char *get_kobject_name(const struct kobject *kobj)
-{
-    return kobj->name;
-}
+#define IDT_CACHE           0
+#define SYSCALL_CACHE       1
+#define IDT_ENTRIES         256
+#define MAX_KSYM_NAME_SIZE  64
+#define IOCTL_SCAN_SYSCALLS 65
+#define IOCTL_SCAN_IDTS     66
 
 typedef struct ksym_name
 {
@@ -248,124 +215,6 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 // idt_table and ... to get the mod of the function to figure out if it's a
 // hidden module. But this a little bit tricky in eBPF program since the
 // __module_address to the the mod of the address.
-// static const char *find_hidden_module(unsigned long addr, event_data_t *data)
-// {
-//     const char *mod_name = NULL;
-//     struct kobject *cur;
-//     struct module_kobject *kobj;
-//     // get module_kset address
-//     char module_kset[12] = "module_kset";
-//     unsigned long *kset = (unsigned long *)get_symbol_addr(module_kset);
-
-//     struct kset *mod_kset = (struct kset *)kset;
-//     // struct kset *mod_kset = (struct kset *)READ_KERN(module_kset_addr);
-//     if (mod_kset == NULL)
-//         return NULL;
-//     events_perf_submit(data);
-// // `list_for_each_entry` should be used here. BUT, again, loop...
-// #pragma unroll 256
-//     list_for_each_entry(cur, &mod_kset->list, entry)
-//     {
-//         if (!get_kobject_name(cur))
-//             break;
-//         kobj = container_of(cur, struct module_kobject, kobj);
-//         if (!kobj || !kobj->mod)
-//             continue;
-//         if (BETWEEN_PTR(addr, kobj->mod->core_layout.base,
-//                         kobj->mod->core_layout.size))
-//             mod_name = kobj->mod->name;
-//     }
-//     return mod_name;
-// }
-
-// interrupts detection
-// static void analyze_interrupts(event_data_t *data)
-// {
-// #ifdef bpf_target_x86
-//     char idt_table[10] = "idt_table";
-//     unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
-
-//     __u64 idx = SYSCALL_CACHE;
-//     __u64 *syscall_num_p;
-//     __u64 syscall_num;
-//     syscall_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
-//     if (syscall_num_p == NULL)
-//         return;
-//     syscall_num = (__u64)*syscall_num_p;
-
-//     struct module *mod;
-//     unsigned long addr;
-//     const char *mod_name = "-1";
-//     addr = READ_KERN(idt_table_addr[syscall_num]);
-//     if (addr == 0)
-//         return;
-//     mod = (struct module *)addr;
-//     if (mod)
-//     {
-//         mod_name = READ_KERN(mod->name);
-//     }
-//     else
-//     {
-//         const char *name = find_hidden_module(addr, data);
-//         if (!HADES_IS_ERR_OR_NULL(name))
-//         {
-//             mod_name = name;
-//             save_str_to_buf(data, &name, 0);
-//             save_to_submit_buf(data, &syscall_num, sizeof(int), 1);
-//             int field = ANTI_ROOTKIT_IDT;
-//             save_to_submit_buf(data, &field, sizeof(int), 2);
-//             events_perf_submit(data);
-//         }
-//     }
-//     return;
-// #endif
-// }
-
-// static void analyze_syscalls(event_data_t *data)
-// {
-//     char syscall_table[15] = "sys_call_table";
-//     unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
-
-//     __u64 idx = SYSCALL_CACHE;
-//     __u64 *syscall_num_p;
-//     __u64 syscall_num;
-//     syscall_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
-//     if (syscall_num_p == NULL)
-//         return;
-//     syscall_num = (__u64)*syscall_num_p;
-
-//     struct module *mod;
-//     unsigned long addr = 0;
-//     const char *mod_name = "-1";
-
-//     addr = READ_KERN(syscall_table_addr[syscall_num]);
-//     if (addr == 0)
-//         return;
-//     // Can't not use the __module_address API function here. We have to
-//     // a lot of work of this...
-//     mod = (struct module *)addr;
-//     if (mod)
-//     {
-//         mod_name = READ_KERN(mod->name);
-//     }
-//     else
-//     {
-//         const char *name = find_hidden_module(addr, data);
-//         if (!HADES_IS_ERR_OR_NULL(name))
-//         {
-//             mod_name = name;
-//             save_str_to_buf(data, &name, 0);
-//             save_to_submit_buf(data, &syscall_num, sizeof(int), 1);
-//             int field = ANTI_ROOTKIT_SYSCALL;
-//             save_to_submit_buf(data, &field, sizeof(int), 2);
-//             events_perf_submit(data);
-//         }
-//     }
-//     return;
-// }
-
-#define IOCTL_SCAN_SYSCALLS 65
-#define IOCTL_SCAN_IDTS 66
 
 // Below here, Tracee... scan limited syscal_table_addr ...
 static __always_inline void sys_call_table_scan(event_data_t *data)
