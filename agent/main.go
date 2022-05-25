@@ -35,8 +35,6 @@ func init() {
 	runtime.GOMAXPROCS(numcpu)
 }
 
-// plugin的模式，我思考了一下还是有必要的，又因为偷看了 osquery 的, 功能开放
-// 后期蜜罐之类的这种还是以 plugin 模式，年底之前的目标是跑起来
 func main() {
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"

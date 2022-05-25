@@ -243,7 +243,7 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     events_perf_submit(data);
 }
 
-// Below here, Tracee... scan limited syscal_table_addr ...
+// idt_table_scan
 static __always_inline void idt_table_scan(event_data_t *data)
 {
     char idt_table[10] = "idt_table";
