@@ -7,8 +7,7 @@ import (
 	"time"
 )
 
-type GrpcWriter struct {
-}
+type GrpcWriter struct{}
 
 func (w *GrpcWriter) Write(p []byte) (n int, err error) {
 	rec := &proto.Record{

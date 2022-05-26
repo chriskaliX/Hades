@@ -154,7 +154,7 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 		}
 		// update idt_table address to map
 		idt := kernelSymbols.Get("idt_table")
-		if sct != nil {
+		if idt != nil {
 			err = updateKMap("idt_table", idt.Address)
 			if err != nil {
 				zap.S().Error(err)
