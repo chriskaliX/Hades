@@ -277,7 +277,6 @@ int BPF_KPROBE(kprobe_security_file_ioctl)
     if (!init_event_data(&data, ctx))
         return 0;
     data.context.type = ANTI_ROOTKIT;
-
     unsigned int cmd = PT_REGS_PARM2(ctx);
     // Skip if not the pid we need
     if (get_config(CONFIG_HADES_PID) != data.context.tid)

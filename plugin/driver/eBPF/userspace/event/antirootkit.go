@@ -71,7 +71,7 @@ func (a *AntiRootkit) Parse() (err error) {
 	data := kernelSymbols.Get(addr)
 	if data == nil {
 		// TEST CODE
-		fmt.Printf("\033[1;31;40m%s %d is hooked\033[0m\n", a.Field, a.Index)
+		fmt.Printf("\033[1;31;40m%s %d is hooked\033[0m. Address: %d\n", a.Field, a.Index, addr)
 		return
 	}
 	err = ErrIgnore
@@ -104,17 +104,23 @@ var once sync.Once
 var kernelSymbols *helper.KernelSymbolTable
 
 const (
-	IDT_CACHE = iota
-	SYSCALL_CACHE
+	IDT_CACHE     = 0
+	SYSCALL_CACHE = 1
+
+	TRIGGER_SYSCALL = 65
+	TRIGGER_IDT     = 66
+
+	SYSCALLMAX = 302
+	IDTMAX     = 256
 )
 
-const (
-	TRIGGER_SYSCALL int = iota + 65
-	TRIGGER_IDT
+var (
+	syscallCache int32 = SYSCALL_CACHE
+	idtCache     int32 = IDT_CACHE
 )
 
 // Scan for userspace to work with the kernel part
-func (AntiRootkit) Scan(m *manager.Manager) error {
+func (anti AntiRootkit) Scan(m *manager.Manager) error {
 	// Load to ksymbols_map for the very first-time
 	once.Do(func() {
 		// Get ksymbols_map in kernel space
@@ -143,8 +149,7 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			return nil
 		}
 		// update sys_call_table address to map
-		sct := kernelSymbols.Get("sys_call_table")
-		if sct != nil {
+		if sct := kernelSymbols.Get("sys_call_table"); sct != nil {
 			err = updateKMap("sys_call_table", sct.Address)
 			if err != nil {
 				zap.S().Error(err)
@@ -153,8 +158,7 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			zap.S().Error("sys_call_table is not found")
 		}
 		// update idt_table address to map
-		idt := kernelSymbols.Get("idt_table")
-		if idt != nil {
+		if idt := kernelSymbols.Get("idt_table"); idt != nil {
 			err = updateKMap("idt_table", idt.Address)
 			if err != nil {
 				zap.S().Error(err)
@@ -163,30 +167,28 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 			zap.S().Error("idt_table is not found")
 		}
 	})
-	// update the analyzeCache
-	analyzeCache, found, err := m.GetMap("analyze_cache")
-	if err != nil {
+	if err := anti.scanSCT(m); err != nil {
 		return err
 	}
-	if !found {
-		return fmt.Errorf("analyze_cache not found")
+	return anti.scanIDT(m)
+}
+
+func (anti AntiRootkit) scanSCT(m *manager.Manager) error {
+	// update the analyzeCache
+	analyzeCache, err := anti.getMap(m, "analyze_cache")
+	if err != nil {
+		return err
 	}
 	// Update the map_value and trigger
 	ptmx, err := os.OpenFile("/proc/self/cmdline", os.O_RDONLY, 0444)
 	if err != nil {
 		return err
 	}
-	defer ptmx.Close()
-	var (
-		syscall_cache int32 = SYSCALL_CACHE
-		idt_cache     int32 = IDT_CACHE
-		value         uint64
-	)
 	// syscall scan
-	for i := 0; i <= 302; i++ {
+	for i := 0; i <= SYSCALLMAX; i++ {
 		// update the syscall index we want to scan
-		value = uint64(i)
-		err := analyzeCache.Update(unsafe.Pointer(&syscall_cache), unsafe.Pointer(&value), ebpf.UpdateAny)
+		value := uint64(i)
+		err := analyzeCache.Update(unsafe.Pointer(&syscallCache), unsafe.Pointer(&value), ebpf.UpdateAny)
 		if err != nil {
 			zap.S().Error(err)
 			return err
@@ -194,10 +196,23 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 		// trigger by the syscall
 		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_SYSCALL), 0)
 	}
-	// TODO: update for x86 only
-	for i := 0; i < 256; i++ {
-		value = uint64(i)
-		err := analyzeCache.Update(unsafe.Pointer(&idt_cache), unsafe.Pointer(&value), ebpf.UpdateAny)
+	return nil
+}
+
+func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
+	// update the analyzeCache
+	analyzeCache, err := anti.getMap(m, "analyze_cache")
+	if err != nil {
+		return err
+	}
+	// Update the map_value and trigger
+	ptmx, err := os.OpenFile("/proc/self/cmdline", os.O_RDONLY, 0444)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < IDTMAX; i++ {
+		value := uint64(i)
+		err := analyzeCache.Update(unsafe.Pointer(&idtCache), unsafe.Pointer(&value), ebpf.UpdateAny)
 		if err != nil {
 			zap.S().Error(err)
 			return err
@@ -206,6 +221,21 @@ func (AntiRootkit) Scan(m *manager.Manager) error {
 		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_IDT), 0)
 	}
 	return nil
+}
+
+/*
+ * A wrap of GetMap function.
+ * Todo: Move to basic
+ */
+func (AntiRootkit) getMap(m *manager.Manager, name string) (*ebpf.Map, error) {
+	analyzeCache, found, err := m.GetMap(name)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("%s not found", name)
+	}
+	return analyzeCache, nil
 }
 
 // Regist and trigger
