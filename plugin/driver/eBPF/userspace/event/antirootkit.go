@@ -170,7 +170,8 @@ func (anti AntiRootkit) Scan(m *manager.Manager) error {
 	if err := anti.scanSCT(m); err != nil {
 		return err
 	}
-	return anti.scanIDT(m)
+	// return anti.scanIDT(m)
+	return nil
 }
 
 func (anti AntiRootkit) scanSCT(m *manager.Manager) error {
@@ -210,16 +211,15 @@ func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < IDTMAX; i++ {
-		value := uint64(i)
-		err := analyzeCache.Update(unsafe.Pointer(&idtCache), unsafe.Pointer(&value), ebpf.UpdateAny)
-		if err != nil {
-			zap.S().Error(err)
-			return err
-		}
-		// trigger by the syscall
-		syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_IDT), 0)
+	// only 0x80 detected for now
+	value := uint64(0x80)
+	err = analyzeCache.Update(unsafe.Pointer(&idtCache), unsafe.Pointer(&value), ebpf.UpdateAny)
+	if err != nil {
+		zap.S().Error(err)
+		return err
 	}
+	// trigger by the syscall
+	syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_IDT), 0)
 	return nil
 }
 

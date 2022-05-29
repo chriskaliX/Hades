@@ -244,6 +244,9 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
 }
 
 // idt_table_scan
+/*
+ * still wrong with the address we take...
+ */
 static __always_inline void idt_table_scan(event_data_t *data)
 {
     char idt_table[10] = "idt_table";
@@ -258,9 +261,24 @@ static __always_inline void idt_table_scan(event_data_t *data)
     if (idt_num_p == NULL)
         return;
     idt_num = (__u64)*idt_num_p;
+    /* get the address of the interrupt */
     idt_addr = READ_KERN(idt_table_addr[idt_num]);
     if (idt_addr == 0)
         return;
+
+    struct gate_struct* gate = (struct gate_struct *)idt_addr;
+    if (gate == NULL)
+        return;
+
+    __u16 offset_low;
+    bpf_probe_read(&offset_low, sizeof(offset_low), &gate->offset_low);
+    __u16 offset_middle;
+    bpf_probe_read(&offset_middle, sizeof(offset_middle), &gate->offset_middle);
+    __u32 offset_high;
+    bpf_probe_read(&offset_high, sizeof(offset_high), &gate->offset_high);
+
+    /* calc the offset */
+    idt_addr = (unsigned long)offset_low | ((unsigned long)offset_middle << 16) | ((unsigned long)offset_high << 32);
 
     save_to_submit_buf(data, &idt_addr, sizeof(unsigned long), 0);
     save_to_submit_buf(data, &idt_num, sizeof(__u64), 1);
