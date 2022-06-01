@@ -34,21 +34,21 @@
 #include "bpf_core_read.h"
 #include "bpf_helpers.h"
 
-#define TASK_COMM_LEN               16
-#define MAX_STR_FILTER_SIZE         128
-#define MAX_PERCPU_BUFSIZE          (1 << 14)
-#define MAX_STRING_SIZE             256
-#define MAX_STR_ARR_ELEM            32
-#define MAX_PATH_COMPONENTS         16
-#define MAX_NODENAME                64
+#define TASK_COMM_LEN 16
+#define MAX_STR_FILTER_SIZE 128
+#define MAX_PERCPU_BUFSIZE (1 << 14)
+#define MAX_STRING_SIZE 256
+#define MAX_STR_ARR_ELEM 32
+#define MAX_PATH_COMPONENTS 16
+#define MAX_NODENAME 64
 
-#define MAX_BUFFERS                 3
-#define TMP_BUF_IDX                 1
-#define SUBMIT_BUF_IDX              0
-#define STRING_BUF_IDX              1
+#define MAX_BUFFERS 3
+#define TMP_BUF_IDX 1
+#define SUBMIT_BUF_IDX 0
+#define STRING_BUF_IDX 1
 
-#define EXECVE_GET_SOCK_FD_LIMIT    8
-#define EXECVE_GET_SOCK_PID_LIMIT   4
+#define EXECVE_GET_SOCK_FD_LIMIT 8
+#define EXECVE_GET_SOCK_PID_LIMIT 4
 
 enum hades_ebpf_config
 {
@@ -69,6 +69,8 @@ enum hades_ebpf_config
     BPF_MAP(_name, BPF_MAP_TYPE_HASH, _key_type, _value_type, _max_entries)
 #define BPF_LRU_HASH(_name, _key_type, _value_type, _max_entries) \
     BPF_MAP(_name, BPF_MAP_TYPE_LRU_HASH, _key_type, _value_type, _max_entries)
+#define BPF_LPM_TRIE(_name, _key_type, _value_type, _max_entries) \
+    BPF_MAP(_name, BPF_MAP_TYPE_LPM_TRIE, _key_type, _value_type, _max_entries)
 #define BPF_ARRAY(_name, _value_type, _max_entries) \
     BPF_MAP(_name, BPF_MAP_TYPE_ARRAY, __u32, _value_type, _max_entries)
 #define BPF_PERCPU_ARRAY(_name, _value_type, _max_entries) \
@@ -157,11 +159,24 @@ typedef struct network_connection_v6
     __u32 scope_id;
 } net_conn_v6_t;
 
+struct cidr
+{
+    __u32 prefix_len;
+    __u32 ip;
+};
+
 /* filters */
-BPF_ARRAY(path_filter, string_t, 32);
+BPF_ARRAY(path_filter, string_t, 3);
 BPF_ARRAY(config_map, __u32, 4);
-BPF_HASH(pid_filter, __u32, __u32, 32);
-BPF_HASH(cgroup_id_filter, __u64, __u32, 32);
+BPF_HASH(pid_filter, __u32, __u32, 512);
+BPF_HASH(uid_filter, __u32, __u32, 512);
+BPF_HASH(cgroup_id_filter, __u64, __u32, 512);
+BPF_HASH(pns_filter, __u32, __u32, 512);
+/* only BTF is supported */
+#ifdef CORE
+BPF_LPM_TRIE(ip_filter, struct cidr, __u32, 512);
+#endif
+
 /*
  * pid to pid_parent
  * May be decaptured in future

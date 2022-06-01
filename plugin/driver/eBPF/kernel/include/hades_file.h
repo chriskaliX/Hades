@@ -14,6 +14,8 @@ int BPF_KPROBE(kprobe_security_inode_create)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = SECURITY_INODE_CREATE;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
@@ -29,6 +31,8 @@ int BPF_KPROBE(kprobe_security_sb_mount)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
         return 0;
     data.context.type = SECURITY_SB_MOUNT;
     const char *dev_name = (const char *)PT_REGS_PARM1(ctx);

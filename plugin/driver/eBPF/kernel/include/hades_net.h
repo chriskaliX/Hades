@@ -20,8 +20,10 @@ int BPF_KPROBE(kprobe_security_socket_connect)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = SECURITY_SOCKET_CONNECT;
-    
+
     struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
     if (!address)
         return 0;
@@ -50,6 +52,8 @@ int BPF_KPROBE(kprobe_security_socket_bind)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
         return 0;
     data.context.type = SECURITY_SOCKET_BIND;
 
@@ -191,6 +195,8 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
     {
         event_data_t data = {};
         if (!init_event_data(&data, ctx))
+            return 0;
+        if (context_filter(&data.context))
             return 0;
         data.context.type = UDP_RECVMSG;
 

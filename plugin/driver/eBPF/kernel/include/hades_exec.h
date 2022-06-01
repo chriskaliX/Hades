@@ -110,7 +110,7 @@ struct _sys_enter_memfd_create
  * issue #34: the filename from ctx is not the execute path we
  * expected. We need to get the right execute path from kretprobe or
  * sys_exit_execve in task_struct->mm
- * 
+ *
  * Also, in tracee, they said that the argv/envp pointers are invaild
  * in both entry and exit, be careful if we change the hook to raw_
  * tracepoint.
@@ -124,6 +124,8 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
         return 0;
     data.context.type = SYS_ENTER_EXECVE;
     /* filename
@@ -188,6 +190,8 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = SYS_ENTER_EXECVEAT;
     // filename
     save_str_to_buf(&data, (void *)ctx->filename, 0);
@@ -232,6 +236,8 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = SYS_ENTER_PRCTL;
 
     int option;
@@ -275,6 +281,8 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = SYS_ENTER_PTRACE;
     long request;
     bpf_probe_read(&request, sizeof(request), &ctx->request);
@@ -300,6 +308,8 @@ int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
         return 0;
     data.context.type = SYS_ENTER_MEMFD_CREATE;
     void *exe = get_exe_from_task(data.task);

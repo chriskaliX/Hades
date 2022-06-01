@@ -1,6 +1,9 @@
 package decoder
 
 import (
+	"fmt"
+
+	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 )
 
@@ -26,6 +29,17 @@ func GetEvent(id uint32) Event {
 
 func GetEvents() map[uint32]Event {
 	return eventMap
+}
+
+func GetMap(m *manager.Manager, name string) (*ebpf.Map, error) {
+	analyzeCache, found, err := m.GetMap(name)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("%s not found", name)
+	}
+	return analyzeCache, nil
 }
 
 // Set filter use this.

@@ -20,6 +20,8 @@ int BPF_KPROBE(kprobe_commit_creds)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = COMMIT_CREDS;
 
     struct cred *new = (struct cred *)PT_REGS_PARM1(ctx);

@@ -122,6 +122,12 @@ func (d *Driver) Close(UID string) (err error) {
 	return err
 }
 
+/*
+ * Just like Close, Filter should be triggered by a task
+ */
+
+func (d *Driver) Filter() {}
+
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
 	decoder.DefaultDecoder.SetBuffer(data)
 	ctx, err := decoder.DefaultDecoder.DecodeContext()

@@ -55,7 +55,7 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     // catch the reason that Elkeid get this in root.
     // sessionid
     bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
-    // This may changed since 
+    // This may changed since
     bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm), &realparent->comm);
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
@@ -64,12 +64,29 @@ static __always_inline int init_context(context_t *context, struct task_struct *
 
 // this is kernel space simple filter, also userspace filter will be supported
 // 0 on false & 1 on true
-static __always_inline int filter(context_t context)
+static __always_inline int context_filter(context_t *context)
 {
-    // pid filter
-    u8 *equality = bpf_map_lookup_elem(&pid_filter, &context.pid);
-    if (equality != NULL)
+    // ID filter for all
+    if (bpf_map_lookup_elem(&pid_filter, &context->tid) != 0)
         return 1;
+    if (bpf_map_lookup_elem(&uid_filter, &context->uid) != 0)
+        return 1;
+    if (bpf_map_lookup_elem(&cgroup_id_filter, &context->cgroup_id) != 0)
+        return 1;
+    if (bpf_map_lookup_elem(&cgroup_id_filter, &context->pns) != 0)
+        return 1;
+    return 0;
+}
+
+/*
+ * Filter in kernel space, mainly for remote addr, cidr
+ * is supported as well. Now, it's only ipv4, for test
+ */
+static __always_inline int ip_filter(__u32 ip)
+{
+#ifdef CORE
+
+#endif
     return 0;
 }
 
@@ -90,7 +107,8 @@ static __always_inline void *get_task_tty_str(struct task_struct *task)
         goto exit;
     size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
 exit:
-    if (size < 1) {
+    if (size < 1)
+    {
         char nothing[] = "-1";
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
     }
@@ -166,7 +184,7 @@ static __always_inline void *get_path_str(struct path *path)
         if (sz > 1)
         {
             buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)]), 1, &slash);
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1, &slash);
             buf_off -= sz - 1;
         }
         else
@@ -199,7 +217,7 @@ static __always_inline void *get_path_str(struct path *path)
 }
 
 // all from tracee
-static __always_inline void* get_dentry_path_str(struct dentry* dentry)
+static __always_inline void *get_dentry_path_str(struct dentry *dentry)
 {
     char slash = '/';
     int zero = 0;
@@ -211,46 +229,55 @@ static __always_inline void* get_dentry_path_str(struct dentry* dentry)
     if (string_p == NULL)
         return NULL;
 
-    #pragma unroll
-    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++)
+    {
         struct dentry *d_parent = READ_KERN(dentry->d_parent);
-        if (dentry == d_parent) {
+        if (dentry == d_parent)
+        {
             break;
         }
         // Add this dentry name to path
         struct qstr d_name = READ_KERN(dentry->d_name);
-        unsigned int len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        unsigned int len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
         unsigned int off = buf_off - len;
         // Is string buffer big enough for dentry name?
         int sz = 0;
-        if (off <= buf_off) { // verify no wrap occurred
-            len = len & ((MAX_PERCPU_BUFSIZE >> 1)-1);
-            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1)-1)]), len, (void *)d_name.name);
+        if (off <= buf_off)
+        { // verify no wrap occurred
+            len = len & ((MAX_PERCPU_BUFSIZE >> 1) - 1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]), len, (void *)d_name.name);
         }
         else
             break;
-        if (sz > 1) {
+        if (sz > 1)
+        {
             buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)]), 1, &slash);
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1, &slash);
             buf_off -= sz - 1;
-        } else {
+        }
+        else
+        {
             // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
             break;
         }
         dentry = d_parent;
     }
 
-    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1))
+    {
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
         struct qstr d_name = READ_KERN(dentry->d_name);
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
-    } else {
+    }
+    else
+    {
         // Add leading slash
         buf_off -= 1;
-        bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE-1)]), 1, &slash);
+        bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1, &slash);
         // Null terminate the path string
-        bpf_probe_read(&(string_p->buf[(MAX_PERCPU_BUFSIZE >> 1)-1]), 1, &zero);
+        bpf_probe_read(&(string_p->buf[(MAX_PERCPU_BUFSIZE >> 1) - 1]), 1, &zero);
     }
 
     set_buf_off(STRING_BUF_IDX, buf_off);
@@ -286,7 +313,7 @@ static __always_inline volatile unsigned char get_sock_state(struct sock *sock)
     return sk_state_own_impl;
 }
 
-static __always_inline struct ipv6_pinfo* get_inet_pinet6(struct inet_sock *inet)
+static __always_inline struct ipv6_pinfo *get_inet_pinet6(struct inet_sock *inet)
 {
     struct ipv6_pinfo *pinet6_own_impl;
     bpf_probe_read(&pinet6_own_impl, sizeof(pinet6_own_impl), &inet->pinet6);
@@ -311,7 +338,8 @@ static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net
     struct ipv6_pinfo *np = inet6_sk_own_impl(sk, inet);
     struct in6_addr addr = {};
     addr = READ_KERN(sk->sk_v6_rcv_saddr);
-    if (ipv6_addr_any(&addr)){
+    if (ipv6_addr_any(&addr))
+    {
         addr = READ_KERN(np->saddr);
     }
     // the flowinfo field can be specified by the user to indicate a network
@@ -329,13 +357,15 @@ static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net
     // iface)' function.  in any case, leaving it with value of 0 won't affect
     // our representation of network flows.
     net_details->scope_id = 0;
-    if (peer) {
+    if (peer)
+    {
         net_details->local_address = READ_KERN(sk->sk_v6_daddr);
         net_details->local_port = READ_KERN(inet->inet_dport);
         net_details->remote_address = addr;
         net_details->remote_port = READ_KERN(inet->inet_sport);
     }
-    else {
+    else
+    {
         net_details->local_address = addr;
         net_details->local_port = READ_KERN(inet->inet_sport);
         net_details->remote_address = READ_KERN(sk->sk_v6_daddr);

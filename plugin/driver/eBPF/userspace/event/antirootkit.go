@@ -176,7 +176,7 @@ func (anti AntiRootkit) Scan(m *manager.Manager) error {
 
 func (anti AntiRootkit) scanSCT(m *manager.Manager) error {
 	// update the analyzeCache
-	analyzeCache, err := anti.getMap(m, "analyze_cache")
+	analyzeCache, err := decoder.GetMap(m, "analyze_cache")
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (anti AntiRootkit) scanSCT(m *manager.Manager) error {
 
 func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
 	// update the analyzeCache
-	analyzeCache, err := anti.getMap(m, "analyze_cache")
+	analyzeCache, err := decoder.GetMap(m, "analyze_cache")
 	if err != nil {
 		return err
 	}
@@ -227,16 +227,6 @@ func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
  * A wrap of GetMap function.
  * Todo: Move to basic
  */
-func (AntiRootkit) getMap(m *manager.Manager, name string) (*ebpf.Map, error) {
-	analyzeCache, found, err := m.GetMap(name)
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		return nil, fmt.Errorf("%s not found", name)
-	}
-	return analyzeCache, nil
-}
 
 // Regist and trigger
 func init() {
