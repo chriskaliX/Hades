@@ -33,8 +33,8 @@ var DefaultFilter Filter
  * Filter defination
  */
 type Filter struct {
-	kFilter KernelFilter
-	uFilter UserFilter
+	kFilter *KernelFilter
+	uFilter *UserFilter
 }
 
 type KernelFilter struct {
@@ -63,7 +63,7 @@ const (
 	PathFilter     = "path_filter"
 	PidFilter      = "pid_filter"
 	CgroupIdFilter = "cgroup_id_filter"
-	IpFilter       = "ip_filter"
+	IpFilter       = "ip_filter" /* struct Cidr with only CO-RE enabled */
 )
 
 /*
