@@ -8,6 +8,8 @@ package filter
 
 import (
 	"hades-ebpf/userspace/decoder"
+	"strings"
+	"sync"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
@@ -27,7 +29,13 @@ import (
  * we'll archieve just in user space
  */
 
-var DefaultFilter Filter
+var DefaultFilter Filter = Filter{}
+
+func init() {
+	DefaultFilter.kFilter = &KernelFilter{}
+	DefaultFilter.uFilter = &UserFilter{}
+	DefaultFilter.uFilter.Init()
+}
 
 /*
  * Filter defination
@@ -37,30 +45,10 @@ type Filter struct {
 	uFilter *UserFilter
 }
 
-type KernelFilter struct {
-	PidFilter      map[interface{}]bool
-	CgroupIdFilter map[interface{}]bool
-	IpFilter       map[interface{}]bool
-}
-
-/*
- * TODO: prefix and suffix should be added
- */
-type UserFilter struct {
-	ExeFilter  map[string]bool
-	PathFilter map[string]bool
-}
-
-type Cidr struct {
-	PrefixLen uint32
-	Ip        uint32
-}
-
 const (
 	Update = iota
 	Delete
 
-	PathFilter     = "path_filter"
 	PidFilter      = "pid_filter"
 	CgroupIdFilter = "cgroup_id_filter"
 	IpFilter       = "ip_filter" /* struct Cidr with only CO-RE enabled */
@@ -69,18 +57,141 @@ const (
 /*
  * Action with the kernel space filter
  */
-func (f *Filter) DoKernelFilter(m *manager.Manager, name string, key interface{}, action int) (err error) {
+
+type KernelFilter struct{}
+
+type Cidr struct {
+	PrefixLen uint32
+	Ip        uint32
+}
+
+func (f *KernelFilter) Set(m *manager.Manager, name string, key interface{}) (err error) {
 	var _map *ebpf.Map
 	_map, err = decoder.GetMap(m, name)
 	if err != nil {
 		return
 	}
 	var value uint32 = 0
-	switch action {
-	case Update:
-		err = _map.Update(unsafe.Pointer(&key), unsafe.Pointer(&value), ebpf.UpdateAny)
-	case Delete:
-		err = _map.Delete(unsafe.Pointer(&key))
+	err = _map.Update(unsafe.Pointer(&key), unsafe.Pointer(&value), ebpf.UpdateAny)
+	return
+}
+
+func (f *KernelFilter) Delete(m *manager.Manager, name string, key interface{}) (err error) {
+	var _map *ebpf.Map
+	_map, err = decoder.GetMap(m, name)
+	if err != nil {
+		return
+	}
+	err = _map.Delete(unsafe.Pointer(&key))
+	return
+}
+
+func (f *KernelFilter) Get(m *manager.Manager, name string) (results []interface{}, err error) {
+	var _map *ebpf.Map
+	_map, err = decoder.GetMap(m, name)
+	if err != nil {
+		return
+	}
+	iter := _map.Iterate()
+	var key, value interface{}
+	/*
+	 * The size is limited in kernel space,
+	 */
+	for iter.Next(key, value) {
+		results = append(results, key)
 	}
 	return
+}
+
+/*
+ * Userspace filter
+ * This is a demo for all filters. Add other filters into this
+ * if you need.
+ */
+const (
+	ExeFilter = iota
+	PathFilter
+)
+
+type UserFilter struct {
+	ExeFilter  *sync.Map
+	PathFilter *sync.Map
+	once       sync.Once
+}
+
+const (
+	Prefix = iota
+	Suffix
+	Equal
+	Contains
+)
+
+type StringFilter struct {
+	Operation int
+	Value     string
+}
+
+func (u *UserFilter) FilterOut(in string) (result bool) {
+	u.ExeFilter.Range(func(_key interface{}, _ interface{}) bool {
+		filter := _key.(StringFilter)
+		switch filter.Operation {
+		case Prefix:
+			result = strings.HasPrefix(in, filter.Value)
+		case Suffix:
+			result = strings.HasSuffix(in, filter.Value)
+		case Equal:
+			result = strings.EqualFold(in, filter.Value)
+		case Contains:
+			result = strings.Contains(in, filter.Value)
+		default:
+			return false
+		}
+		/*
+		 * Stop if it's done
+		 */
+		if result {
+			return false
+		}
+		return true
+	})
+	return
+}
+
+func (u *UserFilter) Init() {
+	u.once.Do(func() {
+		u.ExeFilter = &sync.Map{}
+		u.PathFilter = &sync.Map{}
+	})
+}
+
+func (u *UserFilter) Set(_type, int, op int, value string) {
+	s := StringFilter{
+		Operation: op,
+		Value:     value,
+	}
+	switch _type {
+	case ExeFilter:
+		u.ExeFilter.Store(s, true)
+	case PathFilter:
+		u.PathFilter.Store(s, true)
+	}
+}
+
+func (u *UserFilter) Delete(_type int, op int, value string) {
+	var _map *sync.Map
+	switch _type {
+	case ExeFilter:
+		_map = u.ExeFilter
+	case PathFilter:
+		_map = u.PathFilter
+	}
+
+	_map.Range(func(_key interface{}, _ interface{}) bool {
+		filter := _key.(StringFilter)
+		if filter.Operation == op && filter.Value == value {
+			_map.Delete(_key)
+			return false
+		}
+		return true
+	})
 }
