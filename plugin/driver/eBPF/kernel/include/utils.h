@@ -82,7 +82,7 @@ static __always_inline int context_filter(context_t *context)
  * Filter in kernel space, mainly for remote addr, cidr
  * is supported as well. Now, it's only ipv4, for test
  */
-static __always_inline int ip_filter(__u32 ip)
+static __always_inline int ipfilter(__u32 ip)
 {
 #ifdef CORE
 
