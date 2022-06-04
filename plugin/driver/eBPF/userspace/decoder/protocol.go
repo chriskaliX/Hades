@@ -3,8 +3,6 @@ package decoder
 import (
 	"hades-ebpf/userspace/share"
 	"sync"
-
-	jsonpatch "github.com/evanphx/json-patch"
 )
 
 var contextPool sync.Pool
@@ -53,7 +51,7 @@ func (Context) GetSizeBytes() uint32 {
 // Since the inline tag in golang is still invaild now(since 2013 the first issue proposed)
 // We have to archieve by this way...
 func (c *Context) MarshalJson() (result string, err error) {
-	ctxByte, err := share.MarshalBytes(c)
+	ctxByte, err := share.MarshalBytes(c) // {"exe":1,"path":1}
 	if err != nil {
 		return
 	}
@@ -63,10 +61,17 @@ func (c *Context) MarshalJson() (result string, err error) {
 		return
 	}
 	defer eventByte.Free()
+
+	/*
+	 * A simple way to make escapeHTML false useful...
+	 */
 	var resultByte []byte
-	if resultByte, err = jsonpatch.MergePatch(ctxByte.Bytes(), eventByte.Bytes()); err != nil {
-		return
-	}
+	resultByte = append(resultByte, ctxByte.Bytes()[:ctxByte.Len()-2]...)
+	resultByte = append(resultByte, byte(','))
+	resultByte = append(resultByte, eventByte.Bytes()[1:]...)
+	// if resultByte, err = jsonpatch.MergePatch(ctxByte.Bytes(), eventByte.Bytes()); err != nil {
+	// 	return
+	// }
 	result = string(resultByte)
 	return
 }
