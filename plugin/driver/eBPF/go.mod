@@ -6,7 +6,7 @@ go 1.17
 
 require (
 	github.com/chriskaliX/plugin v0.0.0-00010101000000-000000000000
-	github.com/cilium/ebpf v0.8.1
+	github.com/cilium/ebpf v0.9.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	go.uber.org/zap v1.21.0
 )
@@ -24,19 +24,18 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	golang.org/x/net v0.0.0-20220513224357-95641704303c // indirect
-	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
+	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
+	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 )
 
 require (
 	github.com/aquasecurity/libbpfgo v0.2.5-libbpf-0.7.0
 	github.com/ehids/ebpfmanager v0.2.3
-	github.com/evanphx/json-patch v0.5.2
 	github.com/goccy/go-json v0.9.7
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
