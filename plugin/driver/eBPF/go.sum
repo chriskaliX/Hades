@@ -18,6 +18,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/ehids/ebpfmanager v0.2.3 h1:3gG/8tX5bp/x8KYNnF1HvSaQGU4nWiotLx4wvaCPzbo=
 github.com/ehids/ebpfmanager v0.2.3/go.mod h1:Na79A/VRPSpzQTvjsz5ui4WoZZufPG/oRIDpjKEjQvE=
+github.com/ehids/ebpfmanager v0.2.4-0.20220528162703-e288f5e62130 h1:c6EDiVsLGHCeiduhPn9wGaz6Mb/86YAR/cztbuqtM8E=
+github.com/ehids/ebpfmanager v0.2.4-0.20220528162703-e288f5e62130/go.mod h1:iWy4OFtJt6LATrdBgl6nSRaPCJaVPHEgGudaEWcTyHw=
 github.com/florianl/go-tc v0.4.0/go.mod h1:qt66GHXQ60ETsKP1qNg2KljTO28UMNLhfAaB/odORY8=
 github.com/florianl/go-tc v0.4.1 h1:hVx6soOY/wbznLZ5yCNL5Fzc8+fiDr5dQPSIYDQnLV8=
 github.com/florianl/go-tc v0.4.1/go.mod h1:kCCrW0ppJu2XcrUYS2utigmcMtEf9qZpAlIg5zdRqXk=
@@ -149,6 +151,8 @@ golang.org/x/net v0.0.0-20220513224357-95641704303c h1:nF9mHSvoKBLkQNQhJZNsc66z2
 golang.org/x/net v0.0.0-20220513224357-95641704303c/go.mod h1:CfG3xpIq0wQ8r1q4Su4UZFWDARRcnwPjda9FqA0JpMk=
 golang.org/x/net v0.0.0-20220531201128-c960675eff93 h1:MYimHLfoXEpOhqd/zgoA/uoXzHB86AEky4LAx5ij9xA=
 golang.org/x/net v0.0.0-20220531201128-c960675eff93/go.mod h1:XRhObCWvk6IyKnWLug+ECip1KBveYUHfp+8e9klMJ9c=
+golang.org/x/net v0.0.0-20220607020251-c690dde0001d h1:4SFsTMi4UahlKoloni7L4eYzhFRifURQLw+yv0QDCx8=
+golang.org/x/net v0.0.0-20220607020251-c690dde0001d/go.mod h1:XRhObCWvk6IyKnWLug+ECip1KBveYUHfp+8e9klMJ9c=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=

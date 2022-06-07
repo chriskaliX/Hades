@@ -46,13 +46,13 @@ func (decoder *EbpfDecoder) ReadAmountBytes() int {
 	return decoder.cursor
 }
 
-func (decoder *EbpfDecoder) DecodeContext() (c *Context, err error) {
+func (decoder *EbpfDecoder) DecodeContext() (ctx *Context, err error) {
 	offset := decoder.cursor
+	ctx = NewContext()
 	if len(decoder.buffer[offset:]) < 160 {
 		err = fmt.Errorf("can't read context from buffer: buffer too short")
 		return
 	}
-	ctx := NewContext()
 	ctx.Ts = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+8])
 	ctx.CgroupID = binary.LittleEndian.Uint64(decoder.buffer[offset+8 : offset+16])
 	ctx.Pns = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
@@ -69,7 +69,6 @@ func (decoder *EbpfDecoder) DecodeContext() (c *Context, err error) {
 	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+144 : offset+152]))
 	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+152 : offset+160]))
 	decoder.cursor += int(ctx.GetSizeBytes())
-	c = ctx
 	return
 }
 

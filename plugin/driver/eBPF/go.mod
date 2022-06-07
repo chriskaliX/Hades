@@ -24,13 +24,13 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 )
 
 require (
 	github.com/aquasecurity/libbpfgo v0.2.5-libbpf-0.7.0
-	github.com/ehids/ebpfmanager v0.2.3
+	github.com/ehids/ebpfmanager v0.2.4-0.20220528162703-e288f5e62130
 	github.com/goccy/go-json v0.9.7
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
