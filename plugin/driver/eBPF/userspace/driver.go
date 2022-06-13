@@ -123,7 +123,8 @@ func (d *Driver) Close(UID string) (err error) {
 }
 
 /*
- * Just like Close, Filter should be triggered by a task
+ * Just like Close, Filter should be triggered by a task.
+ * Also, just work like a yaml or other configuration.
  */
 
 func (d *Driver) Filter() {}

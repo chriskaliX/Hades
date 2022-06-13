@@ -32,17 +32,17 @@ import (
 var DefaultFilter Filter = Filter{}
 
 func init() {
-	DefaultFilter.kFilter = &KernelFilter{}
-	DefaultFilter.uFilter = &UserFilter{}
-	DefaultFilter.uFilter.Init()
+	DefaultFilter.KFilter = &KernelFilter{}
+	DefaultFilter.UFilter = &UserFilter{}
+	DefaultFilter.UFilter.Init()
 }
 
 /*
  * Filter defination
  */
 type Filter struct {
-	kFilter *KernelFilter
-	uFilter *UserFilter
+	KFilter *KernelFilter
+	UFilter *UserFilter
 }
 
 const (

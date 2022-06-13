@@ -5,7 +5,6 @@ import (
 	"hades-ebpf/userspace"
 	"hades-ebpf/userspace/decoder"
 	"hades-ebpf/userspace/event"
-	_ "hades-ebpf/userspace/event"
 	"os"
 	"os/signal"
 	"syscall"
