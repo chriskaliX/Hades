@@ -20,42 +20,6 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-struct _sys_enter_execve
-{
-    unsigned long long unused;
-    long syscall_nr;
-    const char *filename;
-    const char *const *argv;
-    const char *const *envp;
-};
-
-struct _sys_exit_execve
-{
-    unsigned long long unused;
-    long syscall_nr;
-    long ret;
-};
-
-struct _sys_enter_execveat
-{
-    unsigned long long unused;
-    long syscall_nr;
-    int fd;
-    const char *filename;
-    const char *const *argv;
-    const char *const *envp;
-    int flags;
-};
-
-struct _tracepoint_sched_process_fork
-{
-    unsigned long long unused;
-    char parent_comm[16];
-    pid_t parent_pid;
-    char child_comm[16];
-    pid_t child_pid;
-};
-
 struct _sys_enter_kill
 {
     unsigned long long unused;
@@ -119,8 +83,8 @@ struct _sys_enter_memfd_create
 // With *bpf.Fwd, reconsider
 // BPF_LRU_HASH(execve_cache, __u64, struct event_data, 10240);
 
-SEC("tracepoint/syscalls/sys_enter_execve")
-int sys_enter_execve(struct _sys_enter_execve *ctx)
+SEC("kretprobe/sys_execve")
+int BPF_KRETPROBE(kretprobe_sys_execve)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -135,10 +99,9 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
      * the get_exe_from_task function. (current->mm->exe_file->f_path)
      * and it's safe to access path in it's own context
      */
-    // void *exe = get_exe_from_task(data.task);
-    // save_str_to_buf(&data, exe, 0);
-    save_str_to_buf(&data, (void *)ctx->filename, 0);
-
+    void *exe = get_exe_from_task(data.task);
+    save_str_to_buf(&data, exe, 0);
+    // cwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
@@ -155,37 +118,15 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     save_str_to_buf(&data, stdout, 4);
 
     get_socket_info(&data, 5);
-
+    // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
-    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
-    save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
+    save_str_arr_to_buf(&data, (const char *const *)PT_REGS_PARM2(ctx), 7);
+    save_envp_to_buf(&data, (const char *const *)PT_REGS_PARM3(ctx), 8);
     return events_perf_submit(&data);
-    // __u64 pid = bpf_get_current_pid_tgid();
-    // return bpf_map_update_elem(&execve_cache, &pid, &data, BPF_ANY);
 }
 
-// SEC("tracepoint/syscalls/sys_exit_execve")
-// int sys_exit_execve(struct _sys_exit_execve *ctx)
-// {
-//     __u64 pid = bpf_get_current_pid_tgid();
-//     event_data_t *data = NULL;
-//     data = bpf_map_lookup_elem(&execve_cache, &pid);
-//     if (data == NULL)
-//         return 0;
-//     if (ctx->ret < 0)
-//         goto clean;
-//     // events_perf_submit(data);
-//     bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t), &data->context);
-//     int size = data->buf_off & (MAX_PERCPU_BUFSIZE - 1);
-//     void *output_data = data->submit_p->buf;
-//     bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU, output_data, size);
-// clean:
-//     bpf_map_delete_elem(&execve_cache, &pid);
-//     return 0;
-// }
-
-SEC("tracepoint/syscalls/sys_enter_execveat")
-int sys_enter_execveat(struct _sys_enter_execveat *ctx)
+SEC("kretprobe/sys_execveat")
+int BPF_KRETPROBE(kretprobe_sys_execveat)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -194,7 +135,8 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
         return 0;
     data.context.type = SYS_ENTER_EXECVEAT;
     // filename
-    save_str_to_buf(&data, (void *)ctx->filename, 0);
+    void *exe = get_exe_from_task(data.task);
+    save_str_to_buf(&data, exe, 0);
     // cwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
@@ -214,8 +156,8 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
     get_socket_info(&data, 5);
     // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
-    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
-    save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
+    save_str_arr_to_buf(&data, (const char *const *)PT_REGS_PARM2(ctx), 7);
+    save_envp_to_buf(&data, (const char *const *)PT_REGS_PARM3(ctx), 8);
     return events_perf_submit(&data);
 }
 

@@ -92,10 +92,10 @@ func (e *ExecveAt) Parse() (err error) {
 func (ExecveAt) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			UID:              "TpSysEnterExecveat",
-			Section:          "tracepoint/syscalls/sys_enter_execveat",
-			EbpfFuncName:     "sys_enter_execveat",
-			AttachToFuncName: "sys_enter_execveat",
+			UID:              "KretprobeSysExecveat",
+			Section:          "kretprobe/sys_execveat",
+			EbpfFuncName:     "kretprobe_sys_execveat",
+			AttachToFuncName: "execveat",
 		},
 	}
 }
