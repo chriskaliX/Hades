@@ -67,7 +67,7 @@ func GetFileHash(path string) (shasum string, err error) {
 	// 文件存在
 	if ok {
 		fh := temp.(FileHash)
-		if fh.AccessTime-Time > freq {
+		if Time-fh.AccessTime > freq {
 			modetime, inode, size, err = fileStat(path)
 			if err != nil {
 				return

@@ -61,7 +61,7 @@ func GetFileHash(path string) (shasum string, err error) {
 		fh := temp.(FileHash)
 		// 对比上次 accessTime, 超过了则重新 stat
 		// TODO: Time 精度
-		if fh.AccessTime-Time > freq {
+		if Time-fh.AccessTime > freq {
 			modetime, inode, size, err = fileStat(path)
 			if err != nil {
 				return
