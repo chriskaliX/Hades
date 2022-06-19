@@ -1,8 +1,9 @@
 package decoder
 
 import (
-	"hades-ebpf/userspace/share"
 	"sync"
+
+	"github.com/bytedance/sonic"
 )
 
 var contextPool sync.Pool
@@ -35,12 +36,12 @@ type Context struct {
 	Argnum    uint8   `json:"-"`
 	_         [7]byte `json:"-"`
 	// added
-	Sha256    string     `json:"sha256"`
-	Username  string     `json:"username"`
-	StartTime uint64     `json:"starttime"`
-	Exe       string     `json:"exe"`
-	Syscall   string     `json:"syscall"`
-	Event     `json:"-"` // inline tag is no longer support which is been discussed for 9 years
+	Sha256    string `json:"sha256"`
+	Username  string `json:"username"`
+	StartTime uint64 `json:"starttime"`
+	Exe       string `json:"exe"`
+	Syscall   string `json:"syscall"`
+	Event     `json:",inline"`
 }
 
 func (Context) GetSizeBytes() uint32 {
@@ -51,27 +52,23 @@ func (Context) GetSizeBytes() uint32 {
 // Since the inline tag in golang is still invaild now(since 2013 the first issue proposed)
 // We have to archieve by this way...
 func (c *Context) MarshalJson() (result string, err error) {
-	ctxByte, err := share.MarshalBytes(c) // {"exe":1,"path":1}
-	if err != nil {
+	var (
+		ctxByte    []byte
+		eventByte  []byte
+		resultByte []byte
+	)
+	if ctxByte, err = sonic.Marshal(c); err != nil {
 		return
 	}
-	defer ctxByte.Free()
-	eventByte, err := share.MarshalBytes(c.Event)
-	if err != nil {
+	if eventByte, err = sonic.Marshal(c.Event); err != nil {
 		return
 	}
-	defer eventByte.Free()
-
 	/*
 	 * A simple way to make escapeHTML false useful...
 	 */
-	var resultByte []byte
-	resultByte = append(resultByte, ctxByte.Bytes()[:ctxByte.Len()-2]...)
+	resultByte = append(resultByte, ctxByte[:len(ctxByte)-2]...)
 	resultByte = append(resultByte, byte(','))
-	resultByte = append(resultByte, eventByte.Bytes()[1:]...)
-	// if resultByte, err = jsonpatch.MergePatch(ctxByte.Bytes(), eventByte.Bytes()); err != nil {
-	// 	return
-	// }
+	resultByte = append(resultByte, eventByte[1:]...)
 	result = string(resultByte)
 	return
 }
@@ -83,7 +80,7 @@ func (c *Context) SetEvent(event Event) {
 }
 
 func (c *Context) ToString() (s string, err error) {
-	return share.Marshal(c)
+	return sonic.MarshalString(c)
 }
 
 func NewContext() *Context {

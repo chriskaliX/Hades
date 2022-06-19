@@ -20,17 +20,24 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-struct _sys_enter_kill
+struct _sys_enter_execve
 {
     unsigned long long unused;
-    pid_t pid;
-    int sig;
+    long syscall_nr;
+    const char *filename;
+    const char *const *argv;
+    const char *const *envp;
 };
 
-struct _sys_exit_kill
+struct _sys_enter_execveat
 {
     unsigned long long unused;
-    long ret;
+    long syscall_nr;
+    int fd;
+    const char *filename;
+    const char *const *argv;
+    const char *const *envp;
+    int flags;
 };
 
 struct _sys_enter_prctl
@@ -81,10 +88,18 @@ struct _sys_enter_memfd_create
  */
 
 // With *bpf.Fwd, reconsider
-// BPF_LRU_HASH(execve_cache, __u64, struct event_data, 10240);
+// BPF_LRU_HASH(execve_cache, __u64, event_data_t, 10240);
 
-SEC("kretprobe/sys_execve")
-int BPF_KRETPROBE(kretprobe_sys_execve)
+/*
+ * In tracee, they do not capture the args since the pointer...
+ * Reference: https://lists.iovisor.org/g/iovisor-dev/topic/how_to_get_function_param_in/76044869?p=
+ * Also, for compatibility, the fexit/entry is not used since it's only
+ * supported for kernel >= 5.5
+ * The only option is to read and store the values in kprobe
+ */
+
+SEC("tracepoint/syscalls/sys_enter_execve")
+int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -99,8 +114,9 @@ int BPF_KRETPROBE(kretprobe_sys_execve)
      * the get_exe_from_task function. (current->mm->exe_file->f_path)
      * and it's safe to access path in it's own context
      */
-    void *exe = get_exe_from_task(data.task);
-    save_str_to_buf(&data, exe, 0);
+    save_str_to_buf(&data, (void *)ctx->filename, 0);
+    // void *exe = get_exe_from_task(data.task);
+    // save_str_to_buf(&data, exe, 0);
     // cwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
@@ -120,13 +136,13 @@ int BPF_KRETPROBE(kretprobe_sys_execve)
     get_socket_info(&data, 5);
     // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
-    save_str_arr_to_buf(&data, (const char *const *)PT_REGS_PARM2(ctx), 7);
-    save_envp_to_buf(&data, (const char *const *)PT_REGS_PARM3(ctx), 8);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
+    save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
 }
 
-SEC("kretprobe/sys_execveat")
-int BPF_KRETPROBE(kretprobe_sys_execveat)
+SEC("tracepoint/syscalls/sys_enter_execveat")
+int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -156,8 +172,8 @@ int BPF_KRETPROBE(kretprobe_sys_execveat)
     get_socket_info(&data, 5);
     // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
-    save_str_arr_to_buf(&data, (const char *const *)PT_REGS_PARM2(ctx), 7);
-    save_envp_to_buf(&data, (const char *const *)PT_REGS_PARM3(ctx), 8);
+    save_str_arr_to_buf(&data, (const char *const *)ctx->argv, 7);
+    save_envp_to_buf(&data, (const char *const *)ctx->envp, 8);
     return events_perf_submit(&data);
 }
 

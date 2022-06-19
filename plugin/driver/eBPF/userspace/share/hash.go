@@ -31,6 +31,9 @@ osquery 的处理方法在源码 https://github.com/osquery/osquery/blob/a540d73
 TODO: ssdeep
 */
 
+/*
+ * Syscall here should be improved
+ */
 // mtime 或者 size 变更, 则重新获取文件 hash
 // Q: how about change
 type FileHash struct {
@@ -49,6 +52,9 @@ var (
 
 const freq = 60
 
+/*
+ * Time atmoic
+ */
 func GetFileHash(path string) (shasum string, err error) {
 	temp, ok := fileHashCache.Get(path)
 	var (
@@ -110,7 +116,6 @@ func GetFileHash(path string) (shasum string, err error) {
 	return fh.Sha256, nil
 }
 
-// os.Stat 调用了大量的 syscall
 func fileStat(path string) (modetime int64, inode uint64, size int64, err error) {
 	finfo, err := os.Stat(path)
 	if err != nil {

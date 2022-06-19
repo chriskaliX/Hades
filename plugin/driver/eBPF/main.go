@@ -5,6 +5,8 @@ import (
 	"hades-ebpf/userspace"
 	"hades-ebpf/userspace/decoder"
 	"hades-ebpf/userspace/event"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -69,7 +71,7 @@ func main() {
 			}
 		}
 	}()
-
+	http.ListenAndServe("localhost:6060", nil)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 	sig := <-sigs

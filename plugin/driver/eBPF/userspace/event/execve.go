@@ -94,10 +94,10 @@ func (e *Execve) Parse() (err error) {
 func (Execve) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			UID:              "KretprobeSysExecve",
-			Section:          "kretprobe/sys_execve",
-			EbpfFuncName:     "kretprobe_sys_execve",
-			AttachToFuncName: "execve",
+			UID:              "TracepointSysExecve",
+			Section:          "tracepoint/syscalls/sys_enter_execve",
+			EbpfFuncName:     "sys_enter_execve",
+			AttachToFuncName: "sys_enter_execve",
 		},
 	}
 }

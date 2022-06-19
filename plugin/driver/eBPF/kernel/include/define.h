@@ -159,12 +159,6 @@ typedef struct network_connection_v6
     __u32 scope_id;
 } net_conn_v6_t;
 
-typedef struct cidr
-{
-    __u32 prefix_len;
-    __u32 ip;
-} cidr_t;
-
 /* filters */
 BPF_ARRAY(path_filter, string_t, 3);
 BPF_ARRAY(config_map, __u32, 4);
@@ -172,10 +166,8 @@ BPF_HASH(pid_filter, __u32, __u32, 512);
 BPF_HASH(uid_filter, __u32, __u32, 512);
 BPF_HASH(cgroup_id_filter, __u64, __u32, 512);
 BPF_HASH(pns_filter, __u32, __u32, 512);
-/* only BTF is supported */
-#ifdef CORE
-// BPF_LPM_TRIE(ip_filter, cidr_t, __u32, 512);
-#endif
+/*internal maps (caches) */
+
 
 /*
  * pid to pid_parent
