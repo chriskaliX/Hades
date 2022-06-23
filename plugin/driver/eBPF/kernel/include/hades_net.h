@@ -163,16 +163,15 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
     // Check the msghdr length
     // issue #39 BUG fix:
     // due to wrong usage of READ_KERN
-    struct iov_iter msg_iter;
-    int ret = bpf_probe_read(&msg_iter, sizeof(msg_iter), &msg->msg_iter);
-    if (ret != 0)
-        goto delete;
-    struct iovec *iov;
-    ret = bpf_probe_read(&iov, sizeof(struct iovec), msg_iter.iov);
-    if (ret != 0)
-        goto delete;
+    int ret = 0;
+    struct iov_iter msg_iter = {};
+    struct iovec iov;
 
-    unsigned long iov_len = READ_KERN(iov->iov_len);
+    msg_iter = READ_KERN(msg->msg_iter);
+    ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.iov);
+    if (ret != 0)
+        goto delete;
+    unsigned long iov_len = iov.iov_len;
     if (iov_len < 20)
         goto delete;
     // truncated here, do not drop, as in dns
@@ -185,8 +184,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         goto delete;
-    // TODO: upgrade here
-    bpf_probe_read_user(&(string_p->buf[0]), iov_len & (512), &iov->iov_base);
+    bpf_probe_read_user(&(string_p->buf[0]), iov_len & (512), iov.iov_base);
     // The data structure of dns is here...
     // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys...|
     // The datas that we need are flags & querys

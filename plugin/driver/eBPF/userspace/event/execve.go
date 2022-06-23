@@ -62,6 +62,7 @@ func (e *Execve) Parse() (err error) {
 	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
+
 	var strArr []string
 	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return

@@ -53,6 +53,86 @@ out:
     data->context.argnum++;
     return 1;
 }
+
+/*
+ * Save str array to buffer.(Accept not the data)
+ * change to size here
+ */
+static __always_inline int save_str_arr_to_buf_t(buf_t *buffer, const char __user *const __user *ptr)
+{
+    if (buffer == NULL)
+        return 0;
+    /* size start from 1, since 0 is elem_num for sure */
+    u8 elem_num = 0;
+    unsigned int size = 1;
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
+    {
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
+        if (!argp)
+            goto out;
+        if (size > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+            goto out;
+        int sz = bpf_probe_read_str(&(buffer->buf[size + sizeof(int)]), MAX_STRING_SIZE, argp);
+        if (sz > 0)
+        {
+            if (size > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+                goto out;
+            bpf_probe_read(&buffer->buf[size], sizeof(int), &sz);
+            size = sz + sizeof(int);
+            elem_num++;
+            continue;
+        }
+        else
+        {
+            goto out;
+        }
+    }
+out:
+    buffer->buf[0] = elem_num;
+    return size;
+}
+
+static __always_inline int save_buf_arr_to_data(event_data_t *data, buf_t *buffer, u8 index)
+{
+    if (buffer == NULL)
+        return 0;
+
+    u8 elem_num = 0;
+    int size = 0;
+    unsigned int temp_size = 1;
+    /* Save index and update offset */
+    data->submit_p->buf[data->buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
+    data->buf_off += 1;
+    /* Save element number and update offset */
+    bpf_probe_read(&elem_num, sizeof(elem_num), &buffer->buf[1]);
+    data->submit_p->buf[data->buf_off & (MAX_PERCPU_BUFSIZE - 1)] = elem_num;
+    data->buf_off += 1;
+    /* for loop to read */
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
+    {
+        if (elem_num == 0)
+            goto out;
+        bpf_probe_read(&size, sizeof(int), &buffer->buf[temp_size & (MAX_PERCPU_BUFSIZE - 1)]);
+        if (size == 0)
+            goto out;
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+            goto out;
+        bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &size);
+        data->buf_off += sizeof(int);
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE))
+            goto out;
+        bpf_probe_read_str(&(data->submit_p->buf[data->buf_off]), MAX_STRING_SIZE, &buffer->buf[temp_size + sizeof(int)]);
+        temp_size += sizeof(int) + size;
+        data->buf_off += size;
+        elem_num--;
+    }
+out:
+    return 1;
+}
+
 /*
  * @function: save str envp array to buffer
  * @structure: [index][string count][str1 size][str1][str2 siza][str2]...
@@ -361,5 +441,10 @@ out:
     }
     return 1;
 }
+
+// static __always_inline void *hades_d_path(const struct path *path)
+// {
+
+// }
 
 #endif //__UTILS_BUF_H

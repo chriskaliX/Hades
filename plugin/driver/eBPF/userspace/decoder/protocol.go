@@ -41,7 +41,7 @@ type Context struct {
 	StartTime uint64 `json:"starttime"`
 	Exe       string `json:"exe"`
 	Syscall   string `json:"syscall"`
-	Event     `json:",inline"`
+	Event     `json:"-"`
 }
 
 func (Context) GetSizeBytes() uint32 {

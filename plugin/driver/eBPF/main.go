@@ -21,7 +21,7 @@ func main() {
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "hades-ebpf.log",
-		MaxSize:    1, // megabytes
+		MaxSize:    2, // megabytes
 		MaxBackups: 10,
 		MaxAge:     10,   //days
 		Compress:   true, // disabled by default
