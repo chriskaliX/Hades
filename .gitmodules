@@ -1,6 +1,3 @@
 [submodule "libbpf"]
 	path = plugin/driver/eBPF/kern/libbpf
 	url = https://github.com/libbpf/libbpf.git
-[submodule "plugin/driver/eBPF/kern/libbpf"]
-	path = plugin/driver/eBPF/kern/libbpf
-	url = https://github.com/libbpf/libbpf
