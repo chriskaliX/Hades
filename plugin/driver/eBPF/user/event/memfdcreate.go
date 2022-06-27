@@ -1,7 +1,7 @@
 package event
 
 import (
-	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/user/decoder"
 
 	manager "github.com/ehids/ebpfmanager"
 )

@@ -7,7 +7,7 @@
 package filter
 
 import (
-	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/user/decoder"
 	"strings"
 	"sync"
 	"unsafe"

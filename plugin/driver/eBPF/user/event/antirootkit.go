@@ -2,8 +2,8 @@ package event
 
 import (
 	"fmt"
-	"hades-ebpf/userspace/decoder"
-	"hades-ebpf/userspace/helper"
+	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/helper"
 	"os"
 	"sync"
 	"syscall"

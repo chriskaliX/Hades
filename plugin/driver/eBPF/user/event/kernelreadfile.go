@@ -1,8 +1,8 @@
 package event
 
 import (
-	"hades-ebpf/userspace/decoder"
-	"hades-ebpf/userspace/share"
+	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/share"
 
 	manager "github.com/ehids/ebpfmanager"
 )

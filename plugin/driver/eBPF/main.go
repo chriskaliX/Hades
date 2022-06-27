@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"hades-ebpf/userspace"
-	"hades-ebpf/userspace/decoder"
-	"hades-ebpf/userspace/event"
+	user "hades-ebpf/user"
+	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/event"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -41,15 +41,15 @@ func main() {
 	decoder.SetFilter(*filter)
 	// the real functions
 	var err error
-	if err = userspace.DefaultDriver.Init(); err != nil {
+	if err = user.DefaultDriver.Init(); err != nil {
 		zap.S().Error(err)
 		return
 	}
-	if err = userspace.DefaultDriver.Start(); err != nil {
+	if err = user.DefaultDriver.Start(); err != nil {
 		zap.S().Error(err)
 		return
 	}
-	if err = userspace.DefaultDriver.AfterRunInitialization(); err != nil {
+	if err = user.DefaultDriver.AfterRunInitialization(); err != nil {
 		zap.S().Error(err)
 		return
 	}
@@ -65,7 +65,7 @@ func main() {
 					ticker.Reset(time.Minute * 15)
 					init = false
 				}
-				if err = event.DefaultAntiRootkit.Scan(userspace.DefaultDriver.Manager); err != nil {
+				if err = event.DefaultAntiRootkit.Scan(user.DefaultDriver.Manager); err != nil {
 					zap.S().Error(err)
 				}
 			}

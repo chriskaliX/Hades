@@ -1,12 +1,12 @@
-package userspace
+package user
 
 import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"hades-ebpf/userspace/decoder"
-	"hades-ebpf/userspace/event"
-	"hades-ebpf/userspace/share"
+	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/event"
+	"hades-ebpf/user/share"
 	"math"
 	"os"
 	"strconv"

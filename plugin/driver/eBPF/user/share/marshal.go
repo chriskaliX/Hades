@@ -1,7 +1,7 @@
 package share
 
 import (
-	"hades-ebpf/userspace/helper"
+	"hades-ebpf/user/helper"
 
 	json "github.com/goccy/go-json"
 	"go.uber.org/zap/buffer"

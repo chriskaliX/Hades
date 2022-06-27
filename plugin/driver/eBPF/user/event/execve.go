@@ -1,17 +1,17 @@
 package event
 
 import (
-	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/user/decoder"
 	"strings"
 
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultExecveAt = &ExecveAt{}
+var DefaultExecve = &Execve{}
 
-var _ decoder.Event = (*ExecveAt)(nil)
+var _ decoder.Event = (*Execve)(nil)
 
-type ExecveAt struct {
+type Execve struct {
 	decoder.BasicEvent `json:"-"`
 	Exe                string `json:"-"`
 	Cwd                string `json:"cwd"`
@@ -25,22 +25,22 @@ type ExecveAt struct {
 	PrivEscalation     uint8  `json:"priv_esca"`
 	SSHConnection      string `json:"ssh_connection"`
 	LDPreload          string `json:"ld_preload"`
-	Syscall            string `json:"syscall"`
+	LDLibraryPath      string `json:"ld_library_path"`
 }
 
-func (ExecveAt) ID() uint32 {
-	return 698
+func (Execve) ID() uint32 {
+	return 700
 }
 
-func (ExecveAt) String() string {
-	return "execveat"
+func (Execve) String() string {
+	return "execve"
 }
 
-func (e *ExecveAt) GetExe() string {
+func (e *Execve) GetExe() string {
 	return e.Exe
 }
 
-func (e *ExecveAt) Parse() (err error) {
+func (e *Execve) Parse() (err error) {
 	if e.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
@@ -62,6 +62,7 @@ func (e *ExecveAt) Parse() (err error) {
 	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
+
 	var strArr []string
 	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
@@ -69,7 +70,6 @@ func (e *ExecveAt) Parse() (err error) {
 	e.Cmdline = strings.Join(strArr, " ")
 
 	envs := make([]string, 0, 3)
-	// 开始读 envs
 	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
 	}
@@ -86,20 +86,23 @@ func (e *ExecveAt) Parse() (err error) {
 	if len(e.LDPreload) == 0 {
 		e.LDPreload = "-1"
 	}
+	if len(e.LDLibraryPath) == 0 {
+		e.LDLibraryPath = "-1"
+	}
 	return
 }
 
-func (ExecveAt) GetProbe() []*manager.Probe {
+func (Execve) GetProbe() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			UID:              "TracepointSysExecveat",
-			Section:          "tracepoint/syscalls/sys_enter_execveat",
-			EbpfFuncName:     "sys_enter_execveat",
-			AttachToFuncName: "sys_enter_execveat",
+			UID:              "TracepointSysExecve",
+			Section:          "tracepoint/syscalls/sys_enter_execve",
+			EbpfFuncName:     "sys_enter_execve",
+			AttachToFuncName: "sys_enter_execve",
 		},
 	}
 }
 
 func init() {
-	decoder.Regist(DefaultExecveAt)
+	decoder.Regist(DefaultExecve)
 }

@@ -3,7 +3,7 @@ package event
 import (
 	"debug/elf"
 	"errors"
-	"hades-ebpf/userspace/decoder"
+	"hades-ebpf/user/decoder"
 	"os"
 	"path/filepath"
 	"strings"

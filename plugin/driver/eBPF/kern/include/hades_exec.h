@@ -148,58 +148,6 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
     return events_perf_submit(&data);
 }
 
-// SEC("raw_tracepoint/sys_exit")
-// int raw_tp_exit(struct bpf_raw_tracepoint_args *ctx)
-// {
-//     unsigned long syscall_id = ctx->args[1];
-//     if (syscall_id != 59 && syscall_id != 322)
-//         return 0;
-
-//     event_data_t data = {};
-//     if (!init_event_data(&data, ctx))
-//         return 0;
-//     if (context_filter(&data.context))
-//         return 0;
-//     data.context.type = SYS_ENTER_EXECVE;
-//     /* filename
-//      * The filename contains dot slash thing. It's not abs path,
-//      * but the args[0] of execve(at)
-//      * like Elkeid, we should get this in kretprobe/exit from
-//      * the get_exe_from_task function. (current->mm->exe_file->f_path)
-//      * and it's safe to access path in it's own context
-//      */
-//     void *exe = get_exe_from_task(data.task);
-//     save_str_to_buf(&data, exe, 0);
-//     // cwd
-//     struct fs_struct *file = get_task_fs(data.task);
-//     if (file == NULL)
-//         return 0;
-//     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-//     save_str_to_buf(&data, file_path, 1);
-
-//     void *ttyname = get_task_tty_str(data.task);
-//     save_str_to_buf(&data, ttyname, 2);
-
-//     void *stdin = get_fraw_str(0);
-//     save_str_to_buf(&data, stdin, 3);
-
-//     void *stdout = get_fraw_str(1);
-//     save_str_to_buf(&data, stdout, 4);
-
-//     get_socket_info(&data, 5);
-//     // pid_tree
-//     save_pid_tree_to_buf(&data, 8, 6);
-//     struct pt_regs *regs = (struct pt_regs *)ctx->args[0];
-
-//     const char *const *argv = (const char *const *)READ_KERN(PT_REGS_PARM2(regs));
-//     save_str_arr_to_buf(&data, argv, 7);
-
-//     const char *const *envp = (const char *const *)READ_KERN(PT_REGS_PARM3(regs));
-//     save_envp_to_buf(&data, envp, 8);
-
-//     return events_perf_submit(&data);
-// }
-
 SEC("tracepoint/syscalls/sys_enter_execveat")
 int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 {

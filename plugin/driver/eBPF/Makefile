@@ -1,9 +1,9 @@
-EBPF_BUILD := +$(MAKE) -C kernel
+EBPF_BUILD := +$(MAKE) -C kern
 EBPF_CO-RE_FLAG := core
-EBPF_SOURCE_PATH = kernel/hades_ebpf_driver.bpf.o
-EBPF_SOURCE_CO-RE_PATH = kernel/hades_ebpf_driver.bpf.core.o
-EBPF_TARGET_PATH = userspace/hades_ebpf_driver.o
-GO_DEBUG_FLAG := -ldflags="-X hades-ebpf/userspace.Env=debug"
+EBPF_SOURCE_PATH = kern/hades_ebpf_driver.bpf.o
+EBPF_SOURCE_CO-RE_PATH = kern/hades_ebpf_driver.bpf.core.o
+EBPF_TARGET_PATH = user/hades_ebpf_driver.o
+GO_DEBUG_FLAG := -ldflags="-X hades-ebpf/user.Env=debug"
 GO_TARGET_PATH := -o ../driver
 
 no-core:
