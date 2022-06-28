@@ -36,7 +36,7 @@
 
 #define TASK_COMM_LEN 16
 #define MAX_STR_FILTER_SIZE 128
-#define MAX_PERCPU_BUFSIZE (1 << 14)
+#define MAX_PERCPU_BUFSIZE (1 << 15)
 #define MAX_STRING_SIZE 256
 #define MAX_STR_ARR_ELEM 32
 #define MAX_PATH_COMPONENTS 16
@@ -79,6 +79,8 @@ enum hades_ebpf_config
     BPF_MAP(_name, BPF_MAP_TYPE_PROG_ARRAY, __u32, __u32, _max_entries)
 #define BPF_PERF_OUTPUT(_name, _max_entries) \
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, _max_entries)
+#define BPF_PERCPU_HASH(_name, _max_entries) \
+    BPF_MAP(_name, BPF_MAP_TYPE_PERCPU_HASH, int, int, _max_entries)
 typedef struct simple_buf
 {
     __u8 buf[MAX_PERCPU_BUFSIZE];
@@ -167,7 +169,6 @@ BPF_HASH(uid_filter, __u32, __u32, 512);
 BPF_HASH(cgroup_id_filter, __u64, __u32, 512);
 BPF_HASH(pns_filter, __u32, __u32, 512);
 /*internal maps (caches) */
-
 
 /*
  * pid to pid_parent

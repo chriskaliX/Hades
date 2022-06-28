@@ -25,7 +25,6 @@ type ExecveAt struct {
 	PrivEscalation     uint8  `json:"priv_esca"`
 	SSHConnection      string `json:"ssh_connection"`
 	LDPreload          string `json:"ld_preload"`
-	Syscall            string `json:"syscall"`
 }
 
 func (ExecveAt) ID() uint32 {
@@ -69,7 +68,6 @@ func (e *ExecveAt) Parse() (err error) {
 	e.Cmdline = strings.Join(strArr, " ")
 
 	envs := make([]string, 0, 3)
-	// 开始读 envs
 	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
 	}
@@ -96,6 +94,12 @@ func (ExecveAt) GetProbe() []*manager.Probe {
 			Section:          "tracepoint/syscalls/sys_enter_execveat",
 			EbpfFuncName:     "sys_enter_execveat",
 			AttachToFuncName: "sys_enter_execveat",
+		},
+		{
+			UID:              "TracepointSysExecveatExit",
+			Section:          "tracepoint/syscalls/sys_exit_execveat",
+			EbpfFuncName:     "sys_exit_execveat",
+			AttachToFuncName: "sys_exit_execveat",
 		},
 	}
 }

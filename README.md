@@ -37,7 +37,7 @@ This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [E
 
 For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/driver) of these hooks.
 
-Also, Rootkit detection(anti_rootkit) for `sys_call_table` and `idt_table` hook is updated now.
+Also, Rootkit detection(anti_rootkit) for `sys_call_table` hook is updated now.
 
 | Hook                                       | Default Status(Description)           | ID   |
 | :----------------------------------------- | :------------------------------------ | :--- |

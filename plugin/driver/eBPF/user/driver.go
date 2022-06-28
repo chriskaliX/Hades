@@ -142,7 +142,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		if err == event.ErrIgnore {
 			return
 		}
-		zap.S().Error(err)
+		zap.S().Errorf("error: %s, hook: %s", err, ctx.String())
 		return
 	}
 	ctx.SetEvent(d.eventDecoder)

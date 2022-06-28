@@ -25,7 +25,6 @@ type Execve struct {
 	PrivEscalation     uint8  `json:"priv_esca"`
 	SSHConnection      string `json:"ssh_connection"`
 	LDPreload          string `json:"ld_preload"`
-	LDLibraryPath      string `json:"ld_library_path"`
 }
 
 func (Execve) ID() uint32 {
@@ -62,7 +61,6 @@ func (e *Execve) Parse() (err error) {
 	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
-
 	var strArr []string
 	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
@@ -86,9 +84,6 @@ func (e *Execve) Parse() (err error) {
 	if len(e.LDPreload) == 0 {
 		e.LDPreload = "-1"
 	}
-	if len(e.LDLibraryPath) == 0 {
-		e.LDLibraryPath = "-1"
-	}
 	return
 }
 
@@ -99,6 +94,12 @@ func (Execve) GetProbe() []*manager.Probe {
 			Section:          "tracepoint/syscalls/sys_enter_execve",
 			EbpfFuncName:     "sys_enter_execve",
 			AttachToFuncName: "sys_enter_execve",
+		},
+		{
+			UID:              "TracepointSysExecveExit",
+			Section:          "tracepoint/syscalls/sys_exit_execve",
+			EbpfFuncName:     "sys_exit_execve",
+			AttachToFuncName: "sys_exit_execve",
 		},
 	}
 }

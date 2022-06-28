@@ -15,7 +15,7 @@
 
 /*
  * @function: save str array to buffer
- * @structure: [index][string count][str1 size][str1][str2 siza][str2]...
+ * @structure: [index][string count][str1 size][str1][str2 size][str2]...
  */
 static __always_inline int save_str_arr_to_buf(event_data_t *data, const char __user *const __user *ptr, u8 index)
 {
@@ -54,16 +54,15 @@ out:
     return 1;
 }
 
-/*
- * Save str array to buffer.(Accept not the data)
- * change to size here
+/* Structure
+ * [string count][str1 size][str1][str2 size][str2]...
  */
-static __always_inline int save_str_arr_to_buf_t(buf_t *buffer, const char __user *const __user *ptr)
+static __always_inline int save_argv_to_buf_t(buf_t *buffer, const char __user *const __user *ptr)
 {
     if (buffer == NULL)
         return 0;
     /* size start from 1, since 0 is elem_num for sure */
-    u8 elem_num = 0;
+    __u8 elem_num = 0;
     unsigned int size = 1;
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
@@ -74,13 +73,16 @@ static __always_inline int save_str_arr_to_buf_t(buf_t *buffer, const char __use
             goto out;
         if (size > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
+        // read the string firstly
         int sz = bpf_probe_read_str(&(buffer->buf[size + sizeof(int)]), MAX_STRING_SIZE, argp);
         if (sz > 0)
         {
+            // read the size the of string and update
             if (size > (MAX_PERCPU_BUFSIZE) - sizeof(int))
                 goto out;
             bpf_probe_read(&buffer->buf[size], sizeof(int), &sz);
-            size = sz + sizeof(int);
+            size += sz + sizeof(int);
+            // update the count
             elem_num++;
             continue;
         }
@@ -94,101 +96,62 @@ out:
     return size;
 }
 
-static __always_inline int save_buf_arr_to_data(event_data_t *data, buf_t *buffer, u8 index)
+// unfinished
+static __always_inline int save_envp_to_buf_t(buf_t *buffer, const char __user *const __user *ptr)
 {
     if (buffer == NULL)
         return 0;
-
-    u8 elem_num = 0;
-    int size = 0;
-    unsigned int temp_size = 1;
-    /* Save index and update offset */
-    data->submit_p->buf[data->buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
-    data->buf_off += 1;
-    /* Save element number and update offset */
-    bpf_probe_read(&elem_num, sizeof(elem_num), &buffer->buf[1]);
-    data->submit_p->buf[data->buf_off & (MAX_PERCPU_BUFSIZE - 1)] = elem_num;
-    data->buf_off += 1;
-    /* for loop to read */
+    // int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0;
+    /* size start from 1, since 0 is elem_num for sure */
+    __u8 elem_num = 0;
+    unsigned int size = 1;
+    // char *ld_preload = "LD_PRELOAD=";
+    // char *ssh_connection = "SSH_CONNECTION";
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
     {
-        if (elem_num == 0)
-            goto out;
-        bpf_probe_read(&size, sizeof(int), &buffer->buf[temp_size & (MAX_PERCPU_BUFSIZE - 1)]);
-        if (size == 0)
-            goto out;
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
-            goto out;
-        bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &size);
-        data->buf_off += sizeof(int);
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE))
-            goto out;
-        bpf_probe_read_str(&(data->submit_p->buf[data->buf_off]), MAX_STRING_SIZE, &buffer->buf[temp_size + sizeof(int)]);
-        temp_size += sizeof(int) + size;
-        data->buf_off += size;
-        elem_num--;
-    }
-out:
-    return 1;
-}
-
-/*
- * @function: save str envp array to buffer
- * @structure: [index][string count][str1 size][str1][str2 siza][str2]...
- */
-static __always_inline int save_envp_to_buf(event_data_t *data, const char __user *const __user *ptr, u8 index)
-{
-    // Data saved to submit buf: [index][string count][str1 size][str1][str2 size][str2]...
-    u8 elem_num = 0;
-    data->submit_p->buf[(data->buf_off) & ((MAX_PERCPU_BUFSIZE)-1)] = index;
-    // Save space for number of elements (1 byte): [string count]
-    __u32 orig_off = data->buf_off + 1;
-    // update the buf_off
-    data->buf_off += 2;
-    // flags for collection
-    int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0;
-/* Bounded loops are available starting with Linux 5.3, so we had to unroll the for loop at compile time */
-#pragma unroll
-    /* changed since double loops here
-     * remove the ld_library for speed up and do not hit the limitation...
-     */
-    for (int i = 0; i < 12; i++)
-    {
         const char *argp = NULL;
-        /* read to argp and check */
         bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
         if (!argp)
             goto out;
-        /* check the available size */
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+        // validate
+        if (size > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
-        /* read into buf & update the elem_num */
-        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
+        // read the string firstly
+        int sz = bpf_probe_read_str(&(buffer->buf[size + sizeof(int)]), MAX_STRING_SIZE, argp);
         if (sz > 0)
         {
-            if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - (MAX_STRING_SIZE))
+            // read the size the of string and update
+            if (size > (MAX_PERCPU_BUFSIZE) - sizeof(int) - MAX_STRING_SIZE)
                 goto out;
+
             // Add & ((MAX_PERCPU_BUFSIZE)-1)] for verifier if the index is not checked
-            if (ld_preload_flag == 0 && sz > 11 && prefix("LD_PRELOAD=", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 6))
-            {
-                ld_preload_flag = 1;
-                tmp_flag = 1;
-            }
-
-            if (ssh_connection_flag == 0 && sz > 15 && prefix("SSH_CONN", (char *)&data->submit_p->buf[data->buf_off + sizeof(int)], 8))
-            {
-                ssh_connection_flag = 1;
-                tmp_flag = 1;
-            }
-
-            if (tmp_flag == 0)
-                continue;
-            else
-                tmp_flag = 0;
-
-            bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
-            data->buf_off += sz + sizeof(int);
+            // if (ld_preload_flag == 0 && sz > 11 && prefix(ld_preload, (char *)&(buffer->buf[size + sizeof(int)]), 6))
+            // {
+            //     ld_preload_flag = 1;
+            //     tmp_flag = 1;
+            // }
+            // if (ssh_connection_flag == 0 && sz > 15 && prefix(ssh_connection, (char *)&(buffer->buf[size + sizeof(int)]), 8))
+            // {
+            //     ssh_connection_flag = 1;
+            //     tmp_flag = 1;
+            // }
+            // if we remove this, it runs
+            // if (tmp_flag == 0)
+            //     continue;
+            // else
+            //     tmp_flag = 0;
+            bpf_probe_read(&(buffer->buf[size]), sizeof(int), &sz);
+            // Problem encountered: math between map_value pointer and register with unbounded min value is not allowed
+            // Reference: https://blogs.oracle.com/linux/post/bpf-in-depth-the-bpf-bytecode-and-the-bpf-verifier
+            // https://blog.path.net/ebpf-xdp-and-network-security/
+            // asm volatile("%0 &= 0x1FFF"
+            //              : "=r"(size)
+            //              : "0"(size));
+            // asm volatile("%0 &= 0xFF"
+            //              : "=r"(sz)
+            //              : "0"(sz));
+            size += sz + sizeof(int);
             elem_num++;
             continue;
         }
@@ -198,9 +161,8 @@ static __always_inline int save_envp_to_buf(event_data_t *data, const char __use
         }
     }
 out:
-    data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
-    data->context.argnum++;
-    return 1;
+    buffer->buf[0] = elem_num;
+    return size;
 }
 
 static __always_inline int save___u64_arr_to_buf(event_data_t *data, const __u64 __user *ptr, int len, u8 index)

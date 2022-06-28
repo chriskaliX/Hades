@@ -67,7 +67,7 @@ func (c *Context) MarshalJson() (result string, err error) {
 	 * A simple way to make escapeHTML false useful...
 	 */
 	resultByte = append(resultByte, ctxByte[:len(ctxByte)-2]...)
-	resultByte = append(resultByte, byte(','))
+	resultByte = append(resultByte, byte('"'), byte(','))
 	resultByte = append(resultByte, eventByte[1:]...)
 	result = string(resultByte)
 	return
