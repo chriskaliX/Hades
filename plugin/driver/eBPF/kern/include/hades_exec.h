@@ -37,7 +37,7 @@ struct _sys_enter_execveat
     const char *filename;
     const char *const *argv;
     const char *const *envp;
-    long flags;
+    int flags;
 };
 
 /*
@@ -71,12 +71,10 @@ static __always_inline int store_execve_data(const char *const *argv_p, const ch
     buf_t *argv = (buf_t *)bpf_map_lookup_elem(&execve_argv_array, &index);
     int argv_size = save_argv_to_buf_t(argv, argv_p);
     bpf_map_update_elem(&execve_argv_hash, &index, &argv_size, BPF_ANY);
-    bpf_printk("argv size:%d\n", argv_size);
     // envp
     buf_t *envp = (buf_t *)bpf_map_lookup_elem(&execve_envp_array, &index);
     int envp_size = save_envp_to_buf_t(envp, envp_p);
     bpf_map_update_elem(&execve_envp_hash, &index, &envp_size, BPF_ANY);
-    bpf_printk("envp size:%d\n", envp_size);
     return 1;
 };
 
@@ -98,7 +96,6 @@ static __always_inline int save_array_to_buf(event_data_t *data, int buf_index, 
     // pre vaildate
     if (buffer == NULL || size == NULL || size <= 0)
         return 0;
-    bpf_printk("size: %d\n", *size);
     // read and save the index, update the buf_off
     data->submit_p->buf[data->buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
     data->buf_off += 1;
