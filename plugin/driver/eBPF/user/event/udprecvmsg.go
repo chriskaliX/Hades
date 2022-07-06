@@ -15,6 +15,8 @@ type UdpRecvmsg struct {
 	Exe                string `json:"-"`
 	Opcode             int32  `json:"opcode"`
 	Rcode              int32  `json:"rcode"`
+	Qtype              int32  `json:"qtype"`
+	Atype              int32  `json:"atype"`
 	DnsData            string `json:"dns_data"`
 }
 
@@ -39,6 +41,12 @@ func (u *UdpRecvmsg) Parse() (err error) {
 		return
 	}
 	if err = decoder.DefaultDecoder.DecodeInt32(&u.Rcode); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeInt32(&u.Qtype); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeInt32(&u.Atype); err != nil {
 		return
 	}
 	if u.DnsData, err = decoder.DefaultDecoder.DecodeString(); err != nil {

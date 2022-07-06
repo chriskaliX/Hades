@@ -136,6 +136,8 @@ struct udpdata
 {
     int opcode;
     int rcode;
+    int qtype; // dns: question type. 1 - A; 13 - cname; 28 - AAAA...
+    int atype; // dns: answer(rr) type. 1 - A; 13 - cname; 28 - AAAA... [just get first rr type]
 };
 
 // @Reference: https://en.wikipedia.org/wiki/Domain_Name_System
@@ -203,9 +205,10 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
         struct udpdata udata = {};
         udata.opcode = opcode;
         udata.rcode = rcode;
-        save_to_submit_buf(&data, &udata, sizeof(struct udpdata), 0);
+        
         int len;
         int templen;
+        int end_flag = 0; // end_flag: question domain parse finished 
 // change the data to a string, as max, we support 10
 #pragma unroll
         for (int i = 0; i < 10; i++)
@@ -221,12 +224,28 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
                 templen = string_p->buf[(len + 1) & (MAX_PERCPU_BUFSIZE - 1)];
                 if (templen == 0)
                 {
+                    end_flag = 1;
                     break;
                 }
                 string_p->buf[(len + 1) & (MAX_PERCPU_BUFSIZE - 1)] = 46;
                 len = len + templen + 1;
             }
         }
+
+        // bad case: we hav't finished domian parse
+        if (end_flag == 1) {
+            udata.qtype =  string_p->buf[(len + 3) & (MAX_PERCPU_BUFSIZE - 1)] | \
+                    string_p->buf[(len + 2) & (MAX_PERCPU_BUFSIZE - 1)]; 
+            udata.atype =  string_p->buf[(len + 5 + 3) & (MAX_PERCPU_BUFSIZE - 1)] | \
+                    string_p->buf[(len + 5 + 4) & (MAX_PERCPU_BUFSIZE - 1)];
+        } else { // bad case: default val
+            udata.qtype = 0;
+            udata.atype = 0;
+        }
+
+        // commit: udata
+        save_to_submit_buf(&data, &udata, sizeof(struct udpdata), 0);
+
         save_str_to_buf(&data, (void *)&string_p->buf[13], 1);
         // get exe from task
         void *exe = get_exe_from_task(data.task);
