@@ -133,16 +133,16 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	decoder.DefaultDecoder.SetBuffer(data)
 	ctx, err := decoder.DefaultDecoder.DecodeContext()
 	if err != nil {
-		decoder.PutContext(ctx)
 		return
 	}
+	defer decoder.PutContext(ctx)
 	d.eventDecoder = decoder.GetEvent(ctx.Type)
 	err = d.eventDecoder.Parse()
 	if err != nil {
 		if err == event.ErrIgnore {
 			return
 		}
-		zap.S().Errorf("error: %s, hook: %s", err, ctx.String())
+		zap.S().Errorf("error: %s", err)
 		return
 	}
 	ctx.SetEvent(d.eventDecoder)

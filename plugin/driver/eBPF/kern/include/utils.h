@@ -3,7 +3,6 @@
 #ifndef CORE
 #include <linux/sched.h>
 #include <linux/fdtable.h>
-#include <utils_buf.h>
 #include <linux/mm_types.h>
 #include <net/ipv6.h>
 #include <linux/ipv6.h>
@@ -13,6 +12,7 @@
 #include <missing_definitions.h>
 #endif
 
+#include <utils_buf.h>
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_endian.h"
@@ -25,7 +25,8 @@
 // TODO: 写一个文章记录一下这个...
 
 /* init_context */
-static __always_inline int init_context(context_t *context, struct task_struct *task)
+static __always_inline int init_context(context_t *context,
+                                        struct task_struct *task)
 {
     struct task_struct *realparent = READ_KERN(task->real_parent);
     context->ppid = READ_KERN(realparent->tgid);
@@ -44,7 +45,8 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     struct uts_namespace *uts_ns = READ_KERN(nsp->uts_ns);
     struct pid_namespace *pid_ns = READ_KERN(nsp->pid_ns_for_children);
     // nodename
-    bpf_probe_read_str(&context->nodename, sizeof(context->nodename), &uts_ns->name.nodename);
+    bpf_probe_read_str(&context->nodename, sizeof(context->nodename),
+                       &uts_ns->name.nodename);
     // pid_namespace
     context->pns = READ_KERN(pid_ns->ns.inum);
     // For root pid_namespace, it's not that easy in eBPF. The way that we can get pid=1 task
@@ -54,9 +56,11 @@ static __always_inline int init_context(context_t *context, struct task_struct *
     // Still, I think it's fine if we just get the root pid_namespace from usersapce. I do not
     // catch the reason that Elkeid get this in root.
     // sessionid
-    bpf_probe_read(&context->sessionid, sizeof(context->sessionid), &task->sessionid);
+    bpf_probe_read(&context->sessionid, sizeof(context->sessionid),
+                   &task->sessionid);
     // This may changed since
-    bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm), &realparent->comm);
+    bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm),
+                       &realparent->comm);
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
     context->argnum = 0;
     return 0;
@@ -99,7 +103,8 @@ static __always_inline void *get_task_tty_str(struct task_struct *task)
     int size = 0;
     if (string_p == NULL)
         return NULL;
-    struct signal_struct *signal = (struct signal_struct *)READ_KERN(task->signal);
+    struct signal_struct *signal =
+            (struct signal_struct *)READ_KERN(task->signal);
     if (signal == NULL)
         goto exit;
     struct tty_struct *tty = (struct tty_struct *)READ_KERN(signal->tty);
@@ -107,8 +112,7 @@ static __always_inline void *get_task_tty_str(struct task_struct *task)
         goto exit;
     size = bpf_probe_read_str(&(string_p->buf[0]), 64, &tty->name);
 exit:
-    if (size < 1)
-    {
+    if (size < 1) {
         char nothing[] = "-1";
         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
     }
@@ -141,27 +145,26 @@ static __always_inline void *get_path_str(struct path *path)
     if (string_p == NULL)
         return NULL;
 #pragma unroll
-    for (int i = 0; i < MAX_PATH_COMPONENTS; i++)
-    {
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
         // 2. dentry == mnt_root means we reach the mount root, they share the same dentry
-        if (dentry == mnt_root || dentry == d_parent)
-        {
+        if (dentry == mnt_root || dentry == d_parent) {
             // We reached root, but not mount root - escaped?
-            if (dentry != mnt_root)
-            {
+            if (dentry != mnt_root) {
                 break;
             }
             // dentry == mnt_root, but the mnt has not reach it's root
             // so update the dentry as the mnt_mountpoint(in order to continue the dentry loop for the mountpoint)
             // We reached root, but not global root - continue with mount point path
-            if (mnt_p != mnt_parent_p)
-            {
-                bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt_p->mnt_mountpoint);
-                bpf_probe_read(&mnt_p, sizeof(struct mount *), &mnt_p->mnt_parent);
-                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
+            if (mnt_p != mnt_parent_p) {
+                bpf_probe_read(&dentry, sizeof(struct dentry *),
+                               &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount *),
+                               &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *),
+                               &mnt_p->mnt_parent);
                 vfsmnt = &mnt_p->mnt;
                 continue;
             }
@@ -174,42 +177,40 @@ static __always_inline void *get_path_str(struct path *path)
         len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
         off = buf_off - len;
         sz = 0;
-        if (off <= buf_off)
-        { // verify no wrap occurred
+        if (off <= buf_off) { // verify no wrap occurred
             len = len & (((MAX_PERCPU_BUFSIZE) >> 1) - 1);
-            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]), len, (void *)d_name.name);
-        }
-        else
+            sz = bpf_probe_read_str(
+                    &(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]),
+                    len, (void *)d_name.name);
+        } else
             break;
-        if (sz > 1)
-        {
+        if (sz > 1) {
             buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1, &slash);
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]),
+                           1, &slash);
             buf_off -= sz - 1;
-        }
-        else
-        {
+        } else {
             // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
             break;
         }
         dentry = d_parent;
     }
     // no path avaliable.
-    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1))
-    {
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
         d_name = READ_KERN(dentry->d_name);
-        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
+                           (void *)d_name.name);
         // 2022-02-24 added. return "-1" if it's added
-    }
-    else
-    {
+    } else {
         // Add leading slash
         buf_off -= 1;
-        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1,
+                       &slash);
         // Null terminate the path string
-        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1, &zero);
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
+                       &zero);
     }
 
     set_buf_off(STRING_BUF_IDX, buf_off);
@@ -230,11 +231,9 @@ static __always_inline void *get_dentry_path_str(struct dentry *dentry)
         return NULL;
 
 #pragma unroll
-    for (int i = 0; i < MAX_PATH_COMPONENTS; i++)
-    {
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
         struct dentry *d_parent = READ_KERN(dentry->d_parent);
-        if (dentry == d_parent)
-        {
+        if (dentry == d_parent) {
             break;
         }
         // Add this dentry name to path
@@ -243,59 +242,56 @@ static __always_inline void *get_dentry_path_str(struct dentry *dentry)
         unsigned int off = buf_off - len;
         // Is string buffer big enough for dentry name?
         int sz = 0;
-        if (off <= buf_off)
-        { // verify no wrap occurred
+        if (off <= buf_off) { // verify no wrap occurred
             len = len & ((MAX_PERCPU_BUFSIZE >> 1) - 1);
-            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]), len, (void *)d_name.name);
-        }
-        else
+            sz = bpf_probe_read_str(
+                    &(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]),
+                    len, (void *)d_name.name);
+        } else
             break;
-        if (sz > 1)
-        {
+        if (sz > 1) {
             buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1, &slash);
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]),
+                           1, &slash);
             buf_off -= sz - 1;
-        }
-        else
-        {
+        } else {
             // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
             break;
         }
         dentry = d_parent;
     }
 
-    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1))
-    {
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
         struct qstr d_name = READ_KERN(dentry->d_name);
-        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
-    }
-    else
-    {
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
+                           (void *)d_name.name);
+    } else {
         // Add leading slash
         buf_off -= 1;
-        bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1, &slash);
+        bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]), 1,
+                       &slash);
         // Null terminate the path string
-        bpf_probe_read(&(string_p->buf[(MAX_PERCPU_BUFSIZE >> 1) - 1]), 1, &zero);
+        bpf_probe_read(&(string_p->buf[(MAX_PERCPU_BUFSIZE >> 1) - 1]), 1,
+                       &zero);
     }
 
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }
 
-static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details, int peer)
+static __always_inline int
+get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details,
+                                 int peer)
 {
     struct inet_sock *inet = (struct inet_sock *)sk;
-    if (!peer)
-    {
+    if (!peer) {
         net_details->local_address = READ_KERN(inet->inet_rcv_saddr);
         net_details->local_port = bpf_ntohs(READ_KERN(inet->inet_num));
         net_details->remote_address = READ_KERN(inet->inet_daddr);
         net_details->remote_port = READ_KERN(inet->inet_dport);
-    }
-    else
-    {
+    } else {
         net_details->remote_address = READ_KERN(inet->inet_rcv_saddr);
         net_details->remote_port = bpf_ntohs(READ_KERN(inet->inet_num));
         net_details->local_address = READ_KERN(inet->inet_daddr);
@@ -309,18 +305,21 @@ static __always_inline int get_network_details_from_sock_v4(struct sock *sk, net
 static __always_inline volatile unsigned char get_sock_state(struct sock *sock)
 {
     volatile unsigned char sk_state_own_impl;
-    bpf_probe_read((void *)&sk_state_own_impl, sizeof(sk_state_own_impl), (const void *)&sock->sk_state);
+    bpf_probe_read((void *)&sk_state_own_impl, sizeof(sk_state_own_impl),
+                   (const void *)&sock->sk_state);
     return sk_state_own_impl;
 }
 
-static __always_inline struct ipv6_pinfo *get_inet_pinet6(struct inet_sock *inet)
+static __always_inline struct ipv6_pinfo *
+get_inet_pinet6(struct inet_sock *inet)
 {
     struct ipv6_pinfo *pinet6_own_impl;
     bpf_probe_read(&pinet6_own_impl, sizeof(pinet6_own_impl), &inet->pinet6);
     return pinet6_own_impl;
 }
 
-static __always_inline struct ipv6_pinfo *inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
+static __always_inline struct ipv6_pinfo *
+inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
 {
     volatile unsigned char sk_state_own_impl;
     sk_state_own_impl = get_sock_state(__sk);
@@ -328,18 +327,20 @@ static __always_inline struct ipv6_pinfo *inet6_sk_own_impl(struct sock *__sk, s
     struct ipv6_pinfo *pinet6_own_impl;
     pinet6_own_impl = get_inet_pinet6(inet);
 
-    bool sk_fullsock = (1 << sk_state_own_impl) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
+    bool sk_fullsock =
+            (1 << sk_state_own_impl) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
     return sk_fullsock ? pinet6_own_impl : NULL;
 }
 
-static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net_conn_v6_t *net_details, int peer)
+static __always_inline int
+get_network_details_from_sock_v6(struct sock *sk, net_conn_v6_t *net_details,
+                                 int peer)
 {
     struct inet_sock *inet = (struct inet_sock *)sk;
     struct ipv6_pinfo *np = inet6_sk_own_impl(sk, inet);
     struct in6_addr addr = {};
     addr = READ_KERN(sk->sk_v6_rcv_saddr);
-    if (ipv6_addr_any(&addr))
-    {
+    if (ipv6_addr_any(&addr)) {
         addr = READ_KERN(np->saddr);
     }
     // the flowinfo field can be specified by the user to indicate a network
@@ -357,15 +358,12 @@ static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net
     // iface)' function.  in any case, leaving it with value of 0 won't affect
     // our representation of network flows.
     net_details->scope_id = 0;
-    if (peer)
-    {
+    if (peer) {
         net_details->local_address = READ_KERN(sk->sk_v6_daddr);
         net_details->local_port = READ_KERN(inet->inet_dport);
         net_details->remote_address = addr;
         net_details->remote_port = READ_KERN(inet->inet_sport);
-    }
-    else
-    {
+    } else {
         net_details->local_address = addr;
         net_details->local_port = READ_KERN(inet->inet_sport);
         net_details->remote_address = READ_KERN(sk->sk_v6_daddr);
@@ -374,7 +372,8 @@ static __always_inline int get_network_details_from_sock_v6(struct sock *sk, net
     return 0;
 }
 
-static __always_inline int get_remote_sockaddr_in_from_network_details(struct sockaddr_in *addr, net_conn_v4_t *net_details, u16 family)
+static __always_inline int get_remote_sockaddr_in_from_network_details(
+        struct sockaddr_in *addr, net_conn_v4_t *net_details, u16 family)
 {
     addr->sin_family = family;
     addr->sin_port = net_details->remote_port;
@@ -382,7 +381,8 @@ static __always_inline int get_remote_sockaddr_in_from_network_details(struct so
     return 0;
 }
 
-static __always_inline int get_remote_sockaddr_in6_from_network_details(struct sockaddr_in6 *addr, net_conn_v6_t *net_details, u16 family)
+static __always_inline int get_remote_sockaddr_in6_from_network_details(
+        struct sockaddr_in6 *addr, net_conn_v6_t *net_details, u16 family)
 {
     addr->sin6_family = family;
     addr->sin6_port = net_details->remote_port;
@@ -393,7 +393,8 @@ static __always_inline int get_remote_sockaddr_in6_from_network_details(struct s
     return 0;
 }
 
-static __always_inline int get_local_sockaddr_in_from_network_details(struct sockaddr_in *addr, net_conn_v4_t *net_details, u16 family)
+static __always_inline int get_local_sockaddr_in_from_network_details(
+        struct sockaddr_in *addr, net_conn_v4_t *net_details, u16 family)
 {
     addr->sin_family = family;
     addr->sin_port = net_details->local_port;
@@ -431,7 +432,8 @@ static __always_inline struct fs_struct *get_task_fs(struct task_struct *task)
     return READ_KERN(task->fs);
 }
 
-static __always_inline const struct cred *get_task_real_cred(struct task_struct *task)
+static __always_inline const struct cred *
+get_task_real_cred(struct task_struct *task)
 {
     return READ_KERN(task->real_cred);
 }
@@ -459,7 +461,8 @@ static __always_inline void *get_fraw_str(u64 num)
 }
 
 /* Reference: http://jinke.me/2018-08-23-socket-and-linux-file-system/ */
-static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtable *fdt, u8 index)
+static __always_inline int get_socket_info_sub(event_data_t *data,
+                                               struct fdtable *fdt, u8 index)
 {
     struct socket *socket;
     struct sock *sk;
@@ -484,8 +487,7 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
         return 0;
 // unroll since unbounded loop is not supported < kernel version 5.3
 #pragma unroll
-    for (int i = 0; i < 8; i++)
-    {
+    for (int i = 0; i < 8; i++) {
         if (i == max_fds)
             break;
         file = (struct file *)READ_KERN(fd[i]);
@@ -496,40 +498,42 @@ static __always_inline int get_socket_info_sub(event_data_t *data, struct fdtabl
         // name or path
         d_name = READ_KERN(dentry->d_name);
         unsigned int len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
-        size = bpf_probe_read_str(&(string_p->buf[0]), len, (void *)d_name.name);
+        size = bpf_probe_read_str(&(string_p->buf[0]), len,
+                                  (void *)d_name.name);
         if (size <= 0)
             continue;
-        if (prefix("TCP", (char *)&(string_p->buf[0]), 3))
-        {
+        if (prefix("TCP", (char *)&(string_p->buf[0]), 3)) {
             bpf_probe_read(&socket, sizeof(socket), &file->private_data);
             if (socket == NULL)
                 continue;
             // check state
             // in Elkeid v1.7. Only SS_CONNECTING/SS_CONNECTED/SS_DISCONNECTING is considered.
             bpf_probe_read(&state, sizeof(state), &socket->state);
-            if (state != SS_CONNECTING && state != SS_CONNECTED && state != SS_DISCONNECTING)
+            if (state != SS_CONNECTING && state != SS_CONNECTED &&
+                state != SS_DISCONNECTING)
                 continue;
             bpf_probe_read(&sk, sizeof(sk), &socket->sk);
             if (!sk)
                 continue;
             family = READ_KERN(sk->sk_family);
-            if (family == AF_INET)
-            {
+            if (family == AF_INET) {
                 net_conn_v4_t net_details = {};
                 get_network_details_from_sock_v4(sk, &net_details, 0);
                 // remote we need to send
                 struct sockaddr_in remote;
-                get_remote_sockaddr_in_from_network_details(&remote, &net_details, family);
-                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+                get_remote_sockaddr_in_from_network_details(
+                        &remote, &net_details, family);
+                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in),
+                                   index);
                 return 1;
-            }
-            else if (family == AF_INET6)
-            {
+            } else if (family == AF_INET6) {
                 net_conn_v6_t net_details = {};
                 struct sockaddr_in6 remote;
                 get_network_details_from_sock_v6(sk, &net_details, 0);
-                get_remote_sockaddr_in6_from_network_details(&remote, &net_details, family);
-                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in6), index);
+                get_remote_sockaddr_in6_from_network_details(
+                        &remote, &net_details, family);
+                save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in6),
+                                   index);
                 return 1;
             }
         }
@@ -554,8 +558,7 @@ static __always_inline int get_socket_info(event_data_t *data, u8 index)
     u32 pid;
     int flag;
 #pragma unroll
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         pid = READ_KERN(task->pid);
         // 0 for failed...
         if (pid == 1)
@@ -667,10 +670,12 @@ static __always_inline int init_event_data(event_data_t *data, void *ctx)
 
 static __always_inline int events_perf_submit(event_data_t *data)
 {
-    bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t), &data->context);
+    bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t),
+                   &data->context);
     int size = data->buf_off & (MAX_PERCPU_BUFSIZE - 1);
     void *output_data = data->submit_p->buf;
-    return bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU, output_data, size);
+    return bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU,
+                                 output_data, size);
 }
 
 #endif //__UTILS_BUF_H

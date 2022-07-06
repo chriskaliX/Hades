@@ -35,6 +35,7 @@ func main() {
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
+	zap.S().Info("Hades eBPF driver start")
 	// filters for command line
 	filter := flag.Uint64("f", 0, "filter")
 	flag.Parse()
