@@ -302,9 +302,132 @@ out:
     return 1;
 }
 
-// static __always_inline void *hades_d_path(const struct path *path)
-// {
+// execve(at) used only
+/* SYSCALL_BUFFER related */
+#define MAX_DATA_PER_SYSCALL 4096
 
-// }
+struct syscall_buffer {
+    char args[MAX_DATA_PER_SYSCALL];
+    char envp[MAX_DATA_PER_SYSCALL];
+    u16 cursor;
+    u16 envp_cursor;
+};
+
+BPF_HASH(syscall_buffer_cache, u64, struct syscall_buffer, 512);
+struct syscall_buffer syscall_buffer_zero = {};
+
+__attribute__((always_inline)) struct syscall_buffer *
+reset_syscall_buffer_cache(u64 id)
+{
+    int ret = bpf_map_update_elem(&syscall_buffer_cache, &id,
+                                  &syscall_buffer_zero, BPF_ANY);
+    if (ret < 0) {
+        // should never happen
+        return 0;
+    }
+    return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
+}
+
+__attribute__((always_inline)) struct syscall_buffer *
+get_syscall_buffer_cache(u64 id)
+{
+    return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
+}
+
+__attribute__((always_inline)) int delete_syscall_buffer_cache(u64 id)
+{
+    return bpf_map_delete_elem(&syscall_buffer_cache, &id);
+}
+/* SYSCALL_BUFFER done */
+
+static __always_inline int save_args_into_buffer(struct syscall_buffer *buf,
+                                                 const char *const *ptr)
+{
+    u8 elem_num = 0;
+    buf->cursor += 1;
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
+        if (!argp)
+            goto out;
+        if (buf->cursor >
+            (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
+            goto out;
+        int sz = bpf_probe_read_str(&(buf->args[buf->cursor + sizeof(int)]),
+                                    MAX_STRING_SIZE, argp);
+        // success
+        if (sz > 0) {
+            // never happen, just satisfy the verifier
+            if (buf->cursor > (MAX_DATA_PER_SYSCALL) - sizeof(int))
+                goto out;
+            bpf_probe_read(&(buf->args[buf->cursor]), sizeof(int), &sz);
+            buf->cursor += sz + sizeof(int);
+            elem_num++;
+            continue;
+        } else {
+            goto out;
+        }
+    }
+out:
+    buf->args[0] = elem_num;
+    return 1;
+}
+
+static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
+                                                 const char *const *ptr)
+{
+    char *ld_preload = "LD_PRELO";
+    char *ssh_connection = "SSH_CONN";
+    u8 elem_num = 0;
+    buf->envp_cursor += 1;
+    int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0, sz = 0;
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
+        if (!argp)
+            goto out;
+        if (buf->envp_cursor >
+            (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
+            goto out;
+        sz = bpf_probe_read_str(&(buf->envp[buf->envp_cursor + sizeof(int)]),
+                                MAX_STRING_SIZE, argp);
+        // success
+        if (sz > 0) {
+            if (buf->envp_cursor >
+                (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
+                goto out;
+            if (has_prefix(ssh_connection,
+                           (char *)&(buf->envp[buf->envp_cursor + sizeof(int)]),
+                           9)) {
+                ssh_connection_flag = 1;
+                tmp_flag = 1;
+            }
+            if (ld_preload_flag == 0 &&
+                has_prefix(ld_preload,
+                           (char *)&buf->envp[buf->envp_cursor + sizeof(int)],
+                           9)) {
+                ld_preload_flag = 1;
+                tmp_flag = 1;
+            }
+            if (tmp_flag == 0)
+                continue;
+            tmp_flag = 0;
+            // never happen, just satisfy the verifier
+            if (buf->envp_cursor > (MAX_DATA_PER_SYSCALL) - sizeof(int))
+                goto out;
+            bpf_probe_read(&(buf->envp[buf->envp_cursor]), sizeof(int), &sz);
+            buf->envp_cursor += sz + sizeof(int);
+            elem_num++;
+            continue;
+        } else {
+            goto out;
+        }
+    }
+out:
+    buf->envp[0] = elem_num;
+    return 1;
+}
 
 #endif //__UTILS_BUF_H
