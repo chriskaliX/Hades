@@ -136,8 +136,8 @@ struct udpdata
 {
     int opcode;
     int rcode;
-    int qtype; // dns: question type. 1 - A; 13 - cname; 28 - AAAA...
-    int atype; // dns: answer(rr) type. 1 - A; 13 - cname; 28 - AAAA... [just get first rr type]
+    int qtype; // dns: question type. 1 - A; 5 - cname; 28 - AAAA...
+    int atype; // dns: answer(rr) type. 1 - A; 5 - cname; 28 - AAAA... [just get first rr type]
 };
 
 // @Reference: https://en.wikipedia.org/wiki/Domain_Name_System
@@ -232,7 +232,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
             }
         }
 
-        // bad case: we hav't finished domian parse
+        // bad case: we hav't finished domain parse
         if (end_flag == 1) {
             udata.qtype =  string_p->buf[(len + 3) & (MAX_PERCPU_BUFSIZE - 1)] | \
                     string_p->buf[(len + 2) & (MAX_PERCPU_BUFSIZE - 1)]; 
