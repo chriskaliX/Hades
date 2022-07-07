@@ -89,11 +89,17 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
 SEC("tracepoint/syscalls/sys_exit_execve")
 int sys_exit_execve(void *ctx)
 {
+    // here, we remove to head, judge get buf is correct！
+    __u64 id = bpf_get_current_pid_tgid();
+    struct syscall_buffer *buf = get_syscall_buffer_cache(id);
+    if (buf == NULL)
+        return 0;
+    
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
-        return 0;
+        goto delete;
     if (context_filter(&data.context))
-        return 0;
+        goto delete;
     data.context.type = SYS_ENTER_EXECVE;
     /* filename
    * The filename contains dot slash thing. It's not abs path,
@@ -107,7 +113,7 @@ int sys_exit_execve(void *ctx)
     // cwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
-        return 0;
+        goto delete;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     void *ttyname = get_task_tty_str(data.task);
@@ -119,32 +125,21 @@ int sys_exit_execve(void *ctx)
     get_socket_info(&data, 5);
     // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
-    // argv & envp
-    __u64 id = bpf_get_current_pid_tgid();
-    struct syscall_buffer *buf = get_syscall_buffer_cache(id);
-    if (buf == NULL)
-        return 0;
-    bpf_probe_read(&(data.submit_p->buf[(data.buf_off + 1) &
-                                        ((MAX_PERCPU_BUFSIZE) -
-                                         (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, buf->args);
-    if (data.buf_off > MAX_PERCPU_BUFSIZE - 1)
+    // save argv
+    int argv_ret = save_argv_to_buf(&data, buf, 7);
+    if (argv_ret == 0) 
         goto delete;
-    data.submit_p->buf[data.buf_off] = 7;
-    data.buf_off += buf->cursor + 1;
+    // save envp
+    int envp_ret = save_envp_to_buf(&data, buf, 8);
+    if (envp_ret == 0) {
+        goto delete;
+    }
 
-    bpf_probe_read(&(data.submit_p->buf[(data.buf_off + 1) &
-                                        ((MAX_PERCPU_BUFSIZE) -
-                                         (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, buf->envp);
-    if (data.buf_off > MAX_PERCPU_BUFSIZE - 1)
-        goto delete;
-    data.submit_p->buf[data.buf_off] = 8;
-    data.buf_off += buf->envp_cursor + 1;
     delete_syscall_buffer_cache(id);
     return events_perf_submit(&data);
-    delete : delete_syscall_buffer_cache(id);
-    return 0;
+delete : 
+        delete_syscall_buffer_cache(id);
+        return 0;
 }
 
 SEC("tracepoint/syscalls/sys_enter_execveat")
@@ -166,11 +161,17 @@ int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 SEC("tracepoint/syscalls/sys_exit_execveat")
 int sys_exit_execveat(void *ctx)
 {
+    // here, we remove to head, judge get buf is correct！
+    __u64 id = bpf_get_current_pid_tgid();
+    struct syscall_buffer *buf = get_syscall_buffer_cache(id);
+    if (buf == NULL)
+        return 0;
+
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
-        return 0;
+        goto delete;
     if (context_filter(&data.context))
-        return 0;
+        goto delete;
     data.context.type = SYS_ENTER_EXECVEAT;
     /* filename
    * The filename contains dot slash thing. It's not abs path,
@@ -184,7 +185,7 @@ int sys_exit_execveat(void *ctx)
     // cwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
-        return 0;
+        goto delete;
     void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     void *ttyname = get_task_tty_str(data.task);
@@ -196,31 +197,19 @@ int sys_exit_execveat(void *ctx)
     get_socket_info(&data, 5);
     // pid_tree
     save_pid_tree_to_buf(&data, 8, 6);
-    // args & envp
-    __u64 id = bpf_get_current_pid_tgid();
-    struct syscall_buffer *buf = get_syscall_buffer_cache(id);
-    if (buf == NULL)
-        return 0;
-    bpf_probe_read(&(data.submit_p->buf[(data.buf_off + 1) &
-                                        ((MAX_PERCPU_BUFSIZE) -
-                                         (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, buf->args);
-    if (data.buf_off > MAX_PERCPU_BUFSIZE - 1)
+    // save argv
+    int argv_ret = save_argv_to_buf(&data, buf, 7);
+    if (argv_ret == 0) 
         goto delete;
-    data.submit_p->buf[data.buf_off] = 7;
-    data.buf_off += buf->cursor + 1;
-
-    bpf_probe_read(&(data.submit_p->buf[(data.buf_off + 1) &
-                                        ((MAX_PERCPU_BUFSIZE) -
-                                         (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, buf->envp);
-    if (data.buf_off > MAX_PERCPU_BUFSIZE - 1)
+    // save envp
+    int envp_ret = save_envp_to_buf(&data, buf, 8);
+    if (envp_ret == 0) {
         goto delete;
-    data.submit_p->buf[data.buf_off] = 8;
-    data.buf_off += buf->envp_cursor + 1;
+    }
     delete_syscall_buffer_cache(id);
     return events_perf_submit(&data);
-    delete : delete_syscall_buffer_cache(id);
+delete : 
+    delete_syscall_buffer_cache(id);
     return 0;
 }
 

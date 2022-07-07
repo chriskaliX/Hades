@@ -430,4 +430,33 @@ out:
     return 1;
 }
 
+// save argv to buf
+static __always_inline int save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index) {
+    // read argv str to buf
+    bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
+                                        ((MAX_PERCPU_BUFSIZE) -
+                                         (MAX_DATA_PER_SYSCALL)-1)]),
+                   MAX_DATA_PER_SYSCALL, buf->args);
+    // exceed size
+    if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
+        return 0;
+    // save index
+    data->submit_p->buf[data->buf_off] = index; 
+    data->buf_off += buf->cursor + 1;
+    return 1;
+}
+
+// save envp to buf
+static __always_inline int save_envp_to_buf(event_data_t *data, struct syscall_buffer *buf, int index) {
+    bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
+                                        ((MAX_PERCPU_BUFSIZE) -
+                                         (MAX_DATA_PER_SYSCALL)-1)]),
+                   MAX_DATA_PER_SYSCALL, buf->envp);
+    if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
+        return 0;
+    data->submit_p->buf[data->buf_off] = index;
+    data->buf_off += buf->envp_cursor + 1;
+    return 1;
+}
+
 #endif //__UTILS_BUF_H
