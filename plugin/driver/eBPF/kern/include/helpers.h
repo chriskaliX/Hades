@@ -12,25 +12,21 @@ static __inline int has_prefix(char *prefix, char *str, int n)
 {
     int i;
 #pragma unroll
-    for (i = 0; i < n; prefix++, str++, i++)
-    {
+    for (i = 0; i < n; prefix++, str++, i++) {
         if (!*prefix)
             return 1;
-        if (*prefix != *str)
-        {
+        if (*prefix != *str) {
             return 0;
         }
     }
-    // prefix is too long
     return 0;
 }
 
-static int prefix(char *prefix, char *str, int n)
+static __always_inline int prefix(char *prefix, char *str, int n)
 {
     int i;
 #pragma unroll
-    for (i = 0; i < n; i++)
-    {
+    for (i = 0; i < n; i++) {
         if (prefix[i] != str[i])
             return 0;
     }
@@ -39,10 +35,16 @@ static int prefix(char *prefix, char *str, int n)
 
 // All down here are mainly copied from Linux Source Code.
 // Check part is from Elkeid, but I need think twice.
-#define KUIDT(value) \
-    (const kuid_t) { value }
-#define KGIDT(value) \
-    (const kgid_t) { value }
+#define KUIDT(value)                                                           \
+    (const kuid_t)                                                             \
+    {                                                                          \
+        value                                                                  \
+    }
+#define KGIDT(value)                                                           \
+    (const kgid_t)                                                             \
+    {                                                                          \
+        value                                                                  \
+    }
 #define ROOT_UID KUIDT(0)
 #define ROOT_GID KGIDT(0)
 
@@ -99,7 +101,9 @@ static __always_inline bool hades_cred_check_is_root(const struct cred *cred)
     return false;
 }
 
-static __always_inline bool hades_cred_check_is_changed(const struct cred *current_cred, const struct cred *parent_cred)
+static __always_inline bool
+hades_cred_check_is_changed(const struct cred *current_cred,
+                            const struct cred *parent_cred)
 {
     kuid_t kuid_current;
     kuid_t kuid_parent;
@@ -140,7 +144,8 @@ static __always_inline bool hades_cred_check_is_changed(const struct cred *curre
     return false;
 }
 
-static __always_inline bool hades_cred_check_is_all_root(const struct cred *cred)
+static __always_inline bool
+hades_cred_check_is_all_root(const struct cred *cred)
 {
     kuid_t kuid;
     // kuid check
@@ -182,7 +187,8 @@ static __always_inline bool hades_cred_check_is_all_root(const struct cred *cred
 // The reference we metioned before shows that the bpf_core_read way READ_KERN
 // may cause the program stack spillage, but the reason is unclear in portable-code
 // Because of this, we need some modification of this. And know optimizing is done!
-static __always_inline u8 check_cred(const struct cred *current_cred, const struct cred *parent_cred)
+static __always_inline u8 check_cred(const struct cred *current_cred,
+                                     const struct cred *parent_cred)
 {
     // record only if the cred is know
     if (!hades_cred_check_is_root(current_cred))

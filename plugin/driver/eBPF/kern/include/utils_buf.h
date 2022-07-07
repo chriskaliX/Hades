@@ -17,33 +17,35 @@
  * @function: save str array to buffer
  * @structure: [index][string count][str1 size][str1][str2 size][str2]...
  */
-static __always_inline int save_str_arr_to_buf(event_data_t *data, const char __user *const __user *ptr, u8 index)
+static __always_inline int
+save_str_arr_to_buf(event_data_t *data, const char __user *const __user *ptr,
+                    u8 index)
 {
     u8 elem_num = 0;
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     __u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
 #pragma unroll
-    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
-    {
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
         const char *argp = NULL;
         bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
         if (!argp)
             goto out;
-        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
+        if (data->buf_off >
+            (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
-        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int)]), MAX_STRING_SIZE, argp);
-        if (sz > 0)
-        {
+        int sz = bpf_probe_read_str(
+                &(data->submit_p->buf[data->buf_off + sizeof(int)]),
+                MAX_STRING_SIZE, argp);
+        if (sz > 0) {
             if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
                 goto out;
-            bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &sz);
+            bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int),
+                           &sz);
             data->buf_off += sz + sizeof(int);
             elem_num++;
             continue;
-        }
-        else
-        {
+        } else {
             goto out;
         }
     }
@@ -54,120 +56,12 @@ out:
     return 1;
 }
 
-/* Structure
- * [string count][str1 size][str1][str2 size][str2]...
- */
-static __always_inline int save_argv_to_buf_t(buf_t *buffer, const char __user *const __user *ptr)
+static __always_inline int save___u64_arr_to_buf(event_data_t *data,
+                                                 const __u64 __user *ptr,
+                                                 int len, u8 index)
 {
-    if (buffer == NULL)
-        return 0;
-    /* size start from 1, since 0 is elem_num for sure */
-    __u8 elem_num = 0;
-    unsigned int size = 1;
-#pragma unroll
-    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
-    {
-        const char *argp = NULL;
-        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
-        if (!argp)
-            goto out;
-        if (size > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
-            goto out;
-        // read the string firstly
-        int sz = bpf_probe_read_str(&(buffer->buf[size + sizeof(int)]), MAX_STRING_SIZE, argp);
-        if (sz > 0)
-        {
-            // read the size the of string and update
-            if (size > (MAX_PERCPU_BUFSIZE) - sizeof(int))
-                goto out;
-            bpf_probe_read(&buffer->buf[size], sizeof(int), &sz);
-            size += sz + sizeof(int);
-            // update the count
-            elem_num++;
-            continue;
-        }
-        else
-        {
-            goto out;
-        }
-    }
-out:
-    buffer->buf[0] = elem_num;
-    return size;
-}
-
-// unfinished
-static __always_inline int save_envp_to_buf_t(buf_t *buffer, const char __user *const __user *ptr)
-{
-    if (buffer == NULL)
-        return 0;
-    // int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0;
-    /* size start from 1, since 0 is elem_num for sure */
-    __u8 elem_num = 0;
-    unsigned int size = 1;
-    // char *ld_preload = "LD_PRELOAD=";
-    // char *ssh_connection = "SSH_CONNECTION";
-#pragma unroll
-    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
-    {
-        const char *argp = NULL;
-        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
-        if (!argp)
-            goto out;
-        // validate
-        if (size > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
-            goto out;
-        // read the string firstly
-        int sz = bpf_probe_read_str(&(buffer->buf[size + sizeof(int)]), MAX_STRING_SIZE, argp);
-        if (sz > 0)
-        {
-            // read the size the of string and update
-            if (size > (MAX_PERCPU_BUFSIZE) - sizeof(int) - MAX_STRING_SIZE)
-                goto out;
-
-            // Add & ((MAX_PERCPU_BUFSIZE)-1)] for verifier if the index is not checked
-            // if (ld_preload_flag == 0 && sz > 11 && prefix(ld_preload, (char *)&(buffer->buf[size + sizeof(int)]), 6))
-            // {
-            //     ld_preload_flag = 1;
-            //     tmp_flag = 1;
-            // }
-            // if (ssh_connection_flag == 0 && sz > 15 && prefix(ssh_connection, (char *)&(buffer->buf[size + sizeof(int)]), 8))
-            // {
-            //     ssh_connection_flag = 1;
-            //     tmp_flag = 1;
-            // }
-            // if we remove this, it runs
-            // if (tmp_flag == 0)
-            //     continue;
-            // else
-            //     tmp_flag = 0;
-            bpf_probe_read(&(buffer->buf[size]), sizeof(int), &sz);
-            // Problem encountered: math between map_value pointer and register with unbounded min value is not allowed
-            // Reference: https://blogs.oracle.com/linux/post/bpf-in-depth-the-bpf-bytecode-and-the-bpf-verifier
-            // https://blog.path.net/ebpf-xdp-and-network-security/
-            // asm volatile("%0 &= 0x1FFF"
-            //              : "=r"(size)
-            //              : "0"(size));
-            // asm volatile("%0 &= 0xFF"
-            //              : "=r"(sz)
-            //              : "0"(sz));
-            size += sz + sizeof(int);
-            elem_num++;
-            continue;
-        }
-        else
-        {
-            goto out;
-        }
-    }
-out:
-    buffer->buf[0] = elem_num;
-    return size;
-}
-
-static __always_inline int save___u64_arr_to_buf(event_data_t *data, const __u64 __user *ptr, int len, u8 index)
-{
-    // Data saved to submit buf: [index][__u64 count][__u64 1][__u64 2][__u64 3]...
+    // Data saved to submit buf: [index][__u64 count][__u64 1][__u64 2][__u64
+    // 3]...
     u8 elem_num = 0;
     // Save argument index
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
@@ -176,8 +70,7 @@ static __always_inline int save___u64_arr_to_buf(event_data_t *data, const __u64
     data->buf_off += 2;
 
 #pragma unroll
-    for (int i = 0; i < len; i++)
-    {
+    for (int i = 0; i < len; i++) {
         __u64 element = 0;
         int err = bpf_probe_read(&element, sizeof(__u64), &ptr[i]);
         if (err != 0)
@@ -188,8 +81,7 @@ static __always_inline int save___u64_arr_to_buf(event_data_t *data, const __u64
 
         void *addr = &(data->submit_p->buf[data->buf_off]);
         int sz = bpf_probe_read(addr, sizeof(__u64), (void *)&element);
-        if (sz == 0)
-        {
+        if (sz == 0) {
             elem_num++;
             if (data->buf_off > MAX_PERCPU_BUFSIZE)
                 // Satisfy validator
@@ -197,9 +89,7 @@ static __always_inline int save___u64_arr_to_buf(event_data_t *data, const __u64
 
             data->buf_off += sizeof(__u64);
             continue;
-        }
-        else
-        {
+        } else {
             goto out;
         }
     }
@@ -215,36 +105,40 @@ out:
  * @function: save str to buffer
  * @structure: [index][size][ ... string ... ]
  */
-static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 index)
+static __always_inline int save_str_to_buf(event_data_t *data, void *ptr,
+                                           u8 index)
 {
     // check the buf_off, to satisfy bpf verifier. And save index
     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
         return 0;
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
     // Satisfy validator for probe read
-    if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
-    {
+    if ((data->buf_off + 1) <=
+        (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
         int sz = 0;
         // Read into buffer
         // (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE) just to make BPF verifier happy
         // added for nothing, assume that this would never failed.
-        sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, ptr);
-        if (sz < 0)
-        {
+        sz = bpf_probe_read_str(
+                &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
+                MAX_STRING_SIZE, ptr);
+        if (sz < 0) {
             char nothing[] = "-1";
             // why check it again? nothing
             // just to make verifier happy, this will not happen
-            if ((data->buf_off + 1) <= (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
-            {
-                sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, nothing);
+            if ((data->buf_off + 1) <=
+                (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
+                sz = bpf_probe_read_str(
+                        &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
+                        MAX_STRING_SIZE, nothing);
             }
         }
-        if (sz > 0)
-        {
+        if (sz > 0) {
             // just to make verifier happy, this will not happen
             if ((data->buf_off + 1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
                 return 0;
-            __builtin_memcpy(&(data->submit_p->buf[data->buf_off + 1]), &sz, sizeof(int));
+            __builtin_memcpy(&(data->submit_p->buf[data->buf_off + 1]), &sz,
+                             sizeof(int));
             data->buf_off += sz + sizeof(int) + 1;
             data->context.argnum++;
             return 1;
@@ -257,9 +151,11 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr, u8 ind
  * @function: save ptr(struct) to buffer
  * @structure: [index][buffer]
  */
-static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, __u32 size, u8 index)
+static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr,
+                                              __u32 size, u8 index)
 {
-// The biggest element that can be saved with this function should be defined here
+// The biggest element that can be saved with this function should be defined
+// here
 #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
     // Data saved to submit buf: [index][ ... buffer[size] ... ]
     if (size == 0)
@@ -274,11 +170,10 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, __u
     data->submit_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
 
     // Satisfy validator for probe read
-    if ((data->buf_off + 1) <= MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE)
-    {
+    if ((data->buf_off + 1) <= MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE) {
         // Read into buffer
-        if (bpf_probe_read(&(data->submit_p->buf[data->buf_off + 1]), size, ptr) == 0)
-        {
+        if (bpf_probe_read(&(data->submit_p->buf[data->buf_off + 1]), size,
+                           ptr) == 0) {
             // We update buf_off only if all writes were successful
             data->buf_off += size + 1;
             data->context.argnum++;
@@ -289,8 +184,7 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr, __u
 }
 
 // thiner than tracee. It's all we need now
-typedef struct slim_cred
-{
+typedef struct slim_cred {
     uid_t uid;   // real UID of the task
     gid_t gid;   // real GID of the task
     uid_t suid;  // saved UID of the task
@@ -303,12 +197,14 @@ typedef struct slim_cred
 
 /*
  * @function: save pid_tree to buffer
- * @structure: [index][string count][pid1][str1 size][str1][pid2][str2 size][str2]
+ * @structure: [index][string count][pid1][str1 size][str1][pid2][str2
+ * size][str2]
  */
 // In Elkeid, a privilege escalation detection is added by checking the creds
 // in here. And also, pid of socket is added in here.
 // Working on creds check
-static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u8 index)
+static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
+                                                u8 index)
 {
     u8 elem_num = 0;
     u8 privilege_flag = 0;
@@ -328,16 +224,14 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
     if (limit >= 12)
         limit = 12;
 #pragma unroll
-    for (int i = 0; i < limit; i++)
-    {
+    for (int i = 0; i < limit; i++) {
         pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)
             goto out;
         // 2022-03-28TODO: add cred check here:
         // skip 0, only 1 & 2 are readed.
-        if (((i == 1) || (i == 2)) && (privilege_flag == 0))
-        {
+        if (((i == 1) || (i == 2)) && (privilege_flag == 0)) {
             parent_cred = (struct cred *)READ_KERN(task->real_cred);
             // check here
             privilege_flag = check_cred(current_cred, parent_cred);
@@ -348,27 +242,31 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit, u
         if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
             goto out;
         // read pid to buffer firstly
-        flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]), sizeof(int), &pid);
+        flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]),
+                              sizeof(int), &pid);
         if (flag != 0)
             goto out;
         // read comm
-        if (data->buf_off >= (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN) - sizeof(int) - sizeof(int))
+        if (data->buf_off >=
+            (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN) - sizeof(int) - sizeof(int))
             goto out;
-        int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + sizeof(int) + sizeof(int)]), TASK_COMM_LEN, &task->comm);
-        if (sz > 0)
-        {
-            if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int) - sizeof(int))
+        int sz = bpf_probe_read_str(
+                &(data->submit_p
+                          ->buf[data->buf_off + sizeof(int) + sizeof(int)]),
+                TASK_COMM_LEN, &task->comm);
+        if (sz > 0) {
+            if (data->buf_off >
+                (MAX_PERCPU_BUFSIZE) - sizeof(int) - sizeof(int))
                 goto out;
-            bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]), sizeof(int), &sz);
+            bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]),
+                           sizeof(int), &sz);
             data->buf_off += sz + sizeof(int) + sizeof(int);
             elem_num++;
             flag = bpf_probe_read(&task, sizeof(task), &task->real_parent);
             if (flag != 0)
                 goto out;
             continue;
-        }
-        else
-        {
+        } else {
             goto out;
         }
     }
@@ -376,11 +274,11 @@ out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
     data->context.argnum++;
     // add the logic of privilege escalation
-    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = privilege_flag;
+    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] =
+            privilege_flag;
     data->buf_off += 1;
-    if (privilege_flag)
-    {
-        slim_cred_t slim = {0};
+    if (privilege_flag) {
+        slim_cred_t slim = { 0 };
         slim.uid = READ_KERN(current_cred->uid.val);
         slim.gid = READ_KERN(current_cred->gid.val);
         slim.suid = READ_KERN(current_cred->suid.val);
@@ -404,9 +302,132 @@ out:
     return 1;
 }
 
-// static __always_inline void *hades_d_path(const struct path *path)
-// {
+// execve(at) used only
+/* SYSCALL_BUFFER related */
+#define MAX_DATA_PER_SYSCALL 4096
 
-// }
+struct syscall_buffer {
+    char args[MAX_DATA_PER_SYSCALL];
+    char envp[MAX_DATA_PER_SYSCALL];
+    u16 cursor;
+    u16 envp_cursor;
+};
+
+BPF_HASH(syscall_buffer_cache, u64, struct syscall_buffer, 512);
+struct syscall_buffer syscall_buffer_zero = {};
+
+__attribute__((always_inline)) struct syscall_buffer *
+reset_syscall_buffer_cache(u64 id)
+{
+    int ret = bpf_map_update_elem(&syscall_buffer_cache, &id,
+                                  &syscall_buffer_zero, BPF_ANY);
+    if (ret < 0) {
+        // should never happen
+        return 0;
+    }
+    return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
+}
+
+__attribute__((always_inline)) struct syscall_buffer *
+get_syscall_buffer_cache(u64 id)
+{
+    return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
+}
+
+__attribute__((always_inline)) int delete_syscall_buffer_cache(u64 id)
+{
+    return bpf_map_delete_elem(&syscall_buffer_cache, &id);
+}
+/* SYSCALL_BUFFER done */
+
+static __always_inline int save_args_into_buffer(struct syscall_buffer *buf,
+                                                 const char *const *ptr)
+{
+    u8 elem_num = 0;
+    buf->cursor += 1;
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
+        if (!argp)
+            goto out;
+        if (buf->cursor >
+            (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
+            goto out;
+        int sz = bpf_probe_read_str(&(buf->args[buf->cursor + sizeof(int)]),
+                                    MAX_STRING_SIZE, argp);
+        // success
+        if (sz > 0) {
+            // never happen, just satisfy the verifier
+            if (buf->cursor > (MAX_DATA_PER_SYSCALL) - sizeof(int))
+                goto out;
+            bpf_probe_read(&(buf->args[buf->cursor]), sizeof(int), &sz);
+            buf->cursor += sz + sizeof(int);
+            elem_num++;
+            continue;
+        } else {
+            goto out;
+        }
+    }
+out:
+    buf->args[0] = elem_num;
+    return 1;
+}
+
+static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
+                                                 const char *const *ptr)
+{
+    char *ld_preload = "LD_PRELO";
+    char *ssh_connection = "SSH_CONN";
+    u8 elem_num = 0;
+    buf->envp_cursor += 1;
+    int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0, sz = 0;
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), &ptr[i]);
+        if (!argp)
+            goto out;
+        if (buf->envp_cursor >
+            (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
+            goto out;
+        sz = bpf_probe_read_str(&(buf->envp[buf->envp_cursor + sizeof(int)]),
+                                MAX_STRING_SIZE, argp);
+        // success
+        if (sz > 0) {
+            if (buf->envp_cursor >
+                (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
+                goto out;
+            if (has_prefix(ssh_connection,
+                           (char *)&(buf->envp[buf->envp_cursor + sizeof(int)]),
+                           9)) {
+                ssh_connection_flag = 1;
+                tmp_flag = 1;
+            }
+            if (ld_preload_flag == 0 &&
+                has_prefix(ld_preload,
+                           (char *)&buf->envp[buf->envp_cursor + sizeof(int)],
+                           9)) {
+                ld_preload_flag = 1;
+                tmp_flag = 1;
+            }
+            if (tmp_flag == 0)
+                continue;
+            tmp_flag = 0;
+            // never happen, just satisfy the verifier
+            if (buf->envp_cursor > (MAX_DATA_PER_SYSCALL) - sizeof(int))
+                goto out;
+            bpf_probe_read(&(buf->envp[buf->envp_cursor]), sizeof(int), &sz);
+            buf->envp_cursor += sz + sizeof(int);
+            elem_num++;
+            continue;
+        } else {
+            goto out;
+        }
+    }
+out:
+    buf->envp[0] = elem_num;
+    return 1;
+}
 
 #endif //__UTILS_BUF_H
