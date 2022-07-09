@@ -6,24 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"hades-ebpf/user/helper"
-	"net"
+	"hades-ebpf/user/share"
 	"strconv"
 	"strings"
-
-	"go.uber.org/zap/buffer"
 )
 
-// @Reference: https://github.com/aquasecurity/tracee/blob/main/pkg/bufferdecoder/decoder.go
-// As binary.Read accept a interface as a parameter, reflection is frequently used
-// this package is to try to improve this. Also, based on tracee.
-var bytepool buffer.Pool = buffer.NewPool()
-
+// The basic decode struct for eBPF data
 type EbpfDecoder struct {
 	buffer []byte
 	cursor int
 }
 
-func New(rawBuffer []byte) *EbpfDecoder {
+func NewEbpfDecoder(rawBuffer []byte) *EbpfDecoder {
 	return &EbpfDecoder{
 		buffer: rawBuffer,
 		cursor: 0,
@@ -46,9 +40,8 @@ func (decoder *EbpfDecoder) ReadAmountBytes() int {
 	return decoder.cursor
 }
 
-func (decoder *EbpfDecoder) DecodeContext() (ctx *Context, err error) {
+func (decoder *EbpfDecoder) DecodeContext(ctx *Context) (err error) {
 	offset := decoder.cursor
-	ctx = NewContext()
 	if len(decoder.buffer[offset:]) < 160 {
 		err = fmt.Errorf("can't read context from buffer: buffer too short")
 		return
@@ -182,19 +175,6 @@ func (decoder *EbpfDecoder) DecodeBytes(msg []byte, size uint32) error {
 	return nil
 }
 
-func (decoder *EbpfDecoder) DecodeStr(size uint32) (str string, err error) {
-	offset := decoder.cursor
-	castedSize := int(size)
-	if len(decoder.buffer[offset:]) < castedSize {
-		err = fmt.Errorf("read str failed, offset: %d, size: %d", offset, castedSize)
-		return
-	}
-	str = string(decoder.buffer[offset : offset+castedSize])
-	decoder.cursor += castedSize
-	return
-}
-
-// get string
 func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 	var index uint8
 	var size int32
@@ -210,7 +190,7 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 		err = errors.New(fmt.Sprintf("string size too long, size: %d", size))
 		return
 	}
-	buf := bytepool.Get()
+	buf := share.BufferPool.Get()
 	defer buf.Free()
 	if err = decoder.DecodeBytes(buf.Bytes()[:size-1], uint32(size-1)); err != nil {
 		return
@@ -242,7 +222,7 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 			return
 		}
 		port = strconv.FormatUint(uint64(_port), 10)
-		addr = printUint32IP(_addr)
+		addr = helper.PrintUint32IP(_addr)
 		_, err = decoder.ReadByteSliceFromBuff(8)
 	case 10:
 		if decoder.DecodeUint16BigEndian(&_port); err != nil {
@@ -258,7 +238,7 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 		if err != nil {
 			return
 		}
-		addr = Print16BytesSliceIP(_addrtmp)
+		addr = helper.Print16BytesSliceIP(_addrtmp)
 		// reuse
 		if err = decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
@@ -267,13 +247,14 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 	return
 }
 
-func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (s string, err error) {
+func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (pidtree string, err error) {
 	var (
 		index uint8
 		size  uint8
 		sz    uint32
 		pid   uint32
 		dummy uint8
+		str   string
 	)
 	if err = decoder.DecodeUint8(&index); err != nil {
 		return
@@ -289,16 +270,13 @@ func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (s string, err 
 		if err = decoder.DecodeUint32(&sz); err != nil {
 			break
 		}
-		buffer := bytepool.Get()
-		if err = decoder.DecodeBytes(buffer.Bytes()[:sz-1], sz-1); err != nil {
-			buffer.Free()
-			return
+		if str, err = decoder.decodeStr(sz - 1); err != nil {
+			break
 		}
-		strArr = append(strArr, strconv.FormatUint(uint64(pid), 10)+"."+string(buffer.Bytes()[:sz-1]))
-		buffer.Free()
+		strArr = append(strArr, strconv.FormatUint(uint64(pid), 10)+"."+str)
 		decoder.DecodeUint8(&dummy)
 	}
-	s = strings.Join(strArr, "<")
+	pidtree = strings.Join(strArr, "<")
 	// We add a cred check here...
 	// get the privileged flag here
 	if err = decoder.DecodeUint8(privilege_flag); err != nil {
@@ -309,6 +287,8 @@ func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (s string, err 
 	if *privilege_flag == 1 {
 		var old = NewSlimCred()
 		var new = NewSlimCred()
+		defer PutSlimCred(old)
+		defer PutSlimCred(new)
 		if err = decoder.DecodeUint8(&index); err != nil {
 			return
 		}
@@ -361,7 +341,7 @@ func (decoder *EbpfDecoder) DecodeStrArray() (strArr []string, err error) {
 		if err = decoder.DecodeUint32(&sz); err != nil {
 			break
 		}
-		if str, err = decoder.DecodeStr(sz - 1); err != nil {
+		if str, err = decoder.decodeStr(sz - 1); err != nil {
 			return
 		}
 		strArr = append(strArr, str)
@@ -380,13 +360,14 @@ func (decoder *EbpfDecoder) ReadByteSliceFromBuff(len int) ([]byte, error) {
 	return res, nil
 }
 
-func printUint32IP(in uint32) string {
-	ip := make(net.IP, net.IPv4len)
-	binary.BigEndian.PutUint32(ip, in)
-	return ip.String()
-}
-
-func Print16BytesSliceIP(in []byte) string {
-	ip := net.IP(in)
-	return ip.String()
+func (decoder *EbpfDecoder) decodeStr(size uint32) (str string, err error) {
+	offset := decoder.cursor
+	castedSize := int(size)
+	if len(decoder.buffer[offset:]) < castedSize {
+		err = fmt.Errorf("read str failed, offset: %d, size: %d", offset, castedSize)
+		return
+	}
+	str = string(decoder.buffer[offset : offset+castedSize])
+	decoder.cursor += castedSize
+	return
 }

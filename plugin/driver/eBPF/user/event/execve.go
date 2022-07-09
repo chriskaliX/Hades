@@ -18,8 +18,8 @@ type Execve struct {
 	TTYName            string `json:"tty_name"`
 	Stdin              string `json:"stdin"`
 	Stdout             string `json:"stdout"`
-	RemotePort         string `json:"remote_port"`
-	RemoteAddr         string `json:"remote_addr"`
+	Dport              string `json:"dport"`
+	Dip                string `json:"dip"`
 	PidTree            string `json:"pid_tree"`
 	Cmdline            string `json:"cmdline"`
 	PrivEscalation     uint8  `json:"priv_esca"`
@@ -55,7 +55,7 @@ func (e *Execve) Parse() (err error) {
 	if e.Stdout, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if e.RemotePort, e.RemoteAddr, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if e.Dport, e.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
 	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {

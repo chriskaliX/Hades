@@ -25,8 +25,8 @@ type Readline struct {
 	Stdin              string `json:"stdin"`
 	Stout              string `json:"stout"`
 	PidTree            string `json:"pidtree"`
-	RemotePort         string `json:"remote_port"`
-	RemoteAddr         string `json:"remote_addr"`
+	Dport              string `json:"dport"`
+	Dip                string `json:"dip"`
 	Cwd                string `json:"cwd"`
 	PrivEscalation     uint8  `json:"priv_esca"`
 }
@@ -59,7 +59,7 @@ func (r *Readline) Parse() (err error) {
 	if r.Stout, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if r.RemotePort, r.RemoteAddr, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if r.Dport, r.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
 	if r.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&r.PrivEscalation); err != nil {

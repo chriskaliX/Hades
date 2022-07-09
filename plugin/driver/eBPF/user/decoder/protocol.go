@@ -36,9 +36,9 @@ type Context struct {
 	Argnum    uint8   `json:"-"`
 	_         [7]byte `json:"-"`
 	// added
-	Sha256    string `json:"sha256"`
+	Md5       string `json:"md5"`
 	Username  string `json:"username"`
-	StartTime uint64 `json:"starttime"`
+	StartTime int64  `json:"starttime"`
 	Exe       string `json:"exe"`
 	Syscall   string `json:"syscall"`
 	Event     `json:"-"`

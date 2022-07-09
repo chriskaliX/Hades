@@ -1,7 +1,7 @@
 package share
 
 import (
-	"crypto/sha256"
+	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -13,107 +13,97 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 )
 
-// 2021-11-27 - 重写文件 hash 部分
-
 /*
-TODO: FileHashCache 应该要定时淘汰, 例如我给 /usr/bin/ps 加白, 但是文件被替换
-TODO: osquery 支持多种 hash, 看是否有必要
-
-TODO: 其他的 id 同理, 看一下是否有问题
-osquery 的处理方法在源码 https://github.com/osquery/osquery/blob/a540d73cbb687aa36e7562b7dcca0cd0e567ca6d/osquery/tables/system/hash.cpp
-里面有一句注释是:
+ *: FileHashCache 应该要定时淘汰, 例如我给 /usr/bin/ps 加白, 但是文件被替换
+ * Source Code of OSQuery:
+ * https://github.com/osquery/osquery/blob/a540d73cbb687aa36e7562b7dcca0cd0e567ca6d/osquery/tables/system/hash.cpp
  * @brief Checks the current stat output against the cached view.
  *
  * If the modified/altered time or the file's inode has changed then the hash
  * should be recalculated.
-我看了一下 osquery 的代码, 每次来 get 的时候, 都会去 stat 0x200 长度
-还有一个 ssdeep
-TODO: ssdeep
-*/
-
-/*
+ *
  * Syscall here should be improved
  */
-// mtime 或者 size 变更, 则重新获取文件 hash
-// Q: how about change
 type FileHash struct {
-	Mtime      int64
-	Inode      uint64
-	Size       int64
-	AccessTime uint // hash 获取时间
-	Sha256     string
+	modtime    int64
+	inode      uint64
+	size       int64
+	accessTime int64 // hash access time
+	Hash       string
 }
 
 var (
-	fileHashCache *lru.ARCCache
-	fileHashPool  *sync.Pool
-	hasherPool    *sync.Pool
+	fileHashCache, _ = lru.NewARC(2048)
+	fileHashPool     = &sync.Pool{
+		New: func() interface{} {
+			return new(FileHash)
+		},
+	}
+	hasherPool = &sync.Pool{
+		New: func() interface{} {
+			return md5.New()
+		},
+	}
 )
 
 const freq = 60
+const maxFileSize = 10485760
 
-/*
- * Time atmoic
- */
 func GetFileHash(path string) (shasum string, err error) {
 	temp, ok := fileHashCache.Get(path)
 	var (
-		size     int64
-		modetime int64
-		inode    uint64
+		size    int64
+		modtime int64
+		inode   uint64
 	)
-	// 文件存在
 	if ok {
 		fh := temp.(FileHash)
-		// 对比上次 accessTime, 超过了则重新 stat
-		// TODO: Time 精度
-		if Time-fh.AccessTime > freq {
-			modetime, inode, size, err = fileStat(path)
-			if err != nil {
-				return
-			}
-
-			if size > 10*1024*1024 {
-				return "", fmt.Errorf("File size is larger than max limitation:%v", size)
-			}
-
-			// 如果 stat 和 size 相同, return
-			if fh.Mtime == modetime && fh.Inode == inode {
-				return fh.Sha256, nil
-			} else {
-				// fh.AccessTime = Time
-				fileHash, err := fileInfo(path)
-				if err != nil {
-					return "", err
-				}
-				fh.Inode = inode
-				fh.Mtime = modetime
-				fh.Size = size
-				fh.Sha256 = fileHash.Sha256
-				fileHashCache.Add(path, fh)
-				return fileHash.Sha256, nil
-			}
+		// compare the accesstime
+		if Gtime.Load().(int64)-fh.accessTime <= freq {
+			return fh.Hash, nil
 		}
-		return fh.Sha256, nil
+		modtime, inode, size, err = fileStat(path)
+		if err != nil {
+			return
+		}
+
+		if size > maxFileSize {
+			return "", fmt.Errorf("File size is larger than max limitation:%v", size)
+		}
+
+		// 如果 stat 和 size 相同, return
+		if fh.modtime == modtime && fh.inode == inode {
+			return fh.Hash, nil
+		}
+		fileHash, err := fileInfo(path)
+		if err != nil {
+			return "", err
+		}
+		fh.inode = inode
+		fh.modtime = modtime
+		fh.size = size
+		fh.Hash = fileHash.Hash
+		fileHashCache.Add(path, fh)
+		return fileHash.Hash, nil
 	}
 
-	modetime, inode, size, err = fileStat(path)
+	modtime, inode, size, err = fileStat(path)
 	if err != nil {
 		return
 	}
-	if size > 10*1024*1024 {
+	if size > maxFileSize {
 		return "", fmt.Errorf("File size is larger than max limitation:%v", size)
 	}
 	fh, err := fileInfo(path)
 	if err != nil {
 		return
 	}
-	fh.AccessTime = Time
-	fh.Mtime = modetime
-	fh.Inode = inode
-	fh.Size = size
+	fh.accessTime = Gtime.Load().(int64)
+	fh.modtime = modtime
+	fh.inode = inode
+	fh.size = size
 	fileHashCache.Add(path, fh)
-	return fh.Sha256, nil
+	return fh.Hash, nil
 }
 
 func fileStat(path string) (modetime int64, inode uint64, size int64, err error) {
@@ -145,21 +135,6 @@ func fileInfo(path string) (FileHash, error) {
 		return fh, err
 	}
 	shasum := hex.EncodeToString(hash.Sum(nil))
-	fh.Sha256 = shasum
+	fh.Hash = shasum
 	return fh, nil
-}
-
-func init() {
-	fileHashCache, _ = lru.NewARC(2048)
-	fileHashPool = &sync.Pool{
-		New: func() interface{} {
-			return new(FileHash)
-		},
-	}
-
-	hasherPool = &sync.Pool{
-		New: func() interface{} {
-			return sha256.New()
-		},
-	}
 }

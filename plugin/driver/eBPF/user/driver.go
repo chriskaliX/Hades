@@ -130,8 +130,9 @@ func (d *Driver) Close(UID string) (err error) {
 func (d *Driver) Filter() {}
 
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
+	ctx := decoder.NewContext()
 	decoder.DefaultDecoder.SetBuffer(data)
-	ctx, err := decoder.DefaultDecoder.DecodeContext()
+	err := decoder.DefaultDecoder.DecodeContext(ctx)
 	if err != nil {
 		return
 	}
@@ -146,9 +147,9 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		return
 	}
 	ctx.SetEvent(d.eventDecoder)
-	ctx.Sha256, _ = share.GetFileHash(ctx.Exe)
+	ctx.Md5, _ = share.GetFileHash(ctx.Exe)
 	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
-	ctx.StartTime = uint64(share.Time)
+	ctx.StartTime = share.Gtime.Load().(int64)
 	if data, err := ctx.MarshalJson(); err == nil {
 		rawdata["data"] = data
 		if Env == "debug" {
@@ -156,14 +157,13 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		}
 		rec := &plugin.Record{
 			DataType:  1000,
-			Timestamp: int64(share.Time),
+			Timestamp: int64(share.Gtime.Load().(int64)),
 			Data: &plugin.Payload{
 				Fields: rawdata,
 			},
 		}
 		share.Client.SendRecord(rec)
 	}
-	decoder.PutContext(ctx)
 }
 
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
@@ -171,7 +171,7 @@ func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, ma
 	rawdata["data"] = strconv.FormatUint(count, 10)
 	rec := &plugin.Record{
 		DataType:  999,
-		Timestamp: int64(share.Time),
+		Timestamp: int64(share.Gtime.Load().(int64)),
 		Data: &plugin.Payload{
 			Fields: rawdata,
 		},

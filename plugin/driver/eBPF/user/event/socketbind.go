@@ -2,6 +2,7 @@ package event
 
 import (
 	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/helper"
 	"strconv"
 
 	manager "github.com/ehids/ebpfmanager"
@@ -55,7 +56,7 @@ func (s *SocketBind) Parse() (err error) {
 		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
-		s.LocalAddr = printUint32IP(_addr)
+		s.LocalAddr = helper.PrintUint32IP(_addr)
 		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
 	case 10:
 		var _port uint16
@@ -72,7 +73,7 @@ func (s *SocketBind) Parse() (err error) {
 		if err != nil {
 			return
 		}
-		s.LocalAddr = Print16BytesSliceIP(_addr)
+		s.LocalAddr = helper.Print16BytesSliceIP(_addr)
 		// reuse
 		err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo)
 	}
