@@ -2,6 +2,7 @@ package event
 
 import (
 	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/helper"
 	"strconv"
 
 	manager "github.com/ehids/ebpfmanager"
@@ -14,8 +15,8 @@ var _ decoder.Event = (*SocketConnect)(nil)
 type SocketConnect struct {
 	decoder.BasicEvent `json:"-"`
 	Family             int16  `json:"family"`
-	RemotePort         string `json:"remote_port"`
-	RemoteAddr         string `json:"remote_addr"`
+	Dport              string `json:"dport"`
+	Dip                string `json:"dip"`
 	Exe                string `json:"-"`
 }
 
@@ -50,19 +51,19 @@ func (s *SocketConnect) Parse() (err error) {
 		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
 		}
-		s.RemotePort = strconv.FormatUint(uint64(_port), 10)
+		s.Dport = strconv.FormatUint(uint64(_port), 10)
 		var _addr uint32
 		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
-		s.RemoteAddr = printUint32IP(_addr)
+		s.Dip = helper.PrintUint32IP(_addr)
 		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
 	case 10:
 		var _port uint16
 		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
 		}
-		s.RemotePort = strconv.FormatUint(uint64(_port), 10)
+		s.Dport = strconv.FormatUint(uint64(_port), 10)
 		var _flowinfo uint32
 		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
@@ -72,7 +73,7 @@ func (s *SocketConnect) Parse() (err error) {
 		if err != nil {
 			return
 		}
-		s.RemoteAddr = Print16BytesSliceIP(_addr)
+		s.Dip = helper.Print16BytesSliceIP(_addr)
 		// reuse
 		if err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return

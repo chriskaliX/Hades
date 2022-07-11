@@ -15,8 +15,8 @@ type InodeCreate struct {
 	decoder.BasicEvent `json:"-"`
 	Exe                string `json:"exe"`
 	Filename           string `json:"filename"`
-	RemotePort         string `json:"remote_port"`
-	RemoteAddr         string `json:"remote_addr"`
+	Dport              string `json:"Dport"`
+	Dip                string `json:"Dip"`
 }
 
 func (InodeCreate) ID() uint32 {
@@ -38,7 +38,7 @@ func (i *InodeCreate) Parse() (err error) {
 	if i.Filename, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if i.RemotePort, i.RemoteAddr, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if i.Dport, i.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
 	return

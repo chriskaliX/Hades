@@ -1,6 +1,7 @@
 package share
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/chriskaliX/plugin"
@@ -8,19 +9,18 @@ import (
 
 var (
 	Client = plugin.New()
-	Time   uint
+	Gtime  atomic.Value
 )
 
-// test now
 func init() {
 	go func() {
-		Time = uint(time.Now().Unix())
+		Gtime.Store(time.Now().Unix())
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				Time = uint(time.Now().Unix())
+				Gtime.Store(time.Now().Unix())
 			}
 		}
 	}()
