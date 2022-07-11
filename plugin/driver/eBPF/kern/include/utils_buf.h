@@ -449,7 +449,6 @@ save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
     // save index
     data->submit_p->buf[data->buf_off] = index;
     data->buf_off += buf->cursor + 1;
-    bpf_printk("cursor: %d\n", buf->cursor);
     return 1;
 }
 
