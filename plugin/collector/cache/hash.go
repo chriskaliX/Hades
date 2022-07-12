@@ -43,12 +43,7 @@ type FileHash struct {
 
 var (
 	fileHashCache, _ = lru.NewARC(2048)
-	fileHashPool     = &sync.Pool{
-		New: func() interface{} {
-			return new(FileHash)
-		},
-	}
-	hasherPool = &sync.Pool{
+	hasherPool       = &sync.Pool{
 		New: func() interface{} {
 			return sha256.New()
 		},

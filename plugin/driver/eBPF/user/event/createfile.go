@@ -15,8 +15,8 @@ type InodeCreate struct {
 	decoder.BasicEvent `json:"-"`
 	Exe                string `json:"exe"`
 	Filename           string `json:"filename"`
-	Dport              string `json:"Dport"`
-	Dip                string `json:"Dip"`
+	Dport              string `json:"dport"`
+	Dip                string `json:"dip"`
 }
 
 func (InodeCreate) ID() uint32 {
