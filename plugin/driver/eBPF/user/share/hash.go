@@ -13,18 +13,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 )
 
-/*
- *: FileHashCache 应该要定时淘汰, 例如我给 /usr/bin/ps 加白, 但是文件被替换
- * Source Code of OSQuery:
- * https://github.com/osquery/osquery/blob/a540d73cbb687aa36e7562b7dcca0cd0e567ca6d/osquery/tables/system/hash.cpp
- * @brief Checks the current stat output against the cached view.
- *
- * If the modified/altered time or the file's inode has changed then the hash
- * should be recalculated.
- *
- * Syscall here should be improved
- */
-
 var (
 	fileHashCache, _ = lru.NewARC(2048)
 	hasherPool       = &sync.Pool{
@@ -134,6 +122,7 @@ func GetFileHash(path string) string {
 		// stat is fine, just return
 		return fileHash.hash
 	}
+	// a delay may be introduced
 	fileHash := &FileHash{}
 	defer fileHashCache.Add(path, fileHash)
 	fileHash.updateTime()
