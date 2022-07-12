@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	manager "github.com/ehids/ebpfmanager"
+	"go.uber.org/zap"
 )
 
 var DefaultExecveAt = &ExecveAt{}
@@ -63,6 +64,7 @@ func (e *ExecveAt) Parse() (err error) {
 	}
 	var strArr []string
 	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
+		zap.S().Error("execveat cmdline error")
 		return
 	}
 	e.Cmdline = strings.Join(strArr, " ")

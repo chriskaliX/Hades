@@ -345,6 +345,8 @@ static __always_inline int save_args_into_buffer(struct syscall_buffer *buf,
 {
     u8 elem_num = 0;
     buf->cursor += 1;
+    if (ptr == NULL)
+        goto out;
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
         const char *argp = NULL;
@@ -382,6 +384,8 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
     u8 elem_num = 0;
     buf->envp_cursor += 1;
     int ssh_connection_flag = 0, ld_preload_flag = 0, tmp_flag = 0, sz = 0;
+    if (ptr == NULL)
+        goto out;
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
         const char *argp = NULL;
@@ -431,26 +435,30 @@ out:
 }
 
 // save argv to buf
-static __always_inline int save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index) {
+static __always_inline int
+save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
+{
     // read argv str to buf
     bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
-                                        ((MAX_PERCPU_BUFSIZE) -
-                                         (MAX_DATA_PER_SYSCALL)-1)]),
+                                         ((MAX_PERCPU_BUFSIZE) -
+                                          (MAX_DATA_PER_SYSCALL)-1)]),
                    MAX_DATA_PER_SYSCALL, buf->args);
     // exceed size
     if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
         return 0;
     // save index
-    data->submit_p->buf[data->buf_off] = index; 
+    data->submit_p->buf[data->buf_off] = index;
     data->buf_off += buf->cursor + 1;
     return 1;
 }
 
 // save envp to buf
-static __always_inline int save_envp_to_buf(event_data_t *data, struct syscall_buffer *buf, int index) {
+static __always_inline int
+save_envp_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
+{
     bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
-                                        ((MAX_PERCPU_BUFSIZE) -
-                                         (MAX_DATA_PER_SYSCALL)-1)]),
+                                         ((MAX_PERCPU_BUFSIZE) -
+                                          (MAX_DATA_PER_SYSCALL)-1)]),
                    MAX_DATA_PER_SYSCALL, buf->envp);
     if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
         return 0;

@@ -75,13 +75,9 @@ int sys_enter_execve(struct _sys_enter_execve *ctx)
 {
     __u64 id = bpf_get_current_pid_tgid();
     struct syscall_buffer *buf = reset_syscall_buffer_cache(id);
-    if (buf == NULL)
-        return 0;
-    if (ctx->argv == NULL)
+    if (!buf)
         return 0;
     save_args_into_buffer(buf, ctx->argv);
-    if (ctx->envp == NULL)
-        return 0;
     save_envp_into_buffer(buf, ctx->envp);
     return 1;
 }
@@ -94,7 +90,7 @@ int sys_exit_execve(void *ctx)
     struct syscall_buffer *buf = get_syscall_buffer_cache(id);
     if (buf == NULL)
         return 0;
-    
+
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         goto delete;
@@ -127,7 +123,7 @@ int sys_exit_execve(void *ctx)
     save_pid_tree_to_buf(&data, 8, 6);
     // save argv
     int argv_ret = save_argv_to_buf(&data, buf, 7);
-    if (argv_ret == 0) 
+    if (argv_ret == 0)
         goto delete;
     // save envp
     int envp_ret = save_envp_to_buf(&data, buf, 8);
@@ -137,23 +133,21 @@ int sys_exit_execve(void *ctx)
 
     delete_syscall_buffer_cache(id);
     return events_perf_submit(&data);
-delete : 
-        delete_syscall_buffer_cache(id);
-        return 0;
+    delete : delete_syscall_buffer_cache(id);
+    return 0;
 }
 
+/*
+ * In execveat, an empty argv or envp is always possible
+ */
 SEC("tracepoint/syscalls/sys_enter_execveat")
 int sys_enter_execveat(struct _sys_enter_execveat *ctx)
 {
     __u64 id = bpf_get_current_pid_tgid();
     struct syscall_buffer *buf = reset_syscall_buffer_cache(id);
-    if (buf == NULL)
-        return 0;
-    if (ctx->argv == NULL)
+    if (!buf)
         return 0;
     save_args_into_buffer(buf, ctx->argv);
-    if (ctx->envp == NULL)
-        return 0;
     save_envp_into_buffer(buf, ctx->envp);
     return 1;
 }
@@ -199,7 +193,7 @@ int sys_exit_execveat(void *ctx)
     save_pid_tree_to_buf(&data, 8, 6);
     // save argv
     int argv_ret = save_argv_to_buf(&data, buf, 7);
-    if (argv_ret == 0) 
+    if (argv_ret == 0)
         goto delete;
     // save envp
     int envp_ret = save_envp_to_buf(&data, buf, 8);
@@ -208,8 +202,7 @@ int sys_exit_execveat(void *ctx)
     }
     delete_syscall_buffer_cache(id);
     return events_perf_submit(&data);
-delete : 
-    delete_syscall_buffer_cache(id);
+    delete : delete_syscall_buffer_cache(id);
     return 0;
 }
 
