@@ -5,7 +5,7 @@
 ### **Bug report**
 
 - Ensure the bug was not already reported by searching on Github under [Issues](https://github.com/chriskaliX/Hades/issues).
-- If you find it's hard to describe, join the wechat group by scanning the QR code. Also, you can email chriskalix@protonmail.com for communicating. 
+- If you find it's hard to describe, join the wechat group by scanning the QR code. Also, you can email chriskalix@protonmail.com for communicating.
 
 ### **Patch bug**
 
