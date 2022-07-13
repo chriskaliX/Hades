@@ -13,33 +13,9 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 )
 
-/*
- *: FileHashCache 应该要定时淘汰, 例如我给 /usr/bin/ps 加白, 但是文件被替换
- * Source Code of OSQuery:
- * https://github.com/osquery/osquery/blob/a540d73cbb687aa36e7562b7dcca0cd0e567ca6d/osquery/tables/system/hash.cpp
- * @brief Checks the current stat output against the cached view.
- *
- * If the modified/altered time or the file's inode has changed then the hash
- * should be recalculated.
- *
- * Syscall here should be improved
- */
-type FileHash struct {
-	modtime    int64
-	inode      uint64
-	size       int64
-	accessTime int64 // hash access time
-	Hash       string
-}
-
 var (
 	fileHashCache, _ = lru.NewARC(2048)
-	fileHashPool     = &sync.Pool{
-		New: func() interface{} {
-			return new(FileHash)
-		},
-	}
-	hasherPool = &sync.Pool{
+	hasherPool       = &sync.Pool{
 		New: func() interface{} {
 			return md5.New()
 		},
@@ -49,92 +25,113 @@ var (
 const freq = 60
 const maxFileSize = 10485760
 
-func GetFileHash(path string) (shasum string, err error) {
-	temp, ok := fileHashCache.Get(path)
-	var (
-		size    int64
-		modtime int64
-		inode   uint64
-	)
-	if ok {
-		fh := temp.(FileHash)
-		// compare the accesstime
-		if Gtime.Load().(int64)-fh.accessTime <= freq {
-			return fh.Hash, nil
-		}
-		modtime, inode, size, err = fileStat(path)
-		if err != nil {
-			return
-		}
-
-		if size > maxFileSize {
-			return "", fmt.Errorf("File size is larger than max limitation:%v", size)
-		}
-
-		// 如果 stat 和 size 相同, return
-		if fh.modtime == modtime && fh.inode == inode {
-			return fh.Hash, nil
-		}
-		fileHash, err := fileInfo(path)
-		if err != nil {
-			return "", err
-		}
-		fh.inode = inode
-		fh.modtime = modtime
-		fh.size = size
-		fh.Hash = fileHash.Hash
-		fileHashCache.Add(path, fh)
-		return fileHash.Hash, nil
-	}
-
-	modtime, inode, size, err = fileStat(path)
-	if err != nil {
-		return
-	}
-	if size > maxFileSize {
-		return "", fmt.Errorf("File size is larger than max limitation:%v", size)
-	}
-	fh, err := fileInfo(path)
-	if err != nil {
-		return
-	}
-	fh.accessTime = Gtime.Load().(int64)
-	fh.modtime = modtime
-	fh.inode = inode
-	fh.size = size
-	fileHashCache.Add(path, fh)
-	return fh.Hash, nil
+type FileHash struct {
+	modtime    int64
+	inode      uint64
+	size       int64
+	accessTime int64 // hash access time
+	hash       string
 }
 
-func fileStat(path string) (modetime int64, inode uint64, size int64, err error) {
-	finfo, err := os.Stat(path)
-	if err != nil {
-		return
+func (fileHash *FileHash) updateTime() {
+	fileHash.accessTime = Gtime.Load().(int64)
+}
+
+// just like osquery
+func (fileHash *FileHash) greater() bool {
+	if Gtime.Load().(int64)-fileHash.accessTime <= freq {
+		return false
 	}
-	stat, ok := finfo.Sys().(*syscall.Stat_t)
+	return true
+}
+
+func (fileHash *FileHash) statInvalid(inode uint64, mtime int64, size int64) bool {
+	if fileHash.inode != inode || fileHash.modtime != mtime {
+		return true
+	}
+	if fileHash.size != size {
+		return true
+	}
+	return false
+}
+
+func (fileHash *FileHash) updateStat(stat *syscall.Stat_t) {
+	fileHash.inode = stat.Ino
+	fileHash.modtime = stat.Mtim.Sec
+	fileHash.size = stat.Size
+}
+
+func getStat(path string) (*syscall.Stat_t, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
 	if !ok {
 		err = fmt.Errorf("%s not Stat_t", path)
-		return
+		return nil, err
 	}
-	return finfo.ModTime().Unix(), stat.Ino, finfo.Size(), nil
+	return stat, nil
 }
 
-func fileInfo(path string) (FileHash, error) {
-	fh := FileHash{}
-	var f *os.File
-	f, err := os.Open(path)
+func genHash(path string) (result string) {
+	_file, err := os.Open(path)
 	if err != nil {
-		return fh, err
+		result = INVALID_STRING
+		return
 	}
-	defer f.Close()
+	defer _file.Close()
 	hash := hasherPool.Get().(hash.Hash)
 	defer hasherPool.Put(hash)
 	defer hash.Reset()
-	_, err = io.Copy(hash, f)
-	if err != nil {
-		return fh, err
+	if _, err = io.Copy(hash, _file); err != nil {
+		result = INVALID_STRING
+		return
 	}
-	shasum := hex.EncodeToString(hash.Sum(nil))
-	fh.Hash = shasum
-	return fh, nil
+	result = hex.EncodeToString(hash.Sum(nil))
+	return
+}
+
+func GetFileHash(path string) string {
+	// get this from cache
+	temp, ok := fileHashCache.Get(path)
+	var (
+		stat *syscall.Stat_t
+		err  error
+	)
+	// if the file still in cache, check this again
+	if ok {
+		fileHash := temp.(*FileHash)
+		// compare the accesstime
+		if !fileHash.greater() {
+			return fileHash.hash
+		}
+		fileHash.updateTime()
+		// if it's not in cache, check the stat
+		stat, err = getStat(path)
+		if err != nil {
+			fileHash.hash = INVALID_STRING
+			return fileHash.hash
+		}
+		// if stat is invalid, get the hash and update all
+		if fileHash.statInvalid(stat.Ino, stat.Mtim.Sec, stat.Size) {
+			fileHash.hash = genHash(path)
+			fileHash.updateStat(stat)
+			return fileHash.hash
+		}
+		// stat is fine, just return
+		return fileHash.hash
+	}
+	// a delay may be introduced
+	fileHash := &FileHash{}
+	defer fileHashCache.Add(path, fileHash)
+	fileHash.updateTime()
+	stat, err = getStat(path)
+	if err != nil {
+		fileHash.hash = INVALID_STRING
+		return fileHash.hash
+	}
+	fileHash.hash = genHash(path)
+	fileHash.updateStat(stat)
+	return fileHash.hash
 }

@@ -16,7 +16,7 @@ type KernelReadFile struct {
 	TypeId             int32  `json:"typeid"`
 	Exe                string `json:"-"`
 	Filename           string `json:"filename"`
-	Sha256             string `json:"sha256"`
+	Md5                string `json:"md5"`
 }
 
 func (KernelReadFile) ID() uint32 {
@@ -35,7 +35,7 @@ func (k *KernelReadFile) Parse() (err error) {
 	if k.Filename, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	k.Sha256, _ = share.GetFileHash(k.Filename)
+	k.Md5 = share.GetFileHash(k.Filename)
 	if err = decoder.DefaultDecoder.DecodeInt32(&k.TypeId); err != nil {
 		return
 	}

@@ -147,7 +147,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		return
 	}
 	ctx.SetEvent(d.eventDecoder)
-	ctx.Md5, _ = share.GetFileHash(ctx.Exe)
+	ctx.Md5 = share.GetFileHash(ctx.Exe)
 	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
 	ctx.StartTime = share.Gtime.Load().(int64)
 	if data, err := ctx.MarshalJson(); err == nil {
