@@ -144,7 +144,8 @@ static __always_inline void *get_path_str(struct path *path)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
-#pragma unroll
+
+    #pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
@@ -200,9 +201,21 @@ static __always_inline void *get_path_str(struct path *path)
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
         d_name = READ_KERN(dentry->d_name);
-        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
-                           (void *)d_name.name);
-        // 2022-02-24 added. return "-1" if it's added
+        if (d_name.len > 0) {
+            bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
+                               (void *)d_name.name);
+            goto out;
+        }
+        // Handle pipe with d_name.len = 0
+        struct super_block *d_sb = READ_KERN(dentry->d_sb);
+        if (d_sb != 0) {
+            unsigned long s_magic = READ_KERN(d_sb->s_magic);
+            if (s_magic == PIPEFS_MAGIC) {
+                //TODO: Get PIPE INODE NAME like pipe:[%lu], current use pipe[]
+                char pipe_prefix[] = "pipe:[]";
+                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
+            }
+        }
     } else {
         // Add leading slash
         buf_off -= 1;
@@ -213,6 +226,7 @@ static __always_inline void *get_path_str(struct path *path)
                        &zero);
     }
 
+out:
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }
