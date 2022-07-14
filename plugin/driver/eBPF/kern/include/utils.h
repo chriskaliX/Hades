@@ -211,7 +211,7 @@ static __always_inline void *get_path_str(struct path *path)
         if (d_sb != 0) {
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
             if (s_magic == PIPEFS_MAGIC) {
-                //TODO: Get PIPE INODE NAME like pipe:[%lu], current use pipe[]
+                // TODO: Get PIPE INODE NAME like pipe:[%lu], currently use pipe:[]
                 char pipe_prefix[] = "pipe:[]";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
             }
