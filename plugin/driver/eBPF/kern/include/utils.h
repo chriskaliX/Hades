@@ -17,7 +17,7 @@
 #include "bpf_core_read.h"
 #include "bpf_endian.h"
 
-#ifdef CO-RE
+#ifdef CORE
 #define PIPEFS_MAGIC 0x50495045
 #endif
 
