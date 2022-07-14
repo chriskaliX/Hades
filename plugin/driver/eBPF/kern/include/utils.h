@@ -17,6 +17,11 @@
 #include "bpf_core_read.h"
 #include "bpf_endian.h"
 
+#ifdef CO-RE
+#define PIPEFS_MAGIC 0x50495045
+#endif
+
+
 // TODO: 后期改成动态的
 /* R3 max value is outside of the array range */
 // 这个地方非常非常的坑，都因为 bpf_verifier 机制, 之前 buf_off > MAX_PERCPU_BUFSIZE - sizeof(int) 本身都是成立的
