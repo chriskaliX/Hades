@@ -201,12 +201,10 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 	return
 }
 
-func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
+func (decoder *EbpfDecoder) DecodeRemoteAddr() (family, port uint16, addr string, err error) {
 	var (
-		index  uint8
-		family uint16
-		_port  uint16
-		_addr  uint32
+		index uint8
+		_addr uint32
 	)
 	if err = decoder.DecodeUint8(&index); err != nil {
 		return
@@ -216,20 +214,18 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 	}
 	switch family {
 	case 0, 2:
-		if err = decoder.DecodeUint16BigEndian(&_port); err != nil {
+		if err = decoder.DecodeUint16BigEndian(&port); err != nil {
 			return
 		}
 		if err = decoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
-		port = strconv.FormatUint(uint64(_port), 10)
 		addr = helper.PrintUint32IP(_addr)
 		_, err = decoder.ReadByteSliceFromBuff(8)
 	case 10:
-		if decoder.DecodeUint16BigEndian(&_port); err != nil {
+		if decoder.DecodeUint16BigEndian(&port); err != nil {
 			return
 		}
-		port = strconv.FormatUint(uint64(_port), 10)
 		var _flowinfo uint32
 		if decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return

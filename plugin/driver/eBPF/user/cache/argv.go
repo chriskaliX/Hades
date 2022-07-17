@@ -20,14 +20,19 @@ type ArgvCache struct {
 }
 
 func NewArgvCache() *ArgvCache {
+	// the default value is from Elkeid, which is reasonable
 	acache := &ArgvCache{
 		rlimiter: rate.NewLimiter(rate.Every(40*time.Millisecond), 25),
 	}
-	acache.cache, _ = lru.New(1024)
+	acache.cache, _ = lru.New(8192)
 	return acache
 }
 
 func (a *ArgvCache) Get(pid uint32) string {
+	// pre check for pid
+	if pid == 0 || pid == 1 {
+		return share.INVALID_STRING
+	}
 	// get argv from cache
 	if value, ok := a.cache.Get(pid); ok {
 		return value.(string)

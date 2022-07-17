@@ -38,13 +38,14 @@ type Context struct {
 	Argnum    uint8   `json:"-"`
 	_         [3]byte `json:"-"`
 	// added
-	Md5       string `json:"md5"`
+	ExeHash   string `json:"exe_hash"`
 	Username  string `json:"username"`
 	StartTime int64  `json:"starttime"`
 	Exe       string `json:"exe"`
 	Syscall   string `json:"syscall"`
 	PpidArgv  string `json:"ppid_argv"`
 	PgidArgv  string `json:"pgid_argv"`
+	PodName   string `json:"pod_name"`
 	Event     `json:"-"`
 }
 
@@ -55,8 +56,9 @@ func (Context) GetSizeBytes() uint32 {
 func (c *Context) FillContext() {
 	c.PpidArgv = cache.DefaultArgvCache.Get(c.Ppid)
 	c.PgidArgv = cache.DefaultArgvCache.Get(c.Pgid)
-	c.Md5 = cache.DefaultHashCache.Get(c.Exe)
+	c.ExeHash = cache.DefaultHashCache.Get(c.Exe)
 	c.Username = cache.DefaultUserCache.Get(c.Uid)
+	c.PodName = cache.DefaultNsCache.Get(c.Pid, c.Pns)
 }
 
 // Temp way to do merge or inline...

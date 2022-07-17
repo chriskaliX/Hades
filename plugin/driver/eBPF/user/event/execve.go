@@ -19,8 +19,11 @@ type Execve struct {
 	TTYName            string `json:"tty_name"`
 	Stdin              string `json:"stdin"`
 	Stdout             string `json:"stdout"`
-	Dport              string `json:"dport"`
+	Dport              uint16 `json:"dport"`
 	Dip                string `json:"dip"`
+	Family             uint16 `json:"family"`
+	SocketPid          uint32 `json:"socket_pid"`
+	SocketArgv         string `json:"socket_argv"`
 	PidTree            string `json:"pid_tree"`
 	Argv               string `json:"argv"`
 	PrivEscalation     uint8  `json:"priv_esca"`
@@ -41,6 +44,7 @@ func (e *Execve) GetExe() string {
 }
 
 func (e *Execve) Parse() (err error) {
+	var dummy uint8
 	if e.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
@@ -56,7 +60,13 @@ func (e *Execve) Parse() (err error) {
 	if e.Stdout, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Dport, e.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if e.Family, e.Dport, e.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeUint8(&dummy); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeUint32(&e.SocketPid); err != nil {
 		return
 	}
 	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
@@ -84,6 +94,7 @@ func (e *Execve) Parse() (err error) {
 	if len(e.LDPreload) == 0 {
 		e.LDPreload = "-1"
 	}
+	e.SocketArgv = cache.DefaultArgvCache.Get(e.SocketPid)
 	return
 }
 

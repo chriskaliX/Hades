@@ -229,7 +229,6 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
         // trace until pid = 1
         if (pid == 0)
             goto out;
-        // 2022-03-28TODO: add cred check here:
         // skip 0, only 1 & 2 are readed.
         if (((i == 1) || (i == 2)) && (privilege_flag == 0)) {
             parent_cred = (struct cred *)READ_KERN(task->real_cred);

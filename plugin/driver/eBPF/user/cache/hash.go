@@ -31,7 +31,7 @@ type HashCache struct {
 
 func NewHashCache() *HashCache {
 	cache := &HashCache{}
-	cache.cache, _ = lru.New(2048)
+	cache.cache, _ = lru.New(4096)
 	return cache
 }
 
