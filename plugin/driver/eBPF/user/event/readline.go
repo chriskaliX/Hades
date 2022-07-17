@@ -132,6 +132,7 @@ func (r Readline) GetProbe() []*manager.Probe {
 	}
 }
 
-func init() {
-	decoder.Regist(DefaultReadline)
-}
+// do not open by default
+// func init() {
+// 	decoder.Regist(DefaultReadline)
+// }

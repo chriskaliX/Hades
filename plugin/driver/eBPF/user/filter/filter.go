@@ -48,16 +48,6 @@ const (
 	IpFilter       = "ip_filter" /* struct Cidr with only CO-RE enabled */
 )
 
-/*
- * Userspace filter
- * This is a demo for all filters. Add other filters into this
- * if you need.
- */
-const (
-	ExeFilter = iota
-	PathFilter
-)
-
 const (
 	Prefix = iota
 	Suffix

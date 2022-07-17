@@ -21,7 +21,29 @@
 #define PIPEFS_MAGIC 0x50495045
 #endif
 
+static __always_inline int get_task_pgid(const struct task_struct *cur_task)
+{
+    int pgid = 0;
 
+    /* ns info from thread_pid */
+    struct pid *thread_pid = READ_KERN(cur_task->thread_pid);
+    struct pid_namespace *ns_info = (struct pid_namespace *)0;
+    if (thread_pid != 0) {
+        int l = READ_KERN(thread_pid->level);
+        struct upid thread_upid = READ_KERN(thread_pid->numbers[l]);
+        ns_info = thread_upid.ns;
+    }
+    /* upid info from signal */
+    struct signal_struct *signal = READ_KERN(cur_task->signal);
+    struct pid *pid_p = (struct pid *)0;
+    bpf_probe_read(&pid_p, sizeof(struct pid *), &signal->pids[PIDTYPE_PGID]);
+    int level = READ_KERN(pid_p->level);
+    struct upid upid = READ_KERN(pid_p->numbers[level]);
+    if (upid.ns == ns_info) {
+        pgid = upid.nr;
+    }
+    return pgid;
+}
 // TODO: 后期改成动态的
 /* R3 max value is outside of the array range */
 // 这个地方非常非常的坑，都因为 bpf_verifier 机制, 之前 buf_off > MAX_PERCPU_BUFSIZE - sizeof(int) 本身都是成立的
@@ -43,6 +65,7 @@ static __always_inline int init_context(context_t *context,
     context->pid = id;
     context->tid = id >> 32;
     context->cgroup_id = bpf_get_current_cgroup_id();
+    context->pgid = get_task_pgid(task);
     // namespace information
     // Elkeid - ROOT_PID_NS_INUM = task->nsproxy->pid_ns_for_children->ns.inum;
     // namespace: https://zhuanlan.zhihu.com/p/307864233
@@ -124,6 +147,13 @@ exit:
     return &string_p->buf[0];
 }
 
+static __always_inline unsigned long
+get_inode_nr_from_dentry(struct dentry *dentry)
+{
+    struct inode *d_inode = READ_KERN(dentry->d_inode);
+    return READ_KERN(d_inode->i_ino);
+}
+
 // source code: __prepend_path
 // http://blog.sina.com.cn/s/blog_5219094a0100calt.html
 static __always_inline void *get_path_str(struct path *path)
@@ -150,7 +180,7 @@ static __always_inline void *get_path_str(struct path *path)
     if (string_p == NULL)
         return NULL;
 
-    #pragma unroll
+#pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
@@ -217,8 +247,15 @@ static __always_inline void *get_path_str(struct path *path)
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
             if (s_magic == PIPEFS_MAGIC) {
                 // TODO: Get PIPE INODE NAME like pipe:[%lu], currently use pipe:[]
+                // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
+                //  d_inode(dentry)->i_ino);
+                // Since snprintf requires kernel version over 5.10
                 char pipe_prefix[] = "pipe:[]";
-                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
+                // unsigned long inode = get_inode_nr_from_dentry(dentry);
+                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
+                                   (void *)pipe_prefix);
+                // The inode is helpful in the situation in the same pipe.
+                // like reverse shell.
             }
         }
     } else {

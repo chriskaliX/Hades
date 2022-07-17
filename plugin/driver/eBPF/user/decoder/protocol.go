@@ -28,13 +28,14 @@ type Context struct {
 	Uid       uint32  `json:"uid"`
 	Gid       uint32  `json:"gid"`
 	Ppid      uint32  `json:"ppid"`
+	Pgid      uint32  `json:"pgid"`
 	Sessionid uint32  `json:"sessionid"`
 	Comm      string  `json:"comm"`
 	PComm     string  `json:"pcomm"`
 	Nodename  string  `json:"nodename"`
 	RetVal    uint64  `json:"retval"`
 	Argnum    uint8   `json:"-"`
-	_         [7]byte `json:"-"`
+	_         [3]byte `json:"-"`
 	// added
 	Md5       string `json:"md5"`
 	Username  string `json:"username"`
@@ -45,7 +46,7 @@ type Context struct {
 }
 
 func (Context) GetSizeBytes() uint32 {
-	return 160
+	return 168
 }
 
 // Temp way to do merge or inline...
@@ -63,9 +64,6 @@ func (c *Context) MarshalJson() (result string, err error) {
 	if eventByte, err = sonic.Marshal(c.Event); err != nil {
 		return
 	}
-	/*
-	 * A simple way to make escapeHTML false useful...
-	 */
 	resultByte = append(resultByte, ctxByte[:len(ctxByte)-2]...)
 	resultByte = append(resultByte, byte('"'), byte(','))
 	resultByte = append(resultByte, eventByte[1:]...)
