@@ -149,7 +149,6 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	ctx.SetEvent(d.eventDecoder)
 	// fill up argv and hash
 	ctx.FillContext()
-	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
 	ctx.StartTime = share.Gtime.Load().(int64)
 	// marshal the data
 	_data, err := ctx.MarshalJson()

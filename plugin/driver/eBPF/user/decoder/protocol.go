@@ -56,6 +56,7 @@ func (c *Context) FillContext() {
 	c.PpidArgv = cache.DefaultArgvCache.Get(c.Ppid)
 	c.PgidArgv = cache.DefaultArgvCache.Get(c.Pgid)
 	c.Md5 = cache.DefaultHashCache.Get(c.Exe)
+	c.Username = cache.DefaultUserCache.Get(c.Uid)
 }
 
 // Temp way to do merge or inline...
