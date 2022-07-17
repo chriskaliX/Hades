@@ -78,4 +78,6 @@ I maintain this project mainly for learning eBPF and HIDS
 
 ## Contact
 
-<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/WechatIMG120.jpeg" width="50%" style="float:left;"/>
+Input `Hades` to get the QR code~
+
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/weixin.png" width="50%" style="float:left;"/>
