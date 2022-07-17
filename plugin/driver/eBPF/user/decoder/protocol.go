@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"hades-ebpf/user/cache"
 	"sync"
 
 	"github.com/bytedance/sonic"
@@ -42,11 +43,19 @@ type Context struct {
 	StartTime int64  `json:"starttime"`
 	Exe       string `json:"exe"`
 	Syscall   string `json:"syscall"`
+	PpidArgv  string `json:"ppid_argv"`
+	PgidArgv  string `json:"pgid_argv"`
 	Event     `json:"-"`
 }
 
 func (Context) GetSizeBytes() uint32 {
 	return 168
+}
+
+func (c *Context) FillContext() {
+	c.PpidArgv = cache.DefaultArgvCache.Get(c.Ppid)
+	c.PgidArgv = cache.DefaultArgvCache.Get(c.Pgid)
+	c.Md5 = cache.DefaultHashCache.Get(c.Exe)
 }
 
 // Temp way to do merge or inline...

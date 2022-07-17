@@ -1,6 +1,7 @@
 package event
 
 import (
+	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"strings"
 
@@ -22,7 +23,7 @@ type ExecveAt struct {
 	Dport              string `json:"dport"`
 	Dip                string `json:"dip"`
 	PidTree            string `json:"pid_tree"`
-	Cmdline            string `json:"cmdline"`
+	Argv               string `json:"argv"`
 	PrivEscalation     uint8  `json:"priv_esca"`
 	SSHConnection      string `json:"ssh_connection"`
 	LDPreload          string `json:"ld_preload"`
@@ -67,8 +68,7 @@ func (e *ExecveAt) Parse() (err error) {
 		zap.S().Error("execveat cmdline error")
 		return
 	}
-	e.Cmdline = strings.Join(strArr, " ")
-
+	e.Argv = strings.Join(strArr, " ")
 	envs := make([]string, 0, 3)
 	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
@@ -104,6 +104,10 @@ func (ExecveAt) GetProbe() []*manager.Probe {
 			AttachToFuncName: "sys_exit_execveat",
 		},
 	}
+}
+
+func (e ExecveAt) FillContext(pid uint32) {
+	cache.DefaultArgvCache.Put(pid, e.Argv)
 }
 
 func init() {

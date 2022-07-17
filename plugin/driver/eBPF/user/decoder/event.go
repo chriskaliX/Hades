@@ -14,6 +14,7 @@ type Event interface {
 	GetExe() string
 	GetProbe() []*manager.Probe
 	GetMaps() []*manager.Map
+	FillContext(uint32)
 }
 
 // use eventId as a key

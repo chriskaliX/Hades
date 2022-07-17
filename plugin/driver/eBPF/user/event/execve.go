@@ -1,6 +1,7 @@
 package event
 
 import (
+	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"strings"
 
@@ -21,7 +22,7 @@ type Execve struct {
 	Dport              string `json:"dport"`
 	Dip                string `json:"dip"`
 	PidTree            string `json:"pid_tree"`
-	Cmdline            string `json:"cmdline"`
+	Argv               string `json:"argv"`
 	PrivEscalation     uint8  `json:"priv_esca"`
 	SSHConnection      string `json:"ssh_connection"`
 	LDPreload          string `json:"ld_preload"`
@@ -65,8 +66,7 @@ func (e *Execve) Parse() (err error) {
 	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
 	}
-	e.Cmdline = strings.Join(strArr, " ")
-
+	e.Argv = strings.Join(strArr, " ")
 	envs := make([]string, 0, 3)
 	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
@@ -85,6 +85,10 @@ func (e *Execve) Parse() (err error) {
 		e.LDPreload = "-1"
 	}
 	return
+}
+
+func (e Execve) FillContext(pid uint32) {
+	cache.DefaultArgvCache.Put(pid, e.Argv)
 }
 
 func (Execve) GetProbe() []*manager.Probe {

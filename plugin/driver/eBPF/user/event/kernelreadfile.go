@@ -2,7 +2,6 @@ package event
 
 import (
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/share"
 
 	manager "github.com/ehids/ebpfmanager"
 )
@@ -35,7 +34,6 @@ func (k *KernelReadFile) Parse() (err error) {
 	if k.Filename, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	k.Md5 = share.GetFileHash(k.Filename)
 	if err = decoder.DefaultDecoder.DecodeInt32(&k.TypeId); err != nil {
 		return
 	}
