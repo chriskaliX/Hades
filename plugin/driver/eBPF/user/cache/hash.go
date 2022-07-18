@@ -50,9 +50,14 @@ func (h *HashCache) Get(path string) string {
 			return fileHash.hash
 		}
 		fileHash.updateTime()
-		// if it's not in cache, check the stat
+		// if it's less time, check the stat
 		stat, err = getStat(path)
 		if err != nil {
+			fileHash.hash = share.INVALID_STRING
+			return fileHash.hash
+		}
+		// file size limit
+		if stat.Size > maxFileSize {
 			fileHash.hash = share.INVALID_STRING
 			return fileHash.hash
 		}
@@ -71,6 +76,11 @@ func (h *HashCache) Get(path string) string {
 	fileHash.updateTime()
 	stat, err = getStat(path)
 	if err != nil {
+		fileHash.hash = share.INVALID_STRING
+		return fileHash.hash
+	}
+	// file size limit
+	if stat.Size > maxFileSize {
 		fileHash.hash = share.INVALID_STRING
 		return fileHash.hash
 	}
