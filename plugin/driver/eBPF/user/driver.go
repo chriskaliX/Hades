@@ -147,23 +147,28 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		return
 	}
 	ctx.SetEvent(d.eventDecoder)
-	ctx.Md5 = share.GetFileHash(ctx.Exe)
-	ctx.Username = share.GetUsername(strconv.Itoa(int(ctx.Uid)))
+	// fill up argv and hash
+	ctx.FillContext()
 	ctx.StartTime = share.Gtime.Load().(int64)
-	if data, err := ctx.MarshalJson(); err == nil {
-		rawdata["data"] = data
-		if Env == "debug" {
-			fmt.Println(rawdata["data"])
-		}
-		rec := &plugin.Record{
-			DataType:  1000,
-			Timestamp: int64(share.Gtime.Load().(int64)),
-			Data: &plugin.Payload{
-				Fields: rawdata,
-			},
-		}
-		share.Client.SendRecord(rec)
+	// marshal the data
+	_data, err := ctx.MarshalJson()
+	if err != nil {
+		return
 	}
+	rawdata["data"] = _data
+	// TODO: just for debug
+	if Env == "debug" {
+		fmt.Println(rawdata["data"])
+	}
+	// send the record
+	rec := &plugin.Record{
+		DataType:  1000,
+		Timestamp: int64(share.Gtime.Load().(int64)),
+		Data: &plugin.Payload{
+			Fields: rawdata,
+		},
+	}
+	share.Client.SendRecord(rec)
 }
 
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {

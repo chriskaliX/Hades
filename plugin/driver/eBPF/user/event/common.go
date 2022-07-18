@@ -7,18 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"go.uber.org/zap/buffer"
 )
 
 var (
-	bytepool  buffer.Pool
 	ErrIgnore = errors.New("ignore")
 )
-
-func init() {
-	bytepool = buffer.NewPool()
-}
 
 // all down here is from ehids/ecapture, same with code in
 // https://github.com/kontsevoy/godl

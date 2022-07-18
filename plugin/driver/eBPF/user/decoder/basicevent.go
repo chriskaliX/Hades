@@ -13,6 +13,12 @@ func (BasicEvent) GetMaps() (result []*manager.Map) {
 	return
 }
 
+// default
 func (BasicEvent) GetExe() string {
 	return emptyString
+}
+
+// default
+func (BasicEvent) FillContext(uint32) {
+	return
 }

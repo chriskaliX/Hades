@@ -118,15 +118,18 @@ int sys_exit_execve(void *ctx)
     save_str_to_buf(&data, stdin, 3);
     void *stdout = get_fraw_str(1);
     save_str_to_buf(&data, stdout, 4);
-    get_socket_info(&data, 5);
+    __u32 socket_pid = get_socket_info(&data, 5);
+    // save socket_pid
+    // 0 means error, we'll handle that in user space
+    save_to_submit_buf(&data, &socket_pid, sizeof(socket_pid), 6);
     // pid_tree
-    save_pid_tree_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 8, 7);
     // save argv
-    int argv_ret = save_argv_to_buf(&data, buf, 7);
+    int argv_ret = save_argv_to_buf(&data, buf, 8);
     if (argv_ret == 0)
         goto delete;
     // save envp
-    int envp_ret = save_envp_to_buf(&data, buf, 8);
+    int envp_ret = save_envp_to_buf(&data, buf, 9);
     if (envp_ret == 0) {
         goto delete;
     }
@@ -188,18 +191,22 @@ int sys_exit_execveat(void *ctx)
     save_str_to_buf(&data, stdin, 3);
     void *stdout = get_fraw_str(1);
     save_str_to_buf(&data, stdout, 4);
-    get_socket_info(&data, 5);
+    __u32 socket_pid = get_socket_info(&data, 5);
+    // save socket_pid
+    // 0 means error, we'll handle that in user space
+    save_to_submit_buf(&data, &socket_pid, sizeof(socket_pid), 6);
     // pid_tree
-    save_pid_tree_to_buf(&data, 8, 6);
+    save_pid_tree_to_buf(&data, 8, 7);
     // save argv
-    int argv_ret = save_argv_to_buf(&data, buf, 7);
+    int argv_ret = save_argv_to_buf(&data, buf, 8);
     if (argv_ret == 0)
         goto delete;
     // save envp
-    int envp_ret = save_envp_to_buf(&data, buf, 8);
+    int envp_ret = save_envp_to_buf(&data, buf, 9);
     if (envp_ret == 0) {
         goto delete;
     }
+
     delete_syscall_buffer_cache(id);
     return events_perf_submit(&data);
     delete : delete_syscall_buffer_cache(id);

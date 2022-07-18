@@ -55,12 +55,13 @@ func (decoder *EbpfDecoder) DecodeContext(ctx *Context) (err error) {
 	ctx.Uid = binary.LittleEndian.Uint32(decoder.buffer[offset+32 : offset+36])
 	ctx.Gid = binary.LittleEndian.Uint32(decoder.buffer[offset+36 : offset+40])
 	ctx.Ppid = binary.LittleEndian.Uint32(decoder.buffer[offset+40 : offset+44])
-	ctx.Sessionid = binary.LittleEndian.Uint32(decoder.buffer[offset+44 : offset+48])
-	ctx.Comm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+48:offset+64], "\x00"))
-	ctx.PComm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+64:offset+80], "\x00"))
-	ctx.Nodename = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+80:offset+144], "\x00"))
-	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+144 : offset+152]))
-	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+152 : offset+160]))
+	ctx.Pgid = binary.LittleEndian.Uint32(decoder.buffer[offset+44 : offset+48])
+	ctx.Sessionid = binary.LittleEndian.Uint32(decoder.buffer[offset+48 : offset+52])
+	ctx.Comm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+52:offset+68], "\x00"))
+	ctx.PComm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+68:offset+84], "\x00"))
+	ctx.Nodename = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+84:offset+148], "\x00"))
+	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+148 : offset+156]))
+	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+156 : offset+168]))
 	decoder.cursor += int(ctx.GetSizeBytes())
 	return
 }
@@ -200,12 +201,10 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 	return
 }
 
-func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
+func (decoder *EbpfDecoder) DecodeRemoteAddr() (family, port uint16, addr string, err error) {
 	var (
-		index  uint8
-		family uint16
-		_port  uint16
-		_addr  uint32
+		index uint8
+		_addr uint32
 	)
 	if err = decoder.DecodeUint8(&index); err != nil {
 		return
@@ -215,20 +214,18 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (port, addr string, err error) {
 	}
 	switch family {
 	case 0, 2:
-		if err = decoder.DecodeUint16BigEndian(&_port); err != nil {
+		if err = decoder.DecodeUint16BigEndian(&port); err != nil {
 			return
 		}
 		if err = decoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
-		port = strconv.FormatUint(uint64(_port), 10)
 		addr = helper.PrintUint32IP(_addr)
 		_, err = decoder.ReadByteSliceFromBuff(8)
 	case 10:
-		if decoder.DecodeUint16BigEndian(&_port); err != nil {
+		if decoder.DecodeUint16BigEndian(&port); err != nil {
 			return
 		}
-		port = strconv.FormatUint(uint64(_port), 10)
 		var _flowinfo uint32
 		if decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return

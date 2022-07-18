@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"hades-ebpf/user/cache"
 	"sync"
 
 	"github.com/bytedance/sonic"
@@ -28,24 +29,36 @@ type Context struct {
 	Uid       uint32  `json:"uid"`
 	Gid       uint32  `json:"gid"`
 	Ppid      uint32  `json:"ppid"`
+	Pgid      uint32  `json:"pgid"`
 	Sessionid uint32  `json:"sessionid"`
 	Comm      string  `json:"comm"`
 	PComm     string  `json:"pcomm"`
 	Nodename  string  `json:"nodename"`
 	RetVal    uint64  `json:"retval"`
 	Argnum    uint8   `json:"-"`
-	_         [7]byte `json:"-"`
+	_         [3]byte `json:"-"`
 	// added
-	Md5       string `json:"md5"`
+	ExeHash   string `json:"exe_hash"`
 	Username  string `json:"username"`
 	StartTime int64  `json:"starttime"`
 	Exe       string `json:"exe"`
 	Syscall   string `json:"syscall"`
+	PpidArgv  string `json:"ppid_argv"`
+	PgidArgv  string `json:"pgid_argv"`
+	PodName   string `json:"pod_name"`
 	Event     `json:"-"`
 }
 
 func (Context) GetSizeBytes() uint32 {
-	return 160
+	return 168
+}
+
+func (c *Context) FillContext() {
+	c.PpidArgv = cache.DefaultArgvCache.Get(c.Ppid)
+	c.PgidArgv = cache.DefaultArgvCache.Get(c.Pgid)
+	c.ExeHash = cache.DefaultHashCache.Get(c.Exe)
+	c.Username = cache.DefaultUserCache.Get(c.Uid)
+	c.PodName = cache.DefaultNsCache.Get(c.Pid, c.Pns)
 }
 
 // Temp way to do merge or inline...
@@ -63,9 +76,6 @@ func (c *Context) MarshalJson() (result string, err error) {
 	if eventByte, err = sonic.Marshal(c.Event); err != nil {
 		return
 	}
-	/*
-	 * A simple way to make escapeHTML false useful...
-	 */
 	resultByte = append(resultByte, ctxByte[:len(ctxByte)-2]...)
 	resultByte = append(resultByte, byte('"'), byte(','))
 	resultByte = append(resultByte, eventByte[1:]...)

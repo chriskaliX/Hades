@@ -1,6 +1,7 @@
 package event
 
 import (
+	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"strings"
 
@@ -19,10 +20,13 @@ type ExecveAt struct {
 	TTYName            string `json:"tty_name"`
 	Stdin              string `json:"stdin"`
 	Stdout             string `json:"stdout"`
-	Dport              string `json:"dport"`
+	Dport              uint16 `json:"dport"`
 	Dip                string `json:"dip"`
+	Family             uint16 `json:"family"`
+	SocketPid          uint32 `json:"socket_pid"`
+	SocketArgv         string `json:"socket_argv"`
 	PidTree            string `json:"pid_tree"`
-	Cmdline            string `json:"cmdline"`
+	Argv               string `json:"argv"`
 	PrivEscalation     uint8  `json:"priv_esca"`
 	SSHConnection      string `json:"ssh_connection"`
 	LDPreload          string `json:"ld_preload"`
@@ -41,6 +45,7 @@ func (e *ExecveAt) GetExe() string {
 }
 
 func (e *ExecveAt) Parse() (err error) {
+	var dummy uint8
 	if e.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
@@ -56,7 +61,13 @@ func (e *ExecveAt) Parse() (err error) {
 	if e.Stdout, err = decoder.DefaultDecoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Dport, e.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if e.Family, e.Dport, e.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeUint8(&dummy); err != nil {
+		return
+	}
+	if err = decoder.DefaultDecoder.DecodeUint32(&e.SocketPid); err != nil {
 		return
 	}
 	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
@@ -67,8 +78,7 @@ func (e *ExecveAt) Parse() (err error) {
 		zap.S().Error("execveat cmdline error")
 		return
 	}
-	e.Cmdline = strings.Join(strArr, " ")
-
+	e.Argv = strings.Join(strArr, " ")
 	envs := make([]string, 0, 3)
 	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
 		return
@@ -86,6 +96,7 @@ func (e *ExecveAt) Parse() (err error) {
 	if len(e.LDPreload) == 0 {
 		e.LDPreload = "-1"
 	}
+	e.SocketArgv = cache.DefaultArgvCache.Get(e.SocketPid)
 	return
 }
 
@@ -104,6 +115,10 @@ func (ExecveAt) GetProbe() []*manager.Probe {
 			AttachToFuncName: "sys_exit_execveat",
 		},
 	}
+}
+
+func (e ExecveAt) FillContext(pid uint32) {
+	cache.DefaultArgvCache.Put(pid, e.Argv)
 }
 
 func init() {
