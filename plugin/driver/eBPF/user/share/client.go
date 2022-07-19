@@ -9,7 +9,8 @@ import (
 
 var (
 	Client = plugin.New()
-	Gtime  atomic.Value
+	// global time
+	Gtime atomic.Value
 )
 
 func init() {

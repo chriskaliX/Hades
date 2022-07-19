@@ -3,13 +3,19 @@ package cache
 import (
 	"bytes"
 	"fmt"
-	"hades-ebpf/user/share"
 	"os"
 	"strings"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/time/rate"
+	"k8s.io/utils/lru"
+)
+
+const (
+	argvCacheSize       = 8192
+	argvLimiterBurst    = 25
+	argvLimiterInterval = 40 * time.Millisecond
+	argvMaxLength       = 512
 )
 
 var DefaultArgvCache = NewArgvCache()
@@ -21,17 +27,21 @@ type ArgvCache struct {
 
 func NewArgvCache() *ArgvCache {
 	// the default value is from Elkeid, which is reasonable
+	// lru from the k8s
 	acache := &ArgvCache{
-		rlimiter: rate.NewLimiter(rate.Every(40*time.Millisecond), 25),
+		rlimiter: rate.NewLimiter(
+			rate.Every(argvLimiterInterval), argvLimiterBurst,
+		),
+		cache: lru.New(argvCacheSize),
 	}
-	acache.cache, _ = lru.New(8192)
 	return acache
 }
 
+// Get the argv by pid
 func (a *ArgvCache) Get(pid uint32) string {
 	// pre check for pid
-	if pid == 0 || pid == 1 {
-		return share.INVALID_STRING
+	if pid <= 1 {
+		return InVaild
 	}
 	// get argv from cache
 	if value, ok := a.cache.Get(pid); ok {
@@ -41,18 +51,25 @@ func (a *ArgvCache) Get(pid uint32) string {
 	if a.rlimiter.Allow() {
 		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
 		if err != nil {
-			return share.INVALID_STRING
+			return InVaild
 		}
-		if len(_byte) > 512 {
-			_byte = _byte[:512]
+		if len(_byte) > argvMaxLength {
+			_byte = _byte[:argvMaxLength]
 		}
-		argv := strings.TrimSpace(string(bytes.ReplaceAll(_byte, []byte{0}, []byte{' '})))
-		a.cache.Add(pid, argv)
+		argv := convertCmdline(_byte)
+		a.Set(pid, argv)
 		return argv
 	}
-	return share.INVALID_STRING
+	return OverRate
 }
 
-func (a *ArgvCache) Put(pid uint32, argv string) {
+// Set pid, argv to cache
+func (a *ArgvCache) Set(pid uint32, argv string) {
 	a.cache.Add(pid, argv)
+}
+
+// convert /proc/<pid>/cmdline to readable string
+func convertCmdline(_cmdline []byte) string {
+	_byte := bytes.ReplaceAll(_cmdline, []byte{0}, []byte{' '})
+	return strings.TrimSpace(string(_byte))
 }

@@ -1,43 +1,42 @@
 package cache
 
 import (
-	"hades-ebpf/user/share"
 	"math/rand"
 	"os/user"
 	"strconv"
 	"time"
 
-	"github.com/karlseguin/ccache/v2"
+	utilcache "k8s.io/apimachinery/pkg/util/cache"
+)
+
+const (
+	userCacheSize = 1024
 )
 
 var DefaultUserCache = NewUserCache()
 
 type UserCache struct {
-	cache *ccache.Cache
+	cache *utilcache.LRUExpireCache
 }
 
 func NewUserCache() *UserCache {
-	cache := &UserCache{
-		cache: ccache.New(ccache.Configure().MaxSize(1024)),
+	return &UserCache{
+		cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, &TickerClock{}),
 	}
-
-	return cache
 }
 
 // username may changed, cache with timeout is needed
 func (u *UserCache) Get(_uid uint32) string {
 	uid := strconv.FormatUint(uint64(_uid), 10)
-	item := u.cache.Get(uid)
-	if item != nil {
-		if item.Expired() {
-			u.cache.Delete(uid)
-		}
-		return item.Value().(string)
+	item, status := u.cache.Get(uid)
+	if status {
+		return item.(string)
 	}
 	user, err := user.LookupId(uid)
 	if err != nil {
-		return share.INVALID_STRING
+		return InVaild
 	}
-	u.cache.Set(uid, user.Username, 1*time.Hour+time.Duration(rand.Intn(600))*time.Second)
+	duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
+	u.cache.Add(uid, user.Username, duration)
 	return user.Username
 }

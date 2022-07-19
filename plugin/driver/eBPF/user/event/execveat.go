@@ -118,7 +118,7 @@ func (ExecveAt) GetProbe() []*manager.Probe {
 }
 
 func (e ExecveAt) FillContext(pid uint32) {
-	cache.DefaultArgvCache.Put(pid, e.Argv)
+	cache.DefaultArgvCache.Set(pid, e.Argv)
 }
 
 func init() {

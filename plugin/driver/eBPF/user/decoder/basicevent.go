@@ -4,7 +4,7 @@ package decoder
 
 import manager "github.com/ehids/ebpfmanager"
 
-const emptyString = ""
+const defaultRet = "-1"
 
 type BasicEvent struct{}
 
@@ -13,12 +13,10 @@ func (BasicEvent) GetMaps() (result []*manager.Map) {
 	return
 }
 
-// default
 func (BasicEvent) GetExe() string {
-	return emptyString
+	return defaultRet
 }
 
-// default
 func (BasicEvent) FillContext(uint32) {
 	return
 }

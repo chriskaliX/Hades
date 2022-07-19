@@ -99,7 +99,7 @@ func (e *Execve) Parse() (err error) {
 }
 
 func (e Execve) FillContext(pid uint32) {
-	cache.DefaultArgvCache.Put(pid, e.Argv)
+	cache.DefaultArgvCache.Set(pid, e.Argv)
 }
 
 func (Execve) GetProbe() []*manager.Probe {

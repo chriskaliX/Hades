@@ -3,51 +3,57 @@ package cache
 import (
 	"bytes"
 	"fmt"
-	"hades-ebpf/user/share"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/karlseguin/ccache/v2"
 	"golang.org/x/time/rate"
+	utilcache "k8s.io/apimachinery/pkg/util/cache"
+)
+
+const (
+	// the ccache max cache size is 5000
+	nsCacheSize       = 4096
+	nsLimiterBurst    = 25
+	nsLimiterInterval = 40 * time.Millisecond
+)
+
+// environment variables for k8s
+const (
+	K8sMyPodName = "MY_POD_NAME"
+	k8sPodName   = "POD_NAME"
 )
 
 var DefaultNsCache = NewNsCache()
 
 type NsCache struct {
-	cache    *ccache.Cache
+	cache    *utilcache.LRUExpireCache
 	rlimiter *rate.Limiter
 }
 
 func NewNsCache() *NsCache {
 	cache := &NsCache{
-		rlimiter: rate.NewLimiter(rate.Every(40*time.Millisecond), 25),
-		cache:    ccache.New(ccache.Configure().MaxSize(1024)),
+		rlimiter: rate.NewLimiter(rate.Every(nsLimiterInterval), nsLimiterBurst),
+		cache:    utilcache.NewLRUExpireCacheWithClock(nsCacheSize, &TickerClock{}),
 	}
 	return cache
 }
 
-// Get the pod_name of the pns. Also from the Elkeid, but I do some modificaiton
-// For now, it's only for k8s situation.
-func (n *NsCache) Get(_pid uint32, _pns uint32) string {
-	// convert the inputs
-	pid := strconv.FormatUint(uint64(_pid), 10)
-	pns := strconv.FormatUint(uint64(_pns), 10)
+// Get the pod name of the pns. It's also from the Elkeid, but I changed
+// the cache to lruexpirecache
+func (n *NsCache) Get(pid uint32, pns uint32) string {
 	// get the pns from the cache
-	item := n.cache.Get(pns)
-	if item != nil {
-		if item.Expired() {
-			n.cache.Delete(pns)
-		}
-		return item.Value().(string)
+	item, status := n.cache.Get(pns)
+	if status {
+		return item.(string)
 	}
 	// missed, get it from environ
 	if n.rlimiter.Allow() {
-		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%s/environ", pid))
+		// extract pod name from /proc/<pid>/environ
+		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
 		if err != nil {
-			return share.INVALID_STRING
+			return InVaild
 		}
 		envList := bytes.Split(_byte, []byte{0})
 		for _, env := range envList {
@@ -55,16 +61,17 @@ func (n *NsCache) Get(_pid uint32, _pns uint32) string {
 			if len(_env) != 2 {
 				continue
 			}
-			if _env[0] == "MY_POD_NAME" || _env[0] == "POD_NAME" {
+			if _env[0] == K8sMyPodName || _env[0] == k8sPodName {
 				// get it right, save to cache and return
-				n.cache.Set(pns, _env[1], 1*time.Hour+time.Duration(rand.Intn(600))*time.Second)
+				duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
+				n.cache.Add(pns, _env[1], duration)
 				return _env[1]
 			}
 		}
 		// missed, no pod_name is got. save invalid for a minite
-		// speed up
-		n.cache.Set(pns, share.INVALID_STRING, 1*time.Minute)
-		return share.INVALID_STRING
+		// just for better performance
+		n.cache.Add(pns, InVaild, time.Minute)
+		return InVaild
 	}
-	return share.INVALID_STRING
+	return InVaild
 }

@@ -11,13 +11,14 @@ import (
 	"sync"
 	"syscall"
 
-	lru "github.com/hashicorp/golang-lru"
+	"k8s.io/utils/lru"
 )
 
-const freq = 60
-const maxFileSize = 10485760
-
-var DefaultHashCache = NewHashCache()
+const (
+	freq          = 60
+	maxFileSize   = 10485760
+	hashCacheSize = 4096
+)
 
 var hasherPool = &sync.Pool{
 	New: func() interface{} {
@@ -25,43 +26,57 @@ var hasherPool = &sync.Pool{
 	},
 }
 
+var DefaultHashCache = NewHashCache()
+
 type HashCache struct {
 	cache *lru.Cache
 }
 
+// internal hash struct for calc
+type fileHash struct {
+	modtime int64
+	inode   uint64
+	size    int64
+	// access time is the last time the file stat is accessed
+	accessTime int64
+	hash       string
+}
+
 func NewHashCache() *HashCache {
-	cache := &HashCache{}
-	cache.cache, _ = lru.New(4096)
-	return cache
+	return &HashCache{
+		cache: lru.New(hashCacheSize),
+	}
 }
 
 func (h *HashCache) Get(path string) string {
 	// get this from cache
-	temp, ok := h.cache.Get(path)
+	_hash, ok := h.cache.Get(path)
 	var (
 		stat *syscall.Stat_t
 		err  error
 	)
 	// if the file still in cache, check this again
 	if ok {
-		fileHash := temp.(*fileHash)
-		// compare the accesstime
+		fileHash := _hash.(*fileHash)
+		// compare the access time, if the access time
+		// is less than freq, the hash remains valiable
 		if !fileHash.greater() {
 			return fileHash.hash
 		}
-		fileHash.updateTime()
-		// if it's less time, check the stat
+		// update access time
+		fileHash.updateAccessTime()
+		// restat the path
+		// And recheck the file size and the stat
 		stat, err = getStat(path)
 		if err != nil {
-			fileHash.hash = share.INVALID_STRING
+			fileHash.hash = InVaild
 			return fileHash.hash
 		}
-		// file size limit
 		if stat.Size > maxFileSize {
-			fileHash.hash = share.INVALID_STRING
+			fileHash.hash = InVaild
 			return fileHash.hash
 		}
-		// if stat is invalid, get the hash and update all
+		// if stat is invalid, get the hash and update new stat
 		if fileHash.statInvalid(stat.Ino, stat.Mtim.Sec, stat.Size) {
 			fileHash.hash = genHash(path)
 			fileHash.updateStat(stat)
@@ -70,18 +85,18 @@ func (h *HashCache) Get(path string) string {
 		// stat is fine, just return
 		return fileHash.hash
 	}
-	// a delay may be introduced
+	// the path is not in the cache
 	fileHash := &fileHash{}
 	defer h.cache.Add(path, fileHash)
-	fileHash.updateTime()
+	fileHash.updateAccessTime()
 	stat, err = getStat(path)
 	if err != nil {
-		fileHash.hash = share.INVALID_STRING
+		fileHash.hash = InVaild
 		return fileHash.hash
 	}
-	// file size limit
+	// file size limitation for better performance
 	if stat.Size > maxFileSize {
-		fileHash.hash = share.INVALID_STRING
+		fileHash.hash = InVaild
 		return fileHash.hash
 	}
 	fileHash.hash = genHash(path)
@@ -89,19 +104,11 @@ func (h *HashCache) Get(path string) string {
 	return fileHash.hash
 }
 
-type fileHash struct {
-	modtime    int64
-	inode      uint64
-	size       int64
-	accessTime int64 // hash access time
-	hash       string
-}
-
-func (fileHash *fileHash) updateTime() {
+func (fileHash *fileHash) updateAccessTime() {
 	fileHash.accessTime = share.Gtime.Load().(int64)
 }
 
-// just like osquery
+// compare the access time
 func (fileHash *fileHash) greater() bool {
 	if share.Gtime.Load().(int64)-fileHash.accessTime <= freq {
 		return false
@@ -109,14 +116,9 @@ func (fileHash *fileHash) greater() bool {
 	return true
 }
 
+// compare the stat from the cache
 func (fileHash *fileHash) statInvalid(inode uint64, mtime int64, size int64) bool {
-	if fileHash.inode != inode || fileHash.modtime != mtime {
-		return true
-	}
-	if fileHash.size != size {
-		return true
-	}
-	return false
+	return fileHash.inode != inode || fileHash.modtime != mtime || fileHash.size != size
 }
 
 func (fileHash *fileHash) updateStat(stat *syscall.Stat_t) {
@@ -141,7 +143,7 @@ func getStat(path string) (*syscall.Stat_t, error) {
 func genHash(path string) (result string) {
 	_file, err := os.Open(path)
 	if err != nil {
-		result = share.INVALID_STRING
+		result = InVaild
 		return
 	}
 	defer _file.Close()
@@ -149,7 +151,7 @@ func genHash(path string) (result string) {
 	defer hasherPool.Put(hash)
 	defer hash.Reset()
 	if _, err = io.Copy(hash, _file); err != nil {
-		result = share.INVALID_STRING
+		result = InVaild
 		return
 	}
 	result = hex.EncodeToString(hash.Sum(nil))
