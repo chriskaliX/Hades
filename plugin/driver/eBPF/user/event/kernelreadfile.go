@@ -22,7 +22,7 @@ func (KernelReadFile) ID() uint32 {
 	return 1027
 }
 
-func (KernelReadFile) String() string {
+func (KernelReadFile) Name() string {
 	return "kernel_read_file"
 }
 
@@ -30,17 +30,17 @@ func (k *KernelReadFile) GetExe() string {
 	return k.Exe
 }
 
-func (k *KernelReadFile) Parse() (err error) {
-	if k.Filename, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+func (k *KernelReadFile) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
+	if k.Filename, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeInt32(&k.TypeId); err != nil {
+	if err = decoder.DecodeInt32(&k.TypeId); err != nil {
 		return
 	}
 	return
 }
 
-func (KernelReadFile) GetProbe() []*manager.Probe {
+func (KernelReadFile) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "KprobeSecurityKernelReadFile",
@@ -52,5 +52,5 @@ func (KernelReadFile) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultKernelReadFile)
+	decoder.DefaultEventCollection.Regist(DefaultKernelReadFile)
 }

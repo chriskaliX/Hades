@@ -28,35 +28,35 @@ func (AntiRootkit) ID() uint32 {
 	return 1031
 }
 
-func (AntiRootkit) String() string {
+func (AntiRootkit) Name() string {
 	return "anti_rootkit"
 }
 
-func (a *AntiRootkit) Parse() (err error) {
+func (a *AntiRootkit) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
 		addr  uint64
 		field int32
 		index uint8
 	)
 	// get addr
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint64(&addr); err != nil {
+	if err = e.DecodeUint64(&addr); err != nil {
 		return
 	}
 	// get index
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint64(&a.Index); err != nil {
+	if err = e.DecodeUint64(&a.Index); err != nil {
 		return
 	}
 	// get field
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeInt32(&field); err != nil {
+	if err = e.DecodeInt32(&field); err != nil {
 		return
 	}
 
@@ -78,7 +78,7 @@ func (a *AntiRootkit) Parse() (err error) {
 	return
 }
 
-func (AntiRootkit) GetProbe() []*manager.Probe {
+func (AntiRootkit) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "SecurityFileIoctl",
@@ -223,11 +223,6 @@ func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
 	return nil
 }
 
-/*
- * A wrap of GetMap function.
- * Todo: Move to basic
- */
-
 // Regist and trigger
 func init() {
 	var err error
@@ -236,5 +231,5 @@ func init() {
 		zap.S().Error(err)
 		return
 	}
-	decoder.Regist(DefaultAntiRootkit)
+	decoder.DefaultEventCollection.Regist(DefaultAntiRootkit)
 }

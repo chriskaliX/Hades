@@ -35,7 +35,7 @@ func (Execve) ID() uint32 {
 	return 700
 }
 
-func (Execve) String() string {
+func (Execve) Name() string {
 	return "execve"
 }
 
@@ -43,42 +43,42 @@ func (e *Execve) GetExe() string {
 	return e.Exe
 }
 
-func (e *Execve) Parse() (err error) {
+func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var dummy uint8
-	if e.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if e.Exe, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Cwd, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if e.Cwd, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if e.TTYName, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if e.TTYName, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdin, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if e.Stdin, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdout, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if e.Stdout, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Family, e.Dport, e.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if e.Family, e.Dport, e.Dip, err = decoder.DecodeRemoteAddr(); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint8(&dummy); err != nil {
+	if err = decoder.DecodeUint8(&dummy); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint32(&e.SocketPid); err != nil {
+	if err = decoder.DecodeUint32(&e.SocketPid); err != nil {
 		return
 	}
-	if e.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&e.PrivEscalation); err != nil {
+	if e.PidTree, err = decoder.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
 	var strArr []string
-	if strArr, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
+	if strArr, err = decoder.DecodeStrArray(); err != nil {
 		return
 	}
 	e.Argv = strings.Join(strArr, " ")
 	envs := make([]string, 0, 3)
-	if envs, err = decoder.DefaultDecoder.DecodeStrArray(); err != nil {
+	if envs, err = decoder.DecodeStrArray(); err != nil {
 		return
 	}
 	for _, env := range envs {
@@ -98,11 +98,11 @@ func (e *Execve) Parse() (err error) {
 	return
 }
 
-func (e Execve) FillContext(pid uint32) {
-	cache.DefaultArgvCache.Set(pid, e.Argv)
+func (e Execve) FillCache() {
+	cache.DefaultArgvCache.Set(e.Context().Pid, e.Argv)
 }
 
-func (Execve) GetProbe() []*manager.Probe {
+func (Execve) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "TracepointSysExecve",
@@ -120,5 +120,5 @@ func (Execve) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultExecve)
+	decoder.DefaultEventCollection.Regist(DefaultExecve)
 }

@@ -23,7 +23,7 @@ func (DoInitModule) ID() uint32 {
 	return 1026
 }
 
-func (DoInitModule) String() string {
+func (DoInitModule) Name() string {
 	return "do_init_module"
 }
 
@@ -31,23 +31,23 @@ func (d *DoInitModule) GetExe() string {
 	return d.Exe
 }
 
-func (d *DoInitModule) Parse() (err error) {
-	if d.Modname, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+func (d *DoInitModule) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
+	if d.Modname, err = e.DecodeString(); err != nil {
 		return
 	}
-	if d.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if d.Exe, err = e.DecodeString(); err != nil {
 		return
 	}
-	if d.Pidtree, err = decoder.DefaultDecoder.DecodePidTree(&d.PrivEscalation); err != nil {
+	if d.Pidtree, err = e.DecodePidTree(&d.PrivEscalation); err != nil {
 		return
 	}
-	if d.Cwd, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if d.Cwd, err = e.DecodeString(); err != nil {
 		return
 	}
 	return
 }
 
-func (d *DoInitModule) GetProbe() []*manager.Probe {
+func (d *DoInitModule) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "KprobeDoInitModule",
@@ -59,5 +59,5 @@ func (d *DoInitModule) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultDoInitModule)
+	decoder.DefaultEventCollection.Regist(DefaultDoInitModule)
 }

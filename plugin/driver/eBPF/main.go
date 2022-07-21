@@ -1,9 +1,7 @@
 package main
 
 import (
-	"flag"
 	user "hades-ebpf/user"
-	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/event"
 	"net/http"
 	_ "net/http/pprof"
@@ -18,6 +16,7 @@ import (
 )
 
 func main() {
+	// zap configuration pre-set
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   "hades-ebpf.log",
@@ -37,20 +36,20 @@ func main() {
 
 	zap.S().Info("Hades eBPF driver start")
 	// filters for command line
-	filter := flag.Uint64("f", 0, "filter")
-	flag.Parse()
-	decoder.SetFilter(*filter)
-	// the real functions
-	var err error
-	if err = user.DefaultDriver.Init(); err != nil {
+	// filter := flag.Uint64("f", 0, "filter")
+	// flag.Parse()
+
+	// generate the main driver
+	driver, err := user.NewDriver()
+	if err != nil {
 		zap.S().Error(err)
 		return
 	}
-	if err = user.DefaultDriver.Start(); err != nil {
+	if err = driver.Start(); err != nil {
 		zap.S().Error(err)
 		return
 	}
-	if err = user.DefaultDriver.AfterRunInitialization(); err != nil {
+	if err = driver.Init(); err != nil {
 		zap.S().Error(err)
 		return
 	}
@@ -66,7 +65,7 @@ func main() {
 					ticker.Reset(time.Minute * 15)
 					init = false
 				}
-				if err = event.DefaultAntiRootkit.Scan(user.DefaultDriver.Manager); err != nil {
+				if err = event.DefaultAntiRootkit.Scan(driver.Manager); err != nil {
 					zap.S().Error(err)
 				}
 			}

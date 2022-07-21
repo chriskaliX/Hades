@@ -1,7 +1,6 @@
 package decoder
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -11,10 +10,26 @@ import (
 	"strings"
 )
 
-// The basic decode struct for eBPF data
+var DefaultDecoder = NewEbpfDecoder(make([]byte, 0))
+
+const (
+	sizeint8  = 1
+	sizeint16 = 2
+	sizeint32 = 4
+	sizeint64 = 8
+)
+
+// dummy field
+var dummy uint8
+
+// eBPF events decoder, functions in this struct is not thread-safe
 type EbpfDecoder struct {
+	// raw buffer which is read from kern perf(or ringbuf)
 	buffer []byte
+	// cursor of the buffer
 	cursor int
+	// index of the event, for less alloc since it's internal
+	index uint8
 }
 
 func NewEbpfDecoder(rawBuffer []byte) *EbpfDecoder {
@@ -24,12 +39,11 @@ func NewEbpfDecoder(rawBuffer []byte) *EbpfDecoder {
 	}
 }
 
-// this is for singleton
-var DefaultDecoder = &EbpfDecoder{}
-
-func (decoder *EbpfDecoder) SetBuffer(_byte []byte) {
+// ReInit the decoder by accepting a new event buffer
+func (decoder *EbpfDecoder) ReInit(_byte []byte) {
 	decoder.buffer = append([]byte(nil), _byte...)
 	decoder.cursor = 0
+	decoder.index = 0
 }
 
 func (decoder *EbpfDecoder) BuffLen() int {
@@ -40,73 +54,43 @@ func (decoder *EbpfDecoder) ReadAmountBytes() int {
 	return decoder.cursor
 }
 
-func (decoder *EbpfDecoder) DecodeContext(ctx *Context) (err error) {
-	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < 160 {
-		err = fmt.Errorf("can't read context from buffer: buffer too short")
-		return
-	}
-	ctx.Ts = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+8])
-	ctx.CgroupID = binary.LittleEndian.Uint64(decoder.buffer[offset+8 : offset+16])
-	ctx.Pns = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
-	ctx.Type = binary.LittleEndian.Uint32(decoder.buffer[offset+20 : offset+24])
-	ctx.Pid = binary.LittleEndian.Uint32(decoder.buffer[offset+24 : offset+28])
-	ctx.Tid = binary.LittleEndian.Uint32(decoder.buffer[offset+28 : offset+32])
-	ctx.Uid = binary.LittleEndian.Uint32(decoder.buffer[offset+32 : offset+36])
-	ctx.Gid = binary.LittleEndian.Uint32(decoder.buffer[offset+36 : offset+40])
-	ctx.Ppid = binary.LittleEndian.Uint32(decoder.buffer[offset+40 : offset+44])
-	ctx.Pgid = binary.LittleEndian.Uint32(decoder.buffer[offset+44 : offset+48])
-	ctx.Sessionid = binary.LittleEndian.Uint32(decoder.buffer[offset+48 : offset+52])
-	ctx.Comm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+52:offset+68], "\x00"))
-	ctx.PComm = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+68:offset+84], "\x00"))
-	ctx.Nodename = helper.ZeroCopyString(bytes.Trim(decoder.buffer[offset+84:offset+148], "\x00"))
-	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+148 : offset+156]))
-	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+156 : offset+168]))
-	decoder.cursor += int(ctx.GetSizeBytes())
-	return
-}
-
 func (decoder *EbpfDecoder) DecodeUint8(msg *uint8) error {
-	readAmount := 1
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint8 {
 		return fmt.Errorf("read uint8 failed, offset: %d", offset)
 	}
 	*msg = decoder.buffer[decoder.cursor]
-	decoder.cursor += readAmount
+	decoder.cursor += sizeint8
 	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeInt16(msg *int16) error {
-	readAmount := 2
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint16 {
 		return fmt.Errorf("read int16 failed, offset: %d", offset)
 	}
-	*msg = int16(binary.LittleEndian.Uint16(decoder.buffer[offset : offset+readAmount]))
-	decoder.cursor += readAmount
+	*msg = int16(binary.LittleEndian.Uint16(decoder.buffer[offset : offset+sizeint16]))
+	decoder.cursor += sizeint16
 	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeUint16(msg *uint16) error {
-	readAmount := 2
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint16 {
 		return fmt.Errorf("read uint16 failed, offset: %d", offset)
 	}
-	*msg = binary.LittleEndian.Uint16(decoder.buffer[offset : offset+readAmount])
-	decoder.cursor += readAmount
+	*msg = binary.LittleEndian.Uint16(decoder.buffer[offset : offset+sizeint16])
+	decoder.cursor += sizeint16
 	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeUint16BigEndian(msg *uint16) error {
-	readAmount := 2
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint16 {
 		return fmt.Errorf("read uint16BE failed, offset: %d", offset)
 	}
-	*msg = binary.BigEndian.Uint16(decoder.buffer[offset : offset+readAmount])
-	decoder.cursor += readAmount
+	*msg = binary.BigEndian.Uint16(decoder.buffer[offset : offset+sizeint16])
+	decoder.cursor += sizeint16
 	return nil
 }
 
@@ -122,46 +106,42 @@ func (decoder *EbpfDecoder) DecodeInt32(msg *int32) error {
 }
 
 func (decoder *EbpfDecoder) DecodeUint32(msg *uint32) error {
-	readAmount := 4
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint32 {
 		return fmt.Errorf("read uint32 failed, offset: %d", offset)
 	}
-	*msg = binary.LittleEndian.Uint32(decoder.buffer[offset : offset+readAmount])
-	decoder.cursor += readAmount
+	*msg = binary.LittleEndian.Uint32(decoder.buffer[offset : offset+sizeint32])
+	decoder.cursor += sizeint32
 	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeUint32BigEndian(msg *uint32) error {
-	readAmount := 4
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint32 {
 		return fmt.Errorf("read uint32BE failed, offset: %d", offset)
 	}
-	*msg = binary.BigEndian.Uint32(decoder.buffer[offset : offset+readAmount])
-	decoder.cursor += readAmount
+	*msg = binary.BigEndian.Uint32(decoder.buffer[offset : offset+sizeint32])
+	decoder.cursor += sizeint32
 	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeInt64(msg *int64) error {
-	readAmount := 8
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint64 {
 		return fmt.Errorf("read int64 failed, offset: %d", offset)
 	}
-	*msg = int64(binary.LittleEndian.Uint64(decoder.buffer[decoder.cursor : decoder.cursor+readAmount]))
-	decoder.cursor += readAmount
+	*msg = int64(binary.LittleEndian.Uint64(decoder.buffer[decoder.cursor : decoder.cursor+sizeint64]))
+	decoder.cursor += sizeint64
 	return nil
 }
 
 func (decoder *EbpfDecoder) DecodeUint64(msg *uint64) error {
-	readAmount := 8
 	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < readAmount {
+	if len(decoder.buffer[offset:]) < sizeint64 {
 		return fmt.Errorf("read uint64 failed, offset: %d", offset)
 	}
-	*msg = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+readAmount])
-	decoder.cursor += readAmount
+	*msg = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+sizeint64])
+	decoder.cursor += sizeint64
 	return nil
 }
 
@@ -177,10 +157,8 @@ func (decoder *EbpfDecoder) DecodeBytes(msg []byte, size uint32) error {
 }
 
 func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
-	var index uint8
 	var size int32
-	var dummy uint8
-	if err = decoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&decoder.index); err != nil {
 		return
 	}
 	if err = decoder.DecodeInt32(&size); err != nil {
@@ -203,10 +181,9 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 
 func (decoder *EbpfDecoder) DecodeRemoteAddr() (family, port uint16, addr string, err error) {
 	var (
-		index uint8
 		_addr uint32
 	)
-	if err = decoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&decoder.index); err != nil {
 		return
 	}
 	if err = decoder.DecodeUint16(&family); err != nil {
@@ -246,14 +223,12 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (family, port uint16, addr string
 
 func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (pidtree string, err error) {
 	var (
-		index uint8
-		size  uint8
-		sz    uint32
-		pid   uint32
-		dummy uint8
-		str   string
+		size uint8
+		sz   uint32
+		pid  uint32
+		str  string
 	)
-	if err = decoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&decoder.index); err != nil {
 		return
 	}
 	if err = decoder.DecodeUint8(&size); err != nil {
@@ -286,13 +261,13 @@ func (decoder *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (pidtree string
 		var new = NewSlimCred()
 		defer PutSlimCred(old)
 		defer PutSlimCred(new)
-		if err = decoder.DecodeUint8(&index); err != nil {
+		if err = decoder.DecodeUint8(&decoder.index); err != nil {
 			return
 		}
 		if err = decoder.DeocdeSlimCred(old); err != nil {
 			return
 		}
-		if err = decoder.DecodeUint8(&index); err != nil {
+		if err = decoder.DecodeUint8(&decoder.index); err != nil {
 			return
 		}
 		if err = decoder.DeocdeSlimCred(new); err != nil {
@@ -321,13 +296,11 @@ func (decoder *EbpfDecoder) DeocdeSlimCred(slimCred *SlimCred) error {
 
 func (decoder *EbpfDecoder) DecodeStrArray() (strArr []string, err error) {
 	var (
-		index uint8
-		size  uint8
-		str   string
-		sz    uint32
-		dummy uint8
+		size uint8
+		str  string
+		sz   uint32
 	)
-	if err = decoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&decoder.index); err != nil {
 		return
 	}
 	if err = decoder.DecodeUint8(&size); err != nil {

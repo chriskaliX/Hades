@@ -24,7 +24,7 @@ func (SocketConnect) ID() uint32 {
 	return 1022
 }
 
-func (SocketConnect) String() string {
+func (SocketConnect) Name() string {
 	return "socket_connect"
 }
 
@@ -32,58 +32,58 @@ func (s *SocketConnect) GetExe() string {
 	return s.Exe
 }
 
-func (s *SocketConnect) Parse() (err error) {
+func (s *SocketConnect) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var (
 		index  uint8
 		family int16
 	)
 	// get family firstly
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeInt16(&family); err != nil {
+	if err = decoder.DecodeInt16(&family); err != nil {
 		return
 	}
 	s.Family = family
 	switch s.Family {
 	case 2:
 		var _port uint16
-		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
+		if decoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
 		}
 		s.Dport = strconv.FormatUint(uint64(_port), 10)
 		var _addr uint32
-		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_addr); err != nil {
+		if decoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
 		s.Dip = helper.PrintUint32IP(_addr)
-		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
+		decoder.ReadByteSliceFromBuff(8)
 	case 10:
 		var _port uint16
-		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
+		if decoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
 		}
 		s.Dport = strconv.FormatUint(uint64(_port), 10)
 		var _flowinfo uint32
-		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
+		if decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
 		}
 		var _addr []byte
-		_addr, err = decoder.DefaultDecoder.ReadByteSliceFromBuff(16)
+		_addr, err = decoder.ReadByteSliceFromBuff(16)
 		if err != nil {
 			return
 		}
 		s.Dip = helper.Print16BytesSliceIP(_addr)
 		// reuse
-		if err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
+		if err = decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
 		}
 	}
-	s.Exe, err = decoder.DefaultDecoder.DecodeString()
+	s.Exe, err = decoder.DecodeString()
 	return
 }
 
-func (SocketConnect) GetProbe() []*manager.Probe {
+func (SocketConnect) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			Section:          "kprobe/security_socket_connect",
@@ -94,5 +94,5 @@ func (SocketConnect) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultSockConn)
+	decoder.DefaultEventCollection.Regist(DefaultSockConn)
 }

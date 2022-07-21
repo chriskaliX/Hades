@@ -21,7 +21,7 @@ func (MemfdCreate) ID() uint32 {
 	return 614
 }
 
-func (MemfdCreate) String() string {
+func (MemfdCreate) Name() string {
 	return "memfd_create"
 }
 
@@ -29,24 +29,24 @@ func (m *MemfdCreate) GetExe() string {
 	return m.Exe
 }
 
-func (m *MemfdCreate) Parse() (err error) {
+func (m *MemfdCreate) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var index uint8
-	if m.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if m.Exe, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if m.Uname, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if m.Uname, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint32(&m.Flags); err != nil {
+	if err = decoder.DecodeUint32(&m.Flags); err != nil {
 		return
 	}
 	return
 }
 
-func (m *MemfdCreate) GetProbe() []*manager.Probe {
+func (m *MemfdCreate) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "TpSysEnterMemfdCreate",
@@ -58,5 +58,5 @@ func (m *MemfdCreate) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultMemfdCreate)
+	decoder.DefaultEventCollection.Regist(DefaultMemfdCreate)
 }

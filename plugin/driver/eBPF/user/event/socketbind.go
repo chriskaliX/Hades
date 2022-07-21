@@ -25,7 +25,7 @@ func (SocketBind) ID() uint32 {
 	return 1024
 }
 
-func (SocketBind) String() string {
+func (SocketBind) Name() string {
 	return "socket_bind"
 }
 
@@ -33,61 +33,61 @@ func (s *SocketBind) GetExe() string {
 	return s.Exe
 }
 
-func (s *SocketBind) Parse() (err error) {
+func (s *SocketBind) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var (
 		index  uint8
 		family int16
 	)
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeInt16(&family); err != nil {
+	if err = decoder.DecodeInt16(&family); err != nil {
 		return
 	}
 	s.Family = family
 	switch s.Family {
 	case 2:
 		var _port uint16
-		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
+		if decoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
 		}
 		s.LocalPort = strconv.FormatUint(uint64(_port), 10)
 		var _addr uint32
-		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_addr); err != nil {
+		if decoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
 		s.LocalAddr = helper.PrintUint32IP(_addr)
-		decoder.DefaultDecoder.ReadByteSliceFromBuff(8)
+		decoder.ReadByteSliceFromBuff(8)
 	case 10:
 		var _port uint16
-		if decoder.DefaultDecoder.DecodeUint16BigEndian(&_port); err != nil {
+		if decoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
 		}
 		s.LocalPort = strconv.FormatUint(uint64(_port), 10)
 		var _flowinfo uint32
-		if decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
+		if decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
 		}
 		var _addr []byte
-		_addr, err = decoder.DefaultDecoder.ReadByteSliceFromBuff(16)
+		_addr, err = decoder.ReadByteSliceFromBuff(16)
 		if err != nil {
 			return
 		}
 		s.LocalAddr = helper.Print16BytesSliceIP(_addr)
 		// reuse
-		err = decoder.DefaultDecoder.DecodeUint32BigEndian(&_flowinfo)
+		err = decoder.DecodeUint32BigEndian(&_flowinfo)
 	}
-	if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if s.Exe, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	err = decoder.DefaultDecoder.DecodeUint16(&s.Protocol)
+	err = decoder.DecodeUint16(&s.Protocol)
 	return
 }
 
-func (SocketBind) GetProbe() []*manager.Probe {
+func (SocketBind) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "KprobeSecuritySocketBind",
@@ -99,5 +99,5 @@ func (SocketBind) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultSockBind)
+	decoder.DefaultEventCollection.Regist(DefaultSockBind)
 }

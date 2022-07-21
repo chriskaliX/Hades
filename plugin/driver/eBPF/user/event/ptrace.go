@@ -24,7 +24,7 @@ func (Ptrace) ID() uint32 {
 	return 164
 }
 
-func (Ptrace) String() string {
+func (Ptrace) Name() string {
 	return "ptrace"
 }
 
@@ -32,36 +32,36 @@ func (p *Ptrace) GetExe() string {
 	return p.Exe
 }
 
-func (p *Ptrace) Parse() (err error) {
-	if p.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+func (p *Ptrace) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
+	if p.Exe, err = decoder.DecodeString(); err != nil {
 		return
 	}
 	var index uint8
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeInt64(&p.Requests); err != nil {
+	if err = decoder.DecodeInt64(&p.Requests); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeInt64(&p.TargetPid); err != nil {
+	if err = decoder.DecodeInt64(&p.TargetPid); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint64(&p.Addr); err != nil {
+	if err = decoder.DecodeUint64(&p.Addr); err != nil {
 		return
 	}
-	if p.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&p.PrivEscalation); err != nil {
+	if p.PidTree, err = decoder.DecodePidTree(&p.PrivEscalation); err != nil {
 		return
 	}
 	return
 }
 
-func (Ptrace) GetProbe() []*manager.Probe {
+func (Ptrace) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "TpSysEnterPtrace",
@@ -73,5 +73,5 @@ func (Ptrace) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultPtrace)
+	decoder.DefaultEventCollection.Regist(DefaultPtrace)
 }

@@ -25,7 +25,7 @@ func (SbMount) ID() uint32 {
 	return 1029
 }
 
-func (SbMount) String() string {
+func (SbMount) Name() string {
 	return "security_sb_mount"
 }
 
@@ -33,33 +33,33 @@ func (s *SbMount) GetExe() string {
 	return s.Exe
 }
 
-func (s *SbMount) Parse() (err error) {
+func (s *SbMount) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var index uint8
-	if s.DevName, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if s.DevName, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if s.Path, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if s.Path, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if s.Type, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if s.Type, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint8(&index); err != nil {
+	if err = decoder.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = decoder.DefaultDecoder.DecodeUint64(&s.Flags); err != nil {
+	if err = decoder.DecodeUint64(&s.Flags); err != nil {
 		return
 	}
-	if s.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if s.Exe, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if s.PidTree, err = decoder.DefaultDecoder.DecodePidTree(&s.PrivEscalation); err != nil {
+	if s.PidTree, err = decoder.DecodePidTree(&s.PrivEscalation); err != nil {
 		return
 	}
 	return
 }
 
-func (SbMount) GetProbe() []*manager.Probe {
+func (SbMount) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "KprobeSecuritySbMount",
@@ -71,5 +71,5 @@ func (SbMount) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultSbMount)
+	decoder.DefaultEventCollection.Regist(DefaultSbMount)
 }

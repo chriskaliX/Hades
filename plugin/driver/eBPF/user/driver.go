@@ -25,50 +25,45 @@ var _bytecode []byte
 
 var rawdata = make(map[string]string, 1)
 
-var DefaultDriver = &Driver{}
-
+// Driver contains the ebpfmanager and eventDecoder. By default, Driver
+// is a singleton and it's not thread-safe
 type Driver struct {
-	Manager      *manager.Manager
-	eventDecoder decoder.Event
+	Manager *manager.Manager
 }
 
-func (d *Driver) Init() (err error) {
-	d.Manager = &manager.Manager{}
-	events := decoder.GetEvents()
-	// Get all Probes and Maps
-	for _, event := range events {
-		d.Manager.Probes = append(d.Manager.Probes, event.GetProbe()...)
-		d.Manager.Maps = append(d.Manager.Maps, event.GetMaps()...)
-	}
-
-	/*
-	 * Init events and their ebpfmanager mapping
-	 */
-	// Regist main events which should not be regist in events
-	d.Manager.PerfMaps = []*manager.PerfMap{
-		{
-			Map: manager.Map{
-				Name: "exec_events",
+func NewDriver() (*Driver, error) {
+	driver := &Driver{}
+	// Init ebpfmanager with maps and perf_events
+	driver.Manager = &manager.Manager{
+		PerfMaps: []*manager.PerfMap{
+			{
+				Map: manager.Map{
+					Name: "exec_events",
+				},
+				PerfMapOptions: manager.PerfMapOptions{
+					PerfRingBufferSize: 256 * os.Getpagesize(),
+					DataHandler:        driver.dataHandler,
+					LostHandler:        driver.lostHandler,
+				},
 			},
-			PerfMapOptions: manager.PerfMapOptions{
-				PerfRingBufferSize: 256 * os.Getpagesize(),
-				DataHandler:        d.dataHandler,
-				LostHandler:        d.lostHandler,
+		},
+		Maps: []*manager.Map{
+			{
+				Name: "config_map",
 			},
 		},
 	}
-	// Regist common maps which is globally used
-	d.Manager.Maps = append(d.Manager.Maps, []*manager.Map{
-		{
-			Name: "config_map",
-		},
-	}...)
-	// init manager options, TODO: LogSize is test only now.
-	err = d.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
+	// Get all registed events probes and maps, add into the manager
+	for _, event := range decoder.DefaultEventCollection.GetEvents() {
+		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
+		driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
+	}
+	// init manager with options
+	err := driver.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
 		DefaultKProbeMaxActive: 512,
-
 		VerifierOptions: ebpf.CollectionOptions{
 			Programs: ebpf.ProgramOptions{
+				// The logsize is just test value for now
 				LogSize: 2097152 * 100,
 			},
 		},
@@ -77,15 +72,15 @@ func (d *Driver) Init() (err error) {
 			Max: math.MaxUint64,
 		},
 	})
-	return
+	return driver, err
 }
 
 func (d *Driver) Start() error {
 	return d.Manager.Start()
 }
 
-// This is used for after-run initialization for global maps(some common values)
-func (d *Driver) AfterRunInitialization() error {
+// init map value
+func (d *Driver) Init() error {
 	configMap, found, err := d.Manager.GetMap("config_map")
 	if err != nil {
 		return err
@@ -109,9 +104,7 @@ func (d *Driver) AfterRunInitialization() error {
 	return nil
 }
 
-/*
- * Close by the UID
- */
+// close probes by uid
 func (d *Driver) Close(UID string) (err error) {
 	for _, probe := range d.Manager.Probes {
 		if UID == probe.UID {
@@ -122,6 +115,10 @@ func (d *Driver) Close(UID string) (err error) {
 	return err
 }
 
+func (d *Driver) Stop() error {
+	return d.Manager.Stop(manager.CleanAll)
+}
+
 /*
  * Just like Close, Filter should be triggered by a task.
  * Also, just work like a yaml or other configuration.
@@ -130,15 +127,18 @@ func (d *Driver) Close(UID string) (err error) {
 func (d *Driver) Filter() {}
 
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
+	// get and decode the context
 	ctx := decoder.NewContext()
-	decoder.DefaultDecoder.SetBuffer(data)
-	err := decoder.DefaultDecoder.DecodeContext(ctx)
+	decoder.DefaultDecoder.ReInit(data)
+	err := ctx.DecodeContext(decoder.DefaultDecoder)
 	if err != nil {
 		return
 	}
 	defer decoder.PutContext(ctx)
-	d.eventDecoder = decoder.GetEvent(ctx.Type)
-	err = d.eventDecoder.Parse()
+	// get the event and set context into event
+	eventDecoder := decoder.DefaultEventCollection.GetEvent(ctx.Type)
+	eventDecoder.SetContext(ctx)
+	eventDecoder.DecodeEvent(decoder.DefaultDecoder)
 	if err != nil {
 		if err == event.ErrIgnore {
 			return
@@ -146,16 +146,15 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		zap.S().Errorf("error: %s", err)
 		return
 	}
-	ctx.SetEvent(d.eventDecoder)
-	// fill up argv and hash
-	ctx.FillContext()
-	ctx.StartTime = share.Gtime.Load().(int64)
+	// Fillup the context by the values that Event offers
+	ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
 	// marshal the data
-	_data, err := ctx.MarshalJson()
+	result, err := decoder.MarshalJson(eventDecoder)
 	if err != nil {
+		zap.S().Error(err)
 		return
 	}
-	rawdata["data"] = _data
+	rawdata["data"] = result
 	// TODO: just for debug
 	if Env == "debug" {
 		fmt.Println(rawdata["data"])

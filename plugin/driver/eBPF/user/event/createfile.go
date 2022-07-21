@@ -24,7 +24,7 @@ func (InodeCreate) ID() uint32 {
 	return 1028
 }
 
-func (InodeCreate) String() string {
+func (InodeCreate) Name() string {
 	return "security_inode_create"
 }
 
@@ -32,20 +32,20 @@ func (i *InodeCreate) GetExe() string {
 	return i.Exe
 }
 
-func (i *InodeCreate) Parse() (err error) {
-	if i.Exe, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+func (i *InodeCreate) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
+	if i.Exe, err = e.DecodeString(); err != nil {
 		return
 	}
-	if i.Filename, err = decoder.DefaultDecoder.DecodeString(); err != nil {
+	if i.Filename, err = e.DecodeString(); err != nil {
 		return
 	}
-	if i.Family, i.Dport, i.Dip, err = decoder.DefaultDecoder.DecodeRemoteAddr(); err != nil {
+	if i.Family, i.Dport, i.Dip, err = e.DecodeRemoteAddr(); err != nil {
 		return
 	}
 	return
 }
 
-func (InodeCreate) GetProbe() []*manager.Probe {
+func (InodeCreate) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
 			UID:              "KprobeSecurityInodeCreate",
@@ -57,5 +57,5 @@ func (InodeCreate) GetProbe() []*manager.Probe {
 }
 
 func init() {
-	decoder.Regist(DefaultInodeCreate)
+	decoder.DefaultEventCollection.Regist(DefaultInodeCreate)
 }

@@ -1,48 +1,38 @@
 package event
 
-import (
-	"hades-ebpf/user/decoder"
+// var DefaultJVM = &JVM{}
 
-	manager "github.com/ehids/ebpfmanager"
-)
+// var _ decoder.Event = (*JVM)(nil)
 
-var DefaultJVM = &JVM{}
+// type JVM struct {
+// 	decoder.BasicEvent `json:"-"`
+// 	Exe                string `json:"-"`
+// }
 
-var _ decoder.Event = (*JVM)(nil)
+// func (JVM) ID() uint32 {
+// 	return 2001
+// }
 
-type JVM struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-}
+// func (JVM) String() string {
+// 	return "JVM_hook"
+// }
 
-func (JVM) ID() uint32 {
-	return 2001
-}
+// func (j *JVM) GetExe() string {
+// 	return j.Exe
+// }
 
-func (JVM) String() string {
-	return "JVM_hook"
-}
+// func (j *JVM) Parse() (err error) {
+// 	return
+// }
 
-func (j *JVM) GetExe() string {
-	return j.Exe
-}
-
-func (j *JVM) Parse() (err error) {
-	return
-}
-
-func (j JVM) GetProbe() []*manager.Probe {
-	return []*manager.Probe{
-		{
-			UID:              "UprobeJVMGC",
-			Section:          "uprobe/JVM_GC",
-			EbpfFuncName:     "uprobe_JVM_GC",
-			AttachToFuncName: "JVM_GC",
-			BinaryPath:       "/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server/libjvm.so",
-		},
-	}
-}
-
-// func init() {
-// 	decoder.Regist(DefaultJVM)
+// func (j JVM) GetProbe() []*manager.Probe {
+// 	return []*manager.Probe{
+// 		{
+// 			UID:              "UprobeJVMGC",
+// 			Section:          "uprobe/JVM_GC",
+// 			EbpfFuncName:     "uprobe_JVM_GC",
+// 			AttachToFuncName: "JVM_GC",
+// 			BinaryPath:       "/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server/libjvm.so",
+// 		},
+// 	}
 // }
