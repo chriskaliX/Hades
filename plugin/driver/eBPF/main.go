@@ -36,7 +36,7 @@ func main() {
 	// start to run Hades
 	zap.S().Info("Hades eBPF driver start")
 	// filters for command line
-	filter := flag.String("filter", "1", "--filter to specific the event id")
+	filter := flag.String("filter", "0", "--filter to specific the event id")
 	flag.Parse()
 	decoder.DefaultEventCollection.SetAllowList(*filter)
 

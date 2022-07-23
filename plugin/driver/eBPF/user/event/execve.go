@@ -1,6 +1,7 @@
 package event
 
 import (
+	"fmt"
 	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"strings"
@@ -55,9 +56,11 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	if e.Stdin, err = decoder.DecodeString(); err != nil {
+		fmt.Println(err)
 		return
 	}
 	if e.Stdout, err = decoder.DecodeString(); err != nil {
+		fmt.Println(err)
 		return
 	}
 	if e.Family, e.Dport, e.Dip, err = decoder.DecodeRemoteAddr(); err != nil {

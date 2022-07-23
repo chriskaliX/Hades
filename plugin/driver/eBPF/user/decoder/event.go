@@ -76,7 +76,7 @@ func (e *EventCollection) Regist(event Event) {
 // SetAllowList
 func (e *EventCollection) SetAllowList(allows ...string) {
 	// skip if there is no allow list
-	if len(allows) == 0 {
+	if len(allows) == 0 || allows[0] == "0" {
 		return
 	}
 	for eventID := range e.eventMap {

@@ -180,8 +180,6 @@ static __always_inline void *get_path_str(struct path *path)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
-    // 2022-07-22 upgrade
-    unsigned long inode;
 
 #pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
@@ -242,26 +240,44 @@ static __always_inline void *get_path_str(struct path *path)
         struct super_block *d_sb = READ_KERN(dentry->d_sb);
         if (d_sb != 0) {
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
+            char tmp_inode[9];
+            int i;
             if (s_magic == PIPEFS_MAGIC) {
                 // TODO: Get PIPE INODE NAME like pipe:[%lu], currently use pipe:[]
                 // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
                 //  d_inode(dentry)->i_ino);
                 // Since snprintf requires kernel version over 5.10
-                char pipe_prefix[] = "pipe:[]";
+                char pipe_prefix[] = "pipe:[";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)pipe_prefix);
                 unsigned long inode = get_inode_nr_from_dentry(dentry);
-                // bpf_probe_read(&(string_p->buf[6]), sizeof(inode), &inode);
-                // The inode is helpful in the situation in the same pipe.
-                // like reverse shell.
+
+                // fill up with '0' if the id is shorter than 8
+                // TODO: change this to a proper way(without '0')
+#pragma unroll
+                for (i = 0; i < 8; i++) {
+                    tmp_inode[7 - i] = inode % 10 + '0';
+                    inode /= 10;
+                }
+                tmp_inode[i] = ']';
+                tmp_inode[i + 1] = '\0';
+                bpf_probe_read_str(&(string_p->buf[6]), MAX_STRING_SIZE,
+                                   (void *)tmp_inode);
                 goto out;
             } else if (s_magic == SOCKFS_MAGIC) {
-                // TODO: same with the pipe
-                char socket_prefix[] = "socket:[]";
+                char socket_prefix[] = "socket:[";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)socket_prefix);
                 unsigned long inode = get_inode_nr_from_dentry(dentry);
-                // bpf_probe_read(&(string_p->buf[6]), sizeof(inode), &inode);
+#pragma unroll
+                for (i = 0; i < 8; i++) {
+                    tmp_inode[7 - i] = inode % 10 + '0';
+                    inode /= 10;
+                }
+                tmp_inode[i] = ']';
+                tmp_inode[i + 1] = '\0';
+                bpf_probe_read_str(&(string_p->buf[8]), MAX_STRING_SIZE,
+                                   (void *)tmp_inode);
                 goto out;
             }
         }
