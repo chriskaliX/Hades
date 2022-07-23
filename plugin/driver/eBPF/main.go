@@ -2,7 +2,7 @@ package main
 
 import (
 	user "hades-ebpf/user"
-	"hades-ebpf/user/event"
+	"hades-ebpf/user/decoder"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	flag "github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -29,17 +30,17 @@ func main() {
 		zapcore.NewSamplerWithOptions(
 			zapcore.NewCore(fileEncoder, fileWriter, zap.InfoLevel), time.Second, 4, 1),
 	)
-
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
-
+	// start to run Hades
 	zap.S().Info("Hades eBPF driver start")
 	// filters for command line
-	// filter := flag.Uint64("f", 0, "filter")
-	// flag.Parse()
+	filter := flag.String("filter", "1", "--filter to specific the event id")
+	flag.Parse()
+	decoder.DefaultEventCollection.SetAllowList(*filter)
 
-	// generate the main driver
+	// generate the main driver and run
 	driver, err := user.NewDriver()
 	if err != nil {
 		zap.S().Error(err)
@@ -53,24 +54,6 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
-	// scan job here
-	go func() {
-		init := true
-		ticker := time.NewTicker(time.Second * 5)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if init {
-					ticker.Reset(time.Minute * 15)
-					init = false
-				}
-				if err = event.DefaultAntiRootkit.Scan(driver.Manager); err != nil {
-					zap.S().Error(err)
-				}
-			}
-		}
-	}()
 	http.ListenAndServe("localhost:6060", nil)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)

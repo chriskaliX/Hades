@@ -108,7 +108,7 @@ func (c *Context) FillContext(name, exe string) {
 	c.PgidArgv = cache.DefaultArgvCache.Get(c.Pgid)
 	c.PodName = cache.DefaultNsCache.Get(c.Pid, c.Pns)
 	c.Username = cache.DefaultUserCache.Get(c.Uid)
-	c.ExeHash = cache.DefaultHashCache.Get(c.ExeHash)
+	c.ExeHash = cache.DefaultHashCache.Get(c.Exe)
 	c.Timestamp = share.Gtime.Load().(int64)
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
@@ -22,6 +23,10 @@ type AntiRootkit struct {
 	decoder.BasicEvent `json:"-"`
 	Index              uint64 `json:"index"`
 	Field              string `json:"field"`
+	// Extra field
+	Hooked bool `json:"hooked"`
+	// Internal field
+	status bool `json:"-"`
 }
 
 func (AntiRootkit) ID() uint32 {
@@ -38,40 +43,38 @@ func (a *AntiRootkit) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 		field int32
 		index uint8
 	)
-	// get addr
+	// Get address of the syscall/idt funtion
 	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
 	if err = e.DecodeUint64(&addr); err != nil {
 		return
 	}
-	// get index
+	// Get the index id of the syscall/idt function
 	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
 	if err = e.DecodeUint64(&a.Index); err != nil {
 		return
 	}
-	// get field
+	// Get the field the this event (syscall or idt)
 	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
 	if err = e.DecodeInt32(&field); err != nil {
 		return
 	}
-
-	// select field
+	// Fill up the field with values
 	switch field {
 	case 1500:
 		a.Field = "syscall"
 	case 1501:
 		a.Field = "idt"
 	}
-
+	// Get address from the kernel function
 	data := kernelSymbols.Get(addr)
 	if data == nil {
-		// TEST CODE
-		fmt.Printf("\033[1;31;40m%s %d is hooked\033[0m. Address: %d\n", a.Field, a.Index, addr)
+		a.Hooked = true
 		return
 	}
 	err = ErrIgnore
@@ -104,14 +107,12 @@ var once sync.Once
 var kernelSymbols *helper.KernelSymbolTable
 
 const (
-	IDT_CACHE     = 0
-	SYSCALL_CACHE = 1
-
+	IDT_CACHE       = 0
+	SYSCALL_CACHE   = 1
 	TRIGGER_SYSCALL = 65
 	TRIGGER_IDT     = 66
-
-	SYSCALLMAX = 302
-	IDTMAX     = 256
+	SYSCALLMAX      = 302
+	IDTMAX          = 256
 )
 
 var (
@@ -119,10 +120,9 @@ var (
 	idtCache     int32 = IDT_CACHE
 )
 
-// Scan for userspace to work with the kernel part
-func (anti AntiRootkit) Scan(m *manager.Manager) error {
-	// Load to ksymbols_map for the very first-time
+func (anti *AntiRootkit) init(m *manager.Manager) {
 	once.Do(func() {
+		anti.status = false
 		// Get ksymbols_map in kernel space
 		ksymbolsMap, found, err := m.GetMap("ksymbols_map")
 		if err != nil {
@@ -130,44 +130,54 @@ func (anti AntiRootkit) Scan(m *manager.Manager) error {
 			return
 		}
 		if !found {
-			err = fmt.Errorf("ksymbols_map not found")
-			zap.S().Error(err)
+			zap.S().Error("ksymbols_map is not found")
 			return
 		}
-		// update function
+		// Wrapper of kernel map function
 		updateKMap := func(key string, value uint64) error {
-			if err != nil {
-				return err
-			}
 			k := make([]byte, 64)
 			copy(k, key)
-			v := value
-			err = ksymbolsMap.Update(unsafe.Pointer(&k[0]), unsafe.Pointer(&v), ebpf.UpdateAny)
+			err = ksymbolsMap.Update(unsafe.Pointer(&k[0]), unsafe.Pointer(&value), ebpf.UpdateAny)
 			if err != nil {
 				return err
 			}
 			return nil
 		}
 		// update sys_call_table address to map
-		if sct := kernelSymbols.Get("sys_call_table"); sct != nil {
-			err = updateKMap("sys_call_table", sct.Address)
-			if err != nil {
-				zap.S().Error(err)
-			}
-		} else {
+		sct := kernelSymbols.Get("sys_call_table")
+		if sct == nil {
 			zap.S().Error("sys_call_table is not found")
+			return
+		}
+		err = updateKMap("sys_call_table", sct.Address)
+		if err != nil {
+			zap.S().Error(err)
+			return
 		}
 		// update idt_table address to map
-		if idt := kernelSymbols.Get("idt_table"); idt != nil {
-			err = updateKMap("idt_table", idt.Address)
-			if err != nil {
-				zap.S().Error(err)
-			}
-		} else {
+		idt := kernelSymbols.Get("idt_table")
+		if idt == nil {
 			zap.S().Error("idt_table is not found")
+			return
 		}
+		err = updateKMap("idt_table", idt.Address)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+		anti.status = true
 	})
+}
+
+// Scan for userspace to work with the kernel part
+func (anti *AntiRootkit) Scan(m *manager.Manager) error {
+	anti.init(m)
+	if !anti.status {
+		return fmt.Errorf("kernel scan init error")
+	}
+	// Add kernel space scan function. TODO: fix up the IDT scan
 	if err := anti.scanSCT(m); err != nil {
+		zap.S().Error(err)
 		return err
 	}
 	// return anti.scanIDT(m)
@@ -185,13 +195,14 @@ func (anti AntiRootkit) scanSCT(m *manager.Manager) error {
 	if err != nil {
 		return err
 	}
-	// syscall scan
-	for i := 0; i <= SYSCALLMAX; i++ {
+	defer ptmx.Close()
+	// Range the syscall to index to
+	for index := 0; index <= SYSCALLMAX; index++ {
 		// update the syscall index we want to scan
-		value := uint64(i)
-		err := analyzeCache.Update(unsafe.Pointer(&syscallCache), unsafe.Pointer(&value), ebpf.UpdateAny)
-		if err != nil {
-			zap.S().Error(err)
+		value := uint64(index)
+		if err := analyzeCache.Update(unsafe.Pointer(&syscallCache),
+			unsafe.Pointer(&value),
+			ebpf.UpdateAny); err != nil {
 			return err
 		}
 		// trigger by the syscall
@@ -211,6 +222,7 @@ func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
 	if err != nil {
 		return err
 	}
+	defer ptmx.Close()
 	// only 0x80 detected for now
 	value := uint64(0x80)
 	err = analyzeCache.Update(unsafe.Pointer(&idtCache), unsafe.Pointer(&value), ebpf.UpdateAny)
@@ -221,6 +233,11 @@ func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
 	// trigger by the syscall
 	syscall.Syscall(syscall.SYS_IOCTL, ptmx.Fd(), uintptr(TRIGGER_IDT), 0)
 	return nil
+}
+
+func (anti *AntiRootkit) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
+	ticker := time.NewTicker(15 * time.Minute)
+	return anti.Scan, ticker
 }
 
 // Regist and trigger

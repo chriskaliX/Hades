@@ -31,9 +31,11 @@ type Event interface {
 	// FillCache caches some field, it runs after parse
 	FillCache()
 	// RegistCron registes the crontab functions into the driver
-	// and the driver manages those jobs by ticker
-	RegistCron(time.Duration)
+	// and the driver manages those jobs
+	RegistCron() (function EventCronFunc, ticker *time.Ticker)
 }
+
+type EventCronFunc func(m *manager.Manager) error
 
 func MarshalJson(event Event) (result string, err error) {
 	var (

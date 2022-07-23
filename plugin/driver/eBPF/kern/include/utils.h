@@ -180,6 +180,8 @@ static __always_inline void *get_path_str(struct path *path)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
+    // 2022-07-22 upgrade
+    unsigned long inode;
 
 #pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
@@ -246,9 +248,10 @@ static __always_inline void *get_path_str(struct path *path)
                 //  d_inode(dentry)->i_ino);
                 // Since snprintf requires kernel version over 5.10
                 char pipe_prefix[] = "pipe:[]";
-                // unsigned long inode = get_inode_nr_from_dentry(dentry);
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)pipe_prefix);
+                unsigned long inode = get_inode_nr_from_dentry(dentry);
+                // bpf_probe_read(&(string_p->buf[6]), sizeof(inode), &inode);
                 // The inode is helpful in the situation in the same pipe.
                 // like reverse shell.
                 goto out;
@@ -257,6 +260,8 @@ static __always_inline void *get_path_str(struct path *path)
                 char socket_prefix[] = "socket:[]";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)socket_prefix);
+                unsigned long inode = get_inode_nr_from_dentry(dentry);
+                // bpf_probe_read(&(string_p->buf[6]), sizeof(inode), &inode);
                 goto out;
             }
         }
@@ -275,7 +280,6 @@ static __always_inline void *get_path_str(struct path *path)
         bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
                        &zero);
     }
-
 out:
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];

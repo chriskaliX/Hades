@@ -2,6 +2,7 @@ package user
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"hades-ebpf/user/decoder"
@@ -23,12 +24,16 @@ var Env = "prod"
 //go:embed hades_ebpf_driver.o
 var _bytecode []byte
 
+const ConfigMap = "config_map"
+
 var rawdata = make(map[string]string, 1)
 
 // Driver contains the ebpfmanager and eventDecoder. By default, Driver
 // is a singleton and it's not thread-safe
 type Driver struct {
 	Manager *manager.Manager
+	context context.Context
+	cancel  context.CancelFunc
 }
 
 func NewDriver() (*Driver, error) {
@@ -72,6 +77,7 @@ func NewDriver() (*Driver, error) {
 			Max: math.MaxUint64,
 		},
 	})
+	driver.context, driver.cancel = context.WithCancel(context.Background())
 	return driver, err
 }
 
@@ -79,27 +85,43 @@ func (d *Driver) Start() error {
 	return d.Manager.Start()
 }
 
-// init map value
+// Init the driver with default value
 func (d *Driver) Init() error {
-	configMap, found, err := d.Manager.GetMap("config_map")
+	// Init ConfigMap with default value
+	configMap, found, err := d.Manager.GetMap(ConfigMap)
 	if err != nil {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("config_map not found")
+		return fmt.Errorf("%s not found", ConfigMap)
 	}
-	/*
-	 * enum hades_ebpf_config {
+	/* enum hades_ebpf_config {
 	 *	 CONFIG_HADES_PID,
 	 *	 CONFIG_FILTERS
-	 *};
-	 */
+	 *};*/
 	var syscall_index uint32 = 0
 	var pid uint32 = uint32(os.Getpid())
 	err = configMap.Update(syscall_index, pid, ebpf.UpdateAny)
 	if err != nil {
 		return err
 	}
+	// Regist the cronjobs of the event
+	for _, event := range decoder.DefaultEventCollection.GetEvents() {
+		cronFunc, ticker := event.RegistCron()
+		if cronFunc != nil && ticker != nil {
+			go func() {
+				for {
+					select {
+					case <-ticker.C:
+						cronFunc(d.Manager)
+					case <-d.context.Done():
+						return
+					}
+				}
+			}()
+		}
+	}
+
 	// TODO: filters are not added for now
 	return nil
 }
@@ -116,13 +138,9 @@ func (d *Driver) Close(UID string) (err error) {
 }
 
 func (d *Driver) Stop() error {
+	d.cancel()
 	return d.Manager.Stop(manager.CleanAll)
 }
-
-/*
- * Just like Close, Filter should be triggered by a task.
- * Also, just work like a yaml or other configuration.
- */
 
 func (d *Driver) Filter() {}
 
