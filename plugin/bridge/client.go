@@ -32,6 +32,7 @@ func (c *Client) SendRecord(rec *Record) (err error) {
 	_, err = c.writer.Write(buf)
 	return
 }
+
 func (c *Client) ReceiveTask() (t *Task, err error) {
 	c.rmu.Lock()
 	defer c.rmu.Unlock()
@@ -53,6 +54,7 @@ func (c *Client) ReceiveTask() (t *Task, err error) {
 	err = t.Unmarshal(buf)
 	return
 }
+
 func (c *Client) Flush() (err error) {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()

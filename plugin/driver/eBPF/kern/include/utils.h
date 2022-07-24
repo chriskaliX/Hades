@@ -243,7 +243,6 @@ static __always_inline void *get_path_str(struct path *path)
             char tmp_inode[9];
             int i;
             if (s_magic == PIPEFS_MAGIC) {
-                // TODO: Get PIPE INODE NAME like pipe:[%lu], currently use pipe:[]
                 // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
                 //  d_inode(dentry)->i_ino);
                 // Since snprintf requires kernel version over 5.10

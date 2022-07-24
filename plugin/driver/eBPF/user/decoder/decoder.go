@@ -19,7 +19,7 @@ const (
 	sizeint64 = 8
 )
 
-// dummy field
+// dummy field for internal uses
 var dummy uint8
 
 // eBPF events decoder, functions in this struct is not thread-safe

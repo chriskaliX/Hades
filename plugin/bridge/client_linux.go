@@ -2,12 +2,13 @@ package plugin
 
 import (
 	"bufio"
+	"context"
 	"os"
 	"sync"
 	"time"
 )
 
-func New() (c *Client) {
+func New(cancel context.CancelFunc) (c *Client) {
 	c = &Client{
 		rx: os.Stdin,
 		tx: os.Stdout,
@@ -17,12 +18,16 @@ func New() (c *Client) {
 		rmu:    &sync.Mutex{},
 		wmu:    &sync.Mutex{},
 	}
+	// this should be modified, a quit action is supposed to be notified
+	// through channel between goroutines
 	go func() {
 		ticker := time.NewTicker(time.Millisecond * 200)
 		defer ticker.Stop()
 		for {
 			<-ticker.C
+			// write failed, more like agent is exited
 			if err := c.Flush(); err != nil {
+				cancel()
 				break
 			}
 		}

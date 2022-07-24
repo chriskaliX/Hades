@@ -2,9 +2,13 @@ package main
 
 import (
 	"collector/event"
+	"collector/share"
 	"context"
-	"time"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -93,5 +97,20 @@ func main() {
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Differential)
 	socket.SetInterval(300)
-	event.RunEvent(socket, false, ctx)
+	go event.RunEvent(socket, false, ctx)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM)
+	for {
+		select {
+		case sig := <-sigs:
+			zap.S().Error("receive signal:", sig.String())
+			zap.S().Info("wait for 5 secs to exit eBPF driver")
+			<-time.After(time.Second * 5)
+		case <-share.GContext.Done():
+			zap.S().Error("client exit")
+			zap.S().Info("wait for 5 secs to exit eBPF driver")
+			<-time.After(time.Second * 5)
+		}
+	}
 }

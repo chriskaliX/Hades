@@ -1,6 +1,7 @@
 package share
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"strconv"
@@ -10,7 +11,10 @@ import (
 
 var Env = "prod"
 
-var Client = plugin.New()
+var (
+	GContext, GCancel = context.WithCancel(context.Background())
+	Client            = plugin.New(GCancel)
+)
 
 func MD5(v string) string {
 	d := []byte(v)

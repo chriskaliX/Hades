@@ -3,7 +3,7 @@ package main
 import (
 	user "hades-ebpf/user"
 	"hades-ebpf/user/decoder"
-	"net/http"
+	"hades-ebpf/user/share"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -39,7 +39,6 @@ func main() {
 	filter := flag.String("filter", "0", "--filter to specific the event id")
 	flag.Parse()
 	decoder.DefaultEventCollection.SetAllowList(*filter)
-
 	// generate the main driver and run
 	driver, err := user.NewDriver()
 	if err != nil {
@@ -54,11 +53,25 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
-	http.ListenAndServe("localhost:6060", nil)
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
-	sig := <-sigs
-	zap.S().Error("receive signal:", sig.String())
-	zap.S().Info("wait for 5 secs to exit")
-	<-time.After(time.Second * 5)
+	zap.S().Info("eBPF driver run successfully")
+	for {
+		select {
+		case sig := <-sigs:
+			zap.S().Error("receive signal:", sig.String())
+			zap.S().Info("wait for 5 secs to exit eBPF driver")
+			<-time.After(time.Second * 5)
+			return
+		case <-share.GContext.Done():
+			if user.Env == "debug" {
+				continue
+			}
+			zap.S().Error("client context done received")
+			zap.S().Info("wait for 5 secs to exit eBPF driver")
+			<-time.After(time.Second * 5)
+			return
+		}
+	}
 }

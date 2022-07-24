@@ -36,6 +36,7 @@ func init() {
 }
 
 func main() {
+	// zap log configuration
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"
