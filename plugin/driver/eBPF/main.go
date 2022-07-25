@@ -4,7 +4,6 @@ import (
 	user "hades-ebpf/user"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/share"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -54,6 +53,16 @@ func main() {
 		return
 	}
 
+	// file, err := os.Create("cpu.pprof")
+	// if err != nil {
+	// 	fmt.Printf("create cpu pprof failed, err:%v\n", err)
+	// 	return
+	// }
+	// pprof.StartCPUProfile(file)
+	// time.Sleep(30 * time.Second)
+	// share.GCancel()
+	// defer pprof.StopCPUProfile()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 	zap.S().Info("eBPF driver run successfully")
@@ -66,12 +75,16 @@ func main() {
 			return
 		case <-share.GContext.Done():
 			if user.Env == "debug" {
+				// just for testing
+				time.Sleep(5 * time.Second)
 				continue
 			}
 			zap.S().Error("client context done received")
 			zap.S().Info("wait for 5 secs to exit eBPF driver")
 			<-time.After(time.Second * 5)
 			return
+		default:
+			time.Sleep(time.Second)
 		}
 	}
 }
