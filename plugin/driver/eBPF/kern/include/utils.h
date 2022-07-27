@@ -240,8 +240,7 @@ static __always_inline void *get_path_str(struct path *path)
         struct super_block *d_sb = READ_KERN(dentry->d_sb);
         if (d_sb != 0) {
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
-            char tmp_inode[9];
-            int i;
+            int prefix_len; // calculate prefix str 
             if (s_magic == PIPEFS_MAGIC) {
                 // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
                 //  d_inode(dentry)->i_ino);
@@ -249,36 +248,54 @@ static __always_inline void *get_path_str(struct path *path)
                 char pipe_prefix[] = "pipe:[";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)pipe_prefix);
-                unsigned long inode = get_inode_nr_from_dentry(dentry);
-
-                // fill up with '0' if the id is shorter than 8
-                // TODO: change this to a proper way(without '0')
-#pragma unroll
-                for (i = 0; i < 8; i++) {
-                    tmp_inode[7 - i] = inode % 10 + '0';
-                    inode /= 10;
-                }
-                tmp_inode[i] = ']';
-                tmp_inode[i + 1] = '\0';
-                bpf_probe_read_str(&(string_p->buf[6]), MAX_STRING_SIZE,
-                                   (void *)tmp_inode);
-                goto out;
+                prefix_len = sizeof(pipe_prefix) - 1;  // why - 1? because char[] auto add '＼0'
             } else if (s_magic == SOCKFS_MAGIC) {
                 char socket_prefix[] = "socket:[";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)socket_prefix);
-                unsigned long inode = get_inode_nr_from_dentry(dentry);
-#pragma unroll
-                for (i = 0; i < 8; i++) {
-                    tmp_inode[7 - i] = inode % 10 + '0';
-                    inode /= 10;
-                }
-                tmp_inode[i] = ']';
-                tmp_inode[i + 1] = '\0';
-                bpf_probe_read_str(&(string_p->buf[8]), MAX_STRING_SIZE,
-                                   (void *)tmp_inode);
-                goto out;
+                prefix_len = sizeof(socket_prefix) - 1;
             }
+
+            char tmp_inode[9];
+            int i, j;
+            int k = 0; // when first char is no-zero, it's work
+            bool s_flag = false; // no-zero char start flag
+
+            unsigned long inode = get_inode_nr_from_dentry(dentry);
+
+
+#pragma unroll
+            for (i = 0; i < 8; i++) {
+                tmp_inode[7 - i] = inode % 10 + '0';
+                inode /= 10;
+            }
+
+
+            // if front has zero value, move 
+#pragma unroll
+            for (int j = 0; j < 8; j++) { // e.g: 1234567
+                // find first no-zero value position
+                if (!s_flag && tmp_inode[j] != '0') { 
+                    if (j == 0) {
+                        break;
+                    } 
+                    s_flag = true;
+                }
+
+                if (s_flag) {
+                    tmp_inode[k++] = tmp_inode[j];  
+                }
+            }
+
+            if (k != 0) {
+                i = k;
+            }
+            
+            tmp_inode[i] = ']';
+            tmp_inode[i + 1] = '\0';
+            bpf_probe_read_str(&(string_p->buf[prefix_len & (MAX_PERCPU_BUFSIZE - 1)]), MAX_STRING_SIZE,
+                                   (void *)tmp_inode);
+            goto out;
         }
         d_name = READ_KERN(dentry->d_name);
         if (d_name.len > 0) {
