@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"flag"
 	"fmt"
 	"time"
 
@@ -8,6 +9,14 @@ import (
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 	"k8s.io/utils/strings/slices"
+)
+
+var (
+	flagEventFilter = "filter"
+)
+
+var (
+	EventFilter = flag.String(flagEventFilter, "0", "set filter to specific the event id")
 )
 
 type Event interface {
@@ -37,6 +46,25 @@ type Event interface {
 
 type EventCronFunc func(m *manager.Manager) error
 
+var Events = map[uint32]Event{}
+
+// SetAllowList
+func SetAllowList(allows ...string) {
+	// skip if there is no allow list
+	if len(allows) == 0 || allows[0] == "0" {
+		return
+	}
+	for eventID := range Events {
+		if !slices.Contains(allows, fmt.Sprint(eventID)) {
+			delete(Events, eventID)
+		}
+	}
+}
+
+func RegistEvent(event Event) {
+	Events[event.ID()] = event
+}
+
 func MarshalJson(event Event) (result string, err error) {
 	var (
 		eventByte  []byte
@@ -54,45 +82,6 @@ func MarshalJson(event Event) (result string, err error) {
 	resultByte = append(resultByte, eventByte[1:]...)
 	result = string(resultByte)
 	return
-}
-
-type EventCollection struct {
-	eventMap map[uint32]Event
-}
-
-var DefaultEventCollection = NewDefaultEventCollection()
-
-func NewDefaultEventCollection() *EventCollection {
-	return &EventCollection{
-		eventMap: make(map[uint32]Event),
-	}
-}
-
-// Regist the Event into eventMap
-func (e *EventCollection) Regist(event Event) {
-	e.eventMap[event.ID()] = event
-}
-
-// SetAllowList
-func (e *EventCollection) SetAllowList(allows ...string) {
-	// skip if there is no allow list
-	if len(allows) == 0 || allows[0] == "0" {
-		return
-	}
-	for eventID := range e.eventMap {
-		// TODO: slices in go 1.18
-		if !slices.Contains(allows, fmt.Sprint(eventID)) {
-			delete(e.eventMap, eventID)
-		}
-	}
-}
-
-func (e EventCollection) GetEvent(id uint32) Event {
-	return e.eventMap[id]
-}
-
-func (e EventCollection) GetEvents() map[uint32]Event {
-	return e.eventMap
 }
 
 func GetMap(m *manager.Manager, name string) (*ebpf.Map, error) {

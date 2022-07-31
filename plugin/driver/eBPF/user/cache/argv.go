@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -40,7 +39,7 @@ func NewArgvCache() *ArgvCache {
 // Get the argv by pid
 func (a *ArgvCache) Get(pid uint32) string {
 	// pre check for pid
-	if pid <= 1 {
+	if pid == 0 {
 		return InVaild
 	}
 	// get argv from cache
@@ -70,6 +69,5 @@ func (a *ArgvCache) Set(pid uint32, argv string) {
 
 // convert /proc/<pid>/cmdline to readable string
 func convertCmdline(_cmdline []byte) string {
-	_byte := bytes.ReplaceAll(_cmdline, []byte{0}, []byte{' '})
-	return strings.TrimSpace(string(_byte))
+	return string(bytes.ReplaceAll(_cmdline, []byte("\x00"), []byte(" ")))
 }

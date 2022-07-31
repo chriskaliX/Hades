@@ -7,8 +7,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultCallUsermodeHelper = &CallUsermodeHelper{}
-
 var _ decoder.Event = (*CallUsermodeHelper)(nil)
 
 type CallUsermodeHelper struct {
@@ -65,5 +63,5 @@ func (CallUsermodeHelper) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultCallUsermodeHelper)
+	decoder.RegistEvent(&CallUsermodeHelper{})
 }

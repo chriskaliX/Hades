@@ -1,4 +1,3 @@
 package filter
 
-type FilterConfig struct {
-}
+type FilterConfig struct{}

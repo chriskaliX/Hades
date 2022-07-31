@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultUdpRecvmsg = &UdpRecvmsg{}
-
 var _ decoder.Event = (*UdpRecvmsg)(nil)
 
 type UdpRecvmsg struct {
@@ -76,5 +74,5 @@ func (u *UdpRecvmsg) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultUdpRecvmsg)
+	decoder.RegistEvent(&UdpRecvmsg{})
 }

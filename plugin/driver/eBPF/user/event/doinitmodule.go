@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultDoInitModule = &DoInitModule{}
-
 var _ decoder.Event = (*DoInitModule)(nil)
 
 type DoInitModule struct {
@@ -59,5 +57,5 @@ func (d *DoInitModule) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultDoInitModule)
+	decoder.RegistEvent(&DoInitModule{})
 }

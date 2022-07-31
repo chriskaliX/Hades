@@ -8,8 +8,13 @@ require (
 	github.com/bytedance/sonic v1.3.1
 	github.com/chriskaliX/plugin v0.0.0-00010101000000-000000000000
 	github.com/cilium/ebpf v0.9.0
+	github.com/ehids/ebpfmanager v0.3.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.21.0
+	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
+	k8s.io/apimachinery v0.24.3
+	k8s.io/utils v0.0.0-20220713171938-56c0de1e6f5e
 )
 
 require (
@@ -21,29 +26,21 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/josharian/native v1.0.0 // indirect
-	github.com/karlseguin/ccache/v2 v2.0.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.14 // indirect
 	github.com/mdlayher/netlink v1.6.0 // indirect
 	github.com/mdlayher/socket v0.2.3 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15 // indirect
 	golang.org/x/net v0.0.0-20220621193019-9d032be2e588 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
-	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
-	k8s.io/apimachinery v0.24.3 // indirect
-	k8s.io/utils v0.0.0-20220713171938-56c0de1e6f5e // indirect
 )
 
 require (
 	github.com/aquasecurity/libbpfgo v0.2.5-libbpf-0.7.0
-	github.com/ehids/ebpfmanager v0.3.0
-	github.com/goccy/go-json v0.9.7
+	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/hashicorp/golang-lru v0.5.4
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c

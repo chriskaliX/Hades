@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultKernelReadFile = &KernelReadFile{}
-
 var _ decoder.Event = (*KernelReadFile)(nil)
 
 type KernelReadFile struct {
@@ -52,5 +50,5 @@ func (KernelReadFile) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultKernelReadFile)
+	decoder.RegistEvent(&KernelReadFile{})
 }

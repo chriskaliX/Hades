@@ -19,12 +19,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var Env = "prod"
+const Env = "prod"
 
 //go:embed hades_ebpf_driver.o
 var _bytecode []byte
 
-const ConfigMap = "config_map"
+const configMap = "config_map"
+const eventMap = "exec_events"
 
 var rawdata = make(map[string]string, 1)
 
@@ -36,15 +37,14 @@ type Driver struct {
 	cancel  context.CancelFunc
 }
 
+// New a driver with pre-set map and options
 func NewDriver() (*Driver, error) {
 	driver := &Driver{}
-	// Init ebpfmanager with maps and perf_events
+	// init ebpfmanager with maps and perf_events
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
 			{
-				Map: manager.Map{
-					Name: "exec_events",
-				},
+				Map: manager.Map{Name: eventMap},
 				PerfMapOptions: manager.PerfMapOptions{
 					PerfRingBufferSize: 256 * os.Getpagesize(),
 					DataHandler:        driver.dataHandler,
@@ -52,24 +52,21 @@ func NewDriver() (*Driver, error) {
 				},
 			},
 		},
-		Maps: []*manager.Map{
-			{
-				Name: "config_map",
-			},
-		},
+		Maps: []*manager.Map{{Name: configMap}},
 	}
 	// Get all registed events probes and maps, add into the manager
-	for _, event := range decoder.DefaultEventCollection.GetEvents() {
+	for _, event := range decoder.Events {
 		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
 		driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
 	}
 	// init manager with options
+	// TODO: High CPU performance here
 	err := driver.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
 		DefaultKProbeMaxActive: 512,
 		VerifierOptions: ebpf.CollectionOptions{
 			Programs: ebpf.ProgramOptions{
 				// The logsize is just test value for now
-				LogSize: 2097152 * 100,
+				LogSize: 1024 * 1024,
 			},
 		},
 		RLimit: &unix.Rlimit{
@@ -88,12 +85,12 @@ func (d *Driver) Start() error {
 // Init the driver with default value
 func (d *Driver) Init() error {
 	// Init ConfigMap with default value
-	configMap, found, err := d.Manager.GetMap(ConfigMap)
+	configMap, found, err := d.Manager.GetMap(configMap)
 	if err != nil {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("%s not found", ConfigMap)
+		return fmt.Errorf("%s not found", configMap)
 	}
 	/* enum hades_ebpf_config {
 	 *	 CONFIG_HADES_PID,
@@ -106,7 +103,7 @@ func (d *Driver) Init() error {
 		return err
 	}
 	// Regist the cronjobs of the event
-	for _, event := range decoder.DefaultEventCollection.GetEvents() {
+	for _, event := range decoder.Events {
 		cronFunc, ticker := event.RegistCron()
 		if cronFunc != nil && ticker != nil {
 			go func() {
@@ -154,13 +151,10 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	}
 	defer decoder.PutContext(ctx)
 	// get the event and set context into event
-	eventDecoder := decoder.DefaultEventCollection.GetEvent(ctx.Type)
+	eventDecoder := decoder.Events[ctx.Type]
 	eventDecoder.SetContext(ctx)
 	eventDecoder.DecodeEvent(decoder.DefaultDecoder)
-	if err != nil {
-		if err == event.ErrIgnore {
-			return
-		}
+	if err != nil && err != event.ErrIgnore {
 		zap.S().Errorf("error: %s", err)
 		return
 	}

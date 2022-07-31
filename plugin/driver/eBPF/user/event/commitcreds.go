@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultCommitCreds = &CommitCreds{}
-
 var _ decoder.Event = (*CommitCreds)(nil)
 
 type CommitCreds struct {
@@ -66,5 +64,5 @@ func (CommitCreds) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultCommitCreds)
+	decoder.RegistEvent(&CommitCreds{})
 }

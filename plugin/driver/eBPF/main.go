@@ -16,6 +16,8 @@ import (
 )
 
 func main() {
+	// parse the log
+	flag.Parse()
 	// zap configuration pre-set
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
@@ -32,12 +34,9 @@ func main() {
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
-	// start to run Hades
 	zap.S().Info("Hades eBPF driver start")
-	// filters for command line
-	filter := flag.String("filter", "0", "--filter to specific the event id")
-	flag.Parse()
-	decoder.DefaultEventCollection.SetAllowList(*filter)
+	// allow init
+	decoder.SetAllowList(*decoder.EventFilter)
 	// generate the main driver and run
 	driver, err := user.NewDriver()
 	if err != nil {
@@ -52,16 +51,6 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
-
-	// file, err := os.Create("cpu.pprof")
-	// if err != nil {
-	// 	fmt.Printf("create cpu pprof failed, err:%v\n", err)
-	// 	return
-	// }
-	// pprof.StartCPUProfile(file)
-	// time.Sleep(30 * time.Second)
-	// share.GCancel()
-	// defer pprof.StopCPUProfile()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)

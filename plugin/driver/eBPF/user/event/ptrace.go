@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultPtrace = &Ptrace{}
-
 var _ decoder.Event = (*Ptrace)(nil)
 
 type Ptrace struct {
@@ -73,5 +71,5 @@ func (Ptrace) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultPtrace)
+	decoder.RegistEvent(&Ptrace{})
 }

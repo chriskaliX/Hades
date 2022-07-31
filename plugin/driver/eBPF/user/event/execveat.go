@@ -9,8 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var DefaultExecveAt = &ExecveAt{}
-
 var _ decoder.Event = (*ExecveAt)(nil)
 
 type ExecveAt struct {
@@ -122,5 +120,5 @@ func (e ExecveAt) FillCache() {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultExecveAt)
+	decoder.RegistEvent(&ExecveAt{})
 }

@@ -4,11 +4,6 @@ import (
 	"sync"
 )
 
-/*
- * Userspace filter
- * This is a demo for all filters. Add other filters into this
- * if you need.
- */
 const (
 	ExeFilter = iota
 	PathFilter

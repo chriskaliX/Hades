@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultMemfdCreate = &MemfdCreate{}
-
 var _ decoder.Event = (*MemfdCreate)(nil)
 
 type MemfdCreate struct {
@@ -58,5 +56,5 @@ func (m *MemfdCreate) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultMemfdCreate)
+	decoder.RegistEvent(&MemfdCreate{})
 }

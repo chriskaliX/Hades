@@ -6,37 +6,31 @@
  */
 package filter
 
-import "strings"
+import (
+	"strings"
+	"sync"
+	"time"
+)
 
-/*
- * There are the filters in Hades
- *
- * path_filter: filter for path
- * config_map : configuration, like PID
- * pid_filter : filter for pid
- * cgroup_id_filter
- * ipfilter   : filter for remote ip
- *
- * Other filters like exe filter or path filter
- * we'll archieve just in user space
- */
+var filteronce sync.Once
 
-var DefaultFilter *Filter = NewFilter()
+const (
+	// limit tps=9000/60 = 150, just like elkeid
+	ExeDynQuota  = 9000
+	ExeDynWindow = 60 * time.Second
+	ExeSynSize   = 1024
+)
 
-func NewFilter() *Filter {
-	filter := &Filter{}
-	filter.KernFilter = &KernelFilter{}
-	filter.UserFilter = &UserFilter{}
-	filter.UserFilter.init()
-	return filter
-}
-
-/*
- * Filter defination
- */
+// Filter is the driver filter to filter out both kernel and space data.
+// In Elkeid ,the dynamic filter seems a great idea for me. It works in
+// a window like we does in Flink
 type Filter struct {
-	KernFilter *KernelFilter
-	UserFilter *UserFilter
+	// User space field
+	Exe    sync.Map
+	ExeDyn map[string]bool
+	Path   sync.Map
+	Dns    sync.Map
+	Argv   sync.Map
 }
 
 const (
@@ -45,7 +39,7 @@ const (
 
 	PidFilter      = "pid_filter"
 	CgroupIdFilter = "cgroup_id_filter"
-	IpFilter       = "ip_filter" /* struct Cidr with only CO-RE enabled */
+	IpFilter       = "ip_filter"
 )
 
 const (

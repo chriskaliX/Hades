@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultSbMount = &SbMount{}
-
 var _ decoder.Event = (*SbMount)(nil)
 
 type SbMount struct {
@@ -71,5 +69,5 @@ func (SbMount) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultSbMount)
+	decoder.RegistEvent(&SbMount{})
 }

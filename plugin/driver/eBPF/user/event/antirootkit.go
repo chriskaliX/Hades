@@ -15,8 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var DefaultAntiRootkit = &AntiRootkit{}
-
 var _ decoder.Event = (*AntiRootkit)(nil)
 
 type AntiRootkit struct {
@@ -248,5 +246,5 @@ func init() {
 		zap.S().Error(err)
 		return
 	}
-	decoder.DefaultEventCollection.Regist(DefaultAntiRootkit)
+	decoder.RegistEvent(&AntiRootkit{})
 }

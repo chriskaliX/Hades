@@ -9,8 +9,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultExecve = &Execve{}
-
 var _ decoder.Event = (*Execve)(nil)
 
 type Execve struct {
@@ -123,5 +121,5 @@ func (Execve) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultExecve)
+	decoder.RegistEvent(&Execve{})
 }

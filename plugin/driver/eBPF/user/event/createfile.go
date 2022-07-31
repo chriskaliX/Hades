@@ -6,8 +6,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultInodeCreate = &InodeCreate{}
-
 var _ decoder.Event = (*InodeCreate)(nil)
 
 // Sha256 maybe, and others
@@ -57,5 +55,5 @@ func (InodeCreate) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultInodeCreate)
+	decoder.RegistEvent(&InodeCreate{})
 }

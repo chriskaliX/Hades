@@ -51,6 +51,7 @@ func (k *KernelSymbolTable) Get(key interface{}) *helpers.KernelSymbol {
 	return nil
 }
 
+// Performance should be improved here
 func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 	var KernelSymbols = KernelSymbolTable{
 		hashmap:   make(map[interface{}]uint64),

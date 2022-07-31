@@ -8,8 +8,6 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-var DefaultSockBind = &SocketBind{}
-
 var _ decoder.Event = (*SocketBind)(nil)
 
 type SocketBind struct {
@@ -99,5 +97,5 @@ func (SocketBind) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	decoder.DefaultEventCollection.Regist(DefaultSockBind)
+	decoder.RegistEvent(&SocketBind{})
 }
