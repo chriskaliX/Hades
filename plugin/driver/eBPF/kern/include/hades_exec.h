@@ -65,7 +65,7 @@ struct _sys_enter_execveat {
  * expected. We need to get the right execute path from kretprobe or
  * sys_exit_execve in task_struct->mm
  *
- * Also, in tracee, they said that the argv/envp pointers are invaild
+ * Also, in tracee, they said that the argv/envp pointers are invalid
  * in both entry and exit, be careful if we change the hook to raw_
  * tracepoint.
  */

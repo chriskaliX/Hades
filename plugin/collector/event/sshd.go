@@ -152,7 +152,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 								fmt.Println(string(data))
 							}
 						}
-					// This is for the invaild user
+					// This is for the invalid user
 					case 16:
 						sshlog["reason"] = "Failed"
 						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)

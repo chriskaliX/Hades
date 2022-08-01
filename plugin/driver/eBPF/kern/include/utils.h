@@ -254,6 +254,8 @@ static __always_inline void *get_path_str(struct path *path)
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)socket_prefix);
                 prefix_len = sizeof(socket_prefix) - 1;
+            } else { // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
+                goto out;
             }
 
             char tmp_inode[9];
@@ -273,7 +275,7 @@ static __always_inline void *get_path_str(struct path *path)
 
             // if front has zero value, move 
 #pragma unroll
-            for (int j = 0; j < 8; j++) { // e.g: 1234567
+            for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
                 if (!s_flag && tmp_inode[j] != '0') { 
                     if (j == 0) {
