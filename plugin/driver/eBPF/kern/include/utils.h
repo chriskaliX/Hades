@@ -254,6 +254,8 @@ static __always_inline void *get_path_str(struct path *path)
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)socket_prefix);
                 prefix_len = sizeof(socket_prefix) - 1;
+            } else { // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
+                goto out;
             }
 
             char tmp_inode[9];
