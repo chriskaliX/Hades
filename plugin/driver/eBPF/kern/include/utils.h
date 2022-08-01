@@ -275,7 +275,7 @@ static __always_inline void *get_path_str(struct path *path)
 
             // if front has zero value, move 
 #pragma unroll
-            for (int j = 0; j < 8; j++) { // e.g: 1234567
+            for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
                 if (!s_flag && tmp_inode[j] != '0') { 
                     if (j == 0) {
