@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -69,5 +70,5 @@ func (a *ArgvCache) Set(pid uint32, argv string) {
 
 // convert /proc/<pid>/cmdline to readable string
 func convertCmdline(_cmdline []byte) string {
-	return string(bytes.ReplaceAll(_cmdline, []byte("\x00"), []byte(" ")))
+	return strings.TrimRight(string(bytes.ReplaceAll(_cmdline, []byte("\x00"), []byte(" "))), " ")
 }

@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const Env = "prod"
+var Env = "prod"
 
 //go:embed hades_ebpf_driver.o
 var _bytecode []byte
