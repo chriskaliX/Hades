@@ -21,7 +21,7 @@ type UserCache struct {
 
 func NewUserCache() *UserCache {
 	return &UserCache{
-		cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, &TickerClock{}),
+		cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, GTicker),
 	}
 }
 

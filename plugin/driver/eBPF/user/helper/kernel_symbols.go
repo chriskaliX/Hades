@@ -82,14 +82,16 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		if len(line) > 3 {
 			symbolOwner = line[3]
 		}
-		symbol := helpers.KernelSymbol{
-			Name:    symbolName,
-			Type:    symbolType,
-			Address: symbolAddr,
-			Owner:   symbolOwner,
+		if strings.ToLower(line[1]) == "t" || strings.ToLower(line[1]) == "w" {
+			symbol := helpers.KernelSymbol{
+				Name:    symbolName,
+				Type:    symbolType,
+				Address: symbolAddr,
+				Owner:   symbolOwner,
+			}
+			KernelSymbols.set(symbolName, symbol)
+			KernelSymbols.set(symbolAddr, symbol)
 		}
-		KernelSymbols.set(symbolName, symbol)
-		KernelSymbols.set(symbolAddr, symbol)
 	}
 	KernelSymbols.initialized = true
 	return &KernelSymbols, nil

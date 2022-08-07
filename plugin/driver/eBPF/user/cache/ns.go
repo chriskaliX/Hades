@@ -35,7 +35,7 @@ type NsCache struct {
 func NewNsCache() *NsCache {
 	cache := &NsCache{
 		rlimiter: rate.NewLimiter(rate.Every(nsLimiterInterval), nsLimiterBurst),
-		cache:    utilcache.NewLRUExpireCacheWithClock(nsCacheSize, &TickerClock{}),
+		cache:    utilcache.NewLRUExpireCacheWithClock(nsCacheSize, GTicker),
 	}
 	return cache
 }

@@ -9,17 +9,9 @@ package filter
 import (
 	"strings"
 	"sync"
-	"time"
 )
 
 var filteronce sync.Once
-
-const (
-	// limit tps=9000/60 = 150, just like elkeid
-	ExeDynQuota  = 9000
-	ExeDynWindow = 60 * time.Second
-	ExeSynSize   = 1024
-)
 
 // Filter is the driver filter to filter out both kernel and space data.
 // In Elkeid ,the dynamic filter seems a great idea for me. It works in
