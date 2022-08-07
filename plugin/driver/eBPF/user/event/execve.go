@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/filter/window"
 	"strings"
 
 	manager "github.com/ehids/ebpfmanager"
@@ -45,6 +46,11 @@ func (e *Execve) GetExe() string {
 func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var dummy uint8
 	if e.Exe, err = decoder.DecodeString(); err != nil {
+		return
+	}
+	// Dynamic window for execve
+	if !window.DefaultExeWindow.Check(e.Exe) {
+		err = ErrIgnore
 		return
 	}
 	if e.Cwd, err = decoder.DecodeString(); err != nil {

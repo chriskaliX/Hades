@@ -12,6 +12,8 @@ const (
 	exeSize     = 1024
 )
 
+var DefaultExeWindow = NewExeWindow()
+
 // Force check in compile-time
 var _ IWindow = (*ExeWindow)(nil)
 

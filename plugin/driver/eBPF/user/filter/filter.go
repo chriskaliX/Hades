@@ -18,11 +18,10 @@ var filteronce sync.Once
 // a window like we does in Flink
 type Filter struct {
 	// User space field
-	Exe    sync.Map
-	ExeDyn map[string]bool
-	Path   sync.Map
-	Dns    sync.Map
-	Argv   sync.Map
+	Exe  sync.Map
+	Path sync.Map
+	Dns  sync.Map
+	Argv sync.Map
 }
 
 const (

@@ -1,30 +1,36 @@
 package filter
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 )
 
 const (
 	ExeFilter = iota
-	PathFilter
 	DnsFilter
 	ArgvFilter
 )
 
 type UserFilter struct {
 	ExeFilter  *sync.Map
-	PathFilter *sync.Map
 	DnsFilter  *sync.Map
 	ArgvFilter *sync.Map
 	once       sync.Once
+}
+
+func NewUserFilter() *UserFilter {
+	return &UserFilter{
+		ExeFilter:  &sync.Map{},
+		DnsFilter:  &sync.Map{},
+		ArgvFilter: &sync.Map{},
+	}
 }
 
 func (filter *UserFilter) FilterOut(field int, in string) (result bool) {
 	switch field {
 	case ExeFilter:
 		result = filter.rangeFilter(filter.ExeFilter, in)
-	case PathFilter:
-		result = filter.rangeFilter(filter.PathFilter, in)
 	case DnsFilter:
 		result = filter.rangeFilter(filter.DnsFilter, in)
 	case ArgvFilter:
@@ -41,8 +47,6 @@ func (filter *UserFilter) Set(_type, int, op int, value string) {
 	switch _type {
 	case ExeFilter:
 		filter.ExeFilter.Store(s, true)
-	case PathFilter:
-		filter.PathFilter.Store(s, true)
 	case DnsFilter:
 		filter.DnsFilter.Store(s, true)
 	case ArgvFilter:
@@ -55,10 +59,12 @@ func (u *UserFilter) Delete(_type int, op int, value string) {
 	switch _type {
 	case ExeFilter:
 		_map = u.ExeFilter
-	case PathFilter:
-		_map = u.PathFilter
+	case DnsFilter:
+		_map = u.DnsFilter
+	case ArgvFilter:
+		_map = u.ArgvFilter
 	}
-
+	// Delete the filter
 	_map.Range(func(_key interface{}, _ interface{}) bool {
 		filter := _key.(StringFilter)
 		if filter.Operation == op && filter.Value == value {
@@ -69,10 +75,23 @@ func (u *UserFilter) Delete(_type int, op int, value string) {
 	})
 }
 
-func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
-	if f == nil {
-		return false
+func (u *UserFilter) Load(filterConfig *FilterConfig) {
+	t := reflect.TypeOf(filterConfig).Elem()
+	v := reflect.ValueOf(filterConfig).Elem()
+	// go range the filter type
+	for i := 0; i < t.NumField(); i++ {
+		// only get slice
+		if v.Field(i).Kind() != reflect.Slice {
+			continue
+		}
+		_type := t.Field(i).Tag.Get("json")
+		for index := 0; index < v.Field(i).Len(); index++ {
+			fmt.Println(_type, v.Field(i).Index(index).String())
+		}
 	}
+}
+
+func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
 	f.Range(func(_key interface{}, _ interface{}) bool {
 		filter := _key.(StringFilter)
 		result = filter.FilterOut(in)
@@ -82,11 +101,4 @@ func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
 		return true
 	})
 	return false
-}
-
-func (filter *UserFilter) init() {
-	filter.once.Do(func() {
-		filter.ExeFilter = &sync.Map{}
-		filter.PathFilter = &sync.Map{}
-	})
 }

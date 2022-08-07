@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/chriskaliX/plugin"
+	"go.uber.org/zap"
 )
 
 var (
@@ -13,23 +14,38 @@ var (
 	Client            = plugin.New(GCancel)
 	// global time
 	Gtime atomic.Value
+	// task channel, for convenience, we receive the filter configuration
+	// by the task passed by the agent, we only do the update action since
+	// a change of filter is not happening every time
+	TaskChan = make(chan *plugin.Task)
 )
+
+func gtimeCron() {
+	Gtime.Store(time.Now().Unix())
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			Gtime.Store(time.Now().Unix())
+		}
+	}
+}
+
+func taskCron() {
+	for {
+		task, err := Client.ReceiveTask()
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+		TaskChan <- task
+	}
+}
 
 func init() {
 	// init global ticker
-	go func() {
-		Gtime.Store(time.Now().Unix())
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				Gtime.Store(time.Now().Unix())
-			}
-		}
-	}()
+	go gtimeCron()
 	// start the task receiving project, unfinished
-	go func() {
-		Client.ReceiveTask()
-	}()
+	go taskCron()
 }

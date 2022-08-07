@@ -3,6 +3,7 @@ package event
 import (
 	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/filter/window"
 	"strings"
 
 	manager "github.com/ehids/ebpfmanager"
@@ -45,6 +46,12 @@ func (e *ExecveAt) GetExe() string {
 func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	var dummy uint8
 	if e.Exe, err = decoder.DecodeString(); err != nil {
+		return
+	}
+	// Dynamic window for execve
+	// TODO: count for those ignored exe
+	if !window.DefaultExeWindow.Check(e.Exe) {
+		err = ErrIgnore
 		return
 	}
 	if e.Cwd, err = decoder.DecodeString(); err != nil {
