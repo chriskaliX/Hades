@@ -24,7 +24,7 @@ type IWindow interface {
 
 // Window for filters to count the specific field
 type Window struct {
-	quota    uint32
+	quota    int
 	duration time.Duration
 	// internal fields
 	cache *utilcache.LRUExpireCache
@@ -32,7 +32,7 @@ type Window struct {
 	counter *lru.Cache
 }
 
-func NewWindow(quota uint32, duration time.Duration, size int) *Window {
+func NewWindow(quota int, duration time.Duration, size int) *Window {
 	w := &Window{
 		quota:    quota,
 		duration: duration,
@@ -61,11 +61,11 @@ func (w *Window) Check(input string) bool {
 	// it's not been filtered, just incr the count
 	count, _ := w.counter.Get(input)
 	// if exceed the quota, return false
-	if count.(uint32) > w.quota {
+	if count.(int) > w.quota {
 		w.cache.Add(input, 1, filterDefaultTime)
 		return false
 	}
-	w.counter.Add(input, count.(uint32)+1)
+	w.counter.Add(input, count.(int)+1)
 	// not, just incr the count, do not update time
 	return true
 }

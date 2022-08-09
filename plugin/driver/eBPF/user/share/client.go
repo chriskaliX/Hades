@@ -32,10 +32,12 @@ func gtimeCron() {
 	}
 }
 
+// TODO: TEST FOR NOW
 func taskCron() {
 	for {
 		task, err := Client.ReceiveTask()
 		if err != nil {
+			time.Sleep(10 * time.Second)
 			zap.S().Error(err)
 			continue
 		}
