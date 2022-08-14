@@ -77,7 +77,7 @@
 
 uprobe 下 bash 执行结果大概率会和 execve 下相同，考虑后期是否移除
 
-## 内核扫描(Kernel Root scanner)
+## 内核扫描(Kernel Scanner)
 
 > 扫描方式: 通过内核态 eBPF 程序获取对应 table 的函数地址, 与用户态读取的 kallsyms 比对判断是否被 hook
 
