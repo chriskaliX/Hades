@@ -10,8 +10,6 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
-var EventFilter *string
-
 type Event interface {
 	// ID returns the unique id for event
 	ID() uint32

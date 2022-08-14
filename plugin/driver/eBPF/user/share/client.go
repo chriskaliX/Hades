@@ -20,6 +20,10 @@ var (
 	TaskChan = make(chan *plugin.Task)
 )
 
+var (
+	EventFilter *string
+)
+
 func gtimeCron() {
 	Gtime.Store(time.Now().Unix())
 	ticker := time.NewTicker(time.Second)
@@ -37,8 +41,8 @@ func taskCron() {
 	for {
 		task, err := Client.ReceiveTask()
 		if err != nil {
-			time.Sleep(10 * time.Second)
 			zap.S().Error(err)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 		TaskChan <- task

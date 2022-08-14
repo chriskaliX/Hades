@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	decoder.EventFilter = flag.String("filter", "0", "set filter to specific the event id")
+	share.EventFilter = flag.String("filter", "0", "set filter to specific the event id")
 	// parse the log
 	flag.Parse()
 	// zap configuration pre-set
@@ -37,7 +37,7 @@ func main() {
 	zap.ReplaceGlobals(logger)
 	zap.S().Info("Hades eBPF driver start")
 	// allow init
-	decoder.SetAllowList(*decoder.EventFilter)
+	decoder.SetAllowList(*share.EventFilter)
 	// generate the main driver and run
 	driver, err := user.NewDriver()
 	if err != nil {

@@ -1,9 +1,12 @@
 package filter
 
 import (
-	"fmt"
+	"hades-ebpf/user/share"
 	"reflect"
 	"sync"
+	"time"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -16,8 +19,10 @@ type UserFilter struct {
 	ExeFilter  *sync.Map
 	DnsFilter  *sync.Map
 	ArgvFilter *sync.Map
-	once       sync.Once
 }
+
+var tmpUser = NewUserFilter()
+var DefaultUserFilter = NewUserFilter()
 
 func NewUserFilter() *UserFilter {
 	return &UserFilter{
@@ -79,6 +84,21 @@ func (u *UserFilter) Delete(_type int, op int, value string) {
 func (u *UserFilter) Load(filterConfig *FilterConfig) {
 	t := reflect.TypeOf(filterConfig).Elem()
 	v := reflect.ValueOf(filterConfig).Elem()
+	load := func(m *sync.Map, input string) {
+		filter := StringFilter{}
+		filter.Value = input[1:]
+		switch string(input[0]) {
+		case "0":
+			filter.Operation = Prefix
+		case "1":
+			filter.Operation = Suffix
+		case "2":
+			filter.Operation = Equal
+		case "3":
+			filter.Operation = Contains
+		}
+		m.Store(filter, 0)
+	}
 	// go range the filter type
 	for i := 0; i < t.NumField(); i++ {
 		// only get slice
@@ -86,15 +106,26 @@ func (u *UserFilter) Load(filterConfig *FilterConfig) {
 			continue
 		}
 		_type := t.Field(i).Tag.Get("json")
+		if _type != "exe" && _type != "dns" && _type != "argv" {
+			continue
+		}
 		for index := 0; index < v.Field(i).Len(); index++ {
-			fmt.Println(_type, v.Field(i).Index(index).String())
+			value := v.Field(i).Index(index).String()
+			// length pre-check
+			if len(value) < 2 {
+				continue
+			}
 			switch _type {
 			case "exe":
+				load(tmpUser.ExeFilter, v.Field(i).Index(index).String())
 			case "dns":
+				load(tmpUser.DnsFilter, v.Field(i).Index(index).String())
 			case "argv":
+				load(tmpUser.ArgvFilter, v.Field(i).Index(index).String())
 			}
 		}
 	}
+	u.replace(tmpUser)
 }
 
 func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
@@ -107,4 +138,23 @@ func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
 		return true
 	})
 	return false
+}
+
+func (filter *UserFilter) replace(user *UserFilter) {
+	// replace
+	filter.ExeFilter = user.ExeFilter
+	filter.ArgvFilter = user.ArgvFilter
+	filter.DnsFilter = user.ArgvFilter
+}
+
+func init() {
+	for task := range share.TaskChan {
+		config, err := LoadConfigFromTask(task)
+		if err != nil {
+			zap.S().Error(err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		DefaultUserFilter.Load(config)
+	}
 }

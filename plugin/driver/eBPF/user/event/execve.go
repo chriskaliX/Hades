@@ -93,9 +93,9 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	for _, env := range envs {
-		if strings.HasPrefix(env, "SSH_CONNECTION=") {
+		if strings.HasPrefix(env, "SSH_") {
 			e.SSHConnection = strings.TrimLeft(env, "SSH_CONNECTION=")
-		} else if strings.HasPrefix(env, "LD_PRELOAD=") {
+		} else if strings.HasPrefix(env, "LD_PRE") {
 			e.LDPreload = strings.TrimLeft(env, "LD_PRELOAD=")
 		}
 	}

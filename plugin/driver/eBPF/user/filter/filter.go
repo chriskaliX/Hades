@@ -25,9 +25,6 @@ type Filter struct {
 }
 
 const (
-	Update = iota
-	Delete
-
 	PidFilter      = "pid_filter"
 	CgroupIdFilter = "cgroup_id_filter"
 	IpFilter       = "ip_filter"
