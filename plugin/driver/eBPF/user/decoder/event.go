@@ -1,7 +1,6 @@
 package decoder
 
 import (
-	"flag"
 	"fmt"
 	"time"
 
@@ -11,13 +10,7 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
-var (
-	flagEventFilter = "filter"
-)
-
-var (
-	EventFilter = flag.String(flagEventFilter, "0", "set filter to specific the event id")
-)
+var EventFilter *string
 
 type Event interface {
 	// ID returns the unique id for event

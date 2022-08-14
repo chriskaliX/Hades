@@ -8,3 +8,9 @@ const (
 	argvDuration = 60 * time.Second
 	argvSize     = 512
 )
+
+var DefaultArgvWindow = NewArgvWindow()
+
+func NewArgvWindow() *Window {
+	return NewWindow(argvDynQuota, argvDuration, argvSize)
+}

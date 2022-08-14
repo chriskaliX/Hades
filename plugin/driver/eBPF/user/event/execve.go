@@ -49,7 +49,7 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	// Dynamic window for execve
-	if !window.DefaultExeWindow.Check(e.Exe) {
+	if !window.WindowCheck(e.Exe, window.DefaultExeWindow) {
 		err = ErrIgnore
 		return
 	}
@@ -84,6 +84,10 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	e.Argv = strings.Join(strArr, " ")
+	if !window.WindowCheck(e.Exe, window.DefaultArgvWindow) {
+		err = ErrIgnore
+		return
+	}
 	envs := make([]string, 0, 3)
 	if envs, err = decoder.DecodeStrArray(); err != nil {
 		return

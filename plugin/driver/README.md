@@ -6,11 +6,14 @@
 
 同样的，因为后续可能也会尝试去做 LKM 的方案，将 eBPF 从中剥离，而不是放在 Collector 模块中，我觉得会更加合理
 
-## eBPF 快速启动
+## eBPF 快速启动 (eBPF quick start)
 
 > 环境要求：内核版本高于 4.18, golang 版本 >= 1.17。非常建议使用 ubuntu 21.04 或者以上版本, 可以减少环境配置的时间成本
 
-1. 下载 Header (如果支持 BTF, 跳过此步骤)
+1. 下载 Hades 项目 (Download Hades)
+   `git clone --recursive https://github.com/chriskaliX/Hades.git`
+
+2. 下载 Header，如果内核支持 BTF 可以跳过 (Download kernel header, skip if BTF is supported)
 
    ```bash
    # CentOS/RHEL 7
@@ -21,7 +24,7 @@
    apt install linux-headers-$(uname -r)
    ```
 
-2. 编译
+3. 编译(Compile)
 
    进入 eBPF 文件夹 `cd /eBPF`
 
@@ -33,11 +36,12 @@
 
      `make debug`(结果输出至终端)
 
-3. 运行
+4. 运行(Run)
 
    在 driver 目录下，会看见对应的 driver 文件，启动即可
+   (driver file is generated in `Hades/plugin/driver`, or you can run `../driver`)
 
-4. 过滤 id
+5. 过滤 id (Event filter)
 
    cmdline 支持 `-f` 选项，根据下面的 ID 可以指定 filter
    例如: `./driver -f 1031`， 只运行 `kprobe/security_file_ioctl` 即 anti_rootkit hook
@@ -73,11 +77,12 @@
 
 uprobe 下 bash 执行结果大概率会和 execve 下相同，考虑后期是否移除
 
-## 内核扫描
+## 内核扫描(Kernel Root scanner)
 
 > 扫描方式: 通过内核态 eBPF 程序获取对应 table 的函数地址, 与用户态读取的 kallsyms 比对判断是否被 hook
 
 目前支持:
 
-|Scan field|
-|sys_call_table|
+|   Scan field   |
+| :------------: |
+| sys_call_table |

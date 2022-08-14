@@ -61,7 +61,7 @@ func (w *Window) Check(input string) bool {
 	// it's not been filtered, just incr the count
 	count, _ := w.counter.Get(input)
 	// if exceed the quota, return false
-	if count.(int) > w.quota {
+	if count.(int) >= w.quota {
 		w.cache.Add(input, 1, filterDefaultTime)
 		return false
 	}
@@ -73,4 +73,13 @@ func (w *Window) Check(input string) bool {
 // default filter function, nothing to do
 func (w *Window) Filter(input string) bool {
 	return false
+}
+
+// true: alert
+// false: pass
+func WindowCheck(input string, window IWindow) bool {
+	if window.Filter(input) {
+		return false
+	}
+	return window.Check(input)
 }

@@ -75,6 +75,7 @@ func (u *UserFilter) Delete(_type int, op int, value string) {
 	})
 }
 
+// TODO: unfinished
 func (u *UserFilter) Load(filterConfig *FilterConfig) {
 	t := reflect.TypeOf(filterConfig).Elem()
 	v := reflect.ValueOf(filterConfig).Elem()
@@ -87,6 +88,11 @@ func (u *UserFilter) Load(filterConfig *FilterConfig) {
 		_type := t.Field(i).Tag.Get("json")
 		for index := 0; index < v.Field(i).Len(); index++ {
 			fmt.Println(_type, v.Field(i).Index(index).String())
+			switch _type {
+			case "exe":
+			case "dns":
+			case "argv":
+			}
 		}
 	}
 }

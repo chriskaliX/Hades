@@ -16,6 +16,7 @@ import (
 )
 
 func main() {
+	decoder.EventFilter = flag.String("filter", "0", "set filter to specific the event id")
 	// parse the log
 	flag.Parse()
 	// zap configuration pre-set
