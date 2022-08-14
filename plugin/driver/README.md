@@ -1,17 +1,20 @@
-# Hades Driver
+# Hades eBPF-Driver
 
-## 为何独立出 Driver 模块
+> Hades eBPF-Driver 是基于 eBPF 编写的 Hook 数据获取，是整个 Hades 最关键的部分。基于 tracee 做了大量的改造和修复，执行方式参考 Elkeid
 
-在一段时间的 eBPF 尝试之后, 发现了一些小问题：由于 BPF 的一些原因，我们无法像 LKM 一样任意操作锁等，导致其数据准确性会存在一定程度的偏差，同时在不同版本下的限制，让 BPF 在较低内核版本下会存在一定的兼容性问题。单独 driver 的原因，是希望 driver 这个模块的通用化，甚至可以作为插件直接下发到 Elkeid 中。
-
-同样的，因为后续可能也会尝试去做 LKM 的方案，将 eBPF 从中剥离，而不是放在 Collector 模块中，我觉得会更加合理
+> Hades eBPF-Driver is a eBPF-driven kernel hooker which is the most important part of Hades. Driver is based on tracee and I do a lot of modification. Draw on Elkeid.
 
 ## eBPF 快速启动 (eBPF quick start)
 
 > 环境要求：内核版本高于 4.18, golang 版本 >= 1.17。非常建议使用 ubuntu 21.04 或者以上版本, 可以减少环境配置的时间成本
 
+> kernel version over 4.18 and >= 1.17 is required. OS like ubuntu 21.04 is recommanded since it's easier for testing
+
 1. 下载 Hades 项目 (Download Hades)
-   `git clone --recursive https://github.com/chriskaliX/Hades.git`
+
+   ```bash
+   git clone --recursive https://github.com/chriskaliX/Hades.git`
+   ```
 
 2. 下载 Header，如果内核支持 BTF 可以跳过 (Download kernel header, skip if BTF is supported)
 
@@ -30,21 +33,18 @@
 
    - CORE 编译
 
-     `make core-debug`(结果输出至终端)
+     `make core`
 
    - 非 CO-RE 编译(从 kernel-header)
 
-     `make debug`(结果输出至终端)
+     `make`
 
 4. 运行(Run)
 
-   在 driver 目录下，会看见对应的 driver 文件，启动即可
-   (driver file is generated in `Hades/plugin/driver`, or you can run `../driver`)
+   在 driver 目录下，会看见对应的 driver 文件，启动即可。
 
-5. 过滤 id (Event filter)
-
-   cmdline 支持 `-f` 选项，根据下面的 ID 可以指定 filter
-   例如: `./driver -f 1031`， 只运行 `kprobe/security_file_ioctl` 即 anti_rootkit hook
+   默认情况下不会有输出，指定 **`--env debug`** 可以看到输出
+   (driver file is generated in `Hades/plugin/driver`, or you can run `../driver`, `--env debug` to get the output)
 
 ## 目前支持 Hook
 

@@ -167,8 +167,8 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		return
 	}
 	rawdata["data"] = result
-	// TODO: just for debug
-	if Env == "debug" {
+	// for debug
+	if share.Env == "debug" {
 		fmt.Println(rawdata["data"])
 	}
 	// send the record

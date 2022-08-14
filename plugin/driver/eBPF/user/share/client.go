@@ -21,7 +21,8 @@ var (
 )
 
 var (
-	EventFilter *string
+	EventFilter string
+	Env         string
 )
 
 func gtimeCron() {
@@ -36,8 +37,10 @@ func gtimeCron() {
 	}
 }
 
-// TODO: TEST FOR NOW
 func taskCron() {
+	if Env == "debug" {
+		return
+	}
 	for {
 		task, err := Client.ReceiveTask()
 		if err != nil {

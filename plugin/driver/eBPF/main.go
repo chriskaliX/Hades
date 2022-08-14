@@ -16,7 +16,8 @@ import (
 )
 
 func main() {
-	share.EventFilter = flag.String("filter", "0", "set filter to specific the event id")
+	flag.StringVar(&share.EventFilter, "filter", "0", "set filter to specific the event id")
+	flag.StringVar(&share.Env, "env", "prod", "specific the env, debug print the output to console")
 	// parse the log
 	flag.Parse()
 	// zap configuration pre-set
@@ -37,7 +38,7 @@ func main() {
 	zap.ReplaceGlobals(logger)
 	zap.S().Info("Hades eBPF driver start")
 	// allow init
-	decoder.SetAllowList(*share.EventFilter)
+	decoder.SetAllowList(share.EventFilter)
 	// generate the main driver and run
 	driver, err := user.NewDriver()
 	if err != nil {
@@ -64,7 +65,7 @@ func main() {
 			<-time.After(time.Second * 5)
 			return
 		case <-share.GContext.Done():
-			if user.Env == "debug" {
+			if share.Env == "debug" {
 				// just for testing
 				time.Sleep(5 * time.Second)
 				continue
