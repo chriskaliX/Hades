@@ -1,7 +1,6 @@
 package event
 
 import (
-	"fmt"
 	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/filter/window"
@@ -60,11 +59,9 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	if e.Stdin, err = decoder.DecodeString(); err != nil {
-		fmt.Println(err)
 		return
 	}
 	if e.Stdout, err = decoder.DecodeString(); err != nil {
-		fmt.Println(err)
 		return
 	}
 	if e.Family, e.Dport, e.Dip, err = decoder.DecodeRemoteAddr(); err != nil {
@@ -84,7 +81,7 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	e.Argv = strings.Join(strArr, " ")
-	if !window.WindowCheck(e.Exe, window.DefaultArgvWindow) {
+	if !window.WindowCheck(e.Argv, window.DefaultArgvWindow) {
 		err = ErrIgnore
 		return
 	}

@@ -84,7 +84,7 @@ func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	e.Argv = strings.Join(strArr, " ")
-	if !window.WindowCheck(e.Exe, window.DefaultArgvWindow) {
+	if !window.WindowCheck(e.Argv, window.DefaultArgvWindow) {
 		err = ErrIgnore
 		return
 	}

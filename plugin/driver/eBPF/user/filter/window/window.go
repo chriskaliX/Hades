@@ -1,3 +1,11 @@
+/*
+ * @Author: chriskaliX chriskali@163.com
+ * @Date: 2022-08-07 00:07:45
+ * @LastEditors: chriskaliX chriskali@163.com
+ * @LastEditTime: 2022-08-15 10:38:53
+ * @FilePath: /Hades/plugin/driver/eBPF/user/filter/window/window.go
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 package window
 
 import (
@@ -79,7 +87,7 @@ func (w *Window) Filter(input string) bool {
 // false: pass
 func WindowCheck(input string, window IWindow) bool {
 	if window.Filter(input) {
-		return false
+		return true
 	}
 	return window.Check(input)
 }
