@@ -11,6 +11,7 @@ import (
 
 var (
 	ErrIgnore = errors.New("ignore")
+	ErrFilter = errors.New("filtered")
 )
 
 // all down here is from ehids/ecapture, same with code in

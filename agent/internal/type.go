@@ -7,6 +7,6 @@ const (
 	TaskAgentSetenv   = 3
 	TaskAgentRestart  = 4
 
-	AgentStatus  = 1000
-	PluginStatus = 1001
+	AgentStatus  = 1
+	PluginStatus = 2
 )

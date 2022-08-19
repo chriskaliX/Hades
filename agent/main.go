@@ -1,9 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -16,7 +13,7 @@ import (
 	"agent/heartbeat"
 	"agent/log"
 	"agent/plugin"
-	"agent/proto"
+	"agent/transport"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -36,7 +33,6 @@ func init() {
 }
 
 func main() {
-	// zap log configuration
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"
@@ -59,44 +55,13 @@ func main() {
 	zap.ReplaceGlobals(logger)
 	wg := &sync.WaitGroup{}
 	// transport to server not added
-	wg.Add(2)
+	wg.Add(3)
 	go plugin.Startup(agent.DefaultAgent.Context(), wg)
 	go heartbeat.Startup(agent.DefaultAgent.Context(), wg)
-	// test
-	cfg := make(map[string]*proto.Config)
-
-	file, err := os.Open("plugin/collector/collector")
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-	hash := sha256.New()
-	io.Copy(hash, file)
-	sum := hash.Sum(nil)
-	fmt.Printf("%x\n", sum)
-
-	cfg["collector"] = &proto.Config{
-		Name:    "collector",
-		Version: "1.0.0",
-		Sha256:  fmt.Sprintf("%x", sum),
-	}
-
-	file, err = os.Open("plugin/driver/driver")
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer file.Close()
-	hash = sha256.New()
-	io.Copy(hash, file)
-	sum = hash.Sum(nil)
-	fmt.Printf("%x\n", sum)
-	cfg["driver"] = &proto.Config{
-		Name:    "driver",
-		Version: "1.0.0",
-		Sha256:  fmt.Sprintf("%x", sum),
-	}
-
-	plugin.DefaultManager.Sync(cfg)
+	go func() {
+		transport.Startup(agent.DefaultAgent.Context(), wg)
+		agent.DefaultAgent.Cancel()
+	}()
 
 	// https://colobu.com/2015/10/09/Linux-Signals/
 	// SIGTERM 信号: 结束程序(可以被捕获、阻塞或忽略)

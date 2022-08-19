@@ -51,7 +51,7 @@ func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	// Dynamic window for execve
 	// TODO: count for those ignored exe
 	if !window.WindowCheck(e.Exe, window.DefaultExeWindow) {
-		err = ErrIgnore
+		err = ErrFilter
 		return
 	}
 	if e.Cwd, err = decoder.DecodeString(); err != nil {
@@ -85,7 +85,7 @@ func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	}
 	e.Argv = strings.Join(strArr, " ")
 	if !window.WindowCheck(e.Argv, window.DefaultArgvWindow) {
-		err = ErrIgnore
+		err = ErrFilter
 		return
 	}
 	envs := make([]string, 0, 3)

@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"agent/core"
+	"agent/internal"
 	"agent/plugin"
 	"agent/proto"
 	"agent/resource"
@@ -17,7 +18,7 @@ func getPlgStat(now time.Time) {
 	for _, plg := range plgs {
 		if !plg.IsExited() {
 			rec := &proto.Record{
-				DataType:  1001,
+				DataType:  internal.PluginStatus,
 				Timestamp: now.Unix(),
 				Data: &proto.Payload{
 					Fields: map[string]string{"name": plg.Name(), "pversion": plg.Version()},

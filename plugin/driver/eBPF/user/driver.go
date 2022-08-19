@@ -154,6 +154,10 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	eventDecoder := decoder.Events[ctx.Type]
 	eventDecoder.SetContext(ctx)
 	eventDecoder.DecodeEvent(decoder.DefaultDecoder)
+	if err == event.ErrFilter {
+		// it's been filtered
+		return
+	}
 	if err != nil && err != event.ErrIgnore {
 		zap.S().Errorf("error: %s", err)
 		return

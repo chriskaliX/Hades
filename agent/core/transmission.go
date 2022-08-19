@@ -4,7 +4,6 @@ import (
 	"agent/agent"
 	"agent/core/pool"
 	"agent/host"
-	"agent/plugin"
 	"agent/proto"
 	"errors"
 	"sync"
@@ -23,6 +22,8 @@ var (
 		offset:     0,
 		updateTime: time.Now(),
 	}
+	PluginTaskChan   = make(chan *proto.Task)
+	PluginConfigChan = make(chan map[string]*proto.Config)
 )
 
 type Trans struct {
@@ -54,6 +55,7 @@ func (t *Trans) Transmission(rec interface{}, importance bool) (err error) {
 
 func (tr *Trans) Send(client proto.Transfer_TransferClient) (err error) {
 	tr.mu.Lock()
+	defer tr.mu.Unlock()
 	if tr.offset != 0 {
 		nbuf := make([]*proto.EncodedRecord, 0, tr.offset)
 		for _, v := range tr.buf[:tr.offset] {
@@ -88,11 +90,7 @@ func (tr *Trans) Send(client proto.Transfer_TransferClient) (err error) {
 		if err == nil {
 			atomic.AddUint64(&tr.txCnt, uint64(tr.offset))
 			tr.offset = 0
-		} else {
-			tr.mu.Unlock()
-			return
 		}
-		tr.mu.Unlock()
 	}
 	return
 }
@@ -125,16 +123,7 @@ func (tr *Trans) resolveTask(cmd *proto.Command) error {
 		}
 	// send to plugin
 	default:
-		// In future, shutdown, update, restart will be in here
-		if plg, ok := plugin.DefaultManager.Get(cmd.Task.GetObjectName()); ok {
-			if err := plg.SendTask(*cmd.Task); err != nil {
-				zap.S().Error("send task to plugin: ", err)
-				return errors.New("send task to plugin failed")
-			}
-			return nil
-		}
-		zap.S().Error("can't find plugin: ", cmd.Task.GetObjectName())
-		return errors.New("plugin not found")
+		PluginTaskChan <- cmd.Task
 	}
 	return nil
 }
@@ -175,9 +164,7 @@ func (tr *Trans) Receive(client proto.Transfer_TransferClient) (err error) {
 	}
 	delete(cfgs, agent.Product)
 	// sync Plugin
-	if e := plugin.DefaultManager.Sync(cfgs); e != nil {
-		zap.S().Error(err)
-	}
+	PluginConfigChan <- cfgs
 	return
 }
 

@@ -31,4 +31,4 @@ jobs:
       - name: Build non-CO-RE
         run: |
           cd plugin/driver/eBPF
-          make debug
+          make

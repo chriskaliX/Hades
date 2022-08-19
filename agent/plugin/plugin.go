@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"agent/agent"
+	"agent/core"
 	"agent/core/pool"
 	"agent/proto"
 	"agent/utils"
@@ -9,7 +10,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -183,15 +183,13 @@ func (p *Plugin) Receive() {
 				// any error about close or EOF, it's done
 			} else if !(errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed)) {
 				p.logger.Error("receive err:", err)
-				// add continue to any error
 				continue
 			} else {
 				p.logger.Error("exit the receive task:", err)
 				break
 			}
 		}
-		// TODO: upload via `Logger Plugin` here, not to the service..
-		fmt.Println(string(rec.Data))
+		core.DefaultTrans.Transmission(rec, false)
 	}
 }
 
@@ -317,4 +315,25 @@ func readVarint(r io.ByteReader) (int, int, error) {
 		}
 	}
 	return varint, eaten, nil
+}
+
+func init() {
+	go func() {
+		for {
+			select {
+			case task := <-core.PluginTaskChan:
+				// In future, shutdown, update, restart will be in here
+				if plg, ok := DefaultManager.Get(task.GetObjectName()); ok {
+					if err := plg.SendTask(*task); err != nil {
+						zap.S().Error("send task to plugin: ", err)
+					}
+				}
+				zap.S().Error("can't find plugin: ", task.GetObjectName())
+			case cfgs := <-core.PluginConfigChan:
+				if err := DefaultManager.Sync(cfgs); err != nil {
+					zap.S().Error("config sync failed: ", err)
+				}
+			}
+		}
+	}()
 }
