@@ -4,14 +4,15 @@ package grpc;
 
 message PackagedData {
     repeated EncodedRecord records = 1;
-    string agent_id = 2;
-    repeated string intranet_ipv4 = 3;
-    repeated string extranet_ipv4 = 4;
-    repeated string intranet_ipv6 = 5;
-    repeated string extranet_ipv6 = 6;
-    string hostname = 7;
-    string version = 8;
-    string product = 9;
+    repeated Record rawrecords = 2; // backport
+    string agent_id = 3;
+    repeated string intranet_ipv4 = 4;
+    repeated string extranet_ipv4 = 5;
+    repeated string intranet_ipv6 = 6;
+    repeated string extranet_ipv6 = 7;
+    string hostname = 8;
+    string version = 9;
+    string product = 10;
   }
   
   message EncodedRecord {

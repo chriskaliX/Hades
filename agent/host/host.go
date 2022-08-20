@@ -11,7 +11,6 @@ import (
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
-	"go.uber.org/zap"
 )
 
 const (
@@ -20,36 +19,27 @@ const (
 
 // atomic to make sure the value is sync
 var (
-	// string
-	Hostname atomic.Value
-	// []string{}
-	PrivateIPv4 atomic.Value
-	PublicIPv4  atomic.Value
-	PrivateIPv6 atomic.Value
-	PublicIPv6  atomic.Value
-	// kernel & arch information
+	Hostname        atomic.Value
+	PrivateIPv4     atomic.Value
+	PublicIPv4      atomic.Value
+	PrivateIPv6     atomic.Value
+	PublicIPv6      atomic.Value
 	Platform        string
 	PlatformFamily  string
 	PlatformVersion string
 	KernelVersion   string
 	Arch            string
-	// Add cpu basic for display
-	CpuNum string
-	CpuMhz string
-	// Add mem information
-	Mem string
+	CpuNum          string
+	CpuMhz          string
+	Mem             string
 )
 
 // Competely from Elkeid, but something with the IP need to be changed
 // https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/osquery/tables/networking/posix/interfaces.cpp
 func RefreshHost() {
 	// hostname
-	if hostname, err := os.Hostname(); err == nil {
-		Hostname.Store(hostname)
-	} else {
-		zap.S().Error(err)
-	}
-
+	hostname, _ := os.Hostname()
+	Hostname.Store(hostname)
 	// ip list
 	privateIPv4 := []string{}
 	privateIPv6 := []string{}
