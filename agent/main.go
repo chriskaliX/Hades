@@ -56,11 +56,11 @@ func main() {
 	wg := &sync.WaitGroup{}
 	// transport to server not added
 	wg.Add(3)
-	go plugin.Startup(agent.DefaultAgent.Context(), wg)
-	go heartbeat.Startup(agent.DefaultAgent.Context(), wg)
+	go plugin.Startup(agent.Instance.Context, wg)
+	go heartbeat.Startup(agent.Instance.Context, wg)
 	go func() {
-		transport.Startup(agent.DefaultAgent.Context(), wg)
-		agent.DefaultAgent.Cancel()
+		transport.Startup(agent.Instance.Context, wg)
+		agent.Instance.Cancel()
 	}()
 
 	// https://colobu.com/2015/10/09/Linux-Signals/
@@ -74,7 +74,7 @@ func main() {
 		zap.S().Error("receive signal:", sig.String())
 		zap.S().Info("wait for 5 secs to exit")
 		<-time.After(time.Second * 5)
-		agent.DefaultAgent.Cancel()
+		agent.Instance.Cancel()
 	}()
 	wg.Wait()
 }

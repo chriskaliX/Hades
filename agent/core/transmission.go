@@ -73,7 +73,7 @@ func (tr *Trans) Send(client proto.Transfer_TransferClient) (err error) {
 		}
 		err = client.Send(&proto.PackagedData{
 			Records:      nbuf,
-			AgentId:      agent.DefaultAgent.ID(),
+			AgentId:      agent.Instance.ID,
 			IntranetIpv4: host.PrivateIPv4.Load().([]string),
 			IntranetIpv6: host.PrivateIPv6.Load().([]string),
 			ExtranetIpv4: host.PublicIPv4.Load().([]string),
@@ -98,7 +98,7 @@ func (tr *Trans) Send(client proto.Transfer_TransferClient) (err error) {
 func (tr *Trans) resolveTask(cmd *proto.Command) error {
 	// Judge whether the Task
 	switch cmd.Task.GetObjectName() {
-	case agent.DefaultAgent.Product():
+	case agent.Instance.Product:
 		// There are several options for this.
 		// 1. Shutdown
 		// 2. Update(But Elkeid do not in Product)
@@ -107,7 +107,7 @@ func (tr *Trans) resolveTask(cmd *proto.Command) error {
 		switch cmd.Task.DataType {
 		case internal.TaskAgentShutdown:
 			zap.S().Info("agent shotdown is called")
-			agent.DefaultAgent.Cancel()
+			agent.Instance.Cancel()
 			return nil
 		case internal.TaskAgentUpdate:
 		// update here
@@ -156,7 +156,7 @@ func (tr *Trans) Receive(client proto.Transfer_TransferClient) (err error) {
 		err = agent.Update(*cfg)
 		if err == nil {
 			zap.S().Info("update successfully")
-			agent.DefaultAgent.Cancel()
+			agent.Instance.Cancel()
 			return
 		} else {
 			zap.S().Error("update failed:", err)

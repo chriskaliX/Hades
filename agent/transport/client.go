@@ -15,39 +15,45 @@ import (
 )
 
 // retries here, and some bugs
-// TODO: not as I expected, but run firstly
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
-	// TODO:ctx fix
+	var client proto.Transfer_TransferClient
 	defer wg.Done()
+	zap.S().Info("transport starts")
+	// Wait group for this goroutine
 	subWg := &sync.WaitGroup{}
 	defer subWg.Wait()
+	// start the loop of connecting
 	for {
-		conn, err := connection.New(ctx)
-		if err != nil {
+		select {
+		case <-ctx.Done():
 			return
-		}
-		var client proto.Transfer_TransferClient
-		subCtx, cancel := context.WithCancel(ctx)
-		client, err = proto.NewTransferClient(conn).Transfer(subCtx, grpc.UseCompressor("snappy"))
-		if err == nil {
+		default:
+			// get the connection
+			conn, err := connection.New(ctx)
+			if err != nil {
+				continue
+			}
+			// generate sub-context and passes to the transfer client
+			subCtx, cancel := context.WithCancel(ctx)
+			if client, err = proto.NewTransferClient(conn).
+				Transfer(subCtx, grpc.UseCompressor("snappy")); err != nil {
+				zap.S().Error(err)
+				cancel()
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			// client start successfully, start the goroutines and wait
 			subWg.Add(2)
 			go handleSend(subCtx, subWg, client)
 			go func() {
-				// 收到错误后取消服务
 				handleReceive(subCtx, subWg, client)
 				cancel()
 			}()
 			// stuck here
 			subWg.Wait()
-		} else {
-			zap.S().Error(err)
-		}
-		cancel()
-		zap.S().Info("transfer has been canceled,wait next try to transfer for 5 seconds")
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Second * 5):
+			cancel()
+			time.Sleep(5 * time.Second)
+			zap.S().Info("transfer has been canceled, wait next try to transfer for 5 seconds")
 		}
 	}
 }
@@ -55,27 +61,32 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 // only transport heartbeat, status and so on...
 func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_TransferClient) {
 	defer wg.Done()
+	defer zap.S().Info("send handler is exited")
 	defer c.CloseSend()
-	zap.S().Info("send handler running")
-	interval := time.NewTicker(time.Millisecond * 100)
+	zap.S().Info("send handler is running")
+	// start the send loop
+	ticker := time.NewTicker(time.Millisecond * 100)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-interval.C:
+		case <-ticker.C:
 			core.DefaultTrans.Send(c)
 		}
 	}
 }
 
-func handleReceive(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_TransferClient) {
+func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfer_TransferClient) {
 	defer wg.Done()
+	defer zap.S().Info("handle receive is exited")
+	zap.S().Info("handle receive is running")
 	for {
 		select {
 		case <-ctx.Done():
-		// stuck here, may not helpful
+			return
 		default:
-			if err := core.DefaultTrans.Receive(c); err != nil {
+			if err := core.DefaultTrans.Receive(client); err != nil {
 				return
 			}
 		}

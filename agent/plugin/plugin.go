@@ -58,7 +58,7 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		wg:         &sync.WaitGroup{},
 		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
 	}
-	p.workdir = path.Join(agent.DefaultAgent.Workdir(), "plugin", p.Name())
+	p.workdir = path.Join(agent.Instance.Workdir, "plugin", p.Name())
 	// pipe init
 	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
 	// half-duplex pipe.

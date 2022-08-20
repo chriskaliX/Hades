@@ -9,78 +9,81 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"reflect"
+	"math/rand"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-var (
-	dialOptions = []grpc.DialOption{}
-)
+var _ network.INetRetry = (*Grpc)(nil)
 
-func New(ctx context.Context) (*grpc.ClientConn, error) {
-	grpcConn := &network.Context{
-		Context: ctx,
-	}
-	grpcInstance := &Grpc{}
-	grpcInstance.Init()
-	err := grpcConn.IRetry(grpcInstance)
-	if err != nil {
-		return nil, err
-	}
-	return grpcInstance.Conn, nil
-}
-
-func setDialOptions(ca, privkey, cert []byte, svrName string) {
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(ca)
-	keyPair, _ := tls.X509KeyPair(cert, privkey)
-	dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{keyPair},
-		ServerName:   svrName,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		RootCAs:      certPool,
-	})), grpc.WithBlock(), grpc.WithTimeout(time.Second*2))
-}
-
+// Grpc instance for establish connection with server
 type Grpc struct {
 	Addr    string
 	Options []grpc.DialOption
 	Conn    *grpc.ClientConn
 }
 
+func New(ctx context.Context) (*grpc.ClientConn, error) {
+	grpcInstance := &Grpc{}
+	grpcInstance.init()
+	err := network.IRetry(grpcInstance, ctx)
+	if err != nil {
+		return nil, err
+	}
+	return grpcInstance.Conn, nil
+}
+
 func (g *Grpc) String() string {
-	return reflect.TypeOf(g).String()
+	return "grpc"
+}
+
+func (g *Grpc) GetMaxDelay() uint {
+	return 600
 }
 
 func (g *Grpc) GetMaxRetry() uint {
-	return 3
+	return 0
+}
+
+func (g *Grpc) GetInterval() uint {
+	return 5
 }
 
 func (g *Grpc) GetHashMod() uint {
-	return 1
+	return uint(rand.Intn(10))
 }
 
-func (g *Grpc) Close() {
-	if g != nil {
-		g.Conn.Close()
-	}
-}
-
-func (g *Grpc) Connect() error {
-	// 还有一个 DialPool 看一下
-	conn, err := grpc.Dial(g.Addr, g.Options...)
-	if err != nil {
+func (g *Grpc) Connect() (err error) {
+	if err := g.init(); err != nil {
 		return err
 	}
-	g.Conn = conn
+	g.Conn, err = grpc.Dial(g.Addr, g.Options...)
 	return nil
 }
 
-func (g *Grpc) Init() error {
-	g.Options = dialOptions
+func (g *Grpc) EnableCA(ca, privkey, cert []byte, svrName string) {
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(ca)
+	keyPair, _ := tls.X509KeyPair(cert, privkey)
+	g.Options = append(g.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{keyPair},
+		ServerName:   svrName,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		RootCAs:      certPool,
+	})), grpc.WithBlock(), grpc.WithTimeout(time.Second*3))
+}
+
+func (g *Grpc) DisableCA() {
+	g.Options = append(g.Options, grpc.WithInsecure())
+}
+
+func (g *Grpc) init() error {
+	// g.EnableCA(CaCert, ClientKey, ClientCert, "hades.com")
+	g.DisableCA()
+	// Disable retry, let IRetry do the work
+	g.Options = append(g.Options, grpc.WithDisableRetry())
 	g.Addr = "127.0.0.1:8888"
 	return nil
 }

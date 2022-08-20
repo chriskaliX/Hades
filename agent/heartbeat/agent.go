@@ -36,9 +36,7 @@ func getAgentStat(now time.Time) {
 	// add cpu information
 	rec.Data.Fields["cpu_num"] = host.CpuNum
 	rec.Data.Fields["cpu_mhz"] = host.CpuMhz
-
 	// idc/region/net_mode/rx(tx)_speed not added
-
 	cpuPercent, rss, readSpeed, writeSpeed, fds, startAt, err := resource.GetProcResouce(os.Getpid())
 	if err != nil {
 		zap.S().Error(err)
@@ -56,7 +54,7 @@ func getAgentStat(now time.Time) {
 	rec.Data.Fields["tx_tps"] = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	rec.Data.Fields["rx_tps"] = strconv.FormatFloat(rxTPX, 'f', 8, 64)
 	// change load to gopsutil
-	rec.Data.Fields["du"] = strconv.FormatUint(resource.GetDirSize(agent.DefaultAgent.Workdir(), "plugin"), 10)
+	rec.Data.Fields["du"] = strconv.FormatUint(resource.GetDirSize(agent.Instance.Workdir, "plugin"), 10)
 	rec.Data.Fields["grs"] = strconv.Itoa(runtime.NumGoroutine())
 	rec.Data.Fields["nproc"] = strconv.Itoa(runtime.NumCPU())
 	if runtime.GOOS == "linux" {

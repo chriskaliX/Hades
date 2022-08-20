@@ -9,62 +9,25 @@ import (
 	"github.com/google/uuid"
 )
 
-var DefaultAgent = &Agent{
-	env:     EnvName,
-	product: Product,
-	version: Version,
-}
+const (
+	Product = "hades-agent"
+	EnvName = "SPECIFIED_AGENT_ID"
+	PidFile = "/var/run/hades-agent.pid"
+	LogHome = "/var/log/hades-agent/"
+	Version = "1.0.0"
+)
+
+// The only instance of the agentt
+var Instance = &Agent{}
 
 type Agent struct {
-	id      string
-	workdir string
-	version string
-	context context.Context
-	cancel  context.CancelFunc
-	env     string
-	product string
-}
-
-func (agent *Agent) Init() {
-	var err error
-	// generate agent global context
-	agent.context, agent.cancel = context.WithCancel(context.Background())
-	// init the workdir
-	if agent.workdir, err = os.Getwd(); err != nil {
-		agent.workdir = "/var/run"
-	}
-	// get pid
-	agent.generateID()
-}
-
-// reading function
-func (agent Agent) ID() string {
-	return agent.id
-}
-
-func (agent Agent) Workdir() string {
-	return agent.workdir
-}
-
-func (agent Agent) Version() string {
-	return agent.version
-}
-
-func (agent Agent) Env() string {
-	return agent.env
-}
-
-func (agent Agent) Product() string {
-	return agent.product
-}
-
-// context related
-func (agent *Agent) Cancel() {
-	agent.cancel()
-}
-
-func (agent *Agent) Context() context.Context {
-	return agent.context
+	ID      string
+	Workdir string
+	Version string
+	Context context.Context
+	Cancel  context.CancelFunc
+	Env     string
+	Product string
 }
 
 func (Agent) fromUUIDFile(file string) (id uuid.UUID, err error) {
@@ -94,7 +57,7 @@ func (agent *Agent) generateID() {
 	)
 
 	// 1. from env
-	if agent.id, ok = os.LookupEnv(agent.env); ok {
+	if agent.ID, ok = os.LookupEnv(agent.Env); ok {
 		return
 	}
 	// 2. from `/var/lib/cloud/data/instance-id` for cloud situation
@@ -123,23 +86,31 @@ func (agent *Agent) generateID() {
 	}
 	// since may have "nocloud", over 8 is reasonable
 	if len(source) > 8 {
-		agent.id = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
+		agent.ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
 		return
 	}
 	// get machine-id from the file
 	mid, err := agent.fromUUIDFile("/etc/machine-id")
 	if err == nil {
-		agent.id = mid.String()
+		agent.ID = mid.String()
 		return
 	}
 	mid, err = agent.fromUUIDFile("machine-id")
 	if err == nil {
-		agent.id = mid.String()
+		agent.ID = mid.String()
 		return
 	}
-	agent.id = uuid.New().String()
+	agent.ID = uuid.New().String()
 }
 
 func init() {
-	DefaultAgent.Init()
+	var err error
+	Instance.Env = EnvName
+	Instance.Product = Product
+	Instance.Version = Version
+	Instance.Context, Instance.Cancel = context.WithCancel(context.Background())
+	if Instance.Workdir, err = os.Getwd(); err != nil {
+		Instance.Workdir = "/var/run"
+	}
+	Instance.generateID()
 }
