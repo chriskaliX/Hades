@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"os/signal"
 	"runtime"
@@ -14,6 +15,7 @@ import (
 	"agent/log"
 	"agent/plugin"
 	"agent/transport"
+	"agent/transport/connection"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -33,6 +35,10 @@ func init() {
 }
 
 func main() {
+	flag.StringVar(&connection.DebugAddr, "addr", "127.0.0.1", "set grpc addr")
+	flag.StringVar(&connection.DebugPort, "port", "8888", "set grpc port")
+	flag.BoolVar(&connection.EnableCA, "ca", false, "enable ca")
+	flag.Parse()
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"

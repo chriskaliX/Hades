@@ -4,7 +4,7 @@ package grpc;
 
 message PackagedData {
     repeated EncodedRecord records = 1;
-    repeated Record rawrecords = 2; // backport
+    repeated Payload payloads = 2; // backport
     string agent_id = 3;
     repeated string intranet_ipv4 = 4;
     repeated string extranet_ipv4 = 5;

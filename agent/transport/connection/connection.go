@@ -9,12 +9,17 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"math/rand"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
+
+var DebugAddr string
+var DebugPort string
+var EnableCA bool
 
 var _ network.INetRetry = (*Grpc)(nil)
 
@@ -80,10 +85,13 @@ func (g *Grpc) DisableCA() {
 }
 
 func (g *Grpc) init() error {
-	// g.EnableCA(CaCert, ClientKey, ClientCert, "hades.com")
-	g.DisableCA()
+	if EnableCA {
+		g.EnableCA(CaCert, ClientKey, ClientCert, "hades.com")
+	} else {
+		g.DisableCA()
+	}
 	// Disable retry, let IRetry do the work
 	g.Options = append(g.Options, grpc.WithDisableRetry())
-	g.Addr = "127.0.0.1:8888"
+	g.Addr = fmt.Sprintf("%s:%s", DebugAddr, DebugPort)
 	return nil
 }
