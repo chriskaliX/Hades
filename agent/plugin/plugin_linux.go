@@ -34,8 +34,6 @@ func Load(ctx context.Context, config proto.Config) (err error) {
 	if err != nil {
 		return
 	}
-	// start goroutine
-	// TODO: control the goroutine with context.Context
 	plg.wg.Add(3)
 	go plg.Wait()
 	go plg.Receive()

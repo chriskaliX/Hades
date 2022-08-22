@@ -74,6 +74,8 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		return
 	}
 	p.tx = tx_w
+	defer rx_w.Close()
+	defer tx_r.Close()
 	// reader init
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
 	// purge the files
@@ -110,9 +112,8 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	if err != nil {
 		p.logger.Error("cmd start:", err)
 	}
-	rx_w.Close()
-	tx_r.Close()
 	p.cmd = cmd
+	// Command run successfully, run this in a grpc
 	return
 }
 
@@ -223,7 +224,8 @@ func (p *Plugin) Task() {
 	}
 }
 
-// receive data, not added
+// In Elkeid, receiveData get the data by decoding the data by self-code
+// A better way to do so, I think, in a native-way
 func (p *Plugin) receiveData() (rec *proto.EncodedRecord, err error) {
 	var l uint32
 	err = binary.Read(p.reader, binary.LittleEndian, &l)
@@ -278,6 +280,7 @@ func (p *Plugin) receiveData() (rec *proto.EncodedRecord, err error) {
 			return
 		}
 	}
+	// Incr for plugin status
 	atomic.AddUint64(&p.txCnt, 1)
 	atomic.AddUint64(&p.txBytes, uint64(l))
 	return
@@ -296,7 +299,6 @@ func (p *Plugin) GetWorkingDirectory() string {
 	return p.cmd.Dir
 }
 
-// @TODO: go through this
 func readVarint(r io.ByteReader) (int, int, error) {
 	varint := 0
 	eaten := 0

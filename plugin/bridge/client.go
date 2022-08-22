@@ -16,17 +16,38 @@ type Client struct {
 	wmu    *sync.Mutex
 }
 
+// Plugin Client send record to agent. Add an extra size flag to simplify
+// the operation which agent side decodes.
 func (c *Client) SendRecord(rec *Record) (err error) {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
+	var buf []byte
 	size := rec.Size()
-	err = binary.Write(c.writer, binary.LittleEndian, uint32(size))
-	if err != nil {
+	if err = binary.Write(c.writer, binary.LittleEndian, uint32(size)); err != nil {
 		return
 	}
+	if buf, err = rec.Marshal(); err != nil {
+		return
+	}
+	_, err = c.writer.Write(buf)
+	return
+}
+
+func (c *Client) SendRecordWithSize(rec *Record) (err error) {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
 	var buf []byte
-	buf, err = rec.Marshal()
-	if err != nil {
+	size := rec.Size()
+	if err = binary.Write(c.writer, binary.LittleEndian, uint32(size)); err != nil {
+		return
+	}
+	if buf, err = rec.Marshal(); err != nil {
+		return
+	}
+	// TODO: move to a sync.Pool
+	sizebuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(sizebuf, uint32(size))
+	if _, err = c.writer.Write(sizebuf); err != nil {
 		return
 	}
 	_, err = c.writer.Write(buf)
