@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"agent/core"
 	"agent/proto"
 	"context"
 	"sync"
@@ -18,7 +17,7 @@ import (
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	var client proto.Transfer_TransferClient
 	defer wg.Done()
-	zap.S().Info("transport starts")
+	zap.S().Info("grpc transport starts")
 	// Wait group for this goroutine
 	subWg := &sync.WaitGroup{}
 	defer subWg.Wait()
@@ -64,7 +63,6 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 	defer zap.S().Info("send handler is exited")
 	defer c.CloseSend()
 	zap.S().Info("send handler is running")
-	// start the send loop
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 	for {
@@ -72,7 +70,7 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			core.DefaultTrans.Send(c)
+			DTransfer.Send(c)
 		}
 	}
 }
@@ -86,7 +84,7 @@ func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfe
 		case <-ctx.Done():
 			return
 		default:
-			if err := core.DefaultTrans.Receive(client); err != nil {
+			if err := DTransfer.Receive(client); err != nil {
 				return
 			}
 		}

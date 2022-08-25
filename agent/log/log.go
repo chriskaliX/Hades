@@ -11,7 +11,8 @@ type GrpcWriter struct{}
 
 func (w *GrpcWriter) Write(p []byte) (n int, err error) {
 	rec := &proto.Record{
-		DataType: 1010,
+		Timestamp: time.Now().Unix(),
+		DataType:  1010,
 		Data: &proto.Payload{
 			Fields: map[string]string{},
 		},

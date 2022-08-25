@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chriskaliX/plugin"
+	plugin "github.com/chriskaliX/SDK/transport"
 	"github.com/fsnotify/fsnotify"
 	"github.com/shirou/gopsutil/host"
 	"go.uber.org/zap"

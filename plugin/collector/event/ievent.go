@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chriskaliX/plugin"
+	plugin "github.com/chriskaliX/SDK/transport"
 )
 
 var debug = false

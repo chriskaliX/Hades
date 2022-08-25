@@ -1,0 +1,10 @@
+# release Hades Driver
+name: release-driver
+on:
+  workflow_dispatch: {}
+  push:
+    tags: "v*"
+
+jobs:
+  ubuntu:
+    name: "ubuntu builder"

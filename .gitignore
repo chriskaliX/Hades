@@ -19,13 +19,12 @@ cert/
 **/*.gz
 
 # ignore binary
-plugin/driver/driver
+plugin/ebpfdriver/ebpfdriver
 plugin/collector/collector
-server/hadeserver
 
 # libbpf test
-plugin/driver/eBPF/kern/headers/libbpf
-plugin/driver/eBPF/kern/headers/*.h
+plugin/ebpfdriver/kern/headers/libbpf
+plugin/ebpfdriver/kern/headers/*.h
 
 # pprof
 *.pprof

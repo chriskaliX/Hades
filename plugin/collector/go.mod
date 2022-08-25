@@ -2,10 +2,10 @@ module collector
 
 go 1.17
 
-replace github.com/chriskaliX/plugin => ../bridge
+replace github.com/chriskaliX/SDK => ../../SDK
 
 require (
-	github.com/chriskaliX/plugin v1.0.0
+	github.com/chriskaliX/SDK v1.0.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/shirou/gopsutil v3.21.11+incompatible

@@ -22,7 +22,7 @@ This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [E
 
 ## Plugins
 
-- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugin/driver/eBPF)
+- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugin/collector)
 - HoneyPot
 - Monitor
@@ -35,7 +35,7 @@ This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [E
 
 > Here are 15 hooks over `tracepoints`/`kprobes`/`uprobes`. The fields are extended just like Elkeid(basically).
 
-For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/driver) of these hooks.
+For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) of these hooks.
 
 Also, Rootkit detection(anti_rootkit) for `sys_call_table` hook is updated now.
 

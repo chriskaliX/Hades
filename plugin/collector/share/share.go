@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"strconv"
 
-	plugin "github.com/chriskaliX/plugin"
+	plugin "github.com/chriskaliX/SDK/transport"
 )
 
 var Env = "prod"

@@ -2,11 +2,11 @@ package heartbeat
 
 import (
 	"agent/agent"
-	"agent/core"
 	"agent/host"
 	"agent/internal"
 	"agent/proto"
 	"agent/resource"
+	"agent/transport"
 	"os"
 	"runtime"
 	"strconv"
@@ -24,7 +24,7 @@ func getAgentStat(now time.Time) {
 		DataType:  internal.AgentStatus,
 		Timestamp: now.Unix(),
 		Data: &proto.Payload{
-			Fields: map[string]string{},
+			Fields: make(map[string]string, 30),
 		},
 	}
 	// system infomation
@@ -50,7 +50,7 @@ func getAgentStat(now time.Time) {
 		rec.Data.Fields["started_at"] = strconv.FormatInt(startAt, 10)
 	}
 	// transfer service not addes
-	txTPS, rxTPX := core.DefaultTrans.GetState(now)
+	txTPS, rxTPX := transport.DTransfer.GetState(now)
 	rec.Data.Fields["tx_tps"] = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	rec.Data.Fields["rx_tps"] = strconv.FormatFloat(rxTPX, 'f', 8, 64)
 	// change load to gopsutil
@@ -79,5 +79,5 @@ func getAgentStat(now time.Time) {
 	// 看门狗程序, 配合 .service 下做服务探活
 	daemon.SdNotify(false, "WATCHDOG=1")
 
-	core.DefaultTrans.Transmission(rec, false)
+	transport.DTransfer.Transmission(rec, false)
 }

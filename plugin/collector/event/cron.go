@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chriskaliX/plugin"
+	plugin "github.com/chriskaliX/SDK/transport"
 	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"

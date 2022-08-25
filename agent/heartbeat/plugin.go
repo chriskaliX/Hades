@@ -1,11 +1,11 @@
 package heartbeat
 
 import (
-	"agent/core"
 	"agent/internal"
 	"agent/plugin"
 	"agent/proto"
 	"agent/resource"
+	"agent/transport"
 	"os"
 	"strconv"
 	"time"
@@ -42,7 +42,7 @@ func getPlgStat(now time.Time) {
 			rec.Data.Fields["tx_tps"] = strconv.FormatFloat(TxTPS, 'f', 8, 64)
 			rec.Data.Fields["rx_speed"] = strconv.FormatFloat(RxSpeed, 'f', 8, 64)
 			rec.Data.Fields["tx_speed"] = strconv.FormatFloat(TxSpeed, 'f', 8, 64)
-			core.DefaultTrans.Transmission(rec, false)
+			transport.DTransfer.Transmission(rec, false)
 		}
 	}
 }

@@ -11,7 +11,7 @@ import (
 
 const (
 	Product = "hades-agent"
-	EnvName = "SPECIFIED_AGENT_ID"
+	EnvName = "SPECIFIED_AGENT_ID_HADES"
 	PidFile = "/var/run/hades-agent.pid"
 	LogHome = "/var/log/hades-agent/"
 	Version = "1.0.0"
@@ -80,7 +80,6 @@ func (agent *Agent) generateID() {
 		source = append(source, pdid...)
 	}
 	// from /sys/class/net/eth0/address
-	// @TODO: Remove this maybe
 	if emac, err := agent.fromIDFile("/sys/class/net/eth0/address"); err == nil {
 		source = append(source, emac...)
 	}

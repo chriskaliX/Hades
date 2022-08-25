@@ -2,9 +2,8 @@ package plugin
 
 import (
 	"agent/agent"
-	"agent/core"
-	"agent/core/pool"
 	"agent/proto"
+	"agent/transport"
 	"agent/utils"
 	"bufio"
 	"context"
@@ -44,7 +43,6 @@ type Plugin struct {
 	logger *zap.SugaredLogger
 }
 
-// @TODO: StartProcess
 func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) {
 	var (
 		rx_r, rx_w, tx_r, tx_w *os.File
@@ -68,12 +66,14 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		return
 	}
 	p.rx = rx_r
+	defer rx_w.Close()
 	tx_r, tx_w, err = os.Pipe()
 	if err != nil {
 		p.logger.Error("tx pipe init")
 		return
 	}
 	p.tx = tx_w
+	defer tx_r.Close()
 	// reader init
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
 	// purge the files
@@ -102,6 +102,7 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	}
 	defer errFile.Close()
 	cmd.Stderr = errFile
+	// details. if it is needed
 	if config.Detail != "" {
 		cmd.Env = append(cmd.Env, "DETAIL="+config.Detail)
 	}
@@ -110,8 +111,6 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	if err != nil {
 		p.logger.Error("cmd start:", err)
 	}
-	rx_w.Close()
-	tx_r.Close()
 	p.cmd = cmd
 	return
 }
@@ -147,7 +146,6 @@ func (p *Plugin) Pid() int { return p.cmd.Process.Pid }
 // get the state by fork status
 func (p *Plugin) IsExited() bool { return p.cmd.ProcessState != nil }
 
-// TODO:shutdown for plugin, need to change...
 func (p *Plugin) Shutdown() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -170,12 +168,12 @@ func (p *Plugin) Shutdown() {
 
 func (p *Plugin) Receive() {
 	var (
-		rec *proto.EncodedRecord
+		rec *proto.Record
 		err error
 	)
 	defer p.wg.Done()
 	for {
-		if rec, err = p.receiveData(); err != nil {
+		if rec, err = p.receiveDataWithSize(); err != nil {
 			if errors.Is(err, bufio.ErrBufferFull) {
 				// problem of multi
 				p.logger.Warn("buffer full, skip")
@@ -189,7 +187,8 @@ func (p *Plugin) Receive() {
 				break
 			}
 		}
-		core.DefaultTrans.Transmission(rec, false)
+		// fmt.Println(rec)
+		transport.DTransfer.Transmission(rec, false)
 	}
 }
 
@@ -223,61 +222,27 @@ func (p *Plugin) Task() {
 	}
 }
 
-// receive data, not added
-func (p *Plugin) receiveData() (rec *proto.EncodedRecord, err error) {
+// In Elkeid, receiveData get the data by decoding the data by self-code
+// which performs better. For now, we work in an native way.
+func (p *Plugin) receiveDataWithSize() (rec *proto.Record, err error) {
 	var l uint32
 	err = binary.Read(p.reader, binary.LittleEndian, &l)
 	if err != nil {
 		return
 	}
-	_, err = p.reader.Discard(1)
-	if err != nil {
+	// TODO: sync.Pool
+	rec = &proto.Record{}
+	// TODO: sync.Pool, discard by cap
+	// issues: https://github.com/golang/go/issues/23199
+	// solutions: https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
+	message := make([]byte, int(l))
+	if _, err = io.ReadFull(p.reader, message); err != nil {
 		return
 	}
-	te := 1
-
-	rec = pool.Get()
-	var dt, ts, e int
-
-	dt, e, err = readVarint(p.reader)
-	if err != nil {
+	if err = rec.Unmarshal(message); err != nil {
 		return
 	}
-	_, err = p.reader.Discard(1)
-	if err != nil {
-		return
-	}
-	te += e + 1
-	rec.DataType = int32(dt)
-
-	ts, e, err = readVarint(p.reader)
-	if err != nil {
-		return
-	}
-	_, err = p.reader.Discard(1)
-	if err != nil {
-		return
-	}
-	te += e + 1
-	rec.Timestamp = int64(ts)
-
-	if uint32(te) < l {
-		_, e, err = readVarint(p.reader)
-		if err != nil {
-			return
-		}
-		te += e
-		ne := int(l) - te
-		if cap(rec.Data) < ne {
-			rec.Data = make([]byte, ne)
-		} else {
-			rec.Data = rec.Data[:ne]
-		}
-		_, err = io.ReadFull(p.reader, rec.Data)
-		if err != nil {
-			return
-		}
-	}
+	// Incr for plugin status
 	atomic.AddUint64(&p.txCnt, 1)
 	atomic.AddUint64(&p.txBytes, uint64(l))
 	return
@@ -296,40 +261,20 @@ func (p *Plugin) GetWorkingDirectory() string {
 	return p.cmd.Dir
 }
 
-// @TODO: go through this
-func readVarint(r io.ByteReader) (int, int, error) {
-	varint := 0
-	eaten := 0
-	for shift := uint(0); ; shift += 7 {
-		if shift >= 64 {
-			return 0, eaten, proto.ErrIntOverflowGrpc
-		}
-		b, err := r.ReadByte()
-		if err != nil {
-			return 0, eaten, err
-		}
-		eaten++
-		varint |= int(b&0x7F) << shift
-		if b < 0x80 {
-			break
-		}
-	}
-	return varint, eaten, nil
-}
-
 func init() {
 	go func() {
 		for {
 			select {
-			case task := <-core.PluginTaskChan:
+			case task := <-transport.PluginTaskChan:
 				// In future, shutdown, update, restart will be in here
 				if plg, ok := DefaultManager.Get(task.GetObjectName()); ok {
 					if err := plg.SendTask(*task); err != nil {
 						zap.S().Error("send task to plugin: ", err)
 					}
+				} else {
+					zap.S().Error("can't find plugin: ", task.GetObjectName())
 				}
-				zap.S().Error("can't find plugin: ", task.GetObjectName())
-			case cfgs := <-core.PluginConfigChan:
+			case cfgs := <-transport.PluginConfigChan:
 				if err := DefaultManager.Sync(cfgs); err != nil {
 					zap.S().Error("config sync failed: ", err)
 				}
