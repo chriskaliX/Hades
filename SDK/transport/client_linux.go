@@ -20,7 +20,7 @@ func New(cancel context.CancelFunc) (c *Client) {
 		rmu:    &sync.Mutex{},
 		wmu:    &sync.Mutex{},
 	}
-	// Elkeid, for only linux
+	// Elkeid, only for linux
 	if _, ok := os.LookupEnv(ElkeidEnv); ok {
 		c.SetSendHook(c.SendElkeid)
 	}
