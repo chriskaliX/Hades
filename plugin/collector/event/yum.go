@@ -2,7 +2,8 @@ package event
 
 import (
 	"bufio"
-	"collector/share"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -34,7 +35,7 @@ func (Yum) String() string {
 	return "yum"
 }
 
-func (y Yum) Run() (result map[string]interface{}, err error) {
+func (y *Yum) Run() (result map[string]interface{}, err error) {
 	result = make(map[string]interface{})
 	files := y.getfiles(yumReposDir)
 	files = append(files, yumConfig)
@@ -49,7 +50,7 @@ Loop:
 			fields := strings.Split(s.Text(), "=")
 			if len(fields) == 2 && strings.TrimSpace(fields[0]) == "baseurl" {
 				url := strings.TrimSpace(fields[1])
-				result[share.MD5(url)] = url
+				result[y.MD5(url)] = url
 				if len(result) > YUM_RECORDLIMIT {
 					f.Close()
 					break Loop
@@ -59,6 +60,13 @@ Loop:
 		f.Close()
 	}
 	return
+}
+
+func (*Yum) MD5(v string) string {
+	d := []byte(v)
+	m := md5.New()
+	m.Write(d)
+	return hex.EncodeToString(m.Sum(nil))
 }
 
 func (Yum) getfiles(pth string) (files []string) {

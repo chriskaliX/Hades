@@ -48,7 +48,7 @@ type Process struct {
 	PName      string `json:"pname,omitempty"`
 	Cmdline    string `json:"cmdline"`
 	Exe        string `json:"exe"`
-	Sha256     string `json:"sha256"`
+	Hash       string `json:"hash"`
 	UID        uint32 `json:"uid"`
 	Username   string `json:"username"`
 	EUID       uint32 `json:"euid"`
@@ -233,7 +233,7 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	if err = proc.GetExe(); err != nil {
 		return
 	}
-	proc.Sha256 = share.Sandbox.GetHash(proc.Exe)
+	proc.Hash = share.Sandbox.GetHash(proc.Exe)
 	if err = proc.GetStat(simple); err != nil {
 		return
 	}
