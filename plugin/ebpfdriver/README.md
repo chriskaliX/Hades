@@ -44,7 +44,7 @@
    在 driver 目录下，会看见对应的 driver 文件，启动即可。
 
    默认情况下不会有输出，指定 **`--env debug`** 可以看到输出
-   (driver file is generated in `Hades/plugin/ebpfdriver`, or you can run `./ebpfdriver`, `--env debug` to get the output)
+   (driver file is generated in `Hades/plugin/ebpfdriver`, or you can run `./ebpfdriver`, `--debug` to get the output)
 
 ## 目前支持 Hook
 
