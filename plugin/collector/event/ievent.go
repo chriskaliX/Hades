@@ -3,11 +3,13 @@ package event
 import (
 	"collector/share"
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/bytedance/sonic"
 	plugin "github.com/chriskaliX/SDK/transport"
+	"go.uber.org/zap"
 )
 
 var debug = false
@@ -65,7 +67,9 @@ type Event interface {
 
 func RunEvent(event Event, immediately bool, ctx context.Context) {
 	// init the event
+	defer zap.S().Info(fmt.Sprintf("goroutine %s is exiting", event.String()))
 	event.Init(event.String())
+	zap.S().Info(fmt.Sprintf("goroutine %s is running", event.String()))
 	switch event.Type() {
 	case Periodicity:
 		// set random time for the very first time.

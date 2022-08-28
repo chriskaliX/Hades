@@ -64,7 +64,7 @@ func collector(sandbox SDK.ISandbox) error {
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Differential)
 	socket.SetInterval(300)
-	event.RunEvent(socket, false, sandbox.Context())
+	go event.RunEvent(socket, false, sandbox.Context())
 
 	return nil
 }

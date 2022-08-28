@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/chriskaliX/SDK/clock"
@@ -92,12 +94,17 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 		return err
 	}
 	s.Logger.Info(fmt.Sprintf("%s is running", s.name))
+	// os.Interrupt for command line
+	signal.Notify(s.sigs, syscall.SIGTERM, os.Interrupt)
 	for {
 		select {
 		case sig := <-s.sigs:
 			s.Logger.Info(fmt.Sprintf("signal %s received, %s will exit after 5 seconds", sig.String(), s.Name()))
+			s.cancel()
 			<-time.After(5 * time.Second)
-			return nil
+			if s.debug {
+				return
+			}
 		case <-s.ctx.Done():
 			if s.debug {
 				time.Sleep(5 * time.Second)
