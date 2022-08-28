@@ -6,11 +6,11 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"os"
 	"syscall"
 	"time"
 
+	"github.com/bytedance/sonic"
 	plugin "github.com/chriskaliX/SDK/transport"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -102,9 +102,6 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 						continue
 					}
 					rawdata := make(map[string]string)
-					if share.Env == "debug" {
-						fmt.Println(result)
-					}
 					rawdata["data"] = string(result)
 					rec := &plugin.Record{
 						DataType:  Netlink_DATATYPE,
@@ -113,7 +110,7 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 							Fields: rawdata,
 						},
 					}
-					share.Client.SendRecord(rec)
+					share.Sandbox.SendRecord(rec)
 				}
 			}
 		}
@@ -227,7 +224,7 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 			process.PPID = int(ppid.(uint32))
 		}
 		process.PidTree = cache.GetPstree(tpid)
-		result, err = share.MarshalString(process)
+		result, err = sonic.MarshalString(process)
 		return
 	// skip exit
 	case PROC_EVENT_EXIT:

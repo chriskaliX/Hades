@@ -1,20 +1,14 @@
 package share
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"strconv"
 
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK"
 )
 
-var Env = "prod"
-
-var (
-	GContext, GCancel = context.WithCancel(context.Background())
-	Client            = plugin.New(GCancel)
-)
+var Sandbox SDK.ISandbox
 
 func MD5(v string) string {
 	d := []byte(v)

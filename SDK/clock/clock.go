@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+var _ IClock = (*Clock)(nil)
+
+type IClock interface {
+	Now() time.Time
+	Reset(time.Duration)
+	Close()
+}
+
 type Clock struct {
 	t      time.Time
 	mu     sync.RWMutex

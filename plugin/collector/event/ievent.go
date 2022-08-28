@@ -3,10 +3,10 @@ package event
 import (
 	"collector/share"
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	plugin "github.com/chriskaliX/SDK/transport"
 )
 
@@ -117,14 +117,11 @@ func eventTask(event Event) (err error) {
 			datalist = append(datalist, value)
 		}
 	}
-	rawdata, err = share.MarshalString(datalist)
+	rawdata, err = sonic.MarshalString(datalist)
 	if err != nil {
 		return err
 	}
 	// debug code here
-	if share.Env == "debug" {
-		fmt.Println(rawdata)
-	}
 	data["data"] = rawdata
 	rec := &plugin.Record{
 		DataType:  int32(event.DataType()),
@@ -133,5 +130,5 @@ func eventTask(event Event) (err error) {
 			Fields: data,
 		},
 	}
-	return share.Client.SendRecord(rec)
+	return share.Sandbox.SendRecord(rec)
 }

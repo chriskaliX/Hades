@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"collector/share"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	plugin "github.com/chriskaliX/SDK/transport"
 	"github.com/fsnotify/fsnotify"
 	"github.com/shirou/gopsutil/host"
@@ -138,7 +138,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 						sshlog["username"] = fields[8]
 						sshlog["ip"] = fields[10]
 						sshlog["port"] = fields[12]
-						if data, err := share.Marshal(sshlog); err == nil {
+						if data, err := sonic.Marshal(sshlog); err == nil {
 							rawdata["data"] = string(data)
 							rec := &plugin.Record{
 								DataType:  3003,
@@ -147,10 +147,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 									Fields: rawdata,
 								},
 							}
-							share.Client.SendRecord(rec)
-							if share.Env == "debug" {
-								fmt.Println(string(data))
-							}
+							share.Sandbox.SendRecord(rec)
 						}
 					// This is for the invalid user
 					case 16:
@@ -159,7 +156,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 						sshlog["username"] = fields[10]
 						sshlog["ip"] = fields[12]
 						sshlog["port"] = fields[14]
-						if data, err := share.Marshal(sshlog); err == nil {
+						if data, err := sonic.Marshal(sshlog); err == nil {
 							rawdata["data"] = string(data)
 							rec := &plugin.Record{
 								DataType:  3003,
@@ -168,10 +165,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 									Fields: rawdata,
 								},
 							}
-							if share.Env == "debug" {
-								fmt.Println(string(data))
-							}
-							share.Client.SendRecord(rec)
+							share.Sandbox.SendRecord(rec)
 						}
 					}
 				}

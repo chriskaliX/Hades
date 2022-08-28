@@ -12,7 +12,7 @@ import (
 
 type remoteWriter struct {
 	client *transport.Client
-	clock  *clock.Clock
+	clock  clock.IClock
 }
 
 func (w *remoteWriter) Write(p []byte) (n int, err error) {

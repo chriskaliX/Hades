@@ -233,7 +233,7 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	if err = proc.GetExe(); err != nil {
 		return
 	}
-	proc.Sha256, _ = GetFileHash(proc.Exe)
+	proc.Sha256 = share.Sandbox.GetHash(proc.Exe)
 	if err = proc.GetStat(simple); err != nil {
 		return
 	}

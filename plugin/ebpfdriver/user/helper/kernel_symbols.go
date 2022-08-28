@@ -82,7 +82,9 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		if len(line) > 3 {
 			symbolOwner = line[3]
 		}
-		if strings.ToLower(line[1]) == "t" || strings.ToLower(line[1]) == "w" {
+		if strings.ToLower(line[1]) == "t" ||
+			strings.ToLower(line[1]) == "w" ||
+			strings.ToLower(line[2]) == "sys_call_table" {
 			symbol := helpers.KernelSymbol{
 				Name:    symbolName,
 				Type:    symbolType,

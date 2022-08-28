@@ -1,12 +1,8 @@
 package filter
 
 import (
-	"hades-ebpf/user/share"
 	"reflect"
 	"sync"
-	"time"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -145,16 +141,4 @@ func (filter *UserFilter) replace(user *UserFilter) {
 	filter.ExeFilter = user.ExeFilter
 	filter.ArgvFilter = user.ArgvFilter
 	filter.DnsFilter = user.ArgvFilter
-}
-
-func init() {
-	for task := range share.TaskChan {
-		config, err := LoadConfigFromTask(task)
-		if err != nil {
-			zap.S().Error(err)
-			time.Sleep(10 * time.Second)
-			continue
-		}
-		DefaultUserFilter.Load(config)
-	}
 }

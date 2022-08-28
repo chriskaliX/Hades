@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	plugin "github.com/chriskaliX/SDK/transport"
 	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
@@ -194,7 +195,7 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 				for _, cron := range crons {
 					c.cronCache.Add(md5.Sum([]byte(cron.Command)), true)
 				}
-				if data, err := share.MarshalString(crons); err == nil {
+				if data, err := sonic.MarshalString(crons); err == nil {
 					rawdata := make(map[string]string)
 					rawdata["data_type"] = "3001"
 					rawdata["data"] = data
@@ -223,7 +224,7 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 					}
 				}
 				if len(tmp) > 0 {
-					if data, err := share.Marshal(tmp); err == nil {
+					if data, err := sonic.Marshal(tmp); err == nil {
 						rawdata := make(map[string]string)
 						rawdata["data"] = string(data)
 						rec := &plugin.Record{
@@ -233,7 +234,7 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 								Fields: rawdata,
 							},
 						}
-						share.Client.SendRecord(rec)
+						share.Sandbox.SendRecord(rec)
 					}
 				}
 			}

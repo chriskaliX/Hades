@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hades-ebpf/user/cache"
-	"hades-ebpf/user/share"
 	"sync"
 
 	"github.com/bytedance/sonic"
@@ -59,14 +58,13 @@ type Context struct {
 	// Padding field for memory align
 	_ [3]byte `json:"-"`
 	// Extra context value from event and user space
-	ExeHash   string `json:"exe_hash"`
-	Username  string `json:"username"`
-	Timestamp int64  `json:"timestamp"`
-	Exe       string `json:"exe"`
-	Syscall   string `json:"syscall"`
-	PpidArgv  string `json:"ppid_argv"`
-	PgidArgv  string `json:"pgid_argv"`
-	PodName   string `json:"pod_name"`
+	ExeHash  string `json:"exe_hash"`
+	Username string `json:"username"`
+	Exe      string `json:"exe"`
+	Syscall  string `json:"syscall"`
+	PpidArgv string `json:"ppid_argv"`
+	PgidArgv string `json:"pgid_argv"`
+	PodName  string `json:"pod_name"`
 }
 
 // GetSizeBytes returns the bytes of the context in kern space
@@ -108,8 +106,7 @@ func (c *Context) FillContext(name, exe string) {
 	c.PgidArgv = cache.DefaultArgvCache.Get(c.Pgid)
 	c.PodName = cache.DefaultNsCache.Get(c.Pid, c.Pns)
 	c.Username = cache.DefaultUserCache.Get(c.Uid)
-	c.ExeHash = cache.DefaultHashCache.Get(c.Exe)
-	c.Timestamp = share.Gtime.Load().(int64)
+	c.ExeHash = cache.DefaultHashCache.GetHash(c.Exe)
 }
 
 func (c *Context) MarshalJson() ([]byte, error) {

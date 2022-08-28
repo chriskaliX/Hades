@@ -7,19 +7,17 @@ import (
 	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/event"
-	"hades-ebpf/user/share"
 	"math"
 	"os"
 	"strconv"
 
+	"github.com/chriskaliX/SDK"
 	plugin "github.com/chriskaliX/SDK/transport"
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 )
-
-var Env = "prod"
 
 //go:embed hades_ebpf_driver.o
 var _bytecode []byte
@@ -32,14 +30,16 @@ var rawdata = make(map[string]string, 1)
 // Driver contains the ebpfmanager and eventDecoder. By default, Driver
 // is a singleton and it's not thread-safe
 type Driver struct {
+	Sandbox SDK.ISandbox
 	Manager *manager.Manager
 	context context.Context
 	cancel  context.CancelFunc
 }
 
 // New a driver with pre-set map and options
-func NewDriver() (*Driver, error) {
+func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	driver := &Driver{}
+	driver.Sandbox = s
 	// init ebpfmanager with maps and perf_events
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
@@ -171,30 +171,24 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		return
 	}
 	rawdata["data"] = result
-	// for debug
-	if share.Env == "debug" {
-		fmt.Println(rawdata["data"])
-	}
 	// send the record
 	rec := &plugin.Record{
-		DataType:  1000,
-		Timestamp: int64(share.Gtime.Load().(int64)),
+		DataType: 1000,
 		Data: &plugin.Payload{
 			Fields: rawdata,
 		},
 	}
-	share.Client.SendRecord(rec)
+	d.Sandbox.SendRecord(rec)
 }
 
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
 	rawdata := make(map[string]string)
 	rawdata["data"] = strconv.FormatUint(count, 10)
 	rec := &plugin.Record{
-		DataType:  999,
-		Timestamp: int64(share.Gtime.Load().(int64)),
+		DataType: 999,
 		Data: &plugin.Payload{
 			Fields: rawdata,
 		},
 	}
-	share.Client.SendRecord(rec)
+	d.Sandbox.SendRecord(rec)
 }

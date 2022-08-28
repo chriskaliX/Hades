@@ -1,81 +1,61 @@
 package main
 
 import (
-	user "hades-ebpf/user"
+	"flag"
+	"hades-ebpf/user"
+	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/share"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	flag "github.com/spf13/pflag"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-func main() {
-	flag.StringVar(&share.EventFilter, "filter", "0", "set filter to specific the event id")
-	flag.StringVar(&share.Env, "env", "prod", "specific the env, debug print the output to console")
-	// parse the log
-	flag.Parse()
-	// zap configuration pre-set
-	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
-	fileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "hades-ebpf.log",
-		MaxSize:    2, // megabytes
-		MaxBackups: 10,
-		MaxAge:     10,   //days
-		Compress:   true, // disabled by default
-	})
-	core := zapcore.NewTee(
-		zapcore.NewSamplerWithOptions(
-			zapcore.NewCore(fileEncoder, fileWriter, zap.InfoLevel), time.Second, 4, 1),
-	)
-	logger := zap.New(core, zap.AddCaller())
-	defer logger.Sync()
-	zap.ReplaceGlobals(logger)
-	zap.S().Info("Hades eBPF driver start")
-	// allow init
+func driver(s SDK.ISandbox) error {
 	decoder.SetAllowList(share.EventFilter)
-	// generate the main driver and run
-	driver, err := user.NewDriver()
+	driver, err := user.NewDriver(s)
 	if err != nil {
 		zap.S().Error(err)
-		return
+		return err
 	}
 	if err = driver.Start(); err != nil {
 		zap.S().Error(err)
-		return
+		return err
 	}
 	if err = driver.Init(); err != nil {
 		zap.S().Error(err)
-		return
+		return err
+	}
+	return nil
+}
+
+func main() {
+	var debug bool
+	flag.BoolVar(&debug, "debug", false, "set to run in debug mode")
+	flag.StringVar(&share.EventFilter, "filter", "0", "set filter to specific the event id")
+	flag.Parse()
+	// start the sandbox
+	sconfig := &SDK.SandboxConfig{
+		Debug: debug,
+		Hash:  true,
+		Name:  "ebpfdriver",
+		LogConfig: &logger.Config{
+			Path:        "ebpfdriver.log",
+			MaxSize:     10,
+			MaxBackups:  10,
+			Compress:    true,
+			FileLevel:   zapcore.InfoLevel,
+			RemoteLevel: zapcore.ErrorLevel,
+		},
 	}
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
-	zap.S().Info("eBPF driver run successfully")
-	for {
-		select {
-		case sig := <-sigs:
-			zap.S().Error("receive signal:", sig.String())
-			zap.S().Info("wait for 5 secs to exit eBPF driver")
-			<-time.After(time.Second * 5)
-			return
-		case <-share.GContext.Done():
-			if share.Env == "debug" {
-				// just for testing
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			zap.S().Error("client context done received")
-			zap.S().Info("wait for 5 secs to exit eBPF driver")
-			<-time.After(time.Second * 5)
-			return
-		default:
-			time.Sleep(time.Second)
-		}
-	}
+	// sandbox init
+	sandbox := SDK.NewSandbox()
+	sandbox.Init(sconfig)
+	// TODO: Dirty init jusr for now
+	cache.DefaultHashCache = sandbox.Hash
+	// inject into sandbox
+	sandbox.Run(driver)
 }

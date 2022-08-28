@@ -14,10 +14,21 @@ import (
 	"github.com/chriskaliX/SDK/transport"
 )
 
-type LoggerConfig struct {
+var _ ILogger = (*zap.SugaredLogger)(nil)
+
+type ILogger interface {
+	Debug(args ...interface{})
+	Info(args ...interface{})
+	Warn(args ...interface{})
+	Error(args ...interface{})
+	Fatal(args ...interface{})
+	Panic(args ...interface{})
+}
+
+type Config struct {
 	// SDK fields
 	Client *transport.Client
-	Clock  *clock.Clock
+	Clock  clock.IClock
 
 	Path        string
 	MaxSize     int
@@ -27,7 +38,8 @@ type LoggerConfig struct {
 	RemoteLevel zapcore.LevelEnabler
 }
 
-func New(config *LoggerConfig) (l *zap.Logger) {
+func New(config *Config) *zap.SugaredLogger {
+	var l *zap.Logger
 	remoteConfig := zap.NewProductionEncoderConfig()
 	remoteConfig.CallerKey = "source"
 	remoteConfig.TimeKey = "timestamp"
@@ -38,6 +50,7 @@ func New(config *LoggerConfig) (l *zap.Logger) {
 	remoteEncoder := zapcore.NewJSONEncoder(remoteConfig)
 	remoteWriter := &remoteWriter{
 		client: config.Client,
+		clock:  config.Clock,
 	}
 	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	fileWriter := zapcore.AddSync(&lumberjack.Logger{
@@ -53,5 +66,6 @@ func New(config *LoggerConfig) (l *zap.Logger) {
 			zapcore.NewCore(fileEncoder, fileWriter, config.FileLevel), time.Second, 4, 1),
 	)
 	l = zap.New(core, zap.AddCaller())
-	return
+	zap.ReplaceGlobals(l)
+	return zap.S()
 }
