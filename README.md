@@ -81,3 +81,9 @@ I maintain this project mainly for learning eBPF and HIDS
 Input `Hades` to get the QR code~
 
 <img src="https://github.com/chriskaliX/Hades/blob/main/imgs/weixin.png" width="50%" style="float:left;"/>
+
+## 404Starlink
+
+<img src lazysrc="https://github.com/knownsec/404StarLink-Project/raw/master/logo.png" width="30%">
+
+Hades has joined [404Starlink](https://github.com/knownsec/404StarLink)
