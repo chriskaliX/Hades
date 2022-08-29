@@ -3,7 +3,6 @@ package transport
 import (
 	"agent/agent"
 	"agent/host"
-	"agent/internal"
 	"agent/proto"
 	"agent/transport/pool"
 	"errors"
@@ -11,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	"go.uber.org/zap"
 )
 
@@ -116,12 +116,12 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 	switch cmd.Task.ObjectName {
 	case agent.Instance.Product:
 		switch cmd.Task.DataType {
-		case internal.TaskAgentShutdown:
+		case config.TaskAgentShutdown:
 			zap.S().Info("agent shutdown is called")
 			agent.Instance.Cancel()
 			return
-		case internal.TaskAgentRestart:
-		case internal.TaskAgentSetenv:
+		case config.TaskAgentRestart:
+		case config.TaskAgentSetenv:
 		default:
 			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
 			return ErrAgentDataType

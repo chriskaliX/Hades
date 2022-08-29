@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"agent/agent"
 	"agent/host"
-	"agent/internal"
 	"agent/proto"
 	"agent/resource"
 	"agent/transport"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/load"
@@ -21,7 +21,7 @@ import (
 
 func getAgentStat(now time.Time) {
 	rec := &proto.Record{
-		DataType:  internal.AgentStatus,
+		DataType:  config.DTAgentStatus,
 		Timestamp: now.Unix(),
 		Data: &proto.Payload{
 			Fields: make(map[string]string, 30),

@@ -89,7 +89,9 @@ func main() {
 	}
 	// sandbox init
 	sandbox := SDK.NewSandbox()
-	sandbox.Init(sconfig)
+	if err := sandbox.Init(sconfig); err != nil {
+		return
+	}
 	share.Sandbox = sandbox
 	// run
 	sandbox.Run(collector)

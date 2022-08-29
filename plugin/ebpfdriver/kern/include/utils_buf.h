@@ -183,7 +183,7 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr,
     return 0;
 }
 
-// thiner than tracee. It's all we need now
+// Thiner than tracee. It's all we need now
 typedef struct slim_cred {
     uid_t uid;   // real UID of the task
     gid_t gid;   // real GID of the task

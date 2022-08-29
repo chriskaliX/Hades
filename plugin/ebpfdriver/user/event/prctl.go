@@ -3,6 +3,7 @@ package event
 import (
 	"hades-ebpf/user/decoder"
 
+	"github.com/chriskaliX/SDK/config"
 	manager "github.com/ehids/ebpfmanager"
 )
 
@@ -17,7 +18,7 @@ type Prctl struct {
 }
 
 func (Prctl) ID() uint32 {
-	return 200
+	return config.DTPrctl
 }
 
 func (Prctl) Name() string {

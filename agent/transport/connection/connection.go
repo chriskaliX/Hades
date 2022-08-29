@@ -1,13 +1,14 @@
 package connection
 
 import (
-	"agent/network"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/chriskaliX/SDK/util/connection"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -17,7 +18,7 @@ var DebugAddr string
 var DebugPort string
 var EnableCA bool
 
-var _ network.INetRetry = (*Grpc)(nil)
+var _ connection.INetRetry = (*Grpc)(nil)
 
 // Grpc instance for establish connection with server
 type Grpc struct {
@@ -29,7 +30,7 @@ type Grpc struct {
 func New(ctx context.Context) (*grpc.ClientConn, error) {
 	grpcInstance := &Grpc{}
 	grpcInstance.init()
-	err := network.IRetry(grpcInstance, ctx)
+	err := connection.IRetry(grpcInstance, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func (g *Grpc) String() string {
 }
 
 func (g *Grpc) GetMaxDelay() uint {
-	return 600
+	return 120
 }
 
 func (g *Grpc) GetMaxRetry() uint {
@@ -57,11 +58,11 @@ func (g *Grpc) GetHashMod() uint {
 }
 
 func (g *Grpc) Connect() (err error) {
-	if err := g.init(); err != nil {
+	if err = g.init(); err != nil {
 		return err
 	}
 	g.Conn, err = grpc.Dial(g.Addr, g.Options...)
-	return nil
+	return
 }
 
 func (g *Grpc) EnableCA(ca, privkey, cert []byte, svrName string) {

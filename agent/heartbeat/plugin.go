@@ -1,7 +1,6 @@
 package heartbeat
 
 import (
-	"agent/internal"
 	"agent/plugin"
 	"agent/proto"
 	"agent/resource"
@@ -10,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +18,7 @@ func getPlgStat(now time.Time) {
 	for _, plg := range plgs {
 		if !plg.IsExited() {
 			rec := &proto.Record{
-				DataType:  internal.PluginStatus,
+				DataType:  config.DTPluginStatus,
 				Timestamp: now.Unix(),
 				Data: &proto.Payload{
 					Fields: map[string]string{"name": plg.Name(), "pversion": plg.Version()},

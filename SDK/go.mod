@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/bytedance/sonic v1.4.0
 	github.com/gogo/protobuf v1.3.2
+	github.com/nightlyone/lockfile v1.0.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0

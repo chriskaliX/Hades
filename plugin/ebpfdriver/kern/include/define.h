@@ -264,13 +264,14 @@ static __always_inline int get_config(__u32 key)
 }
 
 /* hook point id */
-#define SYS_ENTER_PTRACE          164
-#define SYS_ENTER_PRCTL           200
+
 #define SCHED_PROCESS_FORK        317
 #define SYS_ENTER_MEMFD_CREATE    614
 #define SYS_ENTER_EXECVEAT        698
 #define SYS_ENTER_EXECVE          700
 #define COMMIT_CREDS              1011
+#define SYS_ENTER_PRCTL           1020
+#define SYS_ENTER_PTRACE          1021
 #define SECURITY_SOCKET_CONNECT   1022
 #define SECURITY_SOCKET_BIND      1024
 #define UDP_RECVMSG               1025

@@ -53,7 +53,9 @@ func main() {
 
 	// sandbox init
 	sandbox := SDK.NewSandbox()
-	sandbox.Init(sconfig)
+	if err := sandbox.Init(sconfig); err != nil {
+		return
+	}
 	// TODO: Dirty init jusr for now
 	cache.DefaultHashCache = sandbox.Hash
 	// inject into sandbox

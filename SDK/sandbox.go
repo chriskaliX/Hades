@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -12,13 +13,15 @@ import (
 	"github.com/chriskaliX/SDK/logger"
 	"github.com/chriskaliX/SDK/transport"
 	"github.com/chriskaliX/SDK/util/hash"
+	"github.com/nightlyone/lockfile"
+	"go.uber.org/zap"
 )
 
 var _ ISandbox = (*Sandbox)(nil)
 
 type ISandbox interface {
 	// Sandbox action
-	Init(sconfig *SandboxConfig)
+	Init(sconfig *SandboxConfig) error
 	Run(func(ISandbox) error) error
 	Shutdown()
 	// Sandbox attributes and context
@@ -61,18 +64,23 @@ func NewSandbox() *Sandbox {
 	return &Sandbox{}
 }
 
-func (s *Sandbox) Init(sconfig *SandboxConfig) {
+func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.sigs = make(chan os.Signal, 1)
+	s.name = sconfig.Name
+	s.debug = sconfig.Debug
+	s.Task = make(chan *transport.Task)
 	// Required fields initialization
 	s.Clock = clock.New(time.Second)
 	s.Client = transport.New(s.Clock)
 	sconfig.LogConfig.Clock = s.Clock
 	sconfig.LogConfig.Client = s.Client
 	s.Logger = logger.New(sconfig.LogConfig)
-	s.name = sconfig.Name
-	s.debug = sconfig.Debug
-	s.Task = make(chan *transport.Task)
+	// lockfile for plugin
+	if err := s.Lockfile(); err != nil {
+		zap.S().Error("init failed with lockfile %s", err.Error())
+		return err
+	}
 	defer s.Logger.Info(fmt.Sprintf("sandbox %s init", s.name))
 	// Optional fields initialization
 	if sconfig.Hash {
@@ -84,6 +92,7 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) {
 	}
 	// Sandbox internal cron job
 	go s.ReceiveTask()
+	return nil
 }
 
 // Run a main function, just a wrapper
@@ -151,6 +160,33 @@ func (s *Sandbox) SetSendHook(hook transport.SendHookFunction) {
 
 func (s *Sandbox) GetHash(path string) string {
 	return s.Hash.GetHash(path)
+}
+
+// check pid file if it's not debug
+func (s *Sandbox) Lockfile() error {
+	if s.debug {
+		return nil
+	}
+	// TODO: Windows?
+	if runtime.GOOS == "linux" {
+		// dir check
+		dir := "/var/lock/hades/"
+		_, err := os.Stat(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err = os.Mkdir(dir, os.ModePerm); err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+		l, _ := lockfile.New(dir + s.name + ".lockfile")
+		if err := l.TryLock(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Unfinished: task resolve
