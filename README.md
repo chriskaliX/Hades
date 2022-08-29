@@ -84,6 +84,6 @@ Input `Hades` to get the QR code~
 
 ## 404Starlink
 
-<img src lazysrc="https://github.com/knownsec/404StarLink-Project/raw/master/logo.png" width="30%">
+<img src="https://github.com/knownsec/404StarLink-Project/raw/master/logo.png" width="30%">
 
 Hades has joined [404Starlink](https://github.com/knownsec/404StarLink)

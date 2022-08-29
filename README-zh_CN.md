@@ -98,6 +98,6 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 ## 404 星链计划
 
-<img src lazysrc="https://github.com/knownsec/404StarLink-Project/raw/master/logo.png" width="30%">
+<img src="https://github.com/knownsec/404StarLink-Project/raw/master/logo.png" width="30%">
 
 Hades 现已加入 [404 星链计划](https://github.com/knownsec/404StarLink)
