@@ -1,3 +1,33 @@
+// Connection
+//
+// The Connection is now working by gRPC for communicating with server.
+//
+// Connection will temporary stay in directory agent instead of SDC since
+// agent should be this only process to communicate with the server.
+// In Osquery(kolide), only hostname is specific in compile time. The
+// reference is here:
+// https://github.com/kolide/launcher/blob/main/pkg/service/client_grpc.go#L102
+//
+// For high performance requirements(low latency, high traffic), a look-aside
+// load balancing is required just like Elkeid agent does.
+// The client-side LB using grpc-LB protocol. There are 3 of the protocols.
+//
+// 1. pick_first (Elkeid way)
+// 2. round_robin
+// 3. grpclb(dropped, xDS instead)
+//
+// The xDS(x Discovery Service) with it's recommanded docs here:
+// https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol
+// APIs:
+// - Listener Discovery Service(LDS)
+// - Route Discovery Service (RDS)
+// - Cluster Discovery Service (CDS)
+// - Endpoint Discovery Service (EDS)
+// - Aggregate Discovery Service (ADS) (coming soon)
+// Other References:
+//
+// https://grpc.io/blog/grpc-load-balancing/
+// https://github.com/grpc/grpc/blob/master/doc/load-balancing.md
 package connection
 
 import (
@@ -20,11 +50,25 @@ var EnableCA bool
 
 var _ connection.INetRetry = (*Grpc)(nil)
 
-// Grpc instance for establish connection with server
+// Grpc instance for establish connection with server in a load-balanced way
+//
+// In Elkeid, there is 3 ways of connection.
+// 1. service discovery
+//    It is done by the server (registry/detail). Client side query the
+// 	  service discovery host by look up the os env, and this is the reason
+//    that a setting-env operation is used in Elkeid in Task.
+// 2. private network
+//    private network addr, same with service discovery by env looking up.
+// 3. public network
+//    same way
+//
+// The os.Setenv way to cache the variables is also working in Windows.
+// Compatibility is not concerned for now.
 type Grpc struct {
 	Addr    string
 	Options []grpc.DialOption
 	Conn    *grpc.ClientConn
+	NetMode string // to specific the network mode, just like Elkeid
 }
 
 func New(ctx context.Context) (*grpc.ClientConn, error) {
@@ -37,6 +81,7 @@ func New(ctx context.Context) (*grpc.ClientConn, error) {
 	return grpcInstance.Conn, nil
 }
 
+// INetRetry Impls
 func (g *Grpc) String() string {
 	return "grpc"
 }
@@ -46,7 +91,7 @@ func (g *Grpc) GetMaxDelay() uint {
 }
 
 func (g *Grpc) GetMaxRetry() uint {
-	return 0
+	return 5
 }
 
 func (g *Grpc) GetInterval() uint {

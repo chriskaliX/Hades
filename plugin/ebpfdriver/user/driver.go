@@ -74,7 +74,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			Max: math.MaxUint64,
 		},
 	})
-	driver.context, driver.cancel = context.WithCancel(context.Background())
+	driver.context, driver.cancel = context.WithCancel(s.Context())
 	return driver, err
 }
 
