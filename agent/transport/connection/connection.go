@@ -24,8 +24,8 @@
 // - Cluster Discovery Service (CDS)
 // - Endpoint Discovery Service (EDS)
 // - Aggregate Discovery Service (ADS) (coming soon)
-// Other References:
 //
+// References:
 // https://grpc.io/blog/grpc-load-balancing/
 // https://github.com/grpc/grpc/blob/master/doc/load-balancing.md
 package connection
@@ -48,7 +48,7 @@ var DebugAddr string
 var DebugPort string
 var EnableCA bool
 
-var _ connection.INetRetry = (*Grpc)(nil)
+var _ connection.INetRetry = (*GrpcConn)(nil)
 
 // Grpc instance for establish connection with server in a load-balanced way
 //
@@ -64,7 +64,7 @@ var _ connection.INetRetry = (*Grpc)(nil)
 //
 // The os.Setenv way to cache the variables is also working in Windows.
 // Compatibility is not concerned for now.
-type Grpc struct {
+type GrpcConn struct {
 	Addr    string
 	Options []grpc.DialOption
 	Conn    *grpc.ClientConn
@@ -72,7 +72,7 @@ type Grpc struct {
 }
 
 func New(ctx context.Context) (*grpc.ClientConn, error) {
-	grpcInstance := &Grpc{}
+	grpcInstance := &GrpcConn{}
 	grpcInstance.init()
 	err := connection.IRetry(grpcInstance, ctx)
 	if err != nil {
@@ -82,27 +82,27 @@ func New(ctx context.Context) (*grpc.ClientConn, error) {
 }
 
 // INetRetry Impls
-func (g *Grpc) String() string {
+func (g *GrpcConn) String() string {
 	return "grpc"
 }
 
-func (g *Grpc) GetMaxDelay() uint {
+func (g *GrpcConn) GetMaxDelay() uint {
 	return 120
 }
 
-func (g *Grpc) GetMaxRetry() uint {
+func (g *GrpcConn) GetMaxRetry() uint {
 	return 5
 }
 
-func (g *Grpc) GetInterval() uint {
+func (g *GrpcConn) GetInterval() uint {
 	return 5
 }
 
-func (g *Grpc) GetHashMod() uint {
+func (g *GrpcConn) GetHashMod() uint {
 	return uint(rand.Intn(10))
 }
 
-func (g *Grpc) Connect() (err error) {
+func (g *GrpcConn) Connect() (err error) {
 	if err = g.init(); err != nil {
 		return err
 	}
@@ -110,23 +110,25 @@ func (g *Grpc) Connect() (err error) {
 	return
 }
 
-func (g *Grpc) EnableCA(ca, privkey, cert []byte, svrName string) {
+func (g *GrpcConn) EnableCA(ca, privkey, cert []byte, svrName string) {
 	certPool := x509.NewCertPool()
 	certPool.AppendCertsFromPEM(ca)
 	keyPair, _ := tls.X509KeyPair(cert, privkey)
 	g.Options = append(g.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{keyPair},
-		ServerName:   svrName,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		RootCAs:      certPool,
+		// ServerName has been removed
+		ServerName: svrName,
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		RootCAs:    certPool,
+		// Elkeid changed here, look into that
 	})), grpc.WithBlock(), grpc.WithTimeout(time.Second*3))
 }
 
-func (g *Grpc) DisableCA() {
+func (g *GrpcConn) DisableCA() {
 	g.Options = append(g.Options, grpc.WithInsecure())
 }
 
-func (g *Grpc) init() error {
+func (g *GrpcConn) init() error {
 	if EnableCA {
 		g.EnableCA(CaCert, ClientKey, ClientCert, "hades.com")
 	} else {
