@@ -32,23 +32,27 @@ package connection
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
 	"math/rand"
+	"net"
 	"time"
 
 	"github.com/chriskaliX/SDK/util/connection"
+	"go.uber.org/atomic"
+	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	_ "google.golang.org/grpc/xds"
 )
 
-var DebugAddr string
-var DebugPort string
-var EnableCA bool
+// Grpc address
+var GrpcAddr string
+var InsecureTransport bool
+var InsecureTLS bool
 
-var _ connection.INetRetry = (*GrpcConn)(nil)
+var GRPCConnection *GRPCConn
+
+var _ connection.INetRetry = (*GRPCConn)(nil)
 
 // Grpc instance for establish connection with server in a load-balanced way
 //
@@ -64,78 +68,87 @@ var _ connection.INetRetry = (*GrpcConn)(nil)
 //
 // The os.Setenv way to cache the variables is also working in Windows.
 // Compatibility is not concerned for now.
-type GrpcConn struct {
-	Addr    string
-	Options []grpc.DialOption
-	Conn    *grpc.ClientConn
-	NetMode string // to specific the network mode, just like Elkeid
+type GRPCConn struct {
+	Addr     string
+	Options  []grpc.DialOption
+	Conn     *grpc.ClientConn
+	NetMode  atomic.String // to specific the network mode, just like Elkeid
+	Protocol atomic.String // xDS future
 }
 
-func New(ctx context.Context) (*grpc.ClientConn, error) {
-	grpcInstance := &GrpcConn{}
-	grpcInstance.init()
-	err := connection.IRetry(grpcInstance, ctx)
-	if err != nil {
+// Get the connection from gRPCConn
+func GetConnection(g *GRPCConn, ctx context.Context) (conn *grpc.ClientConn, err error) {
+	if err = connection.IRetry(g, ctx); err != nil {
 		return nil, err
 	}
-	return grpcInstance.Conn, nil
+	return g.Conn, nil
+}
+
+func New() *GRPCConn {
+	gConn := &GRPCConn{
+		Options: []grpc.DialOption{
+			// Disable retry, which does not impact to transparent retry.
+			// Just let the IRetry to take over this
+			// grpc.WithDisableRetry(),
+			// Get connection failed details
+			grpc.WithReturnConnectionError(),
+			// FailOnNonTempDialError is an EXPERIMENTAL option for grpc
+			// connection and it uses with WithBlock. The PR is here
+			// https://github.com/grpc/grpc-go/pull/985
+			//
+			// Without the FailOnNonTempDialError, client will not retry
+			// for a temporary error like server restarts. For purpose of
+			// retrying, WithDisableRetry may should be moved since gRPC
+			// connection is a special case.
+			grpc.WithBlock(),
+			grpc.FailOnNonTempDialError(true),
+			// Default timeout set, TODO: with context
+			grpc.WithTimeout(time.Second * 3),
+		},
+		Addr: GrpcAddr,
+	}
+	zap.S().Infof("grpc addr: %s, insecure: %v, insecure-tls: %v", gConn.Addr, InsecureTransport, InsecureTLS)
+	// insecure transport, for debug
+	if InsecureTransport {
+		gConn.Options = append(gConn.Options, grpc.WithInsecure())
+	} else {
+		host, _, err := net.SplitHostPort(gConn.Addr)
+		if err != nil {
+			zap.S().Error(err)
+		}
+		zap.S().Info(host)
+		gConn.Options = append(gConn.Options,
+			grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig(host))),
+		)
+	}
+	return gConn
 }
 
 // INetRetry Impls
-func (g *GrpcConn) String() string {
+func (g *GRPCConn) String() string {
 	return "grpc"
 }
 
-func (g *GrpcConn) GetMaxDelay() uint {
+func (g *GRPCConn) GetMaxDelay() uint {
 	return 120
 }
 
-func (g *GrpcConn) GetMaxRetry() uint {
-	return 5
+// Retry forever, in case server shutdown or networking fluctuation
+// makes all agent shutdown
+func (g *GRPCConn) GetMaxRetry() uint {
+	return 0
 }
 
-func (g *GrpcConn) GetInterval() uint {
-	return 5
+func (g *GRPCConn) GetInterval() uint {
+	return 3
 }
 
-func (g *GrpcConn) GetHashMod() uint {
+func (g *GRPCConn) GetHashMod() uint {
 	return uint(rand.Intn(10))
 }
 
-func (g *GrpcConn) Connect() (err error) {
-	if err = g.init(); err != nil {
-		return err
-	}
+// TODO: A look-aside LB is needed, for now, only server-side, dns
+func (g *GRPCConn) Connect() (err error) {
 	g.Conn, err = grpc.Dial(g.Addr, g.Options...)
 	return
-}
-
-func (g *GrpcConn) EnableCA(ca, privkey, cert []byte, svrName string) {
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(ca)
-	keyPair, _ := tls.X509KeyPair(cert, privkey)
-	g.Options = append(g.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{keyPair},
-		// ServerName has been removed
-		ServerName: svrName,
-		ClientAuth: tls.RequireAndVerifyClientCert,
-		RootCAs:    certPool,
-		// Elkeid changed here, look into that
-	})), grpc.WithBlock(), grpc.WithTimeout(time.Second*3))
-}
-
-func (g *GrpcConn) DisableCA() {
-	g.Options = append(g.Options, grpc.WithInsecure())
-}
-
-func (g *GrpcConn) init() error {
-	if EnableCA {
-		g.EnableCA(CaCert, ClientKey, ClientCert, "hades.com")
-	} else {
-		g.DisableCA()
-	}
-	// Disable retry, let IRetry do the work
-	g.Options = append(g.Options, grpc.WithDisableRetry())
-	g.Addr = fmt.Sprintf("%s:%s", DebugAddr, DebugPort)
-	return nil
 }

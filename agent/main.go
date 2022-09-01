@@ -35,9 +35,9 @@ func init() {
 }
 
 func main() {
-	flag.StringVar(&connection.DebugAddr, "addr", "127.0.0.1", "set grpc addr")
-	flag.StringVar(&connection.DebugPort, "port", "8888", "set grpc port")
-	flag.BoolVar(&connection.EnableCA, "ca", false, "enable ca")
+	flag.StringVar(&connection.GrpcAddr, "url", "127.0.0.1:8888", "set grpc addr")
+	flag.BoolVar(&connection.InsecureTransport, "insecure", false, "grpc with insecure")
+	flag.BoolVar(&connection.InsecureTLS, "insecure-tls", false, "grpc tls insecure")
 	flag.Parse()
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
