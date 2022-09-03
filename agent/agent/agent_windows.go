@@ -2,6 +2,15 @@
 
 package agent
 
+import (
+	"agent/config"
+	"context"
+	"os"
+	"runtime"
+
+	"github.com/StackExchange/wmi"
+)
+
 func New() (agent *Agent) {
 	agent = &Agent{
 		Product: Product,
