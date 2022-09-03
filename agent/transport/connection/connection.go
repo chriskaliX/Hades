@@ -33,7 +33,6 @@ package connection
 import (
 	"context"
 	"math/rand"
-	"net"
 	"time"
 
 	"github.com/chriskaliX/SDK/util/connection"
@@ -112,13 +111,13 @@ func New() *GRPCConn {
 	if InsecureTransport {
 		gConn.Options = append(gConn.Options, grpc.WithInsecure())
 	} else {
-		host, _, err := net.SplitHostPort(gConn.Addr)
-		if err != nil {
-			zap.S().Error(err)
-		}
-		zap.S().Info(host)
+		// host, _, err := net.SplitHostPort(gConn.Addr)
+		// if err != nil {
+		// 	zap.S().Error(err)
+		// }
+		// zap.S().Info(host)
 		gConn.Options = append(gConn.Options,
-			grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig(host))),
+			grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig("hades.com"))),
 		)
 	}
 	return gConn
