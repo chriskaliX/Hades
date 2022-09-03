@@ -9,7 +9,11 @@ import (
 	"runtime"
 
 	"github.com/StackExchange/wmi"
+	"github.com/google/uuid"
 )
+
+const hardwareQuery = "SELECT UUID FROM Win32_ComputerSystemProduct"
+const addressQuery = "SELECT MACAddress FROM Win32_NetworkAdapter where PhysicalAdapter=True"
 
 func New() (agent *Agent) {
 	agent = &Agent{
@@ -30,11 +34,28 @@ type win32_ComputerSystemProduct struct {
 	UUID string
 }
 
+type win32_NetworkAdapter struct {
+	MacAddress string
+}
+
+// Windows uuid generator,
 func (a *Agent) genUUIDWin() {
-	var dst []win32_ComputerSystemProduct
-	q := "SELECT UUID FROM Win32_ComputerSystemProduct"
-	err := wmi.Query(q, &dst)
-	if err == nil {
-		a.ID = dst[0].UUID
+	var source []byte
+	// ComputerSystemProduct/UUID, just like dmi in linux, and it is
+	// also used in osquery.
+	var uuids []win32_ComputerSystemProduct
+	if err := wmi.Query(hardwareQuery, &uuids); err == nil {
+		source = append(source, byte(uuids[0].UUID))
 	}
+	// Network mac address
+	var macs []win32_NetworkAdapter
+	if err := wmi.Query(addressQuery, &macs); err == nil {
+		source = append(source, byte(macs[0].UUID))
+	}
+	if len(source > 8) {
+		a.ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
+		return
+	}
+	// Cloud is not added for now
+	a.ID = uuid.New().String()
 }
