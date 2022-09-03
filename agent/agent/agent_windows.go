@@ -45,12 +45,12 @@ func (a *Agent) genUUIDWin() {
 	// also used in osquery.
 	var uuids []win32_ComputerSystemProduct
 	if err := wmi.Query(hardwareQuery, &uuids); err == nil {
-		source = append(source, []byte(uuids[0].UUID))
+		source = append(source, []byte(uuids[0].UUID)...)
 	}
 	// Network mac address
 	var macs []win32_NetworkAdapter
 	if err := wmi.Query(addressQuery, &macs); err == nil {
-		source = append(source, []byte(macs[0].MacAddress))
+		source = append(source, []byte(macs[0].MacAddress)...)
 	}
 	if len(source > 8) {
 		a.ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
