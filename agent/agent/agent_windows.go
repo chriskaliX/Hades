@@ -14,7 +14,8 @@ func New() (agent *Agent) {
 		agent.Workdir = config.HADES_PIDPATH
 	}
 	agent.genUUIDWin()
-	retu
+	return
+}
 
 type win32_ComputerSystemProduct struct {
 	UUID string
