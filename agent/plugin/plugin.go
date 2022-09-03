@@ -4,7 +4,6 @@ import (
 	"agent/agent"
 	"agent/proto"
 	"agent/transport"
-	"agent/utils"
 	"bufio"
 	"context"
 	"encoding/binary"
@@ -12,7 +11,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -21,98 +19,92 @@ import (
 	"go.uber.org/zap"
 )
 
-type Plugin struct {
-	config proto.Config
-	mu     sync.Mutex // according to uber_go_guide, pointer of mutex is not needed
-	cmd    *exec.Cmd
-	// rx/tx, all from the agent perspective
-	rx      io.ReadCloser
-	rxBytes uint64
-	rxCnt   uint64
-	tx      io.WriteCloser
-	txBytes uint64
-	txCnt   uint64
+var (
+	errDupPlugin = errors.New("duplicate plugin load")
+)
 
+func Load(ctx context.Context, config proto.Config) (err error) {
+	loadedPlg, ok := DefaultManager.Get(config.GetName())
+	// logical problem
+	if ok {
+		if loadedPlg.Version() == config.GetVersion() && !loadedPlg.IsExited() {
+			return errDupPlugin
+		}
+		if loadedPlg.Version() != config.GetVersion() && !loadedPlg.IsExited() {
+			loadedPlg.Shutdown()
+		}
+	}
+	if config.GetSignature() == "" {
+		config.Signature = config.GetSha256()
+	}
+	plg, err := NewPlugin(ctx, config)
+	if err != nil {
+		return
+	}
+	plg.wg.Add(3)
+	go plg.Wait()
+	go plg.Receive()
+	go plg.Task()
+	DefaultManager.Register(plg.Name(), plg)
+	return nil
+}
+
+func Startup(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			DefaultManager.UnregisterAll()
+			return
+		case cfgs := <-DefaultManager.syncCh:
+			// 加载插件
+			for _, cfg := range cfgs {
+				if cfg.Name != agent.Product {
+					err := Load(ctx, *cfg)
+					// 相同版本的同名插件正在运行，无需操作
+					if err == errDupPlugin {
+						continue
+					}
+					if err != nil {
+						zap.S().Error(err)
+					} else {
+						zap.S().Info("plugin has been loaded")
+					}
+				}
+			}
+			// 移除插件
+			for _, plg := range DefaultManager.GetAll() {
+				if _, ok := cfgs[plg.Name()]; !ok {
+					plg.Shutdown()
+					DefaultManager.UnRegister(plg.Name())
+					if err := os.RemoveAll(plg.GetWorkingDirectory()); err != nil {
+						zap.S().Error(err)
+					}
+				}
+			}
+		}
+	}
+}
+
+type Plugin struct {
+	config     proto.Config
+	mu         sync.Mutex
+	cmd        *exec.Cmd
+	rx         io.ReadCloser
+	rxBytes    uint64
+	rxCnt      uint64
+	tx         io.WriteCloser
+	txBytes    uint64
+	txCnt      uint64
 	updateTime time.Time
 	reader     *bufio.Reader
 	taskCh     chan proto.Task
 	done       chan struct{} // same with the context done
 	wg         *sync.WaitGroup
 	workdir    string
-	// SugaredLogger/Logger
-	logger *zap.SugaredLogger
-}
-
-func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) {
-	var (
-		rx_r, rx_w, tx_r, tx_w *os.File
-		errFile                *os.File
-	)
-	p = &Plugin{
-		config:     config,
-		updateTime: time.Now(),
-		done:       make(chan struct{}),
-		taskCh:     make(chan proto.Task),
-		wg:         &sync.WaitGroup{},
-		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
-	}
-	p.workdir = path.Join(agent.Instance.Workdir, "plugin", p.Name())
-	// pipe init
-	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
-	// half-duplex pipe.
-	rx_r, rx_w, err = os.Pipe()
-	if err != nil {
-		p.logger.Error("rx pipe init")
-		return
-	}
-	p.rx = rx_r
-	defer rx_w.Close()
-	tx_r, tx_w, err = os.Pipe()
-	if err != nil {
-		p.logger.Error("tx pipe init")
-		return
-	}
-	p.tx = tx_w
-	defer tx_r.Close()
-	// reader init
-	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
-	// purge the files
-	os.Remove(path.Join(p.workdir, p.Name()+".stderr"))
-	os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
-	// cmdline
-	execPath := path.Join(p.workdir, p.Name())
-	err = utils.CheckSignature(execPath, config.Signature)
-	if err != nil {
-		p.logger.Warn("check signature failed")
-		p.logger.Info("start download")
-		err = utils.Download(ctx, execPath, config.Sha256, config.DownloadUrls, config.Type)
-		if err != nil {
-			p.logger.Error("download failed:", err)
-			return
-		}
-		p.logger.Info("download success")
-	}
-	cmd := exec.Command(execPath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
-	cmd.Dir = p.workdir
-	if errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
-		p.logger.Error("open stderr:", errFile)
-		return
-	}
-	defer errFile.Close()
-	cmd.Stderr = errFile
-	// details. if it is needed
-	if config.Detail != "" {
-		cmd.Env = append(cmd.Env, "DETAIL="+config.Detail)
-	}
-	p.logger.Info("cmd start")
-	err = cmd.Start()
-	if err != nil {
-		p.logger.Error("cmd start:", err)
-	}
-	p.cmd = cmd
-	return
+	logger     *zap.SugaredLogger
 }
 
 func (p *Plugin) Wait() (err error) {
@@ -230,9 +222,9 @@ func (p *Plugin) receiveDataWithSize() (rec *proto.Record, err error) {
 	if err != nil {
 		return
 	}
-	// TODO: sync.Pool
-	rec = &proto.Record{}
+	// TODO: sync.Pool\
 	// TODO: sync.Pool, discard by cap
+	rec = &proto.Record{}
 	// issues: https://github.com/golang/go/issues/23199
 	// solutions: https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
 	message := make([]byte, int(l))

@@ -57,6 +57,16 @@ func getAgentStat(now time.Time) {
 	rec.Data.Fields["du"] = strconv.FormatUint(resource.GetDirSize(agent.Instance.Workdir, "plugin"), 10)
 	rec.Data.Fields["grs"] = strconv.Itoa(runtime.NumGoroutine())
 	rec.Data.Fields["nproc"] = strconv.Itoa(runtime.NumCPU())
+	rec.Data.Fields["boot_at"] = strconv.FormatUint(resource.GetBootTime(), 10)
+	if cpuPercents, err := cpu.Percent(0, false); err != nil {
+		rec.Data.Fields["sys_cpu"] = strconv.FormatFloat(cpuPercents[0], 'f', 8, 64)
+	}
+	if mem, err := mem.VirtualMemory(); err != nil {
+		rec.Data.Fields["sys_mem"] = strconv.FormatFloat(mem.UsedPercent, 'f', 8, 64)
+	}
+
+	// system related fields
+	// look into https://github.com/shirou/gopsutil
 	if runtime.GOOS == "linux" {
 		if avg, err := load.Avg(); err == nil {
 			rec.Data.Fields["load_1"] = strconv.FormatFloat(avg.Load1, 'f', 2, 64)
@@ -67,17 +77,9 @@ func getAgentStat(now time.Time) {
 			rec.Data.Fields["running_procs"] = strconv.Itoa(misc.ProcsRunning)
 			rec.Data.Fields["total_procs"] = strconv.Itoa(misc.ProcsTotal)
 		}
+		// 看门狗程序, 配合 .service 下做服务探活
+		daemon.SdNotify(false, "WATCHDOG=1")
 	}
-	rec.Data.Fields["boot_at"] = strconv.FormatUint(resource.GetBootTime(), 10)
-	if cpuPercents, err := cpu.Percent(0, false); err != nil {
-		rec.Data.Fields["sys_cpu"] = strconv.FormatFloat(cpuPercents[0], 'f', 8, 64)
-	}
-	if mem, err := mem.VirtualMemory(); err != nil {
-		rec.Data.Fields["sys_mem"] = strconv.FormatFloat(mem.UsedPercent, 'f', 8, 64)
-	}
-
-	// 看门狗程序, 配合 .service 下做服务探活
-	daemon.SdNotify(false, "WATCHDOG=1")
 
 	transport.DTransfer.Transmission(rec, false)
 }
