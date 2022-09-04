@@ -2,12 +2,16 @@
 
 package hash
 
-type HashCache struct {
-	cache *lru.Cache
-	pool  *sync.Pool
-	clock clock.IClock
-	rl    *rate.Limiter
-}
+import (
+	"encoding/hex"
+	"fmt"
+	"hash"
+	"io"
+	"os"
+	"syscall"
+
+	"github.com/chriskaliX/SDK/config"
+)
 
 // internal hash struct for calc
 type fileHash struct {
