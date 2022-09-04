@@ -10,7 +10,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -30,7 +30,7 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		wg:         &sync.WaitGroup{},
 		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
 	}
-	p.workdir = path.Join(agent.Instance.Workdir, "plugin", p.Name())
+	p.workdir = filepath.Join(agent.Instance.Workdir, "plugin", p.Name())
 	// pipe init
 	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
 	// half-duplex pipe.
@@ -51,10 +51,10 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	// reader init
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
 	// purge the files
-	os.Remove(path.Join(p.workdir, p.Name()+".stderr"))
-	os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
+	os.Remove(filepath.Join(p.workdir, p.Name()+".stderr"))
+	os.Remove(filepath.Join(p.workdir, p.Name()+".stdout"))
 	// cmdline
-	execPath := path.Join(p.workdir, p.Name())
+	execPath := filepath.Join(p.workdir, p.Name()+".exe")
 	err = utils.CheckSignature(execPath, config.Signature)
 	if err != nil {
 		p.logger.Warn("check signature failed")
