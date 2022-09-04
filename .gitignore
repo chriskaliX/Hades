@@ -28,3 +28,6 @@ plugin/ebpfdriver/kern/headers/*.h
 
 # pprof
 *.pprof
+
+# windows
+**/*.exe

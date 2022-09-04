@@ -89,3 +89,24 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	p.cmd = cmd
 	return
 }
+
+// Syscall is system related.
+func (p *Plugin) Shutdown() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.IsExited() {
+		return
+	}
+	p.logger.Info("shutdown called")
+	p.tx.Close()
+	p.rx.Close()
+	select {
+	case <-time.After(time.Second * 30):
+		p.logger.Warn("close by killing start")
+		syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
+		<-p.done
+		p.logger.Info("close by killing done")
+	case <-p.done:
+		p.logger.Info("close by done channel")
+	}
+}

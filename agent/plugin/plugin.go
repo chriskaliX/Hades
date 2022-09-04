@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"go.uber.org/zap"
@@ -138,26 +137,6 @@ func (p *Plugin) Pid() int { return p.cmd.Process.Pid }
 // get the state by fork status
 func (p *Plugin) IsExited() bool { return p.cmd.ProcessState != nil }
 
-func (p *Plugin) Shutdown() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.IsExited() {
-		return
-	}
-	p.logger.Info("shutdown called")
-	p.tx.Close()
-	p.rx.Close()
-	select {
-	case <-time.After(time.Second * 30):
-		p.logger.Warn("close by killing start")
-		syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
-		<-p.done
-		p.logger.Info("close by killing done")
-	case <-p.done:
-		p.logger.Info("close by done channel")
-	}
-}
-
 func (p *Plugin) Receive() {
 	var (
 		rec *proto.Record
@@ -179,7 +158,6 @@ func (p *Plugin) Receive() {
 				break
 			}
 		}
-		// fmt.Println(rec)
 		transport.DTransfer.Transmission(rec, false)
 	}
 }
