@@ -10,6 +10,7 @@ import (
 )
 
 // agent self-update
+// Windows compatible is not invalid for now
 func Update(config proto.Config) (err error) {
 	dst := path.Join("/tmp", Product+"-updater"+".pkg")
 	// unfinished

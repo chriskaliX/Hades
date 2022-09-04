@@ -12,8 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var debug = false
-
 // now it's only one event every time
 var eventMap = sync.Map{}
 

@@ -78,7 +78,7 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	s.Logger = logger.New(sconfig.LogConfig)
 	// lockfile for plugin
 	if err := s.Lockfile(); err != nil {
-		zap.S().Error("init failed with lockfile %s", err.Error())
+		zap.S().Errorf("init failed with lockfile %s", err.Error())
 		return err
 	}
 	defer s.Logger.Info(fmt.Sprintf("sandbox %s init", s.name))

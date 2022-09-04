@@ -1,4 +1,4 @@
-//go:build linux
+//go:build windows
 
 package plugin
 
@@ -10,9 +10,8 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
 	"go.uber.org/zap"
@@ -31,7 +30,7 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		wg:         &sync.WaitGroup{},
 		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
 	}
-	p.workdir = path.Join(agent.Instance.Workdir, "plugin", p.Name())
+	p.workdir = filepath.Join(agent.Instance.Workdir, "plugin", p.Name())
 	// pipe init
 	// In Elkeid, a note: 'for compatibility' is here. Since some systems only allow
 	// half-duplex pipe.
@@ -52,10 +51,10 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 	// reader init
 	p.reader = bufio.NewReaderSize(rx_r, 1024*128)
 	// purge the files
-	os.Remove(path.Join(p.workdir, p.Name()+".stderr"))
-	os.Remove(path.Join(p.workdir, p.Name()+".stdout"))
+	os.Remove(filepath.Join(p.workdir, p.Name()+".stderr"))
+	os.Remove(filepath.Join(p.workdir, p.Name()+".stdout"))
 	// cmdline
-	execPath := path.Join(p.workdir, p.Name())
+	execPath := filepath.Join(p.workdir, p.Name()+".exe")
 	err = utils.CheckSignature(execPath, config.Signature)
 	if err != nil {
 		p.logger.Warn("check signature failed")
@@ -68,8 +67,10 @@ func NewPlugin(ctx context.Context, config proto.Config) (p *Plugin, err error) 
 		p.logger.Info("download success")
 	}
 	cmd := exec.Command(execPath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
+	// cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
+	cmd.Stdin = tx_r
+	cmd.Stdout = rx_w
 	cmd.Dir = p.workdir
 	if errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
 		p.logger.Error("open stderr:", errFile)
@@ -103,7 +104,12 @@ func (p *Plugin) Shutdown() {
 	select {
 	case <-time.After(time.Second * 30):
 		p.logger.Warn("close by killing start")
-		syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
+		process, err := os.FindProcess(p.cmd.Process.Pid)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+		process.Kill()
 		<-p.done
 		p.logger.Info("close by killing done")
 	case <-p.done:

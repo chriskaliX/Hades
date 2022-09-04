@@ -7,9 +7,11 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/chriskaliX/SDK/clock"
 )
 
-func New() (c *Client) {
+func New(clock clock.IClock) (c *Client) {
 	c = &Client{
 		rx: os.Stdin,
 		tx: os.Stdout,
@@ -18,6 +20,7 @@ func New() (c *Client) {
 		writer: bufio.NewWriterSize(os.Stdout, 512*1024),
 		rmu:    &sync.Mutex{},
 		wmu:    &sync.Mutex{},
+		clock:  clock,
 	}
 	go func() {
 		ticker := time.NewTicker(time.Millisecond * 200)
