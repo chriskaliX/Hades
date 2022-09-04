@@ -104,7 +104,7 @@ func (p *Plugin) Shutdown() {
 	select {
 	case <-time.After(time.Second * 30):
 		p.logger.Warn("close by killing start")
-		process, err := os.FindProcess(p.pid)
+		process, err := os.FindProcess(p.cmd.Process.Pid)
 		if err != nil {
 			zap.S().Error(err)
 			return

@@ -200,7 +200,6 @@ func (p *Plugin) receiveDataWithSize() (rec *proto.Record, err error) {
 	if err != nil {
 		return
 	}
-	// TODO: sync.Pool\
 	// TODO: sync.Pool, discard by cap
 	rec = &proto.Record{}
 	// issues: https://github.com/golang/go/issues/23199
