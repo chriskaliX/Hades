@@ -205,6 +205,14 @@ func (p *Plugin) receiveDataWithSize() (rec *proto.Record, err error) {
 	defer pool.Put(rec)
 	// issues: https://github.com/golang/go/issues/23199
 	// solutions: https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
+	// For ebpfdriver, most of the length within 1024, so I assume that
+	// a buffer pool with 1 << 10 & 1 << 12 will meet the requirements.
+	// Any buffer larger than 4096 should be ignored and let the GC
+	// dealing with this issue.
+	//
+	// The buffer pool in zap(uber) is 1024 as default, we may modify
+	// this later.
+	// TODO: unfinished
 	message := make([]byte, int(l))
 	if _, err = io.ReadFull(p.reader, message); err != nil {
 		return
