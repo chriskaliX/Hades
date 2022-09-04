@@ -58,10 +58,10 @@ func getAgentStat(now time.Time) {
 	rec.Data.Fields["grs"] = strconv.Itoa(runtime.NumGoroutine())
 	rec.Data.Fields["nproc"] = strconv.Itoa(runtime.NumCPU())
 	rec.Data.Fields["boot_at"] = strconv.FormatUint(resource.GetBootTime(), 10)
-	if cpuPercents, err := cpu.Percent(0, false); err != nil {
+	if cpuPercents, err := cpu.Percent(0, false); err == nil {
 		rec.Data.Fields["sys_cpu"] = strconv.FormatFloat(cpuPercents[0], 'f', 8, 64)
 	}
-	if mem, err := mem.VirtualMemory(); err != nil {
+	if mem, err := mem.VirtualMemory(); err == nil {
 		rec.Data.Fields["sys_mem"] = strconv.FormatFloat(mem.UsedPercent, 'f', 8, 64)
 	}
 

@@ -12,13 +12,13 @@ import (
 
 var (
 	bootTime, _  = host.BootTime()
-	ioCache, _   = lru.New(30)
-	procCache, _ = lru.New(30)
+	ioCache, _   = lru.New(128)
+	procCache, _ = lru.New(128)
 )
 
 type ProcInfo struct {
 	CPUPercent float64
-	FdCnt      uint64
+	FdCnt      uint64  //linux only
 	RSS        uint64  //bytes
 	ReadSpeed  float64 //Bps
 	WriteSpeed float64 //Bps
@@ -33,7 +33,7 @@ type IOState struct {
 
 func GetDirSize(path string, except string) uint64 {
 	var dirSize uint64 = 0
-	readSize := func(path string, file os.FileInfo, err error) error {
+	readSize := func(_ string, file os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -46,9 +46,7 @@ func GetDirSize(path string, except string) uint64 {
 		}
 		return nil
 	}
-
 	filepath.Walk(path, readSize)
-
 	return dirSize
 }
 
