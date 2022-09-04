@@ -4,6 +4,7 @@ import (
 	"agent/agent"
 	"agent/proto"
 	"agent/transport"
+	"agent/transport/pool"
 	"bufio"
 	"context"
 	"encoding/binary"
@@ -200,8 +201,8 @@ func (p *Plugin) receiveDataWithSize() (rec *proto.Record, err error) {
 	if err != nil {
 		return
 	}
-	// TODO: sync.Pool, discard by cap
-	rec = &proto.Record{}
+	rec = pool.Get()
+	defer pool.Put(rec)
 	// issues: https://github.com/golang/go/issues/23199
 	// solutions: https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
 	message := make([]byte, int(l))

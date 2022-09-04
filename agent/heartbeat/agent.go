@@ -73,10 +73,6 @@ func getAgentStat(now time.Time) {
 			rec.Data.Fields["load_5"] = strconv.FormatFloat(avg.Load5, 'f', 2, 64)
 			rec.Data.Fields["load_15"] = strconv.FormatFloat(avg.Load15, 'f', 2, 64)
 		}
-		if misc, err := load.Misc(); err == nil {
-			rec.Data.Fields["running_procs"] = strconv.Itoa(misc.ProcsRunning)
-			rec.Data.Fields["total_procs"] = strconv.Itoa(misc.ProcsTotal)
-		}
 		// 看门狗程序, 配合 .service 下做服务探活
 		daemon.SdNotify(false, "WATCHDOG=1")
 	}
