@@ -1,6 +1,6 @@
 syntax = "proto3";
-package transport;
-option go_package = "transport";
+package protocol;
+option go_package = "protocol";
 
 message Record {
     int32 data_type = 1;

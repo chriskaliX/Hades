@@ -1,4 +1,4 @@
-package transport
+package client
 
 import (
 	"bufio"
@@ -8,25 +8,12 @@ import (
 	"sync"
 
 	"github.com/chriskaliX/SDK/clock"
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
-type SendHookFunction func(*Record) error
+type SendHookFunction func(*protocol.Record) error
 
 const ElkeidEnv = "SPECIFIED_AGENT_ID"
-
-var _ ITransport = (*Client)(nil)
-
-type ITransport interface {
-	SetSendHook(SendHookFunction)
-	// inherit hook
-	SendElkeid(*Record) error
-	SendDebug(*Record) error
-
-	SendRecord(*Record) error
-	ReceiveTask() (*Task, error)
-	Flush() error
-	Close()
-}
 
 type Client struct {
 	rx     io.ReadCloser
@@ -47,7 +34,7 @@ func (c *Client) SetSendHook(hook SendHookFunction) {
 // Plugin Client send record to agent. Add an extra size flag to simplify
 // the operation which agent side decodes.
 // Sync With Elkeid
-func (c *Client) SendElkeid(rec *Record) (err error) {
+func (c *Client) SendElkeid(rec *protocol.Record) (err error) {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
 	size := rec.Size()
@@ -64,13 +51,13 @@ func (c *Client) SendElkeid(rec *Record) (err error) {
 	return
 }
 
-func (c *Client) SendDebug(rec *Record) (err error) {
+func (c *Client) SendDebug(rec *protocol.Record) (err error) {
 	fmt.Println(rec.Data.Fields)
 	return
 }
 
 // Hades send record
-func (c *Client) SendRecord(rec *Record) (err error) {
+func (c *Client) SendRecord(rec *protocol.Record) (err error) {
 	// fill up with the ts by ticker
 	rec.Timestamp = c.clock.Now().Unix()
 	// check hook
@@ -90,7 +77,7 @@ func (c *Client) SendRecord(rec *Record) (err error) {
 	return
 }
 
-func (c *Client) ReceiveTask() (t *Task, err error) {
+func (c *Client) ReceiveTask() (t *protocol.Task, err error) {
 	c.rmu.Lock()
 	defer c.rmu.Unlock()
 	var len uint32
@@ -107,7 +94,7 @@ func (c *Client) ReceiveTask() (t *Task, err error) {
 	if err != nil {
 		return
 	}
-	t = &Task{}
+	t = &protocol.Task{}
 	err = t.Unmarshal(buf)
 	return
 }

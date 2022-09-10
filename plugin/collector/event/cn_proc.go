@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -103,10 +103,10 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 					}
 					rawdata := make(map[string]string)
 					rawdata["data"] = string(result)
-					rec := &plugin.Record{
+					rec := &protocol.Record{
 						DataType:  Netlink_DATATYPE,
 						Timestamp: time.Now().Unix(),
-						Data: &plugin.Payload{
+						Data: &protocol.Payload{
 							Fields: rawdata,
 						},
 					}

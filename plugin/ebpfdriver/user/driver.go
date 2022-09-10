@@ -12,7 +12,7 @@ import (
 	"strconv"
 
 	"github.com/chriskaliX/SDK"
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 	"go.uber.org/zap"
@@ -172,9 +172,9 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	}
 	rawdata["data"] = result
 	// send the record
-	rec := &plugin.Record{
+	rec := &protocol.Record{
 		DataType: 1000,
-		Data: &plugin.Payload{
+		Data: &protocol.Payload{
 			Fields: rawdata,
 		},
 	}
@@ -184,9 +184,9 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
 	rawdata := make(map[string]string)
 	rawdata["data"] = strconv.FormatUint(count, 10)
-	rec := &plugin.Record{
+	rec := &protocol.Record{
 		DataType: 999,
-		Data: &plugin.Payload{
+		Data: &protocol.Payload{
 			Fields: rawdata,
 		},
 	}

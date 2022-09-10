@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/fsnotify/fsnotify"
 	"github.com/shirou/gopsutil/host"
 	"go.uber.org/zap"
@@ -140,10 +140,10 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 						sshlog["port"] = fields[12]
 						if data, err := sonic.Marshal(sshlog); err == nil {
 							rawdata["data"] = string(data)
-							rec := &plugin.Record{
+							rec := &protocol.Record{
 								DataType:  3003,
 								Timestamp: time.Now().Unix(),
-								Data: &plugin.Payload{
+								Data: &protocol.Payload{
 									Fields: rawdata,
 								},
 							}
@@ -158,10 +158,10 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 						sshlog["port"] = fields[14]
 						if data, err := sonic.Marshal(sshlog); err == nil {
 							rawdata["data"] = string(data)
-							rec := &plugin.Record{
+							rec := &protocol.Record{
 								DataType:  3003,
 								Timestamp: time.Now().Unix(),
-								Data: &plugin.Payload{
+								Data: &protocol.Payload{
 									Fields: rawdata,
 								},
 							}

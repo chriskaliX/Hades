@@ -6,7 +6,7 @@ import (
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/logger"
-	"github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -14,10 +14,10 @@ func test(sandbox SDK.ISandbox) error {
 	go func() {
 		for {
 			time.Sleep(time.Second)
-			sandbox.SendRecord(&transport.Record{
+			sandbox.SendRecord(&protocol.Record{
 				DataType:  1,
 				Timestamp: time.Now().Unix(),
-				Data: &transport.Payload{
+				Data: &protocol.Payload{
 					Fields: map[string]string{
 						"windows": "win",
 					},

@@ -11,7 +11,8 @@ import (
 
 	"github.com/chriskaliX/SDK/clock"
 	"github.com/chriskaliX/SDK/logger"
-	"github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/client"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/chriskaliX/SDK/util/hash"
 	"github.com/nightlyone/lockfile"
 	"go.uber.org/zap"
@@ -29,8 +30,8 @@ type ISandbox interface {
 	Context() context.Context
 	Cancel()
 	// Client related
-	SendRecord(*transport.Record) error
-	SetSendHook(transport.SendHookFunction)
+	SendRecord(*protocol.Record) error
+	SetSendHook(client.SendHookFunction)
 	// Hash Wrapper
 	GetHash(string) string
 }
@@ -40,7 +41,7 @@ type Sandbox struct {
 	// required fields
 	Clock  clock.IClock
 	Logger logger.ILogger
-	Client *transport.Client
+	Client *client.Client
 	name   string
 	// Optional fields
 	Hash hash.IHashCache
@@ -50,7 +51,7 @@ type Sandbox struct {
 	// others
 	sigs  chan os.Signal
 	debug bool
-	Task  chan *transport.Task
+	Task  chan *protocol.Task
 }
 
 type SandboxConfig struct {
@@ -69,10 +70,10 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	s.sigs = make(chan os.Signal, 1)
 	s.name = sconfig.Name
 	s.debug = sconfig.Debug
-	s.Task = make(chan *transport.Task)
+	s.Task = make(chan *protocol.Task)
 	// Required fields initialization
 	s.Clock = clock.New(time.Second)
-	s.Client = transport.New(s.Clock)
+	s.Client = client.New(s.Clock)
 	sconfig.LogConfig.Clock = s.Clock
 	sconfig.LogConfig.Client = s.Client
 	s.Logger = logger.New(sconfig.LogConfig)
@@ -142,7 +143,7 @@ func (s *Sandbox) Debug() bool {
 	return s.debug
 }
 
-func (s *Sandbox) SendRecord(rec *transport.Record) error {
+func (s *Sandbox) SendRecord(rec *protocol.Record) error {
 	return s.Client.SendRecord(rec)
 }
 
@@ -154,7 +155,7 @@ func (s *Sandbox) Cancel() {
 	s.cancel()
 }
 
-func (s *Sandbox) SetSendHook(hook transport.SendHookFunction) {
+func (s *Sandbox) SetSendHook(hook client.SendHookFunction) {
 	s.Client.SetSendHook(hook)
 }
 

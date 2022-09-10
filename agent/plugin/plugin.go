@@ -4,7 +4,6 @@ import (
 	"agent/agent"
 	"agent/proto"
 	"agent/transport"
-	"agent/transport/pool"
 	"bufio"
 	"context"
 	"encoding/binary"
@@ -201,8 +200,6 @@ func (p *Plugin) receiveDataWithSize() (rec *proto.Record, err error) {
 	if err != nil {
 		return
 	}
-	rec = pool.Get()
-	defer pool.Put(rec)
 	// issues: https://github.com/golang/go/issues/23199
 	// solutions: https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
 	// For ebpfdriver, most of the length within 1024, so I assume that

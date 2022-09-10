@@ -11,7 +11,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/chriskaliX/SDK/clock"
-	"github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/client"
 )
 
 var _ ILogger = (*zap.SugaredLogger)(nil)
@@ -27,7 +27,7 @@ type ILogger interface {
 
 type Config struct {
 	// SDK fields
-	Client *transport.Client
+	Client *client.Client
 	Clock  clock.IClock
 
 	Path        string

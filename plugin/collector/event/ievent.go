@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
 )
 
@@ -125,10 +125,10 @@ func eventTask(event Event) (err error) {
 	}
 	// debug code here
 	data["data"] = rawdata
-	rec := &plugin.Record{
+	rec := &protocol.Record{
 		DataType:  int32(event.DataType()),
 		Timestamp: time.Now().Unix(),
-		Data: &plugin.Payload{
+		Data: &protocol.Payload{
 			Fields: data,
 		},
 	}

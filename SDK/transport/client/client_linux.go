@@ -1,6 +1,6 @@
-//go:build !windows
+//go:build linux
 
-package transport
+package client
 
 import (
 	"bufio"

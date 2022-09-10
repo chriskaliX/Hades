@@ -3,7 +3,7 @@ package filter
 import (
 	"encoding/json"
 
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
 // Filter configuration received by the task
@@ -16,7 +16,7 @@ type FilterConfig struct {
 }
 
 // Load the configuration from task
-func LoadConfigFromTask(t *plugin.Task) (*FilterConfig, error) {
+func LoadConfigFromTask(t *protocol.Task) (*FilterConfig, error) {
 	filterConfig := &FilterConfig{}
 	err := json.Unmarshal([]byte(t.GetData()), filterConfig)
 	if err != nil {

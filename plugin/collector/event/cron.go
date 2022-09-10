@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	plugin "github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
@@ -227,10 +227,10 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 					if data, err := sonic.Marshal(tmp); err == nil {
 						rawdata := make(map[string]string)
 						rawdata["data"] = string(data)
-						rec := &plugin.Record{
+						rec := &protocol.Record{
 							DataType:  2001,
 							Timestamp: time.Now().Unix(),
-							Data: &plugin.Payload{
+							Data: &protocol.Payload{
 								Fields: rawdata,
 							},
 						}

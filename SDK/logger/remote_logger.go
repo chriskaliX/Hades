@@ -7,11 +7,12 @@ import (
 
 	"github.com/chriskaliX/SDK/clock"
 	"github.com/chriskaliX/SDK/config"
-	"github.com/chriskaliX/SDK/transport"
+	"github.com/chriskaliX/SDK/transport/client"
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
 type remoteWriter struct {
-	client *transport.Client
+	client *client.Client
 	clock  clock.IClock
 }
 
@@ -19,10 +20,10 @@ func (w *remoteWriter) Write(p []byte) (n int, err error) {
 	if w.client == nil {
 		return
 	}
-	rec := &transport.Record{
+	rec := &protocol.Record{
 		DataType:  config.TypePluginError,
 		Timestamp: w.clock.Now().Unix(),
-		Data: &transport.Payload{
+		Data: &protocol.Payload{
 			Fields: map[string]string{},
 		},
 	}
