@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chriskaliX/SDK/config"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
 )
 
@@ -56,6 +57,21 @@ func (t *Transfer) Transmission(rec *proto.Record, important bool) (err error) {
 		return
 	}
 	t.buf[t.offset] = rec
+	t.offset++
+	return
+}
+
+func (t *Transfer) TransmissionSDK(rec protocol.ProtoType, important bool) (err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.offset >= size {
+		if important && t.offset < len(t.buf) {
+			t.buf[t.offset] = rec.(*proto.Record)
+		}
+		err = ErrBufferOverflow
+		return
+	}
+	t.buf[t.offset] = rec.(*proto.Record)
 	t.offset++
 	return
 }

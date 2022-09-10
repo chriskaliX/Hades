@@ -9,6 +9,8 @@ package pool
 
 import "sync"
 
+var BufferPool = NewPool()
+
 type Pool struct {
 	p1 *sync.Pool
 	p2 *sync.Pool

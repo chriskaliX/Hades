@@ -3,6 +3,8 @@ package pool
 import (
 	"agent/proto"
 	"sync"
+
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
 const _size = 24 // default
@@ -18,6 +20,10 @@ var recordPool = sync.Pool{
 }
 
 func Get() *proto.Record {
+	return recordPool.Get().(*proto.Record)
+}
+
+func SDKGet() protocol.ProtoType {
 	return recordPool.Get().(*proto.Record)
 }
 

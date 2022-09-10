@@ -37,9 +37,7 @@ type Server struct {
 	done       chan struct{}
 	wg         *sync.WaitGroup
 	workdir    string
-	pool       pool.Pool
-	// expose Logger
-	logger *zap.SugaredLogger
+	logger     *zap.SugaredLogger
 }
 
 // NewServer does all things, except download/check/run the exec file
@@ -57,7 +55,6 @@ func NewServer(ctx context.Context, workdir string, conf interface{}) (s *Server
 		done:       make(chan struct{}),
 		taskCh:     make(chan protocol.Task),
 		wg:         &sync.WaitGroup{},
-		pool:       pool.NewPool(),
 		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
 	}
 	s.workdir = filepath.Join(workdir, "plugin", s.Name())
@@ -113,10 +110,6 @@ func NewServer(ctx context.Context, workdir string, conf interface{}) (s *Server
 	if err != nil {
 		s.logger.Error("cmd start:", err)
 	}
-	// background job
-	s.wg.Add(2)
-	go s.Wait()
-	go s.Task()
 	return
 }
 
@@ -143,21 +136,44 @@ func (s *Server) GetState() (RxSpeed, TxSpeed, RxTPS, TxTPS float64) {
 	return
 }
 
+func (s *Server) Receive(poolGet protocol.PoolGet, trans protocol.Trans) {
+	var err error
+	defer s.wg.Done()
+	for {
+		rec := poolGet()
+		if err = s.receive(rec); err != nil {
+			if errors.Is(err, bufio.ErrBufferFull) {
+				// problem of multi
+				s.Logger().Warn("buffer full, skip")
+				continue
+			} else if !(errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed)) {
+				s.Logger().Error("receive err:", err)
+				continue
+			} else {
+				s.Logger().Error("exit the receive task:", err)
+				break
+			}
+		}
+		trans.TransmissionSDK(rec, false)
+	}
+}
+
 // An internal Receive, better for
-func (s *Server) Receive(rec *protocol.Record) (err error) {
+func (s *Server) receive(rec protocol.ProtoType) (err error) {
 	var l uint32
 	err = binary.Read(s.reader, binary.LittleEndian, &l)
 	if err != nil {
 		return
 	}
 	// issues: https://github.com/golang/go/issues/23199
-	// solutions: https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
+	// solutions:
+	// https://github.com/golang/go/blob/7e394a2/src/net/http/h2_bundle.go#L998-L1043
 	// For ebpfdriver, most of the length within 1024, so I assume that
 	// a buffer pool with 1 << 10 & 1 << 12 will meet the requirements.
 	// Any buffer larger than 4096 should be ignored and let the GC
 	// dealing with this issue.
-	message := s.pool.Get(int64(l))
-	defer s.pool.Put(message)
+	message := pool.BufferPool.Get(int64(l))
+	defer pool.BufferPool.Put(message)
 	if _, err = io.ReadFull(s.reader, message); err != nil {
 		return
 	}
@@ -188,6 +204,10 @@ func (s *Server) Pid() int { return s.cmd.Process.Pid }
 func (s *Server) IsExited() bool { return s.cmd.ProcessState.Exited() }
 
 func (s *Server) GetWorkingDirectory() string { return s.cmd.Dir }
+
+func (s *Server) Wg() *sync.WaitGroup { return s.wg }
+
+func (s *Server) Logger() *zap.SugaredLogger { return s.logger }
 
 // background task resolve
 func (s *Server) Task() (err error) {

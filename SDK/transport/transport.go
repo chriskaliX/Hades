@@ -1,14 +1,18 @@
 package transport
 
 import (
+	"sync"
+
 	"github.com/chriskaliX/SDK/transport/client"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/chriskaliX/SDK/transport/server"
+	"go.uber.org/zap"
 )
 
 var _ IClient = (*client.Client)(nil)
 var _ IServer = (*server.Server)(nil)
 
+// Client-side interface
 type IClient interface {
 	SetSendHook(client.SendHookFunction)
 	SendElkeid(*protocol.Record) error
@@ -19,9 +23,10 @@ type IClient interface {
 	Close()
 }
 
+// Server-side interface
 type IServer interface {
 	GetState() (RxSpeed, TxSpeed, RxTPS, TxTPS float64)
-	Receive(rec *protocol.Record) error
+	Receive(protocol.PoolGet, protocol.Trans)
 	SendTask(protocol.Task) error
 
 	Pid() int
@@ -29,5 +34,9 @@ type IServer interface {
 	Wait() error
 	Version() string
 	IsExited() bool
+	Shutdown()
 	GetWorkingDirectory() string
+
+	Wg() *sync.WaitGroup
+	Logger() *zap.SugaredLogger
 }

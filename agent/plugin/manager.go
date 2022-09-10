@@ -4,6 +4,8 @@ import (
 	"agent/proto"
 	"errors"
 	"sync"
+
+	"github.com/chriskaliX/SDK/transport"
 )
 
 var DefaultManager = &Manager{
@@ -17,17 +19,17 @@ type Manager struct {
 	syncCh  chan map[string]*proto.Config
 }
 
-func (m *Manager) Get(name string) (*Plugin, bool) {
+func (m *Manager) Get(name string) (transport.IServer, bool) {
 	plg, ok := m.plugins.Load(name)
 	if ok {
-		return plg.(*Plugin), ok
+		return plg.(transport.IServer), ok
 	}
 	return nil, ok
 }
 
-func (m *Manager) GetAll() (plgs []*Plugin) {
+func (m *Manager) GetAll() (plgs []transport.IServer) {
 	m.plugins.Range(func(_, value interface{}) bool {
-		plg := value.(*Plugin)
+		plg := value.(transport.IServer)
 		plgs = append(plgs, plg)
 		return true
 	})
@@ -43,7 +45,7 @@ func (m *Manager) Sync(cfgs map[string]*proto.Config) (err error) {
 	return
 }
 
-func (m *Manager) Register(name string, plg *Plugin) {
+func (m *Manager) Register(name string, plg transport.IServer) {
 	m.plugins.Store(name, plg)
 }
 
@@ -55,11 +57,11 @@ func (m *Manager) UnregisterAll() {
 	subWg := &sync.WaitGroup{}
 	m.plugins.Range(func(_, value interface{}) bool {
 		subWg.Add(1)
-		plg := value.(*Plugin)
+		plg := value.(transport.IServer)
 		go func() {
 			defer subWg.Done()
 			plg.Shutdown()
-			plg.wg.Wait()
+			plg.Wg().Wait()
 			m.plugins.Delete(plg.Name())
 		}()
 		return true
