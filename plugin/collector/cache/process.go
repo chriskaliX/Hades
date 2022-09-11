@@ -126,7 +126,7 @@ func (p *Process) GetCmdline() (err error) {
 
 // TODO: unfinished with CPUPercentage. And FDs havn't go through
 // the format of `stat`:
-// @Reference: https://stackoverflow.com/questions/39066998/what-are-the-meaning-of-values-at-proc-pid-stat
+// Reference: https://stackoverflow.com/questions/39066998/what-are-the-meaning-of-values-at-proc-pid-stat
 func (p *Process) GetStat(simple bool) (err error) {
 	var stat []byte
 	if stat, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/stat"); err != nil {

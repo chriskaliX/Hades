@@ -28,7 +28,7 @@ func CheckSignature(dst string, sign string) (err error) {
 		return
 	}
 	hasher := sha256.New()
-	// @Reference: https://pandaychen.github.io/2020/01/01/MAGIC-GO-IO-PACKAGE/
+	//  https://pandaychen.github.io/2020/01/01/MAGIC-GO-IO-PACKAGE/
 	if _, err = io.Copy(hasher, f); err != nil {
 		return
 	}
@@ -41,10 +41,13 @@ func CheckSignature(dst string, sign string) (err error) {
 	return
 }
 
-// TODO: io.Copy to file to use minium memory
+// Download function get the plugin executable file from urls
+//
+// ioutil.ReadAll is needed since a sha256 checksum is implemented, read the
+// file into the memory is always needed. This is the reason why a 100M
+// memory is always needed
 func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
 	var checksum []byte
-	// check wheater this already exist
 	if checksum, err = hex.DecodeString(sha256sum); err != nil {
 		return
 	}
@@ -57,6 +60,7 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 	for _, rawurl := range urls {
 		var req *http.Request
 		var resp *http.Response
+		var buf []byte
 		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
 		defer cancel()
 		if req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil); err != nil {
@@ -70,10 +74,6 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 			continue
 		}
 		defer resp.Body.Close()
-		var buf []byte
-		// @Notes: ReadAll may not be a best practice, but a dump to mem/file is needed
-		// So, the filesize is limited! Another option is to download and io.Copy to file
-		// @Reference: https://stackoverflow.com/questions/11692860/how-can-i-efficiently-download-a-large-file-using-go
 		if buf, err = ioutil.ReadAll(resp.Body); err != nil {
 			continue
 		}

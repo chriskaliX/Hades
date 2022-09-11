@@ -209,7 +209,6 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 		var tpid uint32
 		var process *cache.Process
 		DefaultNetlink.DecodeExec(&pid, &tpid)
-		// TODO: skip memory here
 		process, err = cache.GetProcessInfo(int(pid), true)
 		process.Source = "netlink"
 		process.TID = int(tpid)
@@ -231,9 +230,7 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 	case PROC_EVENT_UID:
 	case PROC_EVENT_GID:
 	case PROC_EVENT_SID:
-	// TODO: ptrace
 	case PROC_EVENT_PTRACE:
-	// TODO: Comm
 	case PROC_EVENT_COMM:
 	case PROC_EVENT_COREDUMP:
 	}

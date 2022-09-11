@@ -40,7 +40,6 @@ func CheckSignature(dst string, sign string) (err error) {
 	return
 }
 
-// TODO: io.Copy to file to use minium memory
 func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
 	var (
 		checksum []byte
