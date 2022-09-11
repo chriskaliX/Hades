@@ -1,8 +1,11 @@
 package SDK
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -91,8 +94,6 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	if s.Debug() {
 		s.Client.SetSendHook(s.Client.SendDebug)
 	}
-	// Sandbox internal cron job
-	go s.ReceiveTask()
 	return nil
 }
 
@@ -109,9 +110,9 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 	for {
 		select {
 		case sig := <-s.sigs:
-			s.Logger.Info(fmt.Sprintf("signal %s received, %s will exit after 5 seconds", sig.String(), s.Name()))
+			s.Logger.Info(fmt.Sprintf("signal %s received, %s will exit after 3 seconds", sig.String(), s.Name()))
 			s.cancel()
-			<-time.After(5 * time.Second)
+			<-time.After(3 * time.Second)
 			if s.debug {
 				return
 			}
@@ -133,6 +134,7 @@ func (s *Sandbox) Shutdown() {
 	s.Logger.Info(fmt.Sprintf("%s calls shutdown", s.Name()))
 	s.cancel()
 	s.Clock.Close()
+	<-time.After(1 * time.Second)
 }
 
 func (s *Sandbox) Name() string {
@@ -143,8 +145,19 @@ func (s *Sandbox) Debug() bool {
 	return s.debug
 }
 
-func (s *Sandbox) SendRecord(rec *protocol.Record) error {
-	return s.Client.SendRecord(rec)
+// Is this too strict, this also works in windows, since pgid is
+func (s *Sandbox) SendRecord(rec *protocol.Record) (err error) {
+	err = s.Client.SendRecord(rec)
+	if err != nil {
+		if errors.Is(err, bufio.ErrBufferFull) {
+			return
+		} else if !(errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed)) {
+			return
+		} else {
+			s.Shutdown()
+		}
+	}
+	return
 }
 
 func (s *Sandbox) Context() context.Context {
@@ -165,32 +178,33 @@ func (s *Sandbox) GetHash(path string) string {
 
 // check pid file if it's not debug
 func (s *Sandbox) Lockfile() error {
+	var dir string
 	if s.debug {
 		return nil
 	}
-	// TODO: Windows?
 	if runtime.GOOS == "linux" {
-		// dir check
-		dir := "/var/lock/hades/"
-		_, err := os.Stat(dir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				if err = os.Mkdir(dir, os.ModePerm); err != nil {
-					return err
-				}
-			} else {
+		dir = "/var/lock/hades/"
+	} else if runtime.GOOS == "windows" {
+		dir = "\\Program Files\\hades\\"
+	}
+
+	if _, err := os.Stat(dir); err != nil {
+		if os.IsNotExist(err) {
+			if err = os.Mkdir(dir, os.ModePerm); err != nil {
 				return err
 			}
-		}
-		l, _ := lockfile.New(dir + s.name + ".lockfile")
-		if err := l.TryLock(); err != nil {
+		} else {
 			return err
 		}
+	}
+	l, _ := lockfile.New(dir + s.name + ".lockfile")
+	if err := l.TryLock(); err != nil {
+		return err
 	}
 	return nil
 }
 
-// Unfinished: task resolve
+// TODO: Unfinished: task resolve
 func (s *Sandbox) ReceiveTask() {
 	if s.debug {
 		return

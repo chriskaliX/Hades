@@ -36,8 +36,10 @@ func NewPool() Pool {
 func (p Pool) Get(size int64) []byte {
 	if size <= 2<<10 {
 		return p.p1.Get().([]byte)
+	} else if size <= 4<<10 {
+		return p.p2.Get().([]byte)
 	}
-	return p.p2.Get().([]byte)
+	return make([]byte, size)
 }
 
 func (p Pool) Put(b []byte) {

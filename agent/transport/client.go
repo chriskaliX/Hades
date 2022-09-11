@@ -83,9 +83,11 @@ func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfe
 	for {
 		select {
 		case <-ctx.Done():
+			zap.S().Error("handle receive exit since ctx.Done")
 			return
 		default:
 			if err := DTransfer.Receive(client); err != nil {
+				zap.S().Error(err)
 				return
 			}
 		}

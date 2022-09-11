@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func CheckSignature(dst string, sign string) (err error) {
@@ -22,7 +24,6 @@ func CheckSignature(dst string, sign string) (err error) {
 		return
 	}
 	defer f.Close()
-
 	if signBytes, err = hex.DecodeString(sign); err != nil {
 		return
 	}
@@ -42,9 +43,7 @@ func CheckSignature(dst string, sign string) (err error) {
 
 // TODO: io.Copy to file to use minium memory
 func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
-	var (
-		checksum []byte
-	)
+	var checksum []byte
 	// check wheater this already exist
 	if checksum, err = hex.DecodeString(sha256sum); err != nil {
 		return
@@ -85,6 +84,7 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 			continue
 		}
 		br := bytes.NewBuffer(buf)
+		zap.S().Info("start to decompress to ", dst)
 		switch suffix {
 		case "tar.gz":
 			err = DecompressTarGz(dst, br)

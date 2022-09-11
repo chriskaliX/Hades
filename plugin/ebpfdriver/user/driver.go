@@ -178,7 +178,9 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 			Fields: rawdata,
 		},
 	}
-	d.Sandbox.SendRecord(rec)
+	if err = d.Sandbox.SendRecord(rec); err != nil {
+		zap.S().Error(err)
+	}
 }
 
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {

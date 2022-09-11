@@ -3,10 +3,11 @@
 package server
 
 import (
+	"os/exec"
 	"time"
 )
 
-func (s *Server) cmdInit() {
+func (s *Server) cmdInit(*exec.Cmd) {
 	return
 }
 

@@ -33,7 +33,7 @@ func Load(ctx context.Context, config proto.Config) (err error) {
 	if config.GetSignature() == "" {
 		config.Signature = config.GetSha256()
 	}
-	plg, err := server.NewServer(ctx, agent.Instance.Workdir, config)
+	plg, err := server.NewServer(ctx, agent.Instance.Workdir, &config)
 	if err != nil {
 		return
 	}

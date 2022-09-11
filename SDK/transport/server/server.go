@@ -22,7 +22,7 @@ import (
 // Server-side data-structure of SDK plugin, proto.Config is
 // deprecated since we only focus on itself.
 type Server struct {
-	config     Config
+	config     protocol.Config
 	mu         sync.Mutex
 	cmd        *exec.Cmd
 	rx         io.ReadCloser // Read
@@ -41,21 +41,17 @@ type Server struct {
 }
 
 // NewServer does all things, except download/check/run the exec file
-func NewServer(ctx context.Context, workdir string, conf interface{}) (s *Server, err error) {
+func NewServer(ctx context.Context, workdir string, conf protocol.Config) (s *Server, err error) {
 	var rx_r, rx_w, tx_r, tx_w, errFile *os.File
 	// internal config parser
-	config, err := parseConfig(conf)
-	if err != nil {
-		return
-	}
 	// Server init
 	s = &Server{
-		config:     config,
+		config:     conf,
 		updateTime: time.Now(),
 		done:       make(chan struct{}),
 		taskCh:     make(chan protocol.Task),
 		wg:         &sync.WaitGroup{},
-		logger:     zap.S().With("plugin", config.Name, "pver", config.Version, "psign", config.Signature),
+		logger:     zap.S().With("plugin", conf.GetName(), "pver", conf.GetVersion(), "psign", conf.GetSignature()),
 	}
 	s.workdir = filepath.Join(workdir, "plugin", s.Name())
 	// pipe init
@@ -78,11 +74,13 @@ func NewServer(ctx context.Context, workdir string, conf interface{}) (s *Server
 	os.Remove(filepath.Join(s.workdir, s.Name()+".stdout"))
 	// cmdline
 	execPath := filepath.Join(s.workdir, s.Name())
-	err = util.CheckSignature(execPath, config.Signature)
+	// For now, downloading and check are in the NewPlugin. Maybe remove
+	// this later since is non-related behavior for new action.
+	err = util.CheckSignature(execPath, conf.GetSignature())
 	if err != nil {
 		s.logger.Warn("check signature failed")
 		s.logger.Info("start download")
-		err = util.Download(ctx, execPath, config.Sha256, config.DownloadUrls, config.Type)
+		err = util.Download(ctx, execPath, conf.GetSha256(), conf.GetDownloadUrls(), conf.GetType())
 		if err != nil {
 			s.logger.Error("download failed:", err)
 			return
@@ -93,8 +91,8 @@ func NewServer(ctx context.Context, workdir string, conf interface{}) (s *Server
 	cmd := exec.CommandContext(ctx, execPath)
 	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
 	cmd.Dir = s.workdir
-	s.cmd = cmd
-	s.cmdInit()
+	s.cmdInit(cmd)
+	zap.S().Info(cmd.SysProcAttr.Setpgid)
 	if errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
 		s.logger.Error("open stderr:", errFile)
 		return
@@ -102,14 +100,16 @@ func NewServer(ctx context.Context, workdir string, conf interface{}) (s *Server
 	defer errFile.Close()
 	cmd.Stderr = errFile
 	// details. if it is needed
-	if config.Detail != "" {
-		cmd.Env = append(cmd.Env, "DETAIL="+config.Detail)
+	if conf.GetDetail() != "" {
+		cmd.Env = append(cmd.Env, "DETAIL="+conf.GetDetail())
 	}
 	s.logger.Info("cmd start")
 	err = cmd.Start()
 	if err != nil {
 		s.logger.Error("cmd start:", err)
+		return
 	}
+	s.cmd = cmd
 	return
 }
 
@@ -174,10 +174,10 @@ func (s *Server) receive(rec protocol.ProtoType) (err error) {
 	// dealing with this issue.
 	message := pool.BufferPool.Get(int64(l))
 	defer pool.BufferPool.Put(message)
-	if _, err = io.ReadFull(s.reader, message); err != nil {
+	if _, err = io.ReadFull(s.reader, message[:l]); err != nil {
 		return
 	}
-	if err = rec.Unmarshal(message); err != nil {
+	if err = rec.Unmarshal(message[:l]); err != nil {
 		return
 	}
 	// Incr for plugin status
@@ -195,13 +195,13 @@ func (s *Server) SendTask(task protocol.Task) (err error) {
 	return
 }
 
-func (s *Server) Name() string { return s.config.Name }
+func (s *Server) Name() string { return s.config.GetName() }
 
-func (s *Server) Version() string { return s.config.Version }
+func (s *Server) Version() string { return s.config.GetVersion() }
 
 func (s *Server) Pid() int { return s.cmd.Process.Pid }
 
-func (s *Server) IsExited() bool { return s.cmd.ProcessState.Exited() }
+func (s *Server) IsExited() bool { return s.cmd.ProcessState != nil }
 
 func (s *Server) GetWorkingDirectory() string { return s.cmd.Dir }
 

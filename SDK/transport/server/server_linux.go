@@ -3,13 +3,13 @@
 package server
 
 import (
+	"os/exec"
 	"syscall"
 	"time"
 )
 
-func (s *Server) cmdInit() {
-	s.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	return
+func (s *Server) cmdInit(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
 func (s *Server) Shutdown() {

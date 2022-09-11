@@ -56,7 +56,6 @@ func (c *Client) SendDebug(rec *protocol.Record) (err error) {
 	return
 }
 
-// Hades send record
 func (c *Client) SendRecord(rec *protocol.Record) (err error) {
 	// fill up with the ts by ticker
 	rec.Timestamp = c.clock.Now().Unix()
