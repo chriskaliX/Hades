@@ -224,7 +224,10 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
     if (limit >= 12)
         limit = 12;
 #pragma unroll
-    for (int i = 0; i < limit; i++) {
+    for (int i = 0; i < 12; i++) {
+        if (i == limit) {
+            goto out;
+        }
         pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)
