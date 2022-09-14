@@ -3,8 +3,11 @@
 package server
 
 import (
+	"os"
 	"os/exec"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func (s *Server) cmdInit(*exec.Cmd) {
@@ -12,7 +15,7 @@ func (s *Server) cmdInit(*exec.Cmd) {
 }
 
 // Syscall is system related.
-func (p *Plugin) Shutdown() {
+func (p *Server) Shutdown() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.IsExited() {

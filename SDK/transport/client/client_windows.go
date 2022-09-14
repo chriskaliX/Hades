@@ -1,6 +1,6 @@
 //go:build windows
 
-package transport
+package client
 
 import (
 	"bufio"

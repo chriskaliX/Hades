@@ -92,7 +92,6 @@ func NewServer(ctx context.Context, workdir string, conf protocol.Config) (s *Se
 	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
 	cmd.Dir = s.workdir
 	s.cmdInit(cmd)
-	zap.S().Info(cmd.SysProcAttr.Setpgid)
 	if errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
 		s.logger.Error("open stderr:", errFile)
 		return
