@@ -18,7 +18,6 @@ import (
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/chriskaliX/SDK/util/hash"
 	"github.com/nightlyone/lockfile"
-	"go.uber.org/zap"
 )
 
 var _ ISandbox = (*Sandbox)(nil)
@@ -81,10 +80,10 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	sconfig.LogConfig.Client = s.Client
 	s.Logger = logger.New(sconfig.LogConfig)
 	// lockfile for plugin
-	if err := s.Lockfile(); err != nil {
-		zap.S().Errorf("init failed with lockfile %s", err.Error())
-		return err
-	}
+	// if err := s.Lockfile(); err != nil {
+	// 	zap.S().Errorf("init failed with lockfile %s", err.Error())
+	// 	return err
+	// }
 	defer s.Logger.Info(fmt.Sprintf("sandbox %s init", s.name))
 	// Optional fields initialization
 	if sconfig.Hash {
@@ -177,6 +176,7 @@ func (s *Sandbox) GetHash(path string) string {
 }
 
 // check pid file if it's not debug
+// also, we should remove this in Shutdown
 func (s *Sandbox) Lockfile() error {
 	var dir string
 	if s.debug {
