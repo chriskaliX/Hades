@@ -9,6 +9,10 @@ agent/main
 .VSCodeCounter/
 .vscode/
 
+# deploy
+agent/deploy/hadesctl
+agent/deploy/hades-agent
+
 # ignore certs
 cert/
 

@@ -10,9 +10,12 @@ After=network-online.target network.target syslog.target
 # Configures the process start-up type for this service unit. One of simple, exec, forking, oneshot, dbus, notify or idle:
 Type=simple
 ExecStart=/etc/hades/hades-agent
-WorkingDirectory=/etc/agent
+WorkingDirectory=/etc/hades
 Restart=always
-RestartSec=45
+RestartSec=60
+# control-group: kill by cgroup
+# process: kill main process
+# mixed: send SIGTERM to main process, and send SIGKILL to other processes in cgroup
 KillMode=control-group
 # 兼容性
 MemoryMax=250M
@@ -30,6 +33,7 @@ Delegate=yes
 # WatchdogSec=900
 # config file 问题
 EnvironmentFile=-/etc/hades/specified_env
+
 [Install]
 # 所有用于实现多用户命令行环境的单元
 WantedBy=multi-user.target

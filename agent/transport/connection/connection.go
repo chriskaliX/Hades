@@ -56,14 +56,14 @@ var _ connection.INetRetry = (*GRPCConn)(nil)
 // Grpc instance for establish connection with server in a load-balanced way
 //
 // In Elkeid, there is 3 ways of connection.
-// 1. service discovery
-//    It is done by the server (registry/detail). Client side query the
-// 	  service discovery host by look up the os env, and this is the reason
-//    that a setting-env operation is used in Elkeid in Task.
-// 2. private network
-//    private network addr, same with service discovery by env looking up.
-// 3. public network
-//    same way
+//  1. service discovery
+//     It is done by the server (registry/detail). Client side query the
+//     service discovery host by look up the os env, and this is the reason
+//     that a setting-env operation is used in Elkeid in Task.
+//  2. private network
+//     private network addr, same with service discovery by env looking up.
+//  3. public network
+//     same way
 //
 // The os.Setenv way to cache the variables is also working in Windows.
 // Compatibility is not concerned for now.
@@ -111,11 +111,6 @@ func New() *GRPCConn {
 	if InsecureTransport {
 		gConn.Options = append(gConn.Options, grpc.WithInsecure())
 	} else {
-		// host, _, err := net.SplitHostPort(gConn.Addr)
-		// if err != nil {
-		// 	zap.S().Error(err)
-		// }
-		// zap.S().Info(host)
 		gConn.Options = append(gConn.Options,
 			grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig("hades.com"))),
 		)

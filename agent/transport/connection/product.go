@@ -18,6 +18,11 @@ var ClientCert []byte
 //go:embed ca.crt
 var CaCert []byte
 
+// Notice: Do a modify here to specific the addresss
+// As default, we use dns based LB
+// func init() {
+// }
+
 // TLS configuration generator
 func LoadTLSConfig(host string) *tls.Config {
 	certPool := x509.NewCertPool()

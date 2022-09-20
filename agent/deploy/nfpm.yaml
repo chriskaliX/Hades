@@ -5,10 +5,12 @@
 name: "hades-agent"
 arch: "amd64"
 platform: "linux"
-version: "v1.0.0"
+epoch: 3
+version: v1.0.0
+release: 1
 section: "default"
 priority: "extra"
-maintainer: "chriskali <chriskali@163.com>"
+maintainer: "chriskali <chriskali@protonmail.com>"
 description: |
   HIDS hades-agent
 vendor: "theSecHunter"
@@ -30,6 +32,12 @@ contents:
       group: root
   - src: ./scripts/hades-agent.sysvinit
     dst: /etc/hades/hades-agent.sysvinit
+    file_info:
+      mode: 0700
+      owner: root
+      group: root
+  - src: ./hadesctl
+    dst: /etc/hades/hadesctl
     file_info:
       mode: 0700
       owner: root
