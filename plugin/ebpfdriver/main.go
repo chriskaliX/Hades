@@ -11,6 +11,9 @@ import (
 	"github.com/chriskaliX/SDK/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func driver(s SDK.ISandbox) error {
@@ -55,6 +58,9 @@ func main() {
 	sandbox := SDK.NewSandbox()
 	if err := sandbox.Init(sconfig); err != nil {
 		return
+	}
+	if debug {
+		go http.ListenAndServe("0.0.0.0:50000", nil)
 	}
 	// TODO: Dirty init jusr for now
 	cache.DefaultHashCache = sandbox.Hash

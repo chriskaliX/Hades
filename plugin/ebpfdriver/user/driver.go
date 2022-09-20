@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
@@ -61,6 +62,8 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	}
 	// init manager with options
 	// TODO: High CPU performance here
+	// github.com/ehids/ebpfmanager.(*Probe).Init
+	// github.com/ehids/ebpfmanager.getSyscallFnNameWithKallsyms
 	err := driver.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
 		DefaultKProbeMaxActive: 512,
 		VerifierOptions: ebpf.CollectionOptions{
@@ -74,6 +77,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			Max: math.MaxUint64,
 		},
 	})
+	time.Sleep(30 * time.Second)
 	driver.context, driver.cancel = context.WithCancel(s.Context())
 	return driver, err
 }

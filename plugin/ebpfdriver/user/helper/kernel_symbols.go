@@ -60,7 +60,7 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 
 	file, err := os.Open("/proc/kallsyms")
 	if err != nil {
-		return nil, fmt.Errorf("Could not open /proc/kallsyms")
+		return nil, fmt.Errorf("could not find /proc/kallsyms")
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
@@ -82,10 +82,28 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		if len(line) > 3 {
 			symbolOwner = line[3]
 		}
-		if strings.ToLower(line[1]) == "t" ||
-			strings.ToLower(line[1]) == "w" ||
-			strings.ToLower(line[2]) == "sys_call_table" ||
-			strings.ToLower(line[2]) == "idt_table" {
+		// special
+		lower := strings.ToLower(line[2])
+		if lower == "sys_call_table" || lower == "idt_table" {
+			symbol := helpers.KernelSymbol{
+				Name:    symbolName,
+				Type:    symbolType,
+				Address: symbolAddr,
+				Owner:   symbolOwner,
+			}
+			KernelSymbols.set(symbolName, symbol)
+			KernelSymbols.set(symbolAddr, symbol)
+		}
+		// do the filter
+		if strings.ToLower(line[1]) == "t" || strings.ToLower(line[1]) == "w" {
+			// 3 types
+			// __x64__sys_open
+			// SyS_open
+			// __sys_open
+			lower = strings.ToLower(line[2])
+			if !(strings.HasPrefix(lower, "sys_") || strings.Contains(lower, "__sys_")) {
+				continue
+			}
 			symbol := helpers.KernelSymbol{
 				Name:    symbolName,
 				Type:    symbolType,
