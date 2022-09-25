@@ -67,7 +67,7 @@ jobs:
       with:
         path: /tmp/ebpfdriver
     - name: package
-      working-directory: /tmp/ebpfdriver
+      working-directory: /tmp/ebpfdriver/ebpfdriver
       run: |
         sha256sum ebpfdriver >> checksum.txt
         tar zcvf ~/ebpfdriver.tgz ebpfdriver checksum.txt
