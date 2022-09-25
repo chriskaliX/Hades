@@ -1,22 +1,26 @@
 name: Hades-driver
+
 on:
-  release:
-    types:
-    - created
+  push:
+    tags:
+    - ebpfdriver-v*
 
 jobs:
-  create-release:
+  build:
     runs-on: ubuntu-latest
     steps: 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
+      
       - name: version env
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      
       - name: go env
         uses: actions/setup-go@v2
         with:
           go-version: '1.17'
+      
       - name: llvm env
         run: |
           sudo apt-get update
@@ -27,23 +31,53 @@ jobs:
             sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
           done
         shell: bash
+      
       - name: auth
         run: |
           gh auth login --with-token <<<'${{ secrets.GITHUB_TOKEN }}'
+      
       - name: build
         run: |
           cd plugin/ebpfdriver
           make core
-          sha256sum ebpfdriver >> checksum-driver-${{ env.RELEASE_VERSION }}.txt
           cd ../..
-      - name: package
-        run: tar czf ebpfdriver-{{ env.RELEASE_VERSION }}.tgz plugin/ebpfdriver/ebpfdriver plugin/ebpfdriver/checksum-driver-*.txt 
-      - name: UPLOAD
-        uses: actions/upload-release-asset@v1
-        env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: upload
+        uses: actions/upload-artifact@v3
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./ebpfdriver-*.tgz
-          asset_name: ebpfdriver-*.tgz
-          asset_content_type: application/gzip
+          path: plugin/ebpfdriver/ebpfdriver
+          name: ebpfdriver
+      
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: create release
+      id: create_release
+      uses: actions/create-release@v1
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # draft for testing! 
+        draft: true
+        prerelease: false
+        release_name: Release ${{github.ref}}
+        tag_name: ${{github.ref}}
+    - uses: actions/download-artifact@v3
+      with:
+        path: ~/ebpfdriver
+    - name: package
+      run: |
+        sha256sum ebpfdriver >> checksum.txt
+        tar zcvf ebpfdriver.tgz ebpfdriver checksum.txt
+    - name: upload
+      id: upload
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        asset_content_type: application/zip
+        asset_name: ${{ env.RELEASE_VERSION }}.tgz
+        asset_path: ./ebpfdriver.tgz
+        upload_url: ${{steps.create_release.outputs.upload_url}}
+    needs:
+    - build
