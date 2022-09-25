@@ -37,7 +37,7 @@ jobs:
           sha256sum ebpfdriver >> checksum-driver-${{ env.RELEASE_VERSION }}.txt
           cd ../..
       - name: package
-          tar czf ebpfdriver-{{ env.RELEASE_VERSION }}.tgz plugin/ebpfdriver/ebpfdriver plugin/ebpfdriver/checksum-driver-*.txt 
+        run: tar czf ebpfdriver-{{ env.RELEASE_VERSION }}.tgz plugin/ebpfdriver/ebpfdriver plugin/ebpfdriver/checksum-driver-*.txt 
       - name: UPLOAD
         use: actions/upload-release-asset@v1
         env: 
