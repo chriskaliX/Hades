@@ -39,7 +39,7 @@ jobs:
       - name: package
         run: tar czf ebpfdriver-{{ env.RELEASE_VERSION }}.tgz plugin/ebpfdriver/ebpfdriver plugin/ebpfdriver/checksum-driver-*.txt 
       - name: UPLOAD
-        use: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1
         env: 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
