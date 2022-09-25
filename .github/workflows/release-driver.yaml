@@ -65,9 +65,9 @@ jobs:
         tag_name: ${{github.ref}}
     - uses: actions/download-artifact@v3
       with:
-        path: ~/ebpfdriver
+        path: /tmp/ebpfdriver
     - name: package
-      working-directory: ~/ebpfdriver
+      working-directory: /tmp/ebpfdriver
       run: |
         sha256sum ebpfdriver >> checksum.txt
         tar zcvf ~/ebpfdriver.tgz ebpfdriver checksum.txt
