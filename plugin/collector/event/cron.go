@@ -197,7 +197,6 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 				}
 				if data, err := sonic.MarshalString(crons); err == nil {
 					rawdata := make(map[string]string)
-					rawdata["data_type"] = "3001"
 					rawdata["data"] = data
 				}
 			}

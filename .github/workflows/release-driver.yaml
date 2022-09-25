@@ -1,10 +1,49 @@
-# release Hades Driver
-name: release-driver
+name: Hades-driver
 on:
-  workflow_dispatch: {}
-  push:
-    tags: "v*"
+  release:
+    types:
+    - created
 
 jobs:
-  ubuntu:
-    name: "ubuntu builder"
+  create-release:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: version env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: go env
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+      - name: llvm env
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential pkgconf libelf-dev llvm-12 clang-12 linux-tools-common linux-tools-generic
+          for tool in "clang" "llc" "llvm-strip"
+          do
+            sudo rm -f /usr/bin/$tool
+            sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+          done
+        shell: bash
+      - name: auth
+        run: |
+          gh auth login --with-token <<<'${{ secrets.GITHUB_TOKEN }}'
+      - name: build
+        run: |
+          cd plugin/ebpfdriver
+          make core
+          sha256sum ebpfdriver >> checksum-driver-${{ env.RELEASE_VERSION }}.txt
+          cd ../..
+      - name: package
+          tar czf ebpfdriver-{{ env.RELEASE_VERSION }}.tgz plugin/ebpfdriver/ebpfdriver plugin/ebpfdriver/checksum-driver-*.txt 
+      - name: UPLOAD
+        use: actions/upload-release-asset@v1
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./ebpfdriver-*.tgz
+          asset_name: ebpfdriver-*.tgz
+          asset_content_type: application/gzip

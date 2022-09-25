@@ -17,13 +17,13 @@ func init() {
 func collector(sandbox SDK.ISandbox) error {
 	// user
 	user, _ := event.GetEvent("user")
-	user.SetMode(event.Differential)
+	user.SetMode(event.Snapshot)
 	user.SetInterval(600)
 	go event.RunEvent(user, true, sandbox.Context())
 
 	// processes
 	process, _ := event.GetEvent("process")
-	process.SetMode(event.Differential)
+	process.SetMode(event.Snapshot)
 	process.SetInterval(3600)
 	go event.RunEvent(process, false, sandbox.Context())
 
@@ -33,13 +33,13 @@ func collector(sandbox SDK.ISandbox) error {
 	yum.SetInterval(3600)
 	go event.RunEvent(yum, false, sandbox.Context())
 
-	// sshdconfidg
+	// sshdconfig
 	sshdconfig, _ := event.GetEvent("sshdconfig")
 	sshdconfig.SetMode(event.Differential)
 	sshdconfig.SetInterval(3600)
 	go event.RunEvent(sshdconfig, false, sandbox.Context())
 
-	// socket
+	// ssh
 	sshconfig, _ := event.GetEvent("sshconfig")
 	sshconfig.SetMode(event.Differential)
 	sshconfig.SetInterval(3600)
@@ -47,6 +47,7 @@ func collector(sandbox SDK.ISandbox) error {
 
 	// for crontab and sshd and cn_proc and crontab . It's sync job
 	// By the way a limit to pid tree should be strictly considered.
+	// For collections, we need snapshot
 	cron, _ := event.GetEvent("cron")
 	cron.SetType(event.Realtime)
 	go event.RunEvent(cron, false, sandbox.Context())
@@ -57,12 +58,17 @@ func collector(sandbox SDK.ISandbox) error {
 	go event.RunEvent(ssh, false, sandbox.Context())
 
 	// ncp = netlink/cn_proc
-	ncp, _ := event.GetEvent("ncp")
-	ncp.SetType(event.Realtime)
-	go event.RunEvent(ncp, false, sandbox.Context())
+	//
+	// In Hades, we remove the NCP way since we have a better tool(eBPF)
+	// you can modify this if it is needed.
+	// ncp, _ := event.GetEvent("ncp")
+	// ncp.SetType(event.Realtime)
+	// go event.RunEvent(ncp, false, sandbox.Context())
 
+	// socket
+	// change to snapshot since eBPFdriver already hooks the bind call
 	socket, _ := event.GetEvent("socket")
-	socket.SetMode(event.Differential)
+	socket.SetMode(event.Snapshot)
 	socket.SetInterval(300)
 	go event.RunEvent(socket, false, sandbox.Context())
 
