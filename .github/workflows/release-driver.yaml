@@ -50,6 +50,7 @@ jobs:
       
   release:
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
     - name: create release
       id: create_release
@@ -67,8 +68,8 @@ jobs:
         path: ~/ebpfdriver
     - name: package
       run: |
-        sha256sum ebpfdriver >> checksum.txt
-        tar zcvf ebpfdriver.tgz ebpfdriver checksum.txt
+        sha256sum ~/ebpfdriver >> ~/checksum.txt
+        tar zcvf ebpfdriver.tgz ~/ebpfdriver ~/checksum.txt
     - name: upload
       id: upload
       uses: actions/upload-release-asset@v1
