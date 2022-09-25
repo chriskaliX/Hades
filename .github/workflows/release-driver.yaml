@@ -40,13 +40,7 @@ jobs:
         run: |
           cd plugin/ebpfdriver
           make core
-          cd ../..
-
-      - name: upload
-        uses: actions/upload-artifact@v3
-        with:
-          path: plugin/ebpfdriver/ebpfdriver
-          name: ebpfdriver
+          mv ebpfdriver /tmp/ebpfdriver
       
   release:
     runs-on: ubuntu-latest
@@ -63,13 +57,10 @@ jobs:
         prerelease: false
         release_name: Release ${{github.ref}}
         tag_name: ${{github.ref}}
-    - uses: actions/download-artifact@v3
-      with:
-        path: ~/ebpfdriver
     - name: package
       run: |
-        sha256sum ~/ebpfdriver >> ~/checksum.txt
-        tar zcvf ebpfdriver.tgz ~/ebpfdriver ~/checksum.txt
+        sha256sum /tmp/ebpfdriver >> /tmp/checksum.txt
+        tar zcvf ebpfdriver.tgz /tmp/ebpfdriver /tmp/checksum.txt
     - name: upload
       id: upload
       uses: actions/upload-release-asset@v1
