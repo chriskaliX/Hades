@@ -93,10 +93,10 @@ func RunEvent(event Event, immediately bool, ctx context.Context) {
 // run the real task
 func eventTask(event Event) (err error) {
 	var rawdata string
-
-	_data := make(map[string]interface{})
+	var _data map[string]interface{}
 	// run the event
 	if _data, err = event.Run(); err != nil {
+		zap.S().Error(event.String() + " " + err.Error())
 		return err
 	}
 	data := make(map[string]string, 1)

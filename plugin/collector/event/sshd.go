@@ -51,6 +51,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 		fs       os.FileInfo
 	)
 	// choose file by platformfamily
+	// BUG: centos exit
 	switch _platformfamily {
 	case "fedora", "redhat":
 		path = "/var/log/secure"

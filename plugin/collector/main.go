@@ -18,18 +18,21 @@ func collector(sandbox SDK.ISandbox) error {
 	// user
 	user, _ := event.GetEvent("user")
 	user.SetMode(event.Snapshot)
+	user.SetType(event.Periodicity)
 	user.SetInterval(600)
 	go event.RunEvent(user, true, sandbox.Context())
 
 	// processes
 	process, _ := event.GetEvent("process")
 	process.SetMode(event.Snapshot)
+	process.SetType(event.Periodicity)
 	process.SetInterval(3600)
 	go event.RunEvent(process, false, sandbox.Context())
 
 	// yum
 	yum, _ := event.GetEvent("yum")
 	yum.SetMode(event.Differential)
+	yum.SetType(event.Periodicity)
 	yum.SetInterval(3600)
 	go event.RunEvent(yum, false, sandbox.Context())
 
@@ -69,6 +72,7 @@ func collector(sandbox SDK.ISandbox) error {
 	// change to snapshot since eBPFdriver already hooks the bind call
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Snapshot)
+	// Change to 300
 	socket.SetInterval(300)
 	go event.RunEvent(socket, false, sandbox.Context())
 

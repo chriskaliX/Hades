@@ -45,7 +45,6 @@ func (b *BasicEvent) Init(name string) error {
 	_cache, _ := _cacheMap.LoadOrStore(name, &sync.Map{})
 	b._cache = _cache.(*sync.Map)
 	b.SetStatus(true)
-	b.mode = Differential
 	return nil
 }
 
