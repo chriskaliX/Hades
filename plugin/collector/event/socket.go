@@ -55,8 +55,10 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 	}
 	for _, pid := range pids {
 		var fds []string
+		// Logical bug here, 
 		if fds, err = cache.GetFds(pid); err != nil {
-			goto Next
+			time.Sleep(10 * time.Millisecond)
+			continue
 		}
 		// get all file description here
 		for _, fd := range fds {
@@ -82,11 +84,12 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 				sockets[index].Cmdline = proc.Cmdline
 			}
 		}
-	Next:
 		socket := sockets[index]
 		result[strconv.Itoa(int(socket.Inode))] = socket
 		time.Sleep(100 * time.Millisecond)
 	}
+	// clear the err here, since we use the err above
+	err = nil
 	return
 }
 

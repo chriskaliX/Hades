@@ -72,7 +72,6 @@ func collector(sandbox SDK.ISandbox) error {
 	// change to snapshot since eBPFdriver already hooks the bind call
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Snapshot)
-	// Change to 300
 	socket.SetInterval(300)
 	go event.RunEvent(socket, false, sandbox.Context())
 

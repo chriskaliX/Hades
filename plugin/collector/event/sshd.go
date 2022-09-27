@@ -52,6 +52,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 	)
 	// choose file by platformfamily
 	// BUG: centos exit
+	// In centos, it's in /var/log/messages
 	switch _platformfamily {
 	case "fedora", "redhat":
 		path = "/var/log/secure"
