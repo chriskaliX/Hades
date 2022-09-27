@@ -212,7 +212,7 @@ func (n *Netlink) Handle(data []byte) (result string, err error) {
 		process, err = cache.GetProcessInfo(int(pid), true)
 		process.Source = "netlink"
 		process.TID = int(tpid)
-		defer cache.DefaultProcessPool.Put(process)
+		defer cache.DProcessPool.Put(process)
 		if err != nil {
 			return
 		}

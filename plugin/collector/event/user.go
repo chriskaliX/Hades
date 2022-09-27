@@ -100,7 +100,7 @@ func (User) Run() (result map[string]interface{}, err error) {
 	// append all
 	for _, user := range userMap {
 		result[strconv.FormatUint(uint64(user.UID), 10)] = user
-		cache.DefaultUserCache.Update(&user)
+		cache.DefaultUserCache.Update(user)
 	}
 	return
 }

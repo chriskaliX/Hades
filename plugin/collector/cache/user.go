@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/patrickmn/go-cache"
+	utilcache "k8s.io/apimachinery/pkg/util/cache"
 )
+
+const userCacheSize = 2048
 
 type User struct {
 	Username      string `json:"username"`
@@ -24,53 +26,52 @@ type User struct {
 }
 
 var DefaultUserCache = &UserCache{
-	_cache: cache.New(time.Hour*time.Duration(2), time.Minute*time.Duration(30)),
+	cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, GTicker),
 }
 
 type UserCache struct {
-	_cache *cache.Cache
+	cache *utilcache.LRUExpireCache
 }
 
-func (u *UserCache) GetUser(userid uint32) *User {
-	useridstr := strconv.FormatUint(uint64(userid), 10)
-	if _user, ok := u._cache.Get(useridstr); ok {
-		return _user.(*User)
+func (u *UserCache) GetUser(userid uint32) User {
+	ustr := strconv.FormatUint(uint64(userid), 10)
+	if _user, ok := u.cache.Get(ustr); ok {
+		return _user.(User)
 	}
 	// Filled by LookupId, not complete User we get
-	if tmp, err := user.LookupId(useridstr); err == nil {
+	if tmp, err := user.LookupId(ustr); err == nil {
 		gid, _ := strconv.ParseInt(tmp.Gid, 10, 32)
 		uid, _ := strconv.ParseInt(tmp.Uid, 10, 32)
-		user := &User{
+		user := User{
 			Username: tmp.Username,
 			HomeDir:  tmp.HomeDir,
 			GID:      uint32(gid),
 			UID:      uint32(uid),
 		}
-		u._cache.Add(useridstr, user, time.Minute*time.Duration(rand.Intn(60)+60))
+		u.cache.Add(ustr, user, time.Minute*time.Duration(rand.Intn(60)+60))
 		return user
 	}
-	return nil
+	return User{}
 }
 
 func (u *UserCache) GetUsername(userid uint32) (username string) {
 	user := u.GetUser(userid)
-	if user == nil {
-		return
-	}
 	username = user.Username
 	return
 }
 
-func (u *UserCache) GetUsers() (users []*User) {
-	for _, user := range u._cache.Items() {
-		users = append(users, user.Object.(*User))
+func (u *UserCache) GetUsers() (users []User) {
+	for _, username := range u.cache.Keys() {
+		if value, ok := u.cache.Get(username.(string)); ok {
+			users = append(users, value.(User))
+		}
 	}
 	return
 }
 
-func (u *UserCache) Update(usr *User) {
-	useridstr := strconv.FormatUint(uint64(usr.UID), 10)
-	u._cache.Set(useridstr, usr, time.Minute*time.Duration(rand.Intn(60)+60))
+func (u *UserCache) Update(usr User) {
+	ustr := strconv.FormatUint(uint64(usr.UID), 10)
+	u.cache.Add(ustr, usr, time.Minute*time.Duration(rand.Intn(60)+60))
 }
 
 func init() {

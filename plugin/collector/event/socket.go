@@ -73,7 +73,7 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 				continue
 			}
 			sockets[index].PID = pid
-			proc := cache.DefaultProcessPool.Get()
+			proc := cache.DProcessPool.Get()
 			proc.PID = pid
 			if err = proc.GetStat(false); err == nil {
 				sockets[index].Comm = proc.Name

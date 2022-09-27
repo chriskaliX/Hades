@@ -190,10 +190,7 @@ loop:
 				Inode:     sockInfo.INode,
 				Type:      protocol,
 			}
-			user := cache.DefaultUserCache.GetUser(socket.UID)
-			if user != nil {
-				socket.Username = cache.DefaultUserCache.GetUser(socket.UID).Username
-			}
+			socket.Username = cache.DefaultUserCache.GetUser(socket.UID).Username
 			sockets = append(sockets, socket)
 		}
 	}

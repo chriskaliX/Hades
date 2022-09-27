@@ -1,3 +1,7 @@
+// Process contains a process pool and the operation of getting
+// information of a process.
+//
+// TODO: compatible in windows
 package cache
 
 import (
@@ -10,34 +14,89 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"runtime"
+	"fmt"
+	"time"
 )
 
-const MaxCmdline = 512
+// maxCmdline setting
+const maxCmdline = 256
+// In promthues/procfs, it returns out
+// that in every disros that they researched, USER_HZ is actually hardcoded to
+// 100 on all Go-supported platforms. See the reference here:
+// https://github.com/prometheus/procfs/blob/116b5c4f80ab09a0a6a848a7606652821b90d065/proc_stat.go
+// Also in https://github.com/mneverov/CPUStat, the author claims that it is safe to hardcode
+// this to 100
+const userHz = 100
 
-var DefaultProcessPool = NewPool()
+// internal system related variables
+var bootTime = uint64(0)
+var sysTime = uint64(0)
+var nproc = runtime.NumCPU()
 
+func init() {
+	stat, err := os.ReadFile("/proc/stat")
+	if err == nil {
+		statStr := string(stat)
+		lines := strings.Split(statStr, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "btime") {
+				fields := strings.Fields(line)
+				if len(fields) < 2 {
+					continue
+				}
+				bootTime, _ = strconv.ParseUint(fields[1], 10, 64)
+			}
+		}
+	}
+}
+
+var DProcessPool = NewPool()
+
+// ProcessPool
+//
+// Get() get a process from the process pool
+// Put() returns the process into the pool
 type ProcessPool struct {
-	p *sync.Pool
+	p sync.Pool
 }
 
 func NewPool() *ProcessPool {
-	return &ProcessPool{p: &sync.Pool{
+	return &ProcessPool{p: sync.Pool{
 		New: func() interface{} {
 			return &Process{}
 		},
 	}}
 }
 
-func (p ProcessPool) Get() *Process {
+func (p *ProcessPool) Get() *Process {
 	pr := p.p.Get().(*Process)
 	return pr
 }
 
-func (p ProcessPool) Put(pr *Process) {
+func (p *ProcessPool) Put(pr *Process) {
+	pr.CgroupId = 0
+	pr.Uts_inum = 0
+	pr.TID = 0
+	pr.PName = ""
+	pr.TTY = 0
+	pr.TTYName = ""
+	pr.RemoteAddr = ""
+	pr.RemotePort = ""
+	pr.LocalAddr = ""
+	pr.LocalPort = ""
+	pr.NodeName = ""
+	pr.Stdin = ""
+	pr.Stdout = ""
+	pr.Utime = 0
+	pr.Stime = 0
+	pr.Rss = 0
+	pr.Vsize = 0
 	p.p.Put(pr)
 }
 
-// Process struct, shared with both netlink and
+// Process struct, it is shared in both process collection
+// and netlink part.
 type Process struct {
 	CgroupId   int    `json:"cgroupid,omitempty"`
 	Uts_inum   int    `json:"uts_inum,omitempty"`
@@ -71,7 +130,7 @@ type Process struct {
 	Stime      uint64 `json:"stime,omitempty"`
 	Rss        uint64 `json:"resmem,omitempty"`
 	Vsize      uint64 `json:"virmem,omitempty"`
-	Cpu        string `json:"cpu,omitempty"`
+	Cpu        float64 `json:"cpu,omitempty"`
 }
 
 // readonly, change to readfile
@@ -118,8 +177,8 @@ func (p *Process) GetCmdline() (err error) {
 	res = bytes.ReplaceAll(res, []byte{0}, []byte{' '})
 	res = bytes.TrimSpace(res)
 	p.Cmdline = string(res)
-	if len(p.Cmdline) > MaxCmdline {
-		p.Cmdline = p.Cmdline[:MaxCmdline]
+	if len(p.Cmdline) > maxCmdline {
+		p.Cmdline = p.Cmdline[:maxCmdline]
 	}
 	return
 }
@@ -160,19 +219,18 @@ func (p *Process) GetStat(simple bool) (err error) {
 	// https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat#
 	// https://github.com/mneverov/CPUStat
 	// nproc not found and understood
-
-	// iotime := uint64(0)
-	// if len(fields) > 42 {
-	// 	iotime, _ = strconv.ParseUint(string(fields[42]), 10, 64)
-	// }
-	// createTime := ((p.StartTime / SC_CLK_TCK) + _bootTime) * 1000
-	// totalTime := time.Since(createTime).Seconds()
-	// user := p.Utime / SC_CLK_TCK
-	// system := p.Stime / SC_CLK_TCK
-	// iowait := iotime / SC_CLK_TCK
-	// cpuTotal := user + system + iowait
-	// cpu := 100 * cpuTotal / totalTime
-	// // for collection, add rt as well maybe
+	// https://github.com/prometheus/procfs
+	p.StartTime = bootTime + (p.StartTime / userHz)
+	// iotime in mneverov/CPUStat
+	iotime := uint64(0)
+	if len(fields) > 42 {
+		iotime, _ = strconv.ParseUint(string(fields[42]), 10, 64)
+	}
+	// Add cutime and cstime if children processes is needed
+	// Be careful with this. The cpu usage here is counted by all cpu
+	total := uint64(time.Now().Unix())-p.StartTime
+	p.Cpu = ((float64((p.Utime + p.Stime + iotime)) / userHz) / float64(total))
+	p.Cpu, _ = strconv.ParseFloat(fmt.Sprintf("%.6f", p.Cpu), 64)
 	return
 }
 
@@ -219,7 +277,7 @@ func GetPids(limit int) (pids []int, err error) {
 
 // get single process information by it's pid
 func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
-	proc = DefaultProcessPool.Get()
+	proc = DProcessPool.Get()
 	proc.PID = pid
 	if err = proc.GetStatus(); err != nil {
 		return

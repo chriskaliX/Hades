@@ -10,7 +10,7 @@ import (
 
 // modify this according to Elkeid
 const (
-	MaxProcess             = 1500
+	maxProcess             = 1500
 	ProcessIntervalMillSec = 100
 	PROCESS_DATATYPE       = 1001
 )
@@ -53,7 +53,7 @@ func (p Process) Run() (result map[string]interface{}, err error) {
 
 func (Process) getProcess() (procs []*cache.Process, err error) {
 	var pids []int
-	pids, err = cache.GetPids(MaxProcess)
+	pids, err = cache.GetPids(maxProcess)
 	if err != nil {
 		return
 	}
