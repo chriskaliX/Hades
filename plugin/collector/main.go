@@ -14,6 +14,7 @@ import (
 func init() {
 	runtime.GOMAXPROCS(4)
 }
+
 func collector(sandbox SDK.ISandbox) error {
 	// user
 	user, _ := event.GetEvent("user")

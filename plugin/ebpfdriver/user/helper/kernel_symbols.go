@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -58,6 +59,16 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		symbolMap: make(map[uint64]helpers.KernelSymbol),
 	}
 
+	var arch string
+	switch runtime.GOARCH {
+	case "386":
+		arch = "ia32"
+	case "arm64":
+		arch = "arm64"
+	default:
+		arch = "x64"
+	}
+
 	file, err := os.Open("/proc/kallsyms")
 	if err != nil {
 		return nil, fmt.Errorf("could not find /proc/kallsyms")
@@ -101,7 +112,7 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 			// SyS_open
 			// __sys_open
 			lower = strings.ToLower(line[2])
-			if !(strings.HasPrefix(lower, "sys_") || strings.Contains(lower, "__sys_")) {
+			if !(strings.HasPrefix(lower, "sys_") || strings.Contains(lower, "__sys_") || strings.HasPrefix(lower, "__"+arch+"_sys_")) {
 				continue
 			}
 			symbol := helpers.KernelSymbol{

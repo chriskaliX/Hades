@@ -238,6 +238,9 @@ static __always_inline void sys_call_table_scan(event_data_t *data)
     save_to_submit_buf(data, &syscall_addr, sizeof(unsigned long), 0);
     save_to_submit_buf(data, &syscall_num, sizeof(__u64), 1);
 
+    // By the way, not all rootkits hook sys_call_table. Sometimes they hook inside
+    // the kernel function, like Reptile (vfs_read for example)
+    // https://blog.tofile.dev/2021/07/07/ebpf-hooks.html 
     int field = ANTI_ROOTKIT_SYSCALL;
     save_to_submit_buf(data, &field, sizeof(int), 2);
     events_perf_submit(data);
@@ -307,4 +310,50 @@ int BPF_KPROBE(kprobe_security_file_ioctl)
         idt_table_scan(&data);
     }
     return 0;
+}
+
+// micros for uprobe
+#if defined(__TARGET_ARCH_x86)
+    #define GO_REG1(x) ((x)->ax)
+    #define GO_REG2(x) ((x)->bx)
+    #define GO_REG3(x) ((x)->cx)
+    #define GO_REG4(x) ((x)->di)
+    #define GO_SP(x) ((x)->sp)
+#elif defined(__TARGET_ARCH_arm64)
+    #define GO_REG1(x) PT_REGS_PARM1(x)
+    #define GO_REG2(x) PT_REGS_PARM2(x)
+    #define GO_REG3(x) PT_REGS_PARM3(x)
+    #define GO_REG4(x) PT_REGS_PARM4(x)
+    #define GO_SP(x) PT_REGS_SP(x)
+#endif
+
+SEC("uprobe/trigger_sct_scan")
+int trigger_sct_scan(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 1200;
+    // Hook golang uprobe with eBPF
+    // After golang 1.17, params stay at registers (Go internal ABI specification)
+    // https://go.googlesource.com/go/+/refs/heads/dev.regabi/src/cmd/compile/internal-abi.md
+    // We only support golang over 1.17, it's fine. When I thought we can easily killed this
+    // by get the return value of the function, https://github.com/golang/go/issues/22008
+    // returns out it is unsafe to use a uretprobe in golang for now with only static
+    // stack assumption.
+    //
+    // Stack-based is not supported
+    unsigned long *address = (unsigned long *) GO_REG2(ctx);
+    u64 index = GO_REG3(ctx);
+    
+    u64 addr = READ_KERN(address[index]);
+    // skip if it can not be found in sdt
+    if (addr == 0) {
+        return 0;
+    }
+
+    save_to_submit_buf(&data, &index, sizeof(u64), 0);
+    save_to_submit_buf(&data, &addr, sizeof(u64), 0);
+
+    return events_perf_submit(&data);
 }

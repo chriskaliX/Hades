@@ -27,6 +27,7 @@ HADES_SRC := src/hades.c
 INFO_COLOR = \033[34m[*]\033[0m
 SUCC_COLOR = \033[32m[+]\033[0m
 FAIL_COLOR = \033[31m[-]\033[0m
+HIGHLIGHT_COLOR = \033[35mHades\033[0m
 
 nocore: \
 	pre_show
@@ -40,11 +41,11 @@ core: \
 
 .PHONY: pre_show
 pre_show:
-	@echo "┌──────────────────────────────┐"
-	@echo "│   \033[35mHades\033[0m eBPF Kernel Driver   │"
-	@echo "│    based on Tracee/Elkeid    │"
-	@echo "│         @chriskaliX          │"
-	@echo "└──────────────────────────────┘"
+	@echo   "┌──────────────────────────────┐"
+	@printf "│   $(HIGHLIGHT_COLOR) eBPF Kernel Driver   │\n"
+	@echo   "│    based on Tracee/Elkeid    │"
+	@echo   "│         @chriskaliX          │"
+	@echo   "└──────────────────────────────┘"
 	@printf "$(INFO_COLOR) Start to build hades_ebpf_driver\n"
 	@printf "$(INFO_COLOR) Pre-check for compile tools exists\n"
 	$(CHECK_TOOLS_EXSITS)

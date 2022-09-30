@@ -3,7 +3,6 @@ package event
 import (
 	"fmt"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
 	"os"
 	"sync"
 	"syscall"
@@ -17,6 +16,7 @@ import (
 
 var _ decoder.Event = (*AntiRootkit)(nil)
 
+// In tracee, uprobes in used to trigger, which is more elegant.
 type AntiRootkit struct {
 	decoder.BasicEvent `json:"-"`
 	Index              uint64 `json:"index"`
@@ -102,7 +102,6 @@ func (AntiRootkit) GetMaps() []*manager.Map {
 }
 
 var once sync.Once
-var kernelSymbols *helper.KernelSymbolTable
 
 const (
 	IDT_CACHE       = 0
@@ -234,17 +233,17 @@ func (anti AntiRootkit) scanIDT(m *manager.Manager) error {
 }
 
 func (anti *AntiRootkit) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
-	ticker := time.NewTicker(15 * time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	return anti.Scan, ticker
 }
 
 // Regist and trigger
-func init() {
-	var err error
-	kernelSymbols, err = helper.NewKernelSymbolsMap()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	decoder.RegistEvent(&AntiRootkit{})
-}
+// func init() {
+// 	var err error
+// 	kernelSymbols, err = helper.NewKernelSymbolsMap()
+// 	if err != nil {
+// 		zap.S().Error(err)
+// 		return
+// 	}
+// 	decoder.RegistEvent(&AntiRootkit{})
+// }
