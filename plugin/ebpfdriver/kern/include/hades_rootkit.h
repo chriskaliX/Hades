@@ -172,33 +172,7 @@ int BPF_KPROBE(kprobe_call_usermodehelper)
 // @Reference: https://blog.csdn.net/dog250/article/details/105842029
 // @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 // Pre define for all
-#define IDT_CACHE           0
-#define SYSCALL_CACHE       1
-#define IDT_ENTRIES         256
-#define MAX_KSYM_NAME_SIZE  64
-#define IOCTL_SCAN_SYSCALLS 65
-#define IOCTL_SCAN_IDTS     66
 
-typedef struct ksym_name
-{
-    char str[MAX_KSYM_NAME_SIZE];
-} ksym_name_t;
-// https://github.com/m0nad/Diamorphine/blob/master/diamorphine.c
-BPF_HASH(ksymbols_map, ksym_name_t, __u64, 64);
-BPF_HASH(analyze_cache, int, __u64, 2);
-
-// get symbol_addr from user_space in /proc/kallsyms
-static __always_inline void *get_symbol_addr(char *symbol_name)
-{
-    char new_ksym_name[MAX_KSYM_NAME_SIZE] = {};
-    bpf_probe_read_str(new_ksym_name, MAX_KSYM_NAME_SIZE, symbol_name);
-    void **sym = bpf_map_lookup_elem(&ksymbols_map, (void *)&new_ksym_name);
-
-    if (sym == NULL)
-        return 0;
-
-    return *sym;
-}
 // It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
 // Do a trigger to scan. It's brilliant and I'll go through this and
 // do the same thing in Hades. And it's done by @itamarmaouda101
@@ -217,101 +191,6 @@ static __always_inline void *get_symbol_addr(char *symbol_name)
 // __module_address to the the mod of the address.
 
 // Below here, Tracee... scan limited syscal_table_addr ...
-static __always_inline void sys_call_table_scan(event_data_t *data)
-{
-    char syscall_table[15] = "sys_call_table";
-    unsigned long *syscall_table_addr = (unsigned long *)get_symbol_addr(syscall_table);
-
-    __u64 idx = SYSCALL_CACHE;
-    __u64 *syscall_num_p;
-    __u64 syscall_num;
-    unsigned long syscall_addr = 0;
-
-    syscall_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
-    if (syscall_num_p == NULL)
-        return;
-    syscall_num = (__u64)*syscall_num_p;
-    syscall_addr = READ_KERN(syscall_table_addr[syscall_num]);
-    if (syscall_addr == 0)
-        return;
-
-    save_to_submit_buf(data, &syscall_addr, sizeof(unsigned long), 0);
-    save_to_submit_buf(data, &syscall_num, sizeof(__u64), 1);
-
-    // By the way, not all rootkits hook sys_call_table. Sometimes they hook inside
-    // the kernel function, like Reptile (vfs_read for example)
-    // https://blog.tofile.dev/2021/07/07/ebpf-hooks.html 
-    int field = ANTI_ROOTKIT_SYSCALL;
-    save_to_submit_buf(data, &field, sizeof(int), 2);
-    events_perf_submit(data);
-}
-
-// idt_table_scan
-/*
- * still wrong with the address we take...
- */
-static __always_inline void idt_table_scan(event_data_t *data)
-{
-    char idt_table[10] = "idt_table";
-    unsigned long *idt_table_addr = (unsigned long *)get_symbol_addr(idt_table);
-
-    __u64 idx = IDT_CACHE;
-    __u64 *idt_num_p;
-    __u64 idt_num;
-    unsigned long idt_addr = 0;
-
-    idt_num_p = bpf_map_lookup_elem(&analyze_cache, (void *)&idx);
-    if (idt_num_p == NULL)
-        return;
-    idt_num = (__u64)*idt_num_p;
-    /* get the address of the interrupt */
-    idt_addr = READ_KERN(idt_table_addr[idt_num]);
-    if (idt_addr == 0)
-        return;
-
-    struct gate_struct* gate = (struct gate_struct *)idt_addr;
-    if (gate == NULL)
-        return;
-
-    __u16 offset_low;
-    bpf_probe_read(&offset_low, sizeof(offset_low), &gate->offset_low);
-    __u16 offset_middle;
-    bpf_probe_read(&offset_middle, sizeof(offset_middle), &gate->offset_middle);
-    __u32 offset_high;
-    bpf_probe_read(&offset_high, sizeof(offset_high), &gate->offset_high);
-
-    /* calc the offset */
-    idt_addr = (unsigned long)offset_low | ((unsigned long)offset_middle << 16) | ((unsigned long)offset_high << 32);
-
-    save_to_submit_buf(data, &idt_addr, sizeof(unsigned long), 0);
-    save_to_submit_buf(data, &idt_num, sizeof(__u64), 1);
-
-    int field = ANTI_ROOTKIT_IDT;
-    save_to_submit_buf(data, &field, sizeof(int), 2);
-    events_perf_submit(data);
-}
-
-SEC("kprobe/security_file_ioctl")
-int BPF_KPROBE(kprobe_security_file_ioctl)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = ANTI_ROOTKIT;
-    unsigned int cmd = PT_REGS_PARM2(ctx);
-    // Skip if not the pid we need
-    if (get_config(CONFIG_HADES_PID) != data.context.tid)
-        return 0;
-
-    if (cmd == IOCTL_SCAN_SYSCALLS)
-    {
-        sys_call_table_scan(&data);
-    } else if (cmd == IOCTL_SCAN_IDTS) {
-        idt_table_scan(&data);
-    }
-    return 0;
-}
-
 // micros for uprobe
 #if defined(__TARGET_ARCH_x86)
     #define GO_REG1(x) ((x)->ax)
@@ -355,5 +234,43 @@ int trigger_sct_scan(struct pt_regs *ctx)
     save_to_submit_buf(&data, &index, sizeof(u64), 0);
     save_to_submit_buf(&data, &addr, sizeof(u64), 0);
 
+    return events_perf_submit(&data);
+}
+
+static void local_load_idt(void *dtr)
+{
+    asm volatile("lidt %0"::"m" (*((struct desc_ptr *)dtr)));
+}
+
+SEC("uprobe/trigger_idt_scan")
+int trigger_idt_scan(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 1201;
+    // Hook golang uprobe with eBPF
+    // After golang 1.17, params stay at registers (Go internal ABI specification)
+    // https://go.googlesource.com/go/+/refs/heads/dev.regabi/src/cmd/compile/internal-abi.md
+    // We only support golang over 1.17, it's fine. When I thought we can easily killed this
+    // by get the return value of the function, https://github.com/golang/go/issues/22008
+    // returns out it is unsafe to use a uretprobe in golang for now with only static
+    // stack assumption.
+    //
+    // Stack-based is not supported
+    struct gate_struct *gate = (struct gate_struct *) GO_REG2(ctx);
+    if (gate == NULL)
+        return 0;
+    u64 index = GO_REG3(ctx);
+    __u16 offset_low;
+    bpf_probe_read(&offset_low, sizeof(offset_low), &gate[index].offset_low);
+    __u16 offset_middle;
+    bpf_probe_read(&offset_middle, sizeof(offset_middle), &gate[index].offset_middle);
+    __u32 offset_high;
+    bpf_probe_read(&offset_high, sizeof(offset_high), &gate[index].offset_high);
+    /* calc the offset */
+    u64 idt_addr = offset_low | ((unsigned long)offset_middle << 16) | ((unsigned long)offset_high << 32);
+    save_to_submit_buf(&data, &index, sizeof(u64), 0);
+    save_to_submit_buf(&data, &idt_addr, sizeof(u64), 0);
     return events_perf_submit(&data);
 }
