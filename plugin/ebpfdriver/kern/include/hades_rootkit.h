@@ -99,6 +99,17 @@ int BPF_KPROBE(kprobe_security_kernel_read_file)
     return events_perf_submit(&data);
 }
 
+// 3. sys_init_module
+// kmatryoshka\Reptile
+SEC("kprobe/sys_init_module")
+int BPF_KPROBE(kprobe_sys_init_module)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    // TODO: under dev
+}
+
 // Add rootkit detection just like in Elkeid.
 // @Notice: this is under full test
 SEC("kprobe/call_usermodehelper")
@@ -163,15 +174,15 @@ int BPF_KPROBE(kprobe_call_usermodehelper)
 // We can collect the syscalls from specific probes or ...
 // @Reference: https://github.com/pathtofile/bpf-hookdetect/blob/main/src/hookdetect.c
 
-// At last, here is my reference:
-// @Reference: https://www.lse.epita.fr/lse-summer-week-2015/slides/lse-summer-week-2015-14-linux_rootkit.pdf
-// @Reference: https://github.com/RouNNdeL/anti-rootkit-lkm/blob/14d9f934f7f9a5bf27849c2b51b096fe585bea35/module/anti_rootkit/main.c
-// @Reference: https://github.com/JnuSimba/MiscSecNotes/blob/dacdefb60d7e5350a077b135382412cbba0f084f/Linux%E6%B8%97%E9%80%8F/Rootkit%20%E7%BB%BC%E5%90%88%E6%95%99%E7%A8%8B.md
-// @Reference: https://blog.csdn.net/dog250/article/details/105371830
-// @Reference: https://blog.csdn.net/dog250/article/details/105394840
-// @Reference: https://blog.csdn.net/dog250/article/details/105842029
-// @Reference: https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
-// Pre define for all
+// At last, here is my references:
+// 
+// https://www.lse.epita.fr/lse-summer-week-2015/slides/lse-summer-week-2015-14-linux_rootkit.pdf
+// https://github.com/RouNNdeL/anti-rootkit-lkm/blob/14d9f934f7f9a5bf27849c2b51b096fe585bea35/module/anti_rootkit/main.c
+// https://github.com/JnuSimba/MiscSecNotes/blob/dacdefb60d7e5350a077b135382412cbba0f084f/Linux%E6%B8%97%E9%80%8F/Rootkit%20%E7%BB%BC%E5%90%88%E6%95%99%E7%A8%8B.md
+// https://blog.csdn.net/dog250/article/details/105371830
+// https://blog.csdn.net/dog250/article/details/105394840
+// https://blog.csdn.net/dog250/article/details/105842029
+// https://he1m4n6a.github.io/2020/07/16/%E5%AF%B9%E6%8A%97rootkits/
 
 // It's very happy to see https://github.com/aquasecurity/tracee/commit/44c3fb1e6ff2faa42be7285690f7a97990abcb08
 // Do a trigger to scan. It's brilliant and I'll go through this and
@@ -191,7 +202,7 @@ int BPF_KPROBE(kprobe_call_usermodehelper)
 // __module_address to the the mod of the address.
 
 // Below here, Tracee... scan limited syscal_table_addr ...
-// micros for uprobe
+// micros for golang uprobe
 #if defined(__TARGET_ARCH_x86)
     #define GO_REG1(x) ((x)->ax)
     #define GO_REG2(x) ((x)->bx)
@@ -206,6 +217,9 @@ int BPF_KPROBE(kprobe_call_usermodehelper)
     #define GO_SP(x) PT_REGS_SP(x)
 #endif
 
+// 1. syscall hook detection
+// Rootkit like https://github.com/m0nad/Diamorphine does hook some syscalls
+// like kill
 SEC("uprobe/trigger_sct_scan")
 int trigger_sct_scan(struct pt_regs *ctx)
 {
@@ -237,14 +251,11 @@ int trigger_sct_scan(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
-static void local_load_idt(void *dtr)
-{
-    asm volatile("lidt %0"::"m" (*((struct desc_ptr *)dtr)));
-}
-
+// 2. idt table check (index 0x80 only)
 SEC("uprobe/trigger_idt_scan")
 int trigger_idt_scan(struct pt_regs *ctx)
 {
+#if defined(__TARGET_ARCH_x86)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
@@ -273,4 +284,17 @@ int trigger_idt_scan(struct pt_regs *ctx)
     save_to_submit_buf(&data, &index, sizeof(u64), 0);
     save_to_submit_buf(&data, &idt_addr, sizeof(u64), 0);
     return events_perf_submit(&data);
+#else
+    return 0;
+#endif
 }
+
+// 3. fops check
+// 
+// Most of the rootkits do have the feature of hidden itself, like Reptile.
+// How to hidden a process from being detected? Set the task_struct flags
+// to 0x80000000(Reptile).
+
+
+// x. eBPF backdoor detection
+// https://github.com/kris-nova/boopkit

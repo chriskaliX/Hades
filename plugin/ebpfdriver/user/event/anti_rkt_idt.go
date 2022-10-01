@@ -45,7 +45,7 @@ func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 }
 
 func (IDTScan) Name() string {
-	return "anti_rkt_sdt_scan"
+	return "anti_rkt_idt_scan"
 }
 
 func (i *IDTScan) Trigger(m *manager.Manager) error {
@@ -66,7 +66,7 @@ func (i *IDTScan) trigger(idt_addr uint64, index uint64) error {
 }
 
 func (s *IDTScan) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(10 * time.Minute)
 	return s.Trigger, ticker
 }
 

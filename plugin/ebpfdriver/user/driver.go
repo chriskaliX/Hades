@@ -10,7 +10,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
@@ -77,7 +76,6 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			Max: math.MaxUint64,
 		},
 	})
-	time.Sleep(30 * time.Second)
 	driver.context, driver.cancel = context.WithCancel(s.Context())
 	return driver, err
 }

@@ -45,9 +45,7 @@ enable_service() {
 	succ "service enabled successfully"
 }
 
-# 限制 memory 和 cpu, 挂载形式
-# TODO: 这个 过热【
-
+# 重启失效的问题
 create_cgroups(){
     cat /proc/self/mountinfo|grep -q 'cgroup .* rw,.*\bmemory\b'
     if [ $? -ne 0 ];then

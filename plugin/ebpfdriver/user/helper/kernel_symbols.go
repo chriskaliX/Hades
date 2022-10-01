@@ -95,7 +95,7 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		}
 		// special
 		lower := strings.ToLower(line[2])
-		if lower == "sys_call_table" || lower == "idt_table" {
+		if lower == "sys_call_table" || lower == "idt_table" || lower == "module_kset" {
 			symbol := helpers.KernelSymbol{
 				Name:    symbolName,
 				Type:    symbolType,
