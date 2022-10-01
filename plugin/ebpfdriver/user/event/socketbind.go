@@ -73,7 +73,7 @@ func (s *SocketBind) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		}
 		s.LocalAddr = helper.Print16BytesSliceIP(_addr)
 		// reuse
-		err = decoder.DecodeUint32BigEndian(&_flowinfo)
+		decoder.DecodeUint32BigEndian(&_flowinfo)
 	}
 	if s.Exe, err = decoder.DecodeString(); err != nil {
 		return

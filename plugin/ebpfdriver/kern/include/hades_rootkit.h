@@ -43,6 +43,7 @@
 
 // Firstly, do_init_module is the thing that we need. Any mod that loaded should
 // be monitored.
+// Reptile captured, "modname":"reptile"
 SEC("kprobe/do_init_module")
 int BPF_KPROBE(kprobe_do_init_module)
 {
@@ -99,19 +100,9 @@ int BPF_KPROBE(kprobe_security_kernel_read_file)
     return events_perf_submit(&data);
 }
 
-// 3. sys_init_module
-// kmatryoshka\Reptile
-SEC("kprobe/sys_init_module")
-int BPF_KPROBE(kprobe_sys_init_module)
-{
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    // TODO: under dev
-}
-
 // Add rootkit detection just like in Elkeid.
-// @Notice: this is under full test
+// Reptile captured when loaded
+// "path":"/bin/bash","argv":"/bin/bash -c /reptile/reptile_start"
 SEC("kprobe/call_usermodehelper")
 int BPF_KPROBE(kprobe_call_usermodehelper)
 {
@@ -293,8 +284,9 @@ int trigger_idt_scan(struct pt_regs *ctx)
 // 
 // Most of the rootkits do have the feature of hidden itself, like Reptile.
 // How to hidden a process from being detected? Set the task_struct flags
-// to 0x80000000(Reptile).
+// to PF_SUSPEND_TASK 0x80000000(Reptile).
 
+// 4. net check
 
 // x. eBPF backdoor detection
 // https://github.com/kris-nova/boopkit

@@ -12,7 +12,7 @@ type DoInitModule struct {
 	decoder.BasicEvent `json:"-"`
 	Exe                string `json:"-"`
 	Modname            string `json:"modname"`
-	Pidtree            string `json:"pidt_ree"`
+	Pidtree            string `json:"pid_tree"`
 	Cwd                string `json:"cwd"`
 	PrivEscalation     uint8  `json:"priv_esca"`
 }

@@ -44,6 +44,10 @@ func (c *CallUsermodeHelper) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	c.Envp = strings.Join(Envp, " ")
+	var index uint8
+	if err = e.DecodeUint8(&index); err != nil {
+		return
+	}
 	if err = e.DecodeInt32(&c.Wait); err != nil {
 		return
 	}
