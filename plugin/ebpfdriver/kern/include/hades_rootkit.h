@@ -50,7 +50,7 @@ int BPF_KPROBE(kprobe_do_init_module)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1026;
+    data.context.type = DO_INIT_MODULE;
 
     struct module *mod = (struct module *)PT_REGS_PARM1(ctx);
     char *modname = NULL;
@@ -217,7 +217,7 @@ int trigger_sct_scan(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1200;
+    data.context.type = ANTI_RKT_SCT;
     // Hook golang uprobe with eBPF
     // After golang 1.17, params stay at registers (Go internal ABI specification)
     // https://go.googlesource.com/go/+/refs/heads/dev.regabi/src/cmd/compile/internal-abi.md
@@ -284,12 +284,6 @@ int trigger_idt_scan(struct pt_regs *ctx)
         container_of(ptr, type, member)
 #define list_first_entry(ptr, type, member) \
         list_entry((ptr)->next, type, member)
-#define list_next_entry(pos, member) \
-        list_entry((pos)->member.next, typeof(*(pos)), member)
-#define list_for_each_entry(pos, head, member) \
-	for (pos = list_first_entry(head, typeof(*pos), member); \
-	     &pos->member != (head); \
-	     pos = list_next_entry(pos, member))
 
 static inline const char *hades_kobject_name(const struct kobject *kobj)
 {
@@ -307,7 +301,7 @@ int trigger_module_scan(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1203;
+    data.context.type = ANTI_RKT_MODULE;
 
     struct kset *mod_kset = NULL;
 	struct kobject *cur = NULL;

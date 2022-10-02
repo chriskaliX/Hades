@@ -56,9 +56,9 @@
 | :----------------------------------------- | :------------------------------------ | :--- |
 | tracepoint/syscalls/sys_enter_execve       | ON                                    | 700  |
 | tracepoint/syscalls/sys_enter_execveat     | ON                                    | 698  |
-| tracepoint/syscalls/sys_enter_prctl        | ON(PR_SET_NAME & PR_SET_MM)           | 200  |
-| tracepoint/syscalls/sys_enter_ptrace       | ON(PTRACE_PEEKTEXT & PTRACE_POKEDATA) | 164  |
 | tracepoint/syscalls/sys_enter_memfd_create | ON                                    | 614  |
+| tracepoint/syscalls/sys_enter_prctl        | ON(PR_SET_NAME & PR_SET_MM)           | 1020 |
+| tracepoint/syscalls/sys_enter_ptrace       | ON(PTRACE_PEEKTEXT & PTRACE_POKEDATA) | 1021 |
 | kprobe/security_socket_connect             | ON                                    | 1022 |
 | kprobe/security_socket_bind                | ON                                    | 1024 |
 | kprobe/commit_creds                        | ON                                    | 1011 |
@@ -68,7 +68,9 @@
 | security_inode_create                      | ON                                    | 1028 |
 | security_sb_mount                          | ON                                    | 1029 |
 | kprobe/call_usermodehelper                 | ON                                    | 1030 |
-| kprobe/security_file_ioctl                 | ON(anti rootkit scan)                 | 1031 |
+| uprobe/trigger_sct_scan                    | ON                                    | 1200 |
+| uprobe/trigger_idt_scan                    | ON                                    | 1201 |
+| uprobe/trigger_module_scan                 | ON                                    | 1203 |
 
 用户态 Hook
 | Hook 名称 | 状态/说明 | ID |

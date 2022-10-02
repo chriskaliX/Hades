@@ -265,7 +265,6 @@ static __always_inline int get_config(__u32 key)
 
 /* hook point id */
 
-#define SCHED_PROCESS_FORK        317
 #define SYS_ENTER_MEMFD_CREATE    614
 #define SYS_ENTER_EXECVEAT        698
 #define SYS_ENTER_EXECVE          700
@@ -275,14 +274,15 @@ static __always_inline int get_config(__u32 key)
 #define SECURITY_SOCKET_CONNECT   1022
 #define SECURITY_SOCKET_BIND      1024
 #define UDP_RECVMSG               1025
+#define DO_INIT_MODULE            1026
 #define SECURITY_KERNEL_READ_FILE 1027
 #define SECURITY_INODE_CREATE     1028
 #define SECURITY_SB_MOUNT         1029
 #define CALL_USERMODEHELPER       1030
-#define ANTI_ROOTKIT              1031
 // uprobe
 #define BASH_READLINE 2000
 // rootkit field
-#define ANTI_ROOTKIT_SYSCALL 1500
-#define ANTI_ROOTKIT_IDT     1501
+#define ANTI_RKT_SCT              1200
+#define ANTI_RKT_IDT              1201
+#define ANTI_RKT_MODULE           1203
 #endif //__DEFINE_H
