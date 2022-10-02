@@ -68,7 +68,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		VerifierOptions: ebpf.CollectionOptions{
 			Programs: ebpf.ProgramOptions{
 				// The logsize is just test value for now
-				LogSize: 1024 * 1024,
+				LogSize: 2 * 1024 * 1024,
 			},
 		},
 		RLimit: &unix.Rlimit{

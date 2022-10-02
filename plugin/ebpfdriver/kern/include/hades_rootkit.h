@@ -237,7 +237,7 @@ int trigger_sct_scan(struct pt_regs *ctx)
     }
 
     save_to_submit_buf(&data, &index, sizeof(u64), 0);
-    save_to_submit_buf(&data, &addr, sizeof(u64), 0);
+    save_to_submit_buf(&data, &addr, sizeof(u64), 1);
 
     return events_perf_submit(&data);
 }
@@ -278,6 +278,77 @@ int trigger_idt_scan(struct pt_regs *ctx)
 #else
     return 0;
 #endif
+}
+
+#define list_entry(ptr, type, member) \
+        container_of(ptr, type, member)
+#define list_first_entry(ptr, type, member) \
+        list_entry((ptr)->next, type, member)
+#define list_next_entry(pos, member) \
+        list_entry((pos)->member.next, typeof(*(pos)), member)
+#define list_for_each_entry(pos, head, member) \
+	for (pos = list_first_entry(head, typeof(*pos), member); \
+	     &pos->member != (head); \
+	     pos = list_next_entry(pos, member))
+
+static inline const char *hades_kobject_name(const struct kobject *kobj)
+{
+	return READ_KERN(kobj->name);
+}
+
+// Trigger module scan
+//
+// It is a limited way to do so. The find_module is kernel API and it's limited,
+// It's much more easier to get the count of available module. We do not get the
+// name, only count is getted
+SEC("uprobe/trigger_module_scan")
+int trigger_module_scan(struct pt_regs *ctx)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 1203;
+
+    struct kset *mod_kset = NULL;
+	struct kobject *cur = NULL;
+	struct module_kobject *kobj = NULL;
+    struct list_head list;
+	u32 count = 0;
+    u32 out = 0;
+
+    // temporary field
+    struct list_head tlist;
+    struct module *mod;
+
+    mod_kset = (struct kset *)GO_REG2(ctx);
+    if (mod_kset == NULL)
+		return 0;
+    list = READ_KERN(mod_kset->list);
+    cur = list_first_entry(&list, typeof(*cur), entry);
+
+    // local way of list_for_each_entry
+#pragma unroll
+    for (int index = 0; index < 256; index++)
+    {
+        out = index;
+        if (&cur->entry == (&list))
+            break;
+        tlist = READ_KERN(cur->entry);
+        cur = list_entry(tlist.next, typeof(*(cur)), entry);
+		if (!hades_kobject_name(cur))
+            break;
+        kobj = container_of(cur, struct module_kobject, kobj);
+        if (kobj == NULL)
+            continue;
+        mod = READ_KERN(kobj->mod);
+        if (mod == NULL)
+            continue;
+        count++;
+    }
+    
+    save_to_submit_buf(&data, &out, sizeof(u32), 0);
+    save_to_submit_buf(&data, &count, sizeof(u32), 1);
+    return events_perf_submit(&data);
 }
 
 // 3. fops check

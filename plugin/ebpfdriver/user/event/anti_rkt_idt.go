@@ -2,7 +2,6 @@ package event
 
 import (
 	"errors"
-	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/helper"
 	"time"
@@ -52,7 +51,6 @@ func (i *IDTScan) Trigger(m *manager.Manager) error {
 	idt := kernelSymbols.Get("idt_table")
 	if idt == nil {
 		err := errors.New("idt_table is not found")
-		fmt.Println(err)
 		return err
 	}
 	// Only trigger the 0x80 here
@@ -65,9 +63,9 @@ func (i *IDTScan) trigger(idt_addr uint64, index uint64) error {
 	return nil
 }
 
-func (s *IDTScan) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
+func (i *IDTScan) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
 	ticker := time.NewTicker(10 * time.Minute)
-	return s.Trigger, ticker
+	return i.Trigger, ticker
 }
 
 func (IDTScan) GetProbes() []*manager.Probe {
