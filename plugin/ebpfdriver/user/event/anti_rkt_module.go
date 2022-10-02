@@ -26,6 +26,7 @@ func (ModuleScan) ID() uint32 {
 
 // In DecodeEvent, get the count of /proc/modules, and we do compare them
 func (m *ModuleScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
+	m.UserCount = 0
 	var index uint8
 	var file *os.File
 	if err = e.DecodeUint8(&index); err != nil {
@@ -80,7 +81,7 @@ func (m *ModuleScan) trigger(mod_kset uint64) error {
 }
 
 func (m *ModuleScan) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(10 * time.Minute)
 	return m.Trigger, ticker
 }
 

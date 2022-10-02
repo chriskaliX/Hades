@@ -1,6 +1,6 @@
 package share
 
 var (
-	EventFilter string
+	EventFilter []string
 	Env         string
 )

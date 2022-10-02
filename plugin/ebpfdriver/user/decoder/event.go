@@ -40,9 +40,9 @@ type EventCronFunc func(m *manager.Manager) error
 var Events = map[uint32]Event{}
 
 // SetAllowList
-func SetAllowList(allows ...string) {
+func SetAllowList(allows []string) {
 	// skip if there is no allow list
-	if len(allows) == 0 || allows[0] == "0" {
+	if len(allows) == 0 {
 		return
 	}
 	for eventID := range Events {

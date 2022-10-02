@@ -99,7 +99,7 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 // Run a main function, just a wrapper
 func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 	defer s.Logger.Info(fmt.Sprintf("%s is exited", s.name))
-	s.Logger.Info(fmt.Sprintf("%s Run calls", s.name))
+	s.Logger.Info(fmt.Sprintf("%s run is called", s.name))
 	if err = mfunc(s); err != nil {
 		return err
 	}
