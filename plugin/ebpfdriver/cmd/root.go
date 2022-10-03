@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TODO: version tag
 var RootCmd = &cobra.Command{
 	Use:     "ebpfdriver",
 	Version: "v1.0.2",
