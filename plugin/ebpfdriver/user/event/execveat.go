@@ -88,15 +88,15 @@ func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		err = ErrFilter
 		return
 	}
-	envs := make([]string, 0, 3)
+	var envs []string
 	if envs, err = decoder.DecodeStrArray(); err != nil {
 		return
 	}
 	for _, env := range envs {
 		if strings.HasPrefix(env, "SSH_") {
-			e.SSHConnection = strings.TrimLeft(env, "SSH_CONNECTION=")
+			e.SSHConnection = strings.TrimPrefix(env, "SSH_CONNECTION=")
 		} else if strings.HasPrefix(env, "LD_PRE") {
-			e.LDPreload = strings.TrimLeft(env, "LD_PRELOAD=")
+			e.LDPreload = strings.TrimPrefix(env, "LD_PRELOAD=")
 		}
 	}
 	if len(e.SSHConnection) == 0 {
