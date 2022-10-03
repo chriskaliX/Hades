@@ -12,8 +12,6 @@ var RootCmd = &cobra.Command{
 	Version: "v1.0.2",
 }
 
-var Debug bool
-
 func Execute() {
 	RootCmd.SetHelpTemplate(`{{.UsageString}}`)
 	RootCmd.CompletionOptions.DisableDefaultCmd = true
@@ -25,6 +23,6 @@ func Execute() {
 
 func init() {
 	cobra.EnablePrefixMatching = true
-	RootCmd.PersistentFlags().BoolVar(&Debug, "debug", false, "set true send output to console")
+	RootCmd.PersistentFlags().BoolVar(&share.Debug, "debug", false, "set true send output to console")
 	RootCmd.Flags().StringSliceVarP(&share.EventFilter, "filter", "f", []string{}, "set filters, like 1203,1201")
 }

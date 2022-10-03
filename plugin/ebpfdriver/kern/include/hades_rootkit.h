@@ -290,12 +290,16 @@ static inline const char *hades_kobject_name(const struct kobject *kobj)
 	return READ_KERN(kobj->name);
 }
 
+BPF_HASH(mod_map, u64, char[64], 512);
 // Trigger module scan
 //
 // It is a limited way to do so. The find_module is kernel API and it's limited,
 // It's much more easier to get the count of available module. We do not get the
 // name, only count is sent to userspace
 // Reptile captured
+//
+// By default, the kernel module in TEXT field, we can findout those not in TEXT
+// field by comparing the address or just find them in /proc/kallsyms
 SEC("uprobe/trigger_module_scan")
 int trigger_module_scan(struct pt_regs *ctx)
 {

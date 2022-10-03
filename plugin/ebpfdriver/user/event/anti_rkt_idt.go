@@ -2,6 +2,7 @@ package event
 
 import (
 	"errors"
+	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/helper"
 	"time"
@@ -13,6 +14,7 @@ import (
 type IDTScan struct {
 	decoder.BasicEvent `json:"-"`
 	Index              uint64 `json:"index"`
+	Address            string `json:"addr"`
 }
 
 func (IDTScan) ID() uint32 {
@@ -40,6 +42,7 @@ func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	if idt := kernelSymbols.Get(addr); idt != nil {
 		return ErrIgnore
 	}
+	i.Address = fmt.Sprintf("%x", addr)
 	return nil
 }
 

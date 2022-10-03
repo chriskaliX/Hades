@@ -90,7 +90,7 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 		s.Hash = hash.NewWithClock(s.Clock)
 	}
 	// Environment setting
-	if s.Debug() {
+	if !s.Client.IsHooked() && s.Debug() {
 		s.Client.SetSendHook(s.Client.SendDebug)
 	}
 	return nil
@@ -105,7 +105,7 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 	}
 	s.Logger.Info(fmt.Sprintf("%s is running", s.name))
 	// os.Interrupt for command line
-	signal.Notify(s.sigs, syscall.SIGTERM, os.Interrupt)
+	signal.Notify(s.sigs, syscall.SIGTERM)
 	for {
 		select {
 		case sig := <-s.sigs:

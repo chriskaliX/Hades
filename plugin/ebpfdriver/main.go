@@ -39,7 +39,7 @@ func main() {
 	// inject into sandbox
 	cmd.RootCmd.Run = (func(c *cobra.Command, args []string) {
 		sconfig := &SDK.SandboxConfig{
-			Debug: cmd.Debug,
+			Debug: share.Debug,
 			Hash:  true,
 			Name:  "ebpfdriver",
 			LogConfig: &logger.Config{

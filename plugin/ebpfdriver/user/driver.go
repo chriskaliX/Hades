@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/event"
+	"hades-ebpf/user/share"
 	"math"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
@@ -104,11 +106,16 @@ func (d *Driver) Init() error {
 	if err != nil {
 		return err
 	}
+
 	// Regist the cronjobs of the event
 	for _, event := range decoder.Events {
 		cronFunc, ticker := event.RegistCron()
 		if cronFunc != nil && ticker != nil {
+			if share.Debug {
+				ticker.Reset(10 * time.Second)
+			}
 			go func() {
+				defer ticker.Stop()
 				for {
 					select {
 					case <-ticker.C:

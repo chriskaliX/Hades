@@ -15,6 +15,7 @@ var _ IServer = (*server.Server)(nil)
 // Client-side interface
 type IClient interface {
 	SetSendHook(client.SendHookFunction)
+	IsHooked() bool
 	SendElkeid(*protocol.Record) error
 	SendDebug(*protocol.Record) error
 	SendRecord(*protocol.Record) error

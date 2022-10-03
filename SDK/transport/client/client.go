@@ -31,6 +31,10 @@ func (c *Client) SetSendHook(hook SendHookFunction) {
 	c.hook = hook
 }
 
+func (c *Client) IsHooked() bool {
+	return c.hook != nil
+}
+
 // Plugin Client send record to agent. Add an extra size flag to simplify
 // the operation which agent side decodes.
 // Sync With Elkeid
