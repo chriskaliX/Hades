@@ -6,7 +6,7 @@ name: "hades-agent"
 arch: "amd64"
 platform: "linux"
 epoch: 3
-version: v1.0.0
+version: v1.0.1
 release: 1
 section: "default"
 priority: "extra"

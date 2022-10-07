@@ -49,3 +49,57 @@ int BPF_KPROBE(kprobe_security_sb_mount)
     save_pid_tree_to_buf(&data, 8, 5);
     return events_perf_submit(&data);
 }
+
+SEC("kprobe/security_inode_rename")
+int BPF_KPROBE(kprobe_security_inode_rename)
+{
+        event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
+        return 0;
+    data.context.type = SECURITY_INODE_RENAME;
+    
+    struct dentry *from = (struct dentry *) PT_REGS_PARM2(ctx);
+    struct dentry *to = (struct dentry *) PT_REGS_PARM4(ctx);
+
+    void *from_ptr = get_dentry_path_str(from);
+    if (from_ptr == NULL)
+        return 0;
+    save_str_to_buf(&data, from_ptr, 0);
+    void *to_ptr = get_dentry_path_str(to);
+    if (to_ptr == NULL)
+        return 0;
+    save_str_to_buf(&data, to_ptr, 1);
+    return events_perf_submit(&data);
+}
+
+SEC("kprobe/security_inode_link")
+int BPF_KPROBE(kprobe_security_inode_link)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
+        return 0;
+    data.context.type = SECURITY_INODE_LINK;
+    
+    struct dentry *from = (struct dentry *) PT_REGS_PARM2(ctx);
+    struct dentry *to = (struct dentry *) PT_REGS_PARM4(ctx);
+
+    void *from_ptr = get_dentry_path_str(from);
+    if (from_ptr == NULL)
+        return 0;
+    save_str_to_buf(&data, from_ptr, 0);
+    void *to_ptr = get_dentry_path_str(to);
+    if (to_ptr == NULL)
+        return 0;
+    save_str_to_buf(&data, to_ptr, 1);
+    return events_perf_submit(&data);
+}
+
+// SEC("kprobe/security_file_open")
+// int BPF_KPROBE(kprobe_security_file_open)
+// {
+
+// }

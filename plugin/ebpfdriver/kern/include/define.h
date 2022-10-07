@@ -279,6 +279,8 @@ static __always_inline int get_config(__u32 key)
 #define SECURITY_INODE_CREATE     1028
 #define SECURITY_SB_MOUNT         1029
 #define CALL_USERMODEHELPER       1030
+#define SECURITY_INODE_RENAME     1031
+#define SECURITY_INODE_LINK       1032
 // uprobe
 #define BASH_READLINE 2000
 // rootkit field

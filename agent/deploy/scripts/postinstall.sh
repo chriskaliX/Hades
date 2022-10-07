@@ -45,7 +45,7 @@ enable_service() {
 	succ "service enabled successfully"
 }
 
-# 重启失效的问题
+# 重启失效的问题, 在 sysvinit 中, 将该处迁移至 ctl 中, 注意关闭时的 mount 关闭
 create_cgroups(){
     cat /proc/self/mountinfo|grep -q 'cgroup .* rw,.*\bmemory\b'
     if [ $? -ne 0 ];then
@@ -60,6 +60,7 @@ create_cgroups(){
         expect "mount -t cgroup -o cpu cgroup ${root_dir}/cgroup/cpu"
     fi
 }
+
 start_agent(){
     ${root_dir}/${agent_ctl} start
 }

@@ -27,14 +27,13 @@ func (SCTScan) ID() uint32 {
 
 func (s *SCTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
-		addr       uint64
-		call_index uint64
-		index      uint8
+		addr  uint64
+		index uint8
 	)
 	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = e.DecodeUint64(&call_index); err != nil {
+	if err = e.DecodeUint64(&s.Index); err != nil {
 		return
 	}
 	if err = e.DecodeUint8(&index); err != nil {
@@ -62,7 +61,7 @@ func (s *SCTScan) Trigger(m *manager.Manager) error {
 		return err
 	}
 
-	for i := 0; i < 302; i++ {
+	for i := 0; i < 2000; i++ {
 		s.trigger(sct.Address, uint64(i))
 	}
 

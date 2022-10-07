@@ -619,7 +619,7 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
                     // remote we need to send
                     struct sockaddr_in remote;
                     get_remote_sockaddr_in_from_network_details(
-                            &remote, &net_details, family);
+                            &remote, (void *)&net_details, family);
                     save_to_submit_buf(data, &remote,
                                        sizeof(struct sockaddr_in), index);
                     return 1;
