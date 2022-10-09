@@ -52,7 +52,7 @@
 
 内核态 Hook
 
-| Hook 名称                                  | 状态/说明                             | ID   |
+| Hook                                       | Status & Description                  | ID   |
 | :----------------------------------------- | :------------------------------------ | :--- |
 | tracepoint/syscalls/sys_enter_execve       | ON                                    | 700  |
 | tracepoint/syscalls/sys_enter_execveat     | ON                                    | 698  |
@@ -64,10 +64,12 @@
 | kprobe/commit_creds                        | ON                                    | 1011 |
 | k(ret)probe/udp_recvmsg                    | ON(53/5353 for dns data)              | 1025 |
 | kprobe/do_init_module                      | ON                                    | 1026 |
-| security_kernel_read_file                  | ON                                    | 1027 |
-| security_inode_create                      | ON                                    | 1028 |
-| security_sb_mount                          | ON                                    | 1029 |
+| kprobe/security_kernel_read_file           | ON                                    | 1027 |
+| kprobe/security_inode_create               | ON                                    | 1028 |
+| kprobe/security_sb_mount                   | ON                                    | 1029 |
 | kprobe/call_usermodehelper                 | ON                                    | 1030 |
+| kprobe/security_inode_rename               | ON                                    | 1031 |
+| kprobe/security_inode_link                 | ON                                    | 1032 |
 | uprobe/trigger_sct_scan                    | ON                                    | 1200 |
 | uprobe/trigger_idt_scan                    | ON                                    | 1201 |
 | uprobe/trigger_module_scan                 | ON                                    | 1203 |

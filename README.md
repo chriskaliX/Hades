@@ -33,7 +33,7 @@ This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [E
 
 ### Driver-eBPF
 
-> Here are 17 hooks over `tracepoints`/`kprobes`/`uprobes`. The fields are extended just like Elkeid(basically).
+> Here are 19 hooks over `tracepoints`/`kprobes`/`uprobes`. The fields are extended just like Elkeid(basically).
 
 For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) of these hooks.
 
@@ -50,10 +50,12 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) o
 | kprobe/commit_creds                        | ON                                    | 1011 |
 | k(ret)probe/udp_recvmsg                    | ON(53/5353 for dns data)              | 1025 |
 | kprobe/do_init_module                      | ON                                    | 1026 |
-| security_kernel_read_file                  | ON                                    | 1027 |
-| security_inode_create                      | ON                                    | 1028 |
-| security_sb_mount                          | ON                                    | 1029 |
+| kprobe/security_kernel_read_file           | ON                                    | 1027 |
+| kprobe/security_inode_create               | ON                                    | 1028 |
+| kprobe/security_sb_mount                   | ON                                    | 1029 |
 | kprobe/call_usermodehelper                 | ON                                    | 1030 |
+| kprobe/security_inode_rename               | ON                                    | 1031 |
+| kprobe/security_inode_link                 | ON                                    | 1032 |
 | uprobe/trigger_sct_scan                    | ON                                    | 1200 |
 | uprobe/trigger_idt_scan                    | ON                                    | 1201 |
 | uprobe/trigger_module_scan                 | ON                                    | 1203 |

@@ -325,7 +325,7 @@ int trigger_module_scan(struct pt_regs *ctx)
     list = READ_KERN(mod_kset->list);
     cur = list_first_entry(&list, typeof(*cur), entry);
 
-    // local way of list_for_each_entry
+    // local bpf way of list_for_each_entry
 #pragma unroll
     for (int index = 0; index < 256; index++)
     {
@@ -342,6 +342,8 @@ int trigger_module_scan(struct pt_regs *ctx)
         mod = READ_KERN(kobj->mod);
         if (mod == NULL)
             continue;
+        // For now, we only get the counter for demo, you can
+        // implement the find_module to be more accurate
         count++;
     }
     
