@@ -150,12 +150,13 @@ typedef struct network_connection_v6 {
 } net_conn_v6_t;
 
 /* filters */
-BPF_ARRAY(path_filter, string_t, 3);
-BPF_ARRAY(config_map, __u32, 4);
+BPF_HASH(config_map, __u32, __u32, 512);
+
 BPF_HASH(pid_filter, __u32, __u32, 512);
 BPF_HASH(uid_filter, __u32, __u32, 512);
 BPF_HASH(cgroup_id_filter, __u64, __u32, 512);
 BPF_HASH(pns_filter, __u32, __u32, 512);
+BPF_ARRAY(path_filter, string_t, 3);
 /*internal maps (caches) */
 
 /*
@@ -263,8 +264,10 @@ static __always_inline int get_config(__u32 key)
     return *config;
 }
 
-/* hook point id */
+/* config */
+#define DENY_BPF                  0
 
+/* hook point id */
 #define SYS_ENTER_MEMFD_CREATE    614
 #define SYS_ENTER_EXECVEAT        698
 #define SYS_ENTER_EXECVE          700
@@ -282,9 +285,10 @@ static __always_inline int get_config(__u32 key)
 #define SECURITY_INODE_RENAME     1031
 #define SECURITY_INODE_LINK       1032
 // uprobe
-#define BASH_READLINE 2000
+#define BASH_READLINE             2000
 // rootkit field
 #define ANTI_RKT_SCT              1200
 #define ANTI_RKT_IDT              1201
 #define ANTI_RKT_MODULE           1203
+#define SYS_BPF                   1204
 #endif //__DEFINE_H

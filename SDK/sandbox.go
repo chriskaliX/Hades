@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chriskaliX/SDK/clock"
+	"github.com/chriskaliX/SDK/config"
 	"github.com/chriskaliX/SDK/logger"
 	"github.com/chriskaliX/SDK/transport/client"
 	"github.com/chriskaliX/SDK/transport/protocol"
@@ -36,6 +37,8 @@ type ISandbox interface {
 	SetSendHook(client.SendHookFunction)
 	// Hash Wrapper
 	GetHash(string) string
+	// TaskReceiver
+	RecvTask() *protocol.Task
 }
 
 // Sandbox is the abstract behavior interfaces for every plugin
@@ -51,9 +54,9 @@ type Sandbox struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	// others
-	sigs  chan os.Signal
-	debug bool
-	Task  chan *protocol.Task
+	sigs   chan os.Signal
+	debug  bool
+	taskCh chan *protocol.Task
 }
 
 type SandboxConfig struct {
@@ -72,7 +75,7 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	s.sigs = make(chan os.Signal, 1)
 	s.name = sconfig.Name
 	s.debug = sconfig.Debug
-	s.Task = make(chan *protocol.Task)
+	s.taskCh = make(chan *protocol.Task)
 	// Required fields initialization
 	s.Clock = clock.New(time.Second)
 	s.Client = client.New(s.Clock)
@@ -93,6 +96,8 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	if !s.Client.IsHooked() && s.Debug() {
 		s.Client.SetSendHook(s.Client.SendDebug)
 	}
+	// Task receiving
+	go s.recvTask()
 	return nil
 }
 
@@ -204,8 +209,11 @@ func (s *Sandbox) Lockfile() error {
 	return nil
 }
 
-// TODO: Unfinished: task resolve
-func (s *Sandbox) ReceiveTask() {
+func (s *Sandbox) RecvTask() *protocol.Task {
+	return <-s.taskCh
+}
+
+func (s *Sandbox) recvTask() {
 	if s.debug {
 		return
 	}
@@ -220,7 +228,12 @@ func (s *Sandbox) ReceiveTask() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			s.Task <- task
+			// Hook the shutdown here
+			if task.DataType == config.TaskShutdown {
+				s.Logger.Info("task shutdown received")
+				s.Shutdown()
+			}
+			s.taskCh <- task
 		}
 	}
 }

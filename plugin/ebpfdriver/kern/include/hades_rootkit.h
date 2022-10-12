@@ -327,7 +327,7 @@ int trigger_module_scan(struct pt_regs *ctx)
 
     // local bpf way of list_for_each_entry
 #pragma unroll
-    for (int index = 0; index < 256; index++)
+    for (int index = 0; index < 512; index++)
     {
         out = index;
         if (&cur->entry == (&list))
@@ -344,6 +344,8 @@ int trigger_module_scan(struct pt_regs *ctx)
             continue;
         // For now, we only get the counter for demo, you can
         // implement the find_module to be more accurate
+        // But pay attention that name can be easily tampered by a rootkit
+        // in struct module, so we do not use any whitelist here...
         count++;
     }
     
@@ -360,5 +362,60 @@ int trigger_module_scan(struct pt_regs *ctx)
 
 // 4. net check
 
-// x. eBPF backdoor detection
+// 5. eBPF backdoor(behavior) detection
 // https://github.com/kris-nova/boopkit
+// eBPF-based rootkit(detection), upload an eBPF program's behavior
+// Related kernel functions are here:
+// security_bpf(__sys_bpf from SYSCALL, very early stage)
+// bpf_check (verifier) => https://elixir.bootlin.com/linux/v6.0/source/kernel/bpf/verifier.c#L15128
+// security_bpf_prog(within bpf_prog_new_fd, after bpf_check)
+// 
+// According to the https://github.com/Gui774ume/ebpfkit-monitor, I simplify this by following:
+// 1. kprobe/sys_bpf for initialization
+// 2. security_bpf, only recording cmd like
+//    BPF_PROG_LOAD/BPF_PROG_ATTACH/BPF_BTF_LOAD/BPF_RAW_TRACEPOINT_OPEN, but we won't do a filter
+//    for now, since we also hook security_bpf_prog
+// 3. security_bpf_prog, get the context information about the program
+// 4. kpretprobe/sys_bpf for popping the result to userspace
+//
+// Event more, we could block the way to initialize, override the return by
+// bpf_override_return(ctx, -EPERM);
+// to block. But, be really careful about this action. And, like anti-rootkit part
+// we should also add behavior detection instead of doing stack trace...
+// 
+// Reference:
+// https://i.blackhat.com/USA21/Wednesday-Handouts/us-21-With-Friends-Like-EBPF-Who-Needs-Enemies.pdf
+#define EPERM 1
+SEC("kprobe/bpf")
+int BPF_KPROBE(kprobe_sys_bpf)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    // data.context.type = SYS_BPF;
+    if (context_filter(&data.context))
+        return 0;
+    if (get_config(DENY_BPF) == 0)
+        return 0;
+    return bpf_override_return(ctx, -EPERM);
+}
+
+SEC("kprobe/security_bpf")
+int BPF_KPROBE(kprobe_security_bpf)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = SYS_BPF;
+    void *exe = get_exe_from_task(data.task);
+    save_str_to_buf(&data, exe, 0);
+    // command
+    int cmd = PT_REGS_PARM1(ctx);
+    save_to_submit_buf(&data, &cmd, sizeof(int), 1);
+    // attr
+    union bpf_attr *attr = (union bpf_attr *)PT_REGS_PARM2(ctx);
+    if (cmd != BPF_PROG_LOAD)
+        return 0;
+
+    return events_perf_submit(&data);
+}

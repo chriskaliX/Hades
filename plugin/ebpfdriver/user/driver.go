@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/event"
+	"hades-ebpf/user/helper"
 	"hades-ebpf/user/share"
 	"math"
 	"os"
@@ -24,8 +25,17 @@ import (
 //go:embed hades_ebpf_driver.o
 var _bytecode []byte
 
+// config
 const configMap = "config_map"
+const conf_DENY_BPF uint32 = 0
 const eventMap = "exec_events"
+
+// filters
+const filterPid = "pid_filter"
+
+// Task
+const EnableDenyBPF = 10
+const DisableDenyBPF = 11
 
 var rawdata = make(map[string]string, 1)
 
@@ -36,6 +46,13 @@ type Driver struct {
 	Manager *manager.Manager
 	context context.Context
 	cancel  context.CancelFunc
+}
+
+type IDriver interface {
+	Start() error
+	PostRun() error
+	Close(string) error
+	Stop() error
 }
 
 // New a driver with pre-set map and options
@@ -54,7 +71,10 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 				},
 			},
 		},
-		Maps: []*manager.Map{{Name: configMap}},
+		Maps: []*manager.Map{
+			{Name: configMap},
+			{Name: filterPid},
+		},
 	}
 	// Get all registed events probes and maps, add into the manager
 	for _, event := range decoder.Events {
@@ -87,24 +107,10 @@ func (d *Driver) Start() error {
 }
 
 // Init the driver with default value
-func (d *Driver) Init() error {
-	// Init ConfigMap with default value
-	configMap, found, err := d.Manager.GetMap(configMap)
-	if err != nil {
-		return err
-	}
-	if !found {
-		return fmt.Errorf("%s not found", configMap)
-	}
-	/* enum hades_ebpf_config {
-	 *	 CONFIG_HADES_PID,
-	 *	 CONFIG_FILTERS
-	 *};*/
-	var syscall_index uint32 = 0
-	var pid uint32 = uint32(os.Getpid())
-	err = configMap.Update(syscall_index, pid, ebpf.UpdateAny)
-	if err != nil {
-		return err
+func (d *Driver) PostRun() (err error) {
+	// Get Pid filter
+	if err := helper.MapUpdate(d.Manager, filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
+		zap.S().Error(err)
 	}
 
 	// Regist the cronjobs of the event
@@ -127,7 +133,7 @@ func (d *Driver) Init() error {
 			}()
 		}
 	}
-
+	go d.taskResolve()
 	// TODO: filters are not added for now
 	return nil
 }
@@ -150,6 +156,24 @@ func (d *Driver) Stop() error {
 
 func (d *Driver) Filter() {}
 
+func (d *Driver) taskResolve() {
+	for {
+		task := d.Sandbox.RecvTask()
+		switch task.DataType {
+		case EnableDenyBPF:
+			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint32(1)); err != nil {
+				zap.S().Error(err)
+			}
+		case DisableDenyBPF:
+			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint32(0)); err != nil {
+				zap.S().Error(err)
+			}
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+// dataHandler handles the data from eBPF kernel space
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
 	// get and decode the context
 	ctx := decoder.NewContext()
@@ -196,6 +220,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	}
 }
 
+// lostHandler handles the data for errors
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
 	rawdata := make(map[string]string)
 	rawdata["data"] = strconv.FormatUint(count, 10)

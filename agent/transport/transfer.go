@@ -132,12 +132,12 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 	switch cmd.Task.ObjectName {
 	case agent.Instance.Product:
 		switch cmd.Task.DataType {
-		case config.TaskAgentShutdown:
+		case config.TaskShutdown:
 			zap.S().Info("agent shutdown is called")
 			agent.Instance.Cancel()
 			return
-		case config.TaskAgentRestart:
-		case config.TaskAgentSetenv:
+		case config.TaskRestart:
+		case config.TaskSetenv:
 		default:
 			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
 			return ErrAgentDataType

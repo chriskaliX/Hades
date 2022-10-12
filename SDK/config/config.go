@@ -37,8 +37,8 @@ const (
 
 // Task
 const (
-	TaskAgentShutdown = 1
-	TaskAgentUpdate   = 2
-	TaskAgentSetenv   = 3
-	TaskAgentRestart  = 4
+	TaskShutdown int32 = 0
+	TaskUpdate   int32 = 1
+	TaskSetenv   int32 = 2
+	TaskRestart  int32 = 3
 )

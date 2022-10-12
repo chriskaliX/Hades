@@ -28,7 +28,7 @@ func driver(s SDK.ISandbox) error {
 		zap.S().Error(err)
 		return err
 	}
-	if err = driver.Init(); err != nil {
+	if err = driver.PostRun(); err != nil {
 		zap.S().Error(err)
 		return err
 	}

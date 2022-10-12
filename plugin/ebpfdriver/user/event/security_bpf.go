@@ -1,0 +1,63 @@
+package event
+
+import (
+	"hades-ebpf/user/decoder"
+
+	manager "github.com/ehids/ebpfmanager"
+)
+
+type SecurityBpf struct {
+	decoder.BasicEvent `json:"-"`
+	Exe                string `json:"-"`
+	Cmd                int32  `json:"cmd"`
+}
+
+func (SecurityBpf) ID() uint32 {
+	return 1204
+}
+
+func (SecurityBpf) Name() string {
+	return "security_bpf"
+}
+
+func (s *SecurityBpf) GetExe() string {
+	return s.Exe
+}
+
+func (s *SecurityBpf) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
+	var index uint8
+	if err = e.DecodeUint8(&index); err != nil {
+		return
+	}
+	if s.Exe, err = e.DecodeString(); err != nil {
+		return
+	}
+	if err = e.DecodeUint8(&index); err != nil {
+		return
+	}
+	if err = e.DecodeInt32(&s.Cmd); err != nil {
+		return
+	}
+	return
+}
+
+func (SecurityBpf) GetProbes() []*manager.Probe {
+	return []*manager.Probe{
+		{
+			UID:              "KprobeSecurityBpf",
+			Section:          "kprobe/security_bpf",
+			EbpfFuncName:     "kprobe_security_bpf",
+			AttachToFuncName: "security_bpf",
+		},
+		{
+			UID:              "KprobeSysBpf",
+			Section:          "kprobe/bpf",
+			EbpfFuncName:     "kprobe_sys_bpf",
+			AttachToFuncName: "bpf",
+		},
+	}
+}
+
+func init() {
+	decoder.RegistEvent(&SecurityBpf{})
+}
