@@ -572,8 +572,6 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
     struct file *file;
     struct path f_path;
     struct dentry *dentry;
-    // struct qstr d_name;
-    // int size;
 
     u16 family;
     int state;
@@ -602,22 +600,21 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
         if (d_sb != 0) {
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
             if (s_magic == SOCKFS_MAGIC) {
-                bpf_probe_read(&socket, sizeof(socket), &file->private_data);
+                socket = READ_KERN(file->private_data);
                 if (socket == NULL)
                     continue;
-                bpf_probe_read(&state, sizeof(state), &socket->state);
+                state = READ_KERN(socket->state);
                 if (state != SS_CONNECTING && state != SS_CONNECTED &&
                     state != SS_DISCONNECTING)
                     continue;
-                bpf_probe_read(&sk, sizeof(sk), &socket->sk);
+                sk = READ_KERN(socket->sk);
                 if (!sk)
                     continue;
                 family = READ_KERN(sk->sk_family);
                 if (family == AF_INET) {
                     net_conn_v4_t net_details = {};
-                    get_network_details_from_sock_v4(sk, &net_details, 0);
-                    // remote we need to send
                     struct sockaddr_in remote;
+                    get_network_details_from_sock_v4(sk, &net_details, 0);
                     get_remote_sockaddr_in_from_network_details(
                             &remote, (void *)&net_details, family);
                     save_to_submit_buf(data, &remote,
@@ -635,49 +632,6 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
                 }
             }
         }
-
-        // name or path
-        // d_name = READ_KERN(dentry->d_name);
-        // unsigned int len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
-        // size = bpf_probe_read_str(&(string_p->buf[0]), len,
-        //                           (void *)d_name.name);
-        // if (size <= 0)
-        //     continue;
-        // if (prefix("TCP", (char *)&(string_p->buf[0]), 3)) {
-        //     bpf_probe_read(&socket, sizeof(socket), &file->private_data);
-        //     if (socket == NULL)
-        //         continue;
-        //     // check state
-        //     // in Elkeid v1.7. Only SS_CONNECTING/SS_CONNECTED/SS_DISCONNECTING is considered.
-        //     bpf_probe_read(&state, sizeof(state), &socket->state);
-        //     if (state != SS_CONNECTING && state != SS_CONNECTED &&
-        //         state != SS_DISCONNECTING)
-        //         continue;
-        //     bpf_probe_read(&sk, sizeof(sk), &socket->sk);
-        //     if (!sk)
-        //         continue;
-        //     family = READ_KERN(sk->sk_family);
-        //     if (family == AF_INET) {
-        //         net_conn_v4_t net_details = {};
-        //         get_network_details_from_sock_v4(sk, &net_details, 0);
-        //         // remote we need to send
-        //         struct sockaddr_in remote;
-        //         get_remote_sockaddr_in_from_network_details(
-        //                 &remote, &net_details, family);
-        //         save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in),
-        //                            index);
-        //         return 1;
-        //     } else if (family == AF_INET6) {
-        //         net_conn_v6_t net_details = {};
-        //         struct sockaddr_in6 remote;
-        //         get_network_details_from_sock_v6(sk, &net_details, 0);
-        //         get_remote_sockaddr_in6_from_network_details(
-        //                 &remote, &net_details, family);
-        //         save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in6),
-        //                            index);
-        //         return 1;
-        //     }
-        // }
     }
     return 0;
 }

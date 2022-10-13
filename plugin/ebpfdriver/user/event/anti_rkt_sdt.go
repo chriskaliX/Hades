@@ -61,7 +61,7 @@ func (s *SCTScan) Trigger(m *manager.Manager) error {
 		return err
 	}
 
-	for i := 0; i < 2000; i++ {
+	for i := 0; i < 302; i++ {
 		s.trigger(sct.Address, uint64(i))
 	}
 
