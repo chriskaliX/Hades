@@ -10,6 +10,8 @@ type SecurityBpf struct {
 	decoder.BasicEvent `json:"-"`
 	Exe                string `json:"-"`
 	Cmd                int32  `json:"cmd"`
+	ProgName           string `json:"name"`
+	Type               uint32 `json:"type"`
 }
 
 func (SecurityBpf) ID() uint32 {
@@ -26,9 +28,6 @@ func (s *SecurityBpf) GetExe() string {
 
 func (s *SecurityBpf) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var index uint8
-	if err = e.DecodeUint8(&index); err != nil {
-		return
-	}
 	if s.Exe, err = e.DecodeString(); err != nil {
 		return
 	}
@@ -36,6 +35,15 @@ func (s *SecurityBpf) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	if err = e.DecodeInt32(&s.Cmd); err != nil {
+		return
+	}
+	if s.ProgName, err = e.DecodeString(); err != nil {
+		return
+	}
+	if err = e.DecodeUint8(&index); err != nil {
+		return
+	}
+	if err = e.DecodeUint32(&s.Type); err != nil {
 		return
 	}
 	return

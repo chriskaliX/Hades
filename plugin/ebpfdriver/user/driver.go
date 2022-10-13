@@ -18,6 +18,7 @@ import (
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
+	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 )
@@ -46,6 +47,7 @@ type Driver struct {
 	Manager *manager.Manager
 	context context.Context
 	cancel  context.CancelFunc
+	cronM   *cron.Cron
 }
 
 type IDriver interface {
@@ -112,27 +114,25 @@ func (d *Driver) PostRun() (err error) {
 	if err := helper.MapUpdate(d.Manager, filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
 		zap.S().Error(err)
 	}
-
+	// By default, we do not ban BPF program unless you choose on this..
+	d.cronM = cron.New(cron.WithSeconds())
 	// Regist the cronjobs of the event
 	for _, event := range decoder.Events {
-		cronFunc, ticker := event.RegistCron()
-		if cronFunc != nil && ticker != nil {
-			if share.Debug {
-				ticker.Reset(10 * time.Second)
-			}
-			go func() {
-				defer ticker.Stop()
-				for {
-					select {
-					case <-ticker.C:
-						cronFunc(d.Manager)
-					case <-d.context.Done():
-						return
-					}
-				}
-			}()
+		interval, cronFunc := event.RegistCron()
+		if cronFunc == nil {
+			continue
+		}
+		if share.Debug {
+			interval = "*/10 * * * * *"
+		}
+		if _, err := d.cronM.AddFunc(interval, func() {
+			cronFunc(d.Manager)
+		}); err != nil {
+			zap.S().Error(err)
 		}
 	}
+	d.cronM.Start()
+
 	go d.taskResolve()
 	// TODO: filters are not added for now
 	return nil

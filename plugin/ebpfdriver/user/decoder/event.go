@@ -2,7 +2,6 @@ package decoder
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/cilium/ebpf"
@@ -32,7 +31,7 @@ type Event interface {
 	FillCache()
 	// RegistCron registes the crontab functions into the driver
 	// and the driver manages those jobs
-	RegistCron() (function EventCronFunc, ticker *time.Ticker)
+	RegistCron() (string, EventCronFunc)
 }
 
 type EventCronFunc func(m *manager.Manager) error

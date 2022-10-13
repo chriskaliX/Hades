@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/helper"
-	"time"
 
 	manager "github.com/ehids/ebpfmanager"
 	"go.uber.org/zap"
@@ -66,9 +65,8 @@ func (i *IDTScan) trigger(idt_addr uint64, index uint64) error {
 	return nil
 }
 
-func (i *IDTScan) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
-	ticker := time.NewTicker(10 * time.Minute)
-	return i.Trigger, ticker
+func (i *IDTScan) RegistCron() (string, decoder.EventCronFunc) {
+	return "* */10 * * * *", i.Trigger
 }
 
 func (IDTScan) GetProbes() []*manager.Probe {

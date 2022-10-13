@@ -1,8 +1,6 @@
 package decoder
 
 import (
-	"time"
-
 	manager "github.com/ehids/ebpfmanager"
 )
 
@@ -29,8 +27,8 @@ func (BasicEvent) FillCache() {
 	return
 }
 
-func (BasicEvent) RegistCron() (EventCronFunc, *time.Ticker) {
-	return nil, nil
+func (BasicEvent) RegistCron() (string, EventCronFunc) {
+	return "", nil
 }
 
 // Context getter/setter

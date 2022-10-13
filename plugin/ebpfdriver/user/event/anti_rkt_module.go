@@ -6,7 +6,6 @@ import (
 	"hades-ebpf/user/decoder"
 	"io"
 	"os"
-	"time"
 
 	manager "github.com/ehids/ebpfmanager"
 )
@@ -80,9 +79,8 @@ func (m *ModuleScan) trigger(mod_kset uint64) error {
 	return nil
 }
 
-func (m *ModuleScan) RegistCron() (decoder.EventCronFunc, *time.Ticker) {
-	ticker := time.NewTicker(10 * time.Minute)
-	return m.Trigger, ticker
+func (m *ModuleScan) RegistCron() (string, decoder.EventCronFunc) {
+	return "* */10 * * * *", m.Trigger
 }
 
 func (ModuleScan) GetProbes() []*manager.Probe {

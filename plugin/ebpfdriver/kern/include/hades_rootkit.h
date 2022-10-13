@@ -392,7 +392,6 @@ int BPF_KPROBE(kprobe_sys_bpf)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    // data.context.type = SYS_BPF;
     if (context_filter(&data.context))
         return 0;
     if (get_config(DENY_BPF) == 0)
@@ -406,16 +405,26 @@ int BPF_KPROBE(kprobe_security_bpf)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
+    if (context_filter(&data.context))
+        return 0;
     data.context.type = SYS_BPF;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
     // command
     int cmd = PT_REGS_PARM1(ctx);
     save_to_submit_buf(&data, &cmd, sizeof(int), 1);
-    // attr
-    union bpf_attr *attr = (union bpf_attr *)PT_REGS_PARM2(ctx);
-    if (cmd != BPF_PROG_LOAD)
+    switch (cmd) {
+    case BPF_PROG_LOAD: {
+        union bpf_attr *attr = (union bpf_attr *)PT_REGS_PARM2(ctx);
+        if (attr == NULL)
+            return 0;
+        char *name = READ_KERN(attr->prog_name);
+        save_str_to_buf(&data, name, 2);
+        u32 type = READ_KERN(attr->prog_type);
+        save_to_submit_buf(&data, &type, sizeof(u32), 3);
+        return events_perf_submit(&data);
+    }
+    default:
         return 0;
-
-    return events_perf_submit(&data);
+    }
 }
