@@ -10,7 +10,7 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
-const maxModule = 256
+const maxModule = 512
 
 type ModuleScan struct {
 	decoder.BasicEvent `json:"-"`

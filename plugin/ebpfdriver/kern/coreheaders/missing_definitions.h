@@ -118,6 +118,16 @@
 #define AF_QIPCRTR     42         /* Qualcomm IPC Router */
 #define AF_SMC         43         /* smc sockets: reserve number for PF_SMC protocol family that reuses AF_INET address family */
 
+#define TC_ACT_UNSPEC     (-1)
+#define TC_ACT_OK         0
+#define TC_ACT_RECLASSIFY 1
+#define TC_ACT_SHOT       2
+#define TC_ACT_PIPE       3
+#define TC_ACT_STOLEN     4
+#define TC_ACT_QUEUED     5
+#define TC_ACT_REPEAT     6
+#define TC_ACT_REDIRECT   7
+
 #define __user
 
 static inline bool ipv6_addr_any(const struct in6_addr *a)

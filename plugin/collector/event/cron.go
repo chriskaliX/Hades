@@ -148,6 +148,7 @@ func GetCron() (crons []Cron, err error) {
 		})
 		if err != nil {
 			zap.S().Error(err)
+			continue
 		}
 	}
 
@@ -175,6 +176,7 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 	for _, path := range CronSearchDirs {
 		if err = watcher.Add(path); err != nil {
 			zap.S().Error(err)
+			continue
 		}
 	}
 	watcher.Add("/etc/crontab")

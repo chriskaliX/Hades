@@ -9,18 +9,19 @@ import (
 	"bytes"
 	"collector/share"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-	"runtime"
-	"fmt"
 	"time"
 )
 
 // maxCmdline setting
 const maxCmdline = 256
+
 // In promthues/procfs, it returns out
 // that in every disros that they researched, USER_HZ is actually hardcoded to
 // 100 on all Go-supported platforms. See the reference here:
@@ -98,38 +99,38 @@ func (p *ProcessPool) Put(pr *Process) {
 // Process struct, it is shared in both process collection
 // and netlink part.
 type Process struct {
-	CgroupId   int    `json:"cgroupid,omitempty"`
-	Uts_inum   int    `json:"uts_inum,omitempty"`
-	PID        int    `json:"pid"`
-	TID        int    `json:"tid,omitempty"`
-	PPID       int    `json:"ppid"`
-	Name       string `json:"name"`
-	PName      string `json:"pname,omitempty"`
-	Cmdline    string `json:"cmdline"`
-	Exe        string `json:"exe"`
-	Hash       string `json:"hash"`
-	UID        uint32 `json:"uid"`
-	Username   string `json:"username"`
-	EUID       uint32 `json:"euid"`
-	Eusername  string `json:"eusername"`
-	Cwd        string `json:"cwd"`
-	Session    int    `json:"session"`
-	TTY        int    `json:"tty,omitempty"`
-	TTYName    string `json:"ttyname,omitempty"`
-	StartTime  uint64 `json:"starttime"`
-	RemoteAddr string `json:"remoteaddr,omitempty"`
-	RemotePort string `json:"remoteport,omitempty"`
-	LocalAddr  string `json:"localaddr,omitempty"`
-	LocalPort  string `json:"localport,omitempty"`
-	PidTree    string `json:"pidtree,omitempty"`
-	Source     string `json:"source"`
-	NodeName   string `json:"nodename,omitempty"` // TODO: support this in netlink
-	Stdin      string `json:"stdin,omitempty"`
-	Stdout     string `json:"stdout,omitempty"`
-	Utime      uint64 `json:"utime,omitempty"`
-	Stime      uint64 `json:"stime,omitempty"`
-	Rss        uint64 `json:"resmem,omitempty"`
-	Vsize      uint64 `json:"virmem,omitempty"`
+	CgroupId   int     `json:"cgroupid,omitempty"`
+	Uts_inum   int     `json:"uts_inum,omitempty"`
+	PID        int     `json:"pid"`
+	TID        int     `json:"tid,omitempty"`
+	PPID       int     `json:"ppid"`
+	Name       string  `json:"name"`
+	PName      string  `json:"pname,omitempty"`
+	Cmdline    string  `json:"cmdline"`
+	Exe        string  `json:"exe"`
+	Hash       string  `json:"hash"`
+	UID        uint32  `json:"uid"`
+	Username   string  `json:"username"`
+	EUID       uint32  `json:"euid"`
+	Eusername  string  `json:"eusername"`
+	Cwd        string  `json:"cwd"`
+	Session    int     `json:"session"`
+	TTY        int     `json:"tty,omitempty"`
+	TTYName    string  `json:"ttyname,omitempty"`
+	StartTime  uint64  `json:"starttime"`
+	RemoteAddr string  `json:"remoteaddr,omitempty"`
+	RemotePort string  `json:"remoteport,omitempty"`
+	LocalAddr  string  `json:"localaddr,omitempty"`
+	LocalPort  string  `json:"localport,omitempty"`
+	PidTree    string  `json:"pidtree,omitempty"`
+	Source     string  `json:"source"`
+	NodeName   string  `json:"nodename,omitempty"` // TODO: support this in netlink
+	Stdin      string  `json:"stdin,omitempty"`
+	Stdout     string  `json:"stdout,omitempty"`
+	Utime      uint64  `json:"utime,omitempty"`
+	Stime      uint64  `json:"stime,omitempty"`
+	Rss        uint64  `json:"resmem,omitempty"`
+	Vsize      uint64  `json:"virmem,omitempty"`
 	Cpu        float64 `json:"cpu,omitempty"`
 }
 
@@ -228,7 +229,7 @@ func (p *Process) GetStat(simple bool) (err error) {
 	}
 	// Add cutime and cstime if children processes is needed
 	// Be careful with this. The cpu usage here is counted by all cpu
-	total := uint64(time.Now().Unix())-p.StartTime
+	total := uint64(time.Now().Unix()) - p.StartTime
 	p.Cpu = ((float64((p.Utime + p.Stime + iotime)) / userHz) / float64(total))
 	p.Cpu, _ = strconv.ParseFloat(fmt.Sprintf("%.6f", p.Cpu), 64)
 	return
@@ -239,11 +240,12 @@ func GetFds(pid int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	files := make([]string, 0, 4)
+	files := make([]string, 0, 10)
 	for _, fd := range fds {
 		file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + fd.Name())
 		if err != nil {
-			return nil, err
+			// skip error(better use for sockets)
+			continue
 		}
 		files = append(files, file)
 	}

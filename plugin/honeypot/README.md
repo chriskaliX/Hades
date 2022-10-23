@@ -4,6 +4,17 @@
 
 ## Plan
 
-In `ePot`, I wanna hook with both security_bind and XDP(which I haven't lookup into). It may work like this: XDP passes forward the stream, which works fine until security_bind get the port-binding signal(may be occupied by user-space application), then we quit stream re-routing.
+- stream redirect
+- security_bind (avoid port confilct)
+- flow control
 
-It's all just imagination for now. I have not looked into XDP yet. Coming Soon！
+## Dependencies support
+
+- ebpfmanager
+    - support sockops in `probe.go`
+
+## Requirements
+
+|Name|Detailed|Module|
+|:-:|:-:|:-:|
+|cgroup v2| https://github.com/cilium/ebpf/pull/771| sockops |

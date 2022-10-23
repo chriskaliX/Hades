@@ -76,6 +76,8 @@ enum hades_ebpf_config { CONFIG_HADES_PID, CONFIG_FILTERS };
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, _max_entries)
 #define BPF_PERCPU_HASH(_name, _max_entries)                                   \
     BPF_MAP(_name, BPF_MAP_TYPE_PERCPU_HASH, int, int, _max_entries)
+#define BPF_SOCKHASH(_name, _key_type, _value_type, _max_entries)              \
+    BPF_MAP(_name, BPF_MAP_TYPE_SOCKHASH, _key_type, _value_type, _max_entries)
 typedef struct simple_buf {
     __u8 buf[MAX_PERCPU_BUFSIZE];
 } buf_t;

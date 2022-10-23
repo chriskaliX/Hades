@@ -32,8 +32,6 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 	var (
 		sockets []socket.Socket
 		pids    []int
-		inode   uint64
-		index   int
 		ok      bool
 	)
 
@@ -55,7 +53,8 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 	}
 	for _, pid := range pids {
 		var fds []string
-		// Logical bug here, 
+		var index int
+		// Logical bug here,
 		if fds, err = cache.GetFds(pid); err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
@@ -66,7 +65,7 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 			if !strings.HasPrefix(fd, "socket:[") {
 				continue
 			}
-			inode, err = strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
+			inode, err := strconv.ParseUint(strings.TrimRight(fd[8:], "]"), 10, 32)
 			if err != nil {
 				continue
 			}
@@ -83,9 +82,9 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 			if err = proc.GetCmdline(); err == nil {
 				sockets[index].Cmdline = proc.Cmdline
 			}
+			socket := sockets[index]
+			result[strconv.Itoa(int(socket.Inode))] = socket
 		}
-		socket := sockets[index]
-		result[strconv.Itoa(int(socket.Inode))] = socket
 		time.Sleep(100 * time.Millisecond)
 	}
 	// clear the err here, since we use the err above
