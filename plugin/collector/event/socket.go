@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"fmt"
 
 	"go.uber.org/zap"
 )
@@ -47,7 +46,6 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 		if socket.Inode != 0 {
 			inodeMap[socket.Inode] = index
 		}
-		fmt.Println(socket.Inode, socket.SPort, socket.DIP, socket.DPort)
 	}
 	// fds & relate here, a thing to be noticed here, should a procCache to speed up this?
 	if pids, err = cache.GetPids(1000); err != nil {
