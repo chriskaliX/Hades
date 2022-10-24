@@ -32,7 +32,7 @@ const (
 	sizeofSocketID      = 0x30
 	sizeofSocketRequest = sizeofSocketID + 0x8
 	sizeofSocket        = sizeofSocketID + 0x18
-	netlinkLimit        = 1000 // max socket we get from netlink
+	netlinkLimit        = 1500 // max socket we get from netlink
 )
 
 var (
@@ -377,19 +377,19 @@ func FromNetlink() (sockets []Socket, err error) {
 	if err != nil {
 		return
 	}
-	sockets = append(sockets, udp6Sockets...)
+	sockets = append(sockets, tcpSockets...)
 	tcpSockets, err = parseNetlink(unix.AF_INET, unix.IPPROTO_TCP, 10)
 	if err != nil {
 		return
 	}
 	sockets = append(sockets, tcpSockets...)
 	tcp6Sockets, err = parseNetlink(unix.AF_INET6, unix.IPPROTO_TCP, 1)
-	if err == nil {
+	if err != nil {
 		return
 	}
 	sockets = append(sockets, tcp6Sockets...)
 	tcp6Sockets, err = parseNetlink(unix.AF_INET6, unix.IPPROTO_TCP, 10)
-	if err == nil {
+	if err != nil {
 		return
 	}
 	sockets = append(sockets, tcp6Sockets...)
