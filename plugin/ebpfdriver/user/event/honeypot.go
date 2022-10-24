@@ -50,6 +50,6 @@ func (HoneyPot) GetProbes() []*manager.Probe {
 	}
 }
 
-func init() {
-	decoder.RegistEvent(&HoneyPot{})
-}
+// func init() {
+// 	decoder.RegistEvent(&HoneyPot{})
+// }
