@@ -291,15 +291,19 @@ static inline const char *hades_kobject_name(const struct kobject *kobj)
 }
 
 BPF_HASH(mod_map, u64, char[64], 512);
-// Trigger module scan
-//
-// It is a limited way to do so. The find_module is kernel API and it's limited,
-// It's much more easier to get the count of available module. We do not get the
-// name, only count is sent to userspace
-// Reptile captured
-//
-// By default, the kernel module in TEXT field, we can findout those not in TEXT
-// field by comparing the address or just find them in /proc/kallsyms
+/* Trigger module scan
+ *
+ * It is a limited way to do so. The find_module is kernel API and it's limited,
+ * It's much more easier to get the count of available module. We do not get the
+ * name, only count is sent to userspace
+ * Reptile captured
+ *
+ * By default, the kernel module in TEXT field, we can findout those not in TEXT
+ * field by comparing the address or just find them in /proc/kallsyms
+ *
+ * https://github.com/carloslack/KoviD, by setting mod->state to MODULE_STATE_UNFORMED
+ * Test for this code(Guess it won't bypass, because we do not get from /sys/modules)
+ */
 SEC("uprobe/trigger_module_scan")
 int trigger_module_scan(struct pt_regs *ctx)
 {
@@ -367,15 +371,16 @@ int trigger_module_scan(struct pt_regs *ctx)
  * only detect the /proc dir, which may be evaded. There are
  * more than one way to hide from the proc file, set SUSPEND
  * flag just like Reptile do can also evade detection like
- * this one. 
+ * this one. PAY ATTENTION TO list kernel
  * 
  * Reference:
  * https://vxug.fakedoma.in/papers/h2hc/H2HC%20-%20Matveychikov%20&%20f0rb1dd3%20-%20Kernel%20Rootkits.pdf
  * tracee: https://blog.aquasec.com/detect-drovorub-kernel-rootkit-attack-tracee
  * rootkit-demo: https://github.com/Unik-lif/rootkit-hide
+ * evasion: https://blog.csdn.net/dog250/article/details/105939822
  *
  * Warning: This function is under full test, PERFORMANCE IS UNKNOWN
- * from tracee
+ * from tracee. filldir
  */
 SEC("kprobe/security_file_permission")
 int BPF_KPROBE(kprobe_security_file_permission)
