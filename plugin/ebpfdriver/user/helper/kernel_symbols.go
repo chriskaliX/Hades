@@ -2,7 +2,6 @@ package helper
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"runtime"
 	"strconv"
@@ -10,6 +9,8 @@ import (
 
 	"github.com/aquasecurity/libbpfgo/helpers"
 	"github.com/mitchellh/hashstructure/v2"
+
+	"go.uber.org/zap"
 )
 
 /*
@@ -22,6 +23,16 @@ import (
  * 			-- map[key]hashcode => map[hashcode]struct
  * key2 --
  */
+
+var Ksyms = NewKernelSymbolsMap()
+
+var whiteList = []string{
+	"sys_call_table",
+	"idt_table",
+	"module_kset",
+	"_stext",
+	"_etext",
+}
 
 type KernelSymbolTable struct {
 	hashmap     map[interface{}]uint64
@@ -53,7 +64,7 @@ func (k *KernelSymbolTable) Get(key interface{}) *helpers.KernelSymbol {
 }
 
 // Performance should be improved here
-func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
+func NewKernelSymbolsMap() *KernelSymbolTable {
 	var KernelSymbols = KernelSymbolTable{
 		hashmap:   make(map[interface{}]uint64),
 		symbolMap: make(map[uint64]helpers.KernelSymbol),
@@ -71,8 +82,10 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 
 	file, err := os.Open("/proc/kallsyms")
 	if err != nil {
-		return nil, fmt.Errorf("could not find /proc/kallsyms")
+		zap.S().Error("could not find /proc/kallsyms")
+		return nil
 	}
+
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -95,7 +108,8 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		}
 		// special
 		lower := strings.ToLower(line[2])
-		if lower == "sys_call_table" || lower == "idt_table" || lower == "module_kset" || strings.HasPrefix(lower, "entry_int80") {
+
+		if contains(whiteList, lower) || strings.HasPrefix(lower, "entry_int80") {
 			symbol := helpers.KernelSymbol{
 				Name:    symbolName,
 				Type:    symbolType,
@@ -126,5 +140,15 @@ func NewKernelSymbolsMap() (*KernelSymbolTable, error) {
 		}
 	}
 	KernelSymbols.initialized = true
-	return &KernelSymbols, nil
+	return &KernelSymbols
+}
+
+// Internal contains for backport slice.Contains before golang 1.18
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

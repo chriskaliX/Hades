@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/helper"
 	"io"
 	"os"
 
@@ -11,6 +12,8 @@ import (
 )
 
 const maxModule = 512
+
+var _ decoder.Event = (*ModuleScan)(nil)
 
 type ModuleScan struct {
 	decoder.BasicEvent `json:"-"`
@@ -64,7 +67,7 @@ func (ModuleScan) Name() string {
 }
 
 func (i *ModuleScan) Trigger(m *manager.Manager) error {
-	idt := kernelSymbols.Get("module_kset")
+	idt := helper.Ksyms.Get("module_kset")
 	if idt == nil {
 		err := errors.New("mod_kset is not found")
 		return err

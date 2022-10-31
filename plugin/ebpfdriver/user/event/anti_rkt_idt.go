@@ -7,8 +7,9 @@ import (
 	"hades-ebpf/user/helper"
 
 	manager "github.com/ehids/ebpfmanager"
-	"go.uber.org/zap"
 )
+
+var _ decoder.Event = (*IDTScan)(nil)
 
 type IDTScan struct {
 	decoder.BasicEvent `json:"-"`
@@ -38,7 +39,7 @@ func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	if err = e.DecodeUint64(&addr); err != nil {
 		return
 	}
-	if idt := kernelSymbols.Get(addr); idt != nil {
+	if idt := helper.Ksyms.Get(addr); idt != nil {
 		return ErrIgnore
 	}
 	i.Address = fmt.Sprintf("%x", addr)
@@ -50,7 +51,7 @@ func (IDTScan) Name() string {
 }
 
 func (i *IDTScan) Trigger(m *manager.Manager) error {
-	idt := kernelSymbols.Get("idt_table")
+	idt := helper.Ksyms.Get("idt_table")
 	if idt == nil {
 		err := errors.New("idt_table is not found")
 		return err
@@ -82,11 +83,5 @@ func (IDTScan) GetProbes() []*manager.Probe {
 }
 
 func init() {
-	var err error
-	kernelSymbols, err = helper.NewKernelSymbolsMap()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
 	decoder.RegistEvent(&IDTScan{})
 }

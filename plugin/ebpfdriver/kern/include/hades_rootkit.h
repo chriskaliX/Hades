@@ -354,12 +354,95 @@ int trigger_module_scan(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
-// 3. fops check
-// 
-// Most of the rootkits do have the feature of hidden itself, like Reptile.
-// How to hidden a process from being detected? Set the task_struct flags
-// to PF_SUSPEND_TASK 0x80000000(Reptile).
+#define PROC_SUPER_MAGIC 0x9fa0
+/* The address of module field can be configurated, as default
+ * The kernel module size was pinned to 16M
+ */ 
+#define HADES_MODULES_VADDR    _AC(0xffffffffa0000000, UL)
+#define HADES_MODULES_END      _AC(0xffffffffff000000, UL)
+// #define KERNEL_START_DEBUG     _AC(0xffffffffbbe00000, UL)
+// #define KERNEL_END_DEBUG       _AC(0xffffffffbca01621, UL)
 
+/* 3. fops checks
+ * In tracee, security_file_permission is hooked for file
+ * file_operations iterater detection, but in tyton(or Elkeid)
+ * only detect the /proc dir, which may be evaded.
+ * Some other projects, hooks
+ *
+ * But still, we need to consider the performance. Also, there
+ * are multi ways to evade, set the flags maybe like Reptile.
+ * For now, the check function is from tracee.
+ * 
+ * Reference:
+ * https://vxug.fakedoma.in/papers/h2hc/H2HC%20-%20Matveychikov%20&%20f0rb1dd3%20-%20Kernel%20Rootkits.pdf
+ * tracee: https://blog.aquasec.com/detect-drovorub-kernel-rootkit-attack-tracee
+ * rootkit-demo: https://github.com/Unik-lif/rootkit-hide
+ *
+ * Warning: This function is under full test
+ * from tracee
+ */
+SEC("kprobe/security_file_permission")
+int BPF_KPROBE(kprobe_security_file_permission)
+{
+    struct file *file = (struct file *) PT_REGS_PARM1(ctx);
+    if (file == NULL)
+        return 0;
+    struct inode *f_inode = READ_KERN(file->f_inode);
+    struct super_block *i_sb = READ_KERN(f_inode->i_sb);
+    unsigned long s_magic = READ_KERN(i_sb->s_magic);
+
+    if (s_magic != PROC_SUPER_MAGIC) {
+        return 0;
+    }
+
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    if (context_filter(&data.context))
+        return 0;
+    data.context.type = ANTI_RKT_FOPS;
+
+    struct file_operations *fops = (struct file_operations *) READ_KERN(f_inode->i_fop);
+    if (fops == NULL)
+        return 0;
+
+    // kernel version 4.10 iterate_shared
+    unsigned long iterate_shared_addr = (unsigned long) READ_KERN(fops->iterate_shared);
+    unsigned long iterate_addr = (unsigned long) READ_KERN(fops->iterate);
+    
+    if (iterate_shared_addr == 0 && iterate_addr == 0)
+        return 0;
+    
+    // get configuration from bpf_map, if not contained, skip
+    int stext = get_config(STEXT);
+    int etext = get_config(ETEXT);
+    if (stext == 0 || etext == 0)
+        return 0;
+
+    // Add detections for module address
+    // In tracee, the address is checked in userspace from _stext to _etext
+    // more details about memory
+    // https://www.kernel.org/doc/Documentation/x86/x86_64/mm.txt
+    // It's ok to use the hook check for kernel text section or the module addr sec
+    // for now, we just hardcode those, for experimental
+    // 
+    // for now, we do not use MODULE_VADDR, since we need to get this address from
+    // userspace also.
+    if (iterate_shared_addr > 0) {
+        if (iterate_shared_addr >= stext && iterate_shared_addr <= etext) {
+            return 0;
+        }
+    }
+    if (iterate_addr > 0) {
+        if (iterate_addr >= stext && iterate_addr <= etext) {
+            return 0;
+        }
+    }
+
+    save_to_submit_buf(&data, &iterate_shared_addr, sizeof(u64), 0);
+    save_to_submit_buf(&data, &iterate_addr, sizeof(u64), 1);
+    return events_perf_submit(&data);
+}
 // 4. net check
 
 // 5. eBPF backdoor(behavior) detection
@@ -428,3 +511,5 @@ int BPF_KPROBE(kprobe_security_bpf)
         return 0;
     }
 }
+
+// https://blog.csdn.net/dog250/article/details/105465553

@@ -29,6 +29,8 @@ var _bytecode []byte
 // config
 const configMap = "config_map"
 const conf_DENY_BPF uint32 = 0
+const conf_STEXT uint32 = 1
+const conf_ETEXT uint32 = 2
 const eventMap = "exec_events"
 
 // filters
@@ -114,6 +116,18 @@ func (d *Driver) PostRun() (err error) {
 	if err := helper.MapUpdate(d.Manager, filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
 		zap.S().Error(err)
 	}
+	// STEXT ETEXT for rootkit detection
+	if _stext := helper.Ksyms.Get("_stext"); _stext != nil {
+		if err := helper.MapUpdate(d.Manager, configMap, conf_STEXT, _stext.Address); err != nil {
+			zap.S().Error(err)
+		}
+	}
+	if _etext := helper.Ksyms.Get("_etext"); _etext != nil {
+		if err := helper.MapUpdate(d.Manager, configMap, conf_ETEXT, _etext.Address); err != nil {
+			zap.S().Error(err)
+		}
+	}
+	zap.S().Info("init configuration has been loaded")
 	// By default, we do not ban BPF program unless you choose on this..
 	d.cronM = cron.New(cron.WithSeconds())
 	// Regist the cronjobs of the event
@@ -161,11 +175,11 @@ func (d *Driver) taskResolve() {
 		task := d.Sandbox.RecvTask()
 		switch task.DataType {
 		case EnableDenyBPF:
-			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint32(1)); err != nil {
+			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(1)); err != nil {
 				zap.S().Error(err)
 			}
 		case DisableDenyBPF:
-			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint32(0)); err != nil {
+			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(0)); err != nil {
 				zap.S().Error(err)
 			}
 		}

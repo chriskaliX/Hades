@@ -152,7 +152,7 @@ typedef struct network_connection_v6 {
 } net_conn_v6_t;
 
 /* filters */
-BPF_HASH(config_map, __u32, __u32, 512);
+BPF_HASH(config_map, __u32, __u64, 512);
 
 BPF_HASH(pid_filter, __u32, __u32, 512);
 BPF_HASH(uid_filter, __u32, __u32, 512);
@@ -260,7 +260,7 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 
 static __always_inline int get_config(__u32 key)
 {
-    __u32 *config = bpf_map_lookup_elem(&config_map, &key);
+    __u64 *config = bpf_map_lookup_elem(&config_map, &key);
     if (config == NULL)
         return 0;
     return *config;
@@ -268,7 +268,8 @@ static __always_inline int get_config(__u32 key)
 
 /* config */
 #define DENY_BPF                  0
-
+#define STEXT                     1
+#define ETEXT                     2
 /* hook point id */
 #define SYS_ENTER_MEMFD_CREATE    614
 #define SYS_ENTER_EXECVEAT        698
@@ -291,6 +292,7 @@ static __always_inline int get_config(__u32 key)
 // rootkit field
 #define ANTI_RKT_SCT              1200
 #define ANTI_RKT_IDT              1201
+#define ANTI_RKT_FOPS             1202
 #define ANTI_RKT_MODULE           1203
 #define SYS_BPF                   1204
 #endif //__DEFINE_H
