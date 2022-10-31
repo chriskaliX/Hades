@@ -360,25 +360,21 @@ int trigger_module_scan(struct pt_regs *ctx)
  */ 
 #define HADES_MODULES_VADDR    _AC(0xffffffffa0000000, UL)
 #define HADES_MODULES_END      _AC(0xffffffffff000000, UL)
-// #define KERNEL_START_DEBUG     _AC(0xffffffffbbe00000, UL)
-// #define KERNEL_END_DEBUG       _AC(0xffffffffbca01621, UL)
 
 /* 3. fops checks
  * In tracee, security_file_permission is hooked for file
  * file_operations iterater detection, but in tyton(or Elkeid)
- * only detect the /proc dir, which may be evaded.
- * Some other projects, hooks
- *
- * But still, we need to consider the performance. Also, there
- * are multi ways to evade, set the flags maybe like Reptile.
- * For now, the check function is from tracee.
+ * only detect the /proc dir, which may be evaded. There are
+ * more than one way to hide from the proc file, set SUSPEND
+ * flag just like Reptile do can also evade detection like
+ * this one. 
  * 
  * Reference:
  * https://vxug.fakedoma.in/papers/h2hc/H2HC%20-%20Matveychikov%20&%20f0rb1dd3%20-%20Kernel%20Rootkits.pdf
  * tracee: https://blog.aquasec.com/detect-drovorub-kernel-rootkit-attack-tracee
  * rootkit-demo: https://github.com/Unik-lif/rootkit-hide
  *
- * Warning: This function is under full test
+ * Warning: This function is under full test, PERFORMANCE IS UNKNOWN
  * from tracee
  */
 SEC("kprobe/security_file_permission")
