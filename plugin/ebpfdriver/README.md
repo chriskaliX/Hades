@@ -72,7 +72,9 @@
 | kprobe/security_inode_link                 | ON                                    | 1032 |
 | uprobe/trigger_sct_scan                    | ON                                    | 1200 |
 | uprobe/trigger_idt_scan                    | ON                                    | 1201 |
+| kprobe/security_file_permission            | ON                                    | 1202 |
 | uprobe/trigger_module_scan                 | ON                                    | 1203 |
+| kprobe/security_bpf                        | ON                                    | 1204 |
 
 用户态 Hook
 | Hook 名称 | 状态/说明 | ID |
