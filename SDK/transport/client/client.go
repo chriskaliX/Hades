@@ -56,7 +56,11 @@ func (c *Client) SendElkeid(rec *protocol.Record) (err error) {
 }
 
 func (c *Client) SendDebug(rec *protocol.Record) (err error) {
-	fmt.Println(rec.Data.Fields)
+	if _, ok := rec.Data.Fields["data"]; ok {
+		fmt.Println(rec.Data.Fields["data"])
+	} else {
+		fmt.Println(rec.Data.Fields)
+	}
 	return
 }
 

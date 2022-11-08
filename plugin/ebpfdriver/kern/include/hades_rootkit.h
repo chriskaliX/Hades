@@ -280,6 +280,8 @@ int trigger_idt_scan(struct pt_regs *ctx)
 #endif
 }
 
+// filldir/filldir64 detection
+
 #define list_entry(ptr, type, member) \
         container_of(ptr, type, member)
 #define list_first_entry(ptr, type, member) \
@@ -302,7 +304,11 @@ BPF_HASH(mod_map, u64, char[64], 512);
  * field by comparing the address or just find them in /proc/kallsyms
  *
  * https://github.com/carloslack/KoviD, by setting mod->state to MODULE_STATE_UNFORMED
- * Test for this code(Guess it won't bypass, because we do not get from /sys/modules)
+ * And also delete from the memory, trigger_module_scan is evaded, and other part
+ * of scanning is evaded too. Let's spend some time to introduce some new 
+ * techs to detect this!
+ * 
+ * And it is easy to bypass this detection, just remember to call kobject_del
  */
 SEC("uprobe/trigger_module_scan")
 int trigger_module_scan(struct pt_regs *ctx)
@@ -358,12 +364,52 @@ int trigger_module_scan(struct pt_regs *ctx)
     return events_perf_submit(&data);
 }
 
-#define PROC_SUPER_MAGIC 0x9fa0
+#define PROC_SUPER_MAGIC       0x9fa0
 /* The address of module field can be configurated, as default
  * The kernel module size was pinned to 16M
  */ 
 #define HADES_MODULES_VADDR    _AC(0xffffffffa0000000, UL)
 #define HADES_MODULES_END      _AC(0xffffffffff000000, UL)
+
+
+// SEC("uprobe/trigger_memory_scan")
+// int trigger_memory_scan(struct pt_regs *ctx)
+// {
+//     event_data_t data = {};
+//     if (!init_event_data(&data, ctx))
+//         return 0;
+//     data.context.type = 1207;
+
+//     // vmap_area_list from /proc/kallsyms
+//     struct list_head *v_list = (struct list_head *)GO_REG2(ctx);
+//     if (v_list == NULL)
+//         return 0;
+//     struct vmap_area* cur = NULL;
+//     cur = list_first_entry(v_list, typeof(*cur), list);
+//     struct vm_struct *vm_area;
+//     struct list_head tlist;
+
+//     int out = 0;
+//     int count = 0;
+//     // local bpf way of list_for_each_entry
+// #pragma unroll
+//     for (int index = 0; index < 512; index++)
+//     {
+//         out = index;
+//         if (&cur->list == (list))
+//             break;
+//         tlist = READ_KERN(cur->list);
+//         cur = list_entry(tlist.next, typeof(*(cur)), list);
+//         if (cur == NULL)
+//             continue;
+//         vm_area = READ_KERN(cur->vm);
+//         count++;
+//     }
+    
+//     save_to_submit_buf(&data, &out, sizeof(u32), 0);
+//     save_to_submit_buf(&data, &count, sizeof(u32), 1);
+//     return events_perf_submit(&data);
+// }
 
 /* 3. fops checks
  * In tracee, security_file_permission is hooked for file
@@ -473,6 +519,7 @@ int BPF_KPROBE(kprobe_security_file_permission)
 SEC("kprobe/bpf")
 int BPF_KPROBE(kprobe_sys_bpf)
 {
+    // Be careful about access to bpf_map and change value directly
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
@@ -514,3 +561,16 @@ int BPF_KPROBE(kprobe_security_bpf)
 }
 
 // https://blog.csdn.net/dog250/article/details/105465553
+/* Hardcode memory scan
+ * How this works? Scan the whole .text section, find anything that
+ *
+ * detect demo:
+ * https://github.com/sysprog21/lkm-hidden
+ * just work like dog250's blog: https://blog.csdn.net/dog250/article/details/106064940
+ * it removes itself from a lot of list including kmod->list, so that there
+ * is no chance that tyton or Elkeid can detect this.
+ */
+
+/* Other references:
+ * https://www.acsac.org/2004/papers/99.pdf
+ */

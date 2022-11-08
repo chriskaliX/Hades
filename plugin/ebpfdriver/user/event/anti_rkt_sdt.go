@@ -10,7 +10,6 @@ import (
 )
 
 var _ decoder.Event = (*SCTScan)(nil)
-var kernelSymbols *helper.KernelSymbolTable
 
 // The mapping of syscall index and it's name is not used now
 // so the syscall_name is always empty
@@ -42,7 +41,7 @@ func (s *SCTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	// address is available, not hooked
-	if sym := kernelSymbols.Get(addr); sym != nil {
+	if sym := helper.Ksyms.Get(addr); sym != nil {
 		return ErrIgnore
 	}
 	return nil
@@ -53,7 +52,7 @@ func (SCTScan) Name() string {
 }
 
 func (s *SCTScan) Trigger(m *manager.Manager) error {
-	sct := kernelSymbols.Get("sys_call_table")
+	sct := helper.Ksyms.Get("sys_call_table")
 	if sct == nil {
 		err := errors.New("sys_call_table is not found")
 		fmt.Println(err)

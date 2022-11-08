@@ -32,6 +32,7 @@ var whiteList = []string{
 	"module_kset",
 	"_stext",
 	"_etext",
+	"vmap_area_list",
 }
 
 type KernelSymbolTable struct {
