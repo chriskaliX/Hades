@@ -137,7 +137,7 @@ func (d *Driver) PostRun() (err error) {
 			continue
 		}
 		if share.Debug {
-			interval = "*/10 * * * * *"
+			interval = "*/20 * * * * *"
 		}
 		if _, err := d.cronM.AddFunc(interval, func() {
 			cronFunc(d.Manager)

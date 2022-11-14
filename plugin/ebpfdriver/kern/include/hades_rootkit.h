@@ -370,46 +370,62 @@ int trigger_module_scan(struct pt_regs *ctx)
  */ 
 #define HADES_MODULES_VADDR    _AC(0xffffffffa0000000, UL)
 #define HADES_MODULES_END      _AC(0xffffffffff000000, UL)
+#define HADES_VM_LIMITATION    1 << 17
 
+/*
+ * Compare with /proc/modules
+ * Reference: https://unix.stackexchange.com/questions/152507/module-marked-f-in-proc-modules
+ * bounded loop seems to be the limitation of the detection method
+ * maybe judge the KERNEL_VERSION, remove the unroll part to go through the vmap_area
+ * and get the name of the modules
+ */
+SEC("uprobe/trigger_memory_scan")
+int trigger_memory_scan(struct pt_regs *ctx)
+{
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 3, 0))
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    data.context.type = 1207;
 
-// SEC("uprobe/trigger_memory_scan")
-// int trigger_memory_scan(struct pt_regs *ctx)
-// {
-//     event_data_t data = {};
-//     if (!init_event_data(&data, ctx))
-//         return 0;
-//     data.context.type = 1207;
+    struct vmap_area *cur = NULL;
+    struct vm_struct *vm_area = NULL;
+    unsigned long va_start = 0;
+    unsigned long va_end = 0;
+    int out = 0;
+    int count = 0;
 
-//     // vmap_area_list from /proc/kallsyms
-//     struct list_head *v_list = (struct list_head *)GO_REG2(ctx);
-//     if (v_list == NULL)
-//         return 0;
-//     struct vmap_area* cur = NULL;
-//     cur = list_first_entry(v_list, typeof(*cur), list);
-//     struct vm_struct *vm_area;
-//     struct list_head tlist;
+    // vmap_area_list from /proc/kallsyms
+    struct list_head *tlist = (struct list_head *)GO_REG2(ctx);
+    if (tlist == NULL)
+        return 0;
 
-//     int out = 0;
-//     int count = 0;
-//     // local bpf way of list_for_each_entry
-// #pragma unroll
-//     for (int index = 0; index < 512; index++)
-//     {
-//         out = index;
-//         if (&cur->list == (list))
-//             break;
-//         tlist = READ_KERN(cur->list);
-//         cur = list_entry(tlist.next, typeof(*(cur)), list);
-//         if (cur == NULL)
-//             continue;
-//         vm_area = READ_KERN(cur->vm);
-//         count++;
-//     }
-    
-//     save_to_submit_buf(&data, &out, sizeof(u32), 0);
-//     save_to_submit_buf(&data, &count, sizeof(u32), 1);
-//     return events_perf_submit(&data);
-// }
+    cur = list_entry(READ_KERN(tlist->next), typeof(*(cur)), list);
+    // local bpf way of list_for_each_entry
+    for (int index = 0; index < HADES_VM_LIMITATION; index++)
+    {
+        out = index;
+        if (&cur->list == (tlist))
+            break;
+        tlist = GET_FIELD_ADDR(cur->list);
+        cur = list_entry(READ_KERN(tlist->next), typeof(*(cur)), list);
+        if (cur == NULL)
+            continue;
+        va_start = READ_KERN(cur->va_start);
+        va_end = READ_KERN(cur->va_end);
+        // get the start and end, judge the addr area
+        if ((va_start >= HADES_MODULES_VADDR && va_start <= HADES_MODULES_END) &&
+            (va_end >= HADES_MODULES_VADDR && va_end <= HADES_MODULES_END)) {
+                // module point to itself, and find
+            }
+    }
+    save_to_submit_buf(&data, &out, sizeof(u32), 0);
+    save_to_submit_buf(&data, &count, sizeof(u32), 1);
+    return events_perf_submit(&data);
+#else
+    return 0;
+#endif
+}
 
 /* 3. fops checks
  * In tracee, security_file_permission is hooked for file
@@ -515,6 +531,7 @@ int BPF_KPROBE(kprobe_security_file_permission)
 // 
 // Reference:
 // https://i.blackhat.com/USA21/Wednesday-Handouts/us-21-With-Friends-Like-EBPF-Who-Needs-Enemies.pdf
+// TODO: in ubuntu, sometimes hook failed
 #define EPERM 1
 SEC("kprobe/bpf")
 int BPF_KPROBE(kprobe_sys_bpf)
