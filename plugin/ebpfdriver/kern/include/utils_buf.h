@@ -183,6 +183,42 @@ static __always_inline int save_to_submit_buf(event_data_t *data, void *ptr,
     return 0;
 }
 
+/*
+ * @function: save ptr(struct) to buffer
+ * @structure: [index][buffer]
+ */
+static __always_inline int save_to_submit_buf_without_update(event_data_t *data, void *ptr,
+                                              __u32 size, u8 index)
+{
+// The biggest element that can be saved with this function should be defined
+// here
+#define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
+    // Data saved to submit buf: [index][ ... buffer[size] ... ]
+    if (size == 0)
+        return 0;
+
+    // If we don't have enough space - return
+    if (data->buf_off > MAX_PERCPU_BUFSIZE - (size + 1))
+        return 0;
+
+    // Save argument index
+    volatile int buf_off = data->buf_off;
+    data->submit_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)] = index;
+
+    // Satisfy validator for probe read
+    if ((data->buf_off + 1) <= MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE) {
+        // Read into buffer
+        if (bpf_probe_read(&(data->submit_p->buf[data->buf_off + 1]), size,
+                           ptr) == 0) {
+            // We update buf_off only if all writes were successful
+            // data->buf_off += size + 1;
+            // data->context.argnum++;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // Thiner than tracee. It's all we need now
 typedef struct slim_cred {
     uid_t uid;   // real UID of the task

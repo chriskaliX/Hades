@@ -367,10 +367,15 @@ int trigger_module_scan(struct pt_regs *ctx)
 #define PROC_SUPER_MAGIC       0x9fa0
 /* The address of module field can be configurated, as default
  * The kernel module size was pinned to 16M
+ * check the elegant way of ADDR
  */ 
+#define __AC(X,Y)              (X##Y)
+#define _AC(X,Y)               __AC(X,Y)
+#define _UL(x)		           (_AC(x, UL))
+#define UL(x)                  (_UL(x))
 #define HADES_MODULES_VADDR    _AC(0xffffffffa0000000, UL)
 #define HADES_MODULES_END      _AC(0xffffffffff000000, UL)
-#define HADES_VM_LIMITATION    1 << 17
+#define HADES_VM_LIMITATION    1 << 18 // just test
 
 /*
  * Compare with /proc/modules
@@ -378,54 +383,68 @@ int trigger_module_scan(struct pt_regs *ctx)
  * bounded loop seems to be the limitation of the detection method
  * maybe judge the KERNEL_VERSION, remove the unroll part to go through the vmap_area
  * and get the name of the modules
+ *
+ * spin_lock
+ * suspended
  */
-SEC("uprobe/trigger_memory_scan")
-int trigger_memory_scan(struct pt_regs *ctx)
-{
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 3, 0))
-    event_data_t data = {};
-    if (!init_event_data(&data, ctx))
-        return 0;
-    data.context.type = 1207;
+// SEC("uprobe/trigger_memory_scan")
+// int trigger_memory_scan(struct pt_regs *ctx)
+// {
+// // #if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 3, 0))
+//     event_data_t data = {};
+//     if (!init_event_data(&data, ctx))
+//         return 0;
+//     data.context.type = 1207;
 
-    struct vmap_area *cur = NULL;
-    struct vm_struct *vm_area = NULL;
-    unsigned long va_start = 0;
-    unsigned long va_end = 0;
-    int out = 0;
-    int count = 0;
+//     struct vmap_area *cur = NULL;
+//     struct vm_struct *vm_area = NULL;
+//     unsigned long va_start = 0;
+//     unsigned long va_end = 0;
+//     // vmap_area_list from /proc/kallsyms
+//     struct list_head *tlist = (struct list_head *)GO_REG2(ctx);
+//     if (tlist == NULL)
+//         return 0;
 
-    // vmap_area_list from /proc/kallsyms
-    struct list_head *tlist = (struct list_head *)GO_REG2(ctx);
-    if (tlist == NULL)
-        return 0;
+//     cur = list_entry(READ_KERN(tlist->next), typeof(*(cur)), list);
+//     // local bpf way of list_for_each_entry
+// // #pragma unroll
+//     for (int index = 0; index < HADES_VM_LIMITATION; index++)
+//     {
+//         if (&cur->list == (tlist))
+//             break;
+//         tlist = GET_FIELD_ADDR(cur->list);
+//         cur = list_entry(READ_KERN(tlist->next), typeof(*(cur)), list);
+//         if (cur == NULL)
+//             continue;
+//         va_start = READ_KERN(cur->va_start);
+//         va_end = READ_KERN(cur->va_end);
+//         vm_area = READ_KERN(cur->vm);
+//         // get the start and end, judge the addr area
+//         if ((va_start >= HADES_MODULES_VADDR && va_start < HADES_MODULES_END) &&
+//             (va_end >= HADES_MODULES_VADDR && va_end < HADES_MODULES_END) && (vm_area != NULL)) {
+//                 // module point to itself, and find
+//                 // go range from start to end by page, 
+//                 // check the module self pointer with container_of
 
-    cur = list_entry(READ_KERN(tlist->next), typeof(*(cur)), list);
-    // local bpf way of list_for_each_entry
-    for (int index = 0; index < HADES_VM_LIMITATION; index++)
-    {
-        out = index;
-        if (&cur->list == (tlist))
-            break;
-        tlist = GET_FIELD_ADDR(cur->list);
-        cur = list_entry(READ_KERN(tlist->next), typeof(*(cur)), list);
-        if (cur == NULL)
-            continue;
-        va_start = READ_KERN(cur->va_start);
-        va_end = READ_KERN(cur->va_end);
-        // get the start and end, judge the addr area
-        if ((va_start >= HADES_MODULES_VADDR && va_start <= HADES_MODULES_END) &&
-            (va_end >= HADES_MODULES_VADDR && va_end <= HADES_MODULES_END)) {
-                // module point to itself, and find
-            }
-    }
-    save_to_submit_buf(&data, &out, sizeof(u32), 0);
-    save_to_submit_buf(&data, &count, sizeof(u32), 1);
-    return events_perf_submit(&data);
-#else
-    return 0;
-#endif
-}
+//                 for (unsigned long address = va_start; address < va_end; address += sizeof(unsigned long)) {
+//                     // for test, just get the size
+//                     // how to work like container_of...
+//                     // char *name = READ_KERN(m->name);
+//                     // save_to_submit_buf(&data, &name, 16, 0);
+//                     //
+//                     // Just test code
+//                     struct module *m = container_of(address, struct module, syms);
+//                     if (m == NULL)
+//                         continue;
+
+//                     save_to_submit_buf(&data, &va_start, sizeof(unsigned long), 0);
+//                     events_perf_submit(&data);
+//                 }
+//             }
+//     }
+// // #endif
+//     return 0;
+// }
 
 /* 3. fops checks
  * In tracee, security_file_permission is hooked for file

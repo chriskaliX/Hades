@@ -15,7 +15,7 @@ var _ decoder.Event = (*MemScan)(nil)
 // so the syscall_name is always empty
 type MemScan struct {
 	decoder.BasicEvent `json:"-"`
-	Out                uint32 `json:"out"`
+	Address            uint64 `json:"address"`
 	Count              uint32 `json:"count"`
 }
 
@@ -26,18 +26,11 @@ func (MemScan) ID() uint32 {
 func (s *MemScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
 		index uint8
-		// list_addr uint64
 	)
 	if err = e.DecodeUint8(&index); err != nil {
 		return
 	}
-	if err = e.DecodeUint32(&s.Out); err != nil {
-		return
-	}
-	if err = e.DecodeUint8(&index); err != nil {
-		return
-	}
-	if err = e.DecodeUint32(&s.Count); err != nil {
+	if err = e.DecodeUint64(&s.Address); err != nil {
 		return
 	}
 	return nil
@@ -54,6 +47,7 @@ func (s *MemScan) Trigger(m *manager.Manager) error {
 		fmt.Println(err)
 		return err
 	}
+	fmt.Println("triggered")
 	s.trigger(table.Address)
 	return nil
 }
