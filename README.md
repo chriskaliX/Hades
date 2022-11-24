@@ -1,7 +1,7 @@
 # Hades
 
 <div align=center>
-<img width="200" height="200" src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-low-resolution-logo-color-on-transparent-background.png"/>
+<img width="500" height="152.5" src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-low-resolution-logo-color-on-transparent-background.png"/>
 </div>
 
 <div align=center>
