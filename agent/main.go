@@ -27,6 +27,7 @@ import (
 
 func init() {
 	// 在一些 KVM 下其实可能小于 8，例如 4 核的机器，设置成大于 CPU 的数量反而可能会造成线程频繁切换
+	// 考虑到容器环境下 NumCpu 取值问题
 	numcpu := runtime.NumCPU()
 	if numcpu > 8 {
 		numcpu = 8

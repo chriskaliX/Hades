@@ -7,10 +7,10 @@ import (
 const (
 	Product = "hades-agent"
 	EnvName = "SPECIFIED_AGENT_ID_HADES"
-	Version = "1.0.0"
+	Version = ""
 )
 
-// The only instance of the agentt
+// The only instance of the agent
 var Instance = New()
 
 type Agent struct {

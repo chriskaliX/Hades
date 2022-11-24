@@ -4,6 +4,7 @@ agent/log/hades.log
 agent/log/hades*
 agent/agent-id
 agent/main
+hades-agent
 
 # ignore dev 
 .VSCodeCounter/
@@ -12,6 +13,8 @@ agent/main
 # deploy
 agent/deploy/hadesctl
 agent/deploy/hades-agent
+# not ready
+agent/tools
 
 # ignore certs
 cert/

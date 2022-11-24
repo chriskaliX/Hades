@@ -14,12 +14,12 @@ import (
 )
 
 func New() (agent *Agent) {
+	var err error
 	agent = &Agent{
 		Product: Product,
 		Version: Version,
 		OS:      runtime.GOOS,
 	}
-	var err error
 	agent.Context, agent.Cancel = context.WithCancel(context.Background())
 	if agent.Workdir, err = os.Getwd(); err != nil {
 		agent.Workdir = config.HADES_PIDPATH
@@ -72,7 +72,7 @@ func (a *Agent) genUUIDLinux() {
 		a.ID = mid.String()
 		return
 	}
-	mid, err = a.fromUUIDFile("machine-id")
+	mid, err = a.fromUUIDFile(config.HADES_MACHINE_ID)
 	if err == nil {
 		a.ID = mid.String()
 		return
