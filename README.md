@@ -10,13 +10,13 @@
 
 English | [中文](README-zh_CN.md)
 
-Hades is a Host-based Intrusion Detection System based on eBPF and Netlink/cn_proc. Now it's still under development. PRs and issues are welcome!
+Hades is a Host-based Intrusion Detection System based on eBPF and netlink(cn_proc). Now it's still under development. PRs and issues are welcome!
 
-This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [Elkeid](https://github.com/bytedance/Elkeid). Thanks for these awesome open-source projects.
+Declaration: This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [Elkeid](https://github.com/bytedance/Elkeid). Thanks for these awesome open-source projects.
 
 ## Architecture
 
-> Agent part is mainly based on [Elkeid](https://github.com/bytedance/Elkeid) version 1.7. And I am going to make plugins(including the driver) compatible with Elkeid.
+> Agent part is mainly based on [Elkeid](https://github.com/bytedance/Elkeid) version 1.7.
 
 ### Agent Part
 
@@ -28,7 +28,7 @@ This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [E
 
 ## Plugins
 
-- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver)
+- [eBPF Driver](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugin/collector)
 - HoneyPot
 - Monitor
@@ -37,7 +37,7 @@ This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [E
 
 ## Capability
 
-### Driver-eBPF
+### eBPF Driver
 
 > Here are 21 hooks over `tracepoints`/`kprobes`/`uprobes`. The fields are extended just like Elkeid(basically).
 
@@ -83,13 +83,9 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) o
 |   user    |  P   |
 |    yum    |  P   |
 
-## Purpose
-
-I maintain this project mainly for learning eBPF and HIDS
-
 ## Contact
 
-Input `Hades` to get the QR code~
+Input `Hades` to get the QR code
 
 <img src="https://github.com/chriskaliX/Hades/blob/main/imgs/weixin.png" width="50%" style="float:left;"/>
 
