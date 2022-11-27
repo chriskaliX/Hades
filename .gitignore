@@ -13,8 +13,9 @@ hades-agent
 # deploy
 agent/deploy/hadesctl
 agent/deploy/hades-agent
-# not ready
-agent/tools
+
+# server
+server/hboat
 
 # ignore certs
 cert/

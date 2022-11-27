@@ -18,6 +18,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/lufia/plan9stats v0.0.0-20220517141722-cf486979b281 // indirect
+	github.com/nightlyone/lockfile v1.0.0
 	github.com/power-devops/perfstat v0.0.0-20220216144756-c35f1ee13d7c // indirect
 	github.com/shirou/gopsutil/v3 v3.22.8
 	github.com/tklauser/numcpus v0.5.0 // indirect

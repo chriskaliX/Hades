@@ -24,7 +24,6 @@ var restartCmd = &cobra.Command{
 			cobra.CheckErr(cmd.Run())
 		} else if viper.GetString("service_type") == "sysvinit" {
 			os.RemoveAll(crontabFile)
-			// TODO: go through this cron/crond thing
 			exec.Command("service", "cron", "restart").Run()
 			exec.Command("service", "crond", "restart").Run()
 			err := sysvinitStop()

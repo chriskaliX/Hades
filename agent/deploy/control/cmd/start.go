@@ -30,14 +30,12 @@ func V1() (systems []cgroups.Subsystem, err error) {
 	return
 }
 
-// @Notes: cfs stands for Completely Fair Schedule
 func sysvinitStart() error {
 	cmd := exec.Command(agentFile)
 	cmd.Dir = agentWorkDir
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
-	// viper 获取全部变量
 	for k, v := range viper.AllSettings() {
 		cmd.Env = append(cmd.Env, k+"="+v.(string))
 	}
@@ -46,12 +44,9 @@ func sysvinitStart() error {
 	if err != nil {
 		return err
 	}
-	// set cgroup
-	// 10% limited CPU usage
+	// Cpu 10%, Mem 300M
 	quota := int64(10000)
-	// 250M limit in Elkeid.
-	// TODO: is this too high? I'm going to down this to 100M, under test, maybe size down the buffer is needed.
-	memLimit := int64(104857600)
+	memLimit := int64(1024 * 1024 * 300)
 	cg, err := cgroups.New(V1,
 		cgroups.StaticPath(cgroupPath),
 		&specs.LinuxResources{
@@ -91,14 +86,4 @@ var startCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(startCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

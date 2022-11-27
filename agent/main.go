@@ -17,6 +17,7 @@ import (
 	"agent/transport"
 	"agent/transport/connection"
 
+	"github.com/nightlyone/lockfile"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -25,12 +26,14 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
+const MAX_PROCS = 8
+
 func init() {
-	// 在一些 KVM 下其实可能小于 8，例如 4 核的机器，设置成大于 CPU 的数量反而可能会造成线程频繁切换
-	// 考虑到容器环境下 NumCpu 取值问题
+	// Limitation of procs
+	// TODO: container situation
 	numcpu := runtime.NumCPU()
-	if numcpu > 8 {
-		numcpu = 8
+	if numcpu > MAX_PROCS {
+		numcpu = MAX_PROCS
 	}
 	runtime.GOMAXPROCS(numcpu)
 }
@@ -41,6 +44,7 @@ func main() {
 	flag.BoolVar(&connection.InsecureTransport, "insecure", false, "grpc with insecure")
 	flag.BoolVar(&connection.InsecureTLS, "insecure-tls", true, "grpc tls insecure")
 	flag.Parse()
+
 	config := zap.NewProductionEncoderConfig()
 	config.CallerKey = "source"
 	config.TimeKey = "timestamp"
@@ -61,6 +65,15 @@ func main() {
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
+
+	if os.Getenv("service_type") == "sysvinit" {
+		l, _ := lockfile.New("/var/run/hades-agent.pid")
+		if err := l.TryLock(); err != nil {
+			zap.S().Error(err)
+			return
+		}
+	}
+
 	wg := &sync.WaitGroup{}
 	// transport to server not added
 	wg.Add(3)

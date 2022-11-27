@@ -2,38 +2,22 @@
 # https://zhuanlan.zhihu.com/p/271071439
 [Unit]
 Description=hades-agent
-# Needs network & start after network initial
 Wants=network-online.target
 After=network-online.target network.target syslog.target
 
 [Service]
-# Configures the process start-up type for this service unit. One of simple, exec, forking, oneshot, dbus, notify or idle:
 Type=simple
 ExecStart=/etc/hades/hades-agent
 WorkingDirectory=/etc/hades
 Restart=always
 RestartSec=60
-# control-group: kill by cgroup
-# process: kill main process
-# mixed: send SIGTERM to main process, and send SIGKILL to other processes in cgroup
 KillMode=control-group
 # 兼容性
 MemoryMax=250M
 MemoryLimit=250M
 CPUQuota=10%
-# https://www.cnblogs.com/jimbo17/p/9107052.html
-# 帮助插件逃逸出 agent 的 cgroup, unit 可以管理自己的资源
 Delegate=yes
-# http://www.jinbuguo.com/systemd/systemd.service.html
-# 在代码中必须周期性的调用 WATCHDOG=1, keep-alive ping,  如果两次的周期大于 900s, 则发送 WatchdogSignal= 信号(默认为 SIGABRT)关闭
-# 字节 Elkeid 1.7.0.1 中 remove 掉了这个, 不需要 Watchdog。我猜测是因为那个 systemd 的问题
-# @ Reason: https://github.com/systemd/systemd/issues/9467
-# @ It's a bug in lower version of watchdog timeout. systemctl deamon-reload
-# may trigger the watchdog timeout immediately.
-# WatchdogSec=900
-# config file 问题
 EnvironmentFile=-/etc/hades/specified_env
 
 [Install]
-# 所有用于实现多用户命令行环境的单元
 WantedBy=multi-user.target
