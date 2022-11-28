@@ -39,8 +39,8 @@ func (p Process) Run() (result map[string]interface{}, err error) {
 		return
 	}
 	for _, process := range processes {
-		cache.ProcessCache.Add(uint32(process.PID), uint32(process.PPID))
-		cache.ProcessCmdlineCache.Add(uint32(process.PID), process.Exe)
+		cache.PidCache.Add(uint32(process.PID), uint32(process.PPID))
+		cache.ArgvCache.Add(uint32(process.PID), process.Exe)
 	}
 	for _, process := range processes {
 		result[strconv.Itoa(process.PID)] = process

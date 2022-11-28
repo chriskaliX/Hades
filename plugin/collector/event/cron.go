@@ -21,7 +21,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// 时间不是我们关注的, 执行了什么才是比较关键的, 所以我们取cmd的hash作为关键值来去重
 var (
 	CronSearchDirs = []string{
 		"/etc/cron.d",
@@ -147,7 +146,6 @@ func GetCron() (crons []Cron, err error) {
 			return nil
 		})
 		if err != nil {
-			zap.S().Error(err)
 			continue
 		}
 	}
@@ -175,7 +173,6 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 	defer watcher.Close()
 	for _, path := range CronSearchDirs {
 		if err = watcher.Add(path); err != nil {
-			zap.S().Error(err)
 			continue
 		}
 	}

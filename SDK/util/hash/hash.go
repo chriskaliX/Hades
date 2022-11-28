@@ -2,10 +2,9 @@
 package hash
 
 import (
-	"crypto/md5"
-	"sync"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/chriskaliX/SDK/clock"
 	"golang.org/x/time/rate"
 	"k8s.io/utils/lru"
@@ -24,20 +23,18 @@ type IHashCache interface {
 
 type HashCache struct {
 	cache *lru.Cache
-	pool  *sync.Pool
+	buf   []byte
 	clock clock.IClock
+	hash  *xxhash.Digest
 	rl    *rate.Limiter
 }
 
 func NewWithClock(c clock.IClock) *HashCache {
 	return &HashCache{
 		cache: lru.New(hashCacheSize),
-		pool: &sync.Pool{
-			New: func() interface{} {
-				return md5.New()
-			},
-		},
+		buf:   make([]byte, 32*1024),
 		clock: c,
+		hash:  xxhash.New(),
 		rl:    rate.NewLimiter(rate.Every(5*time.Microsecond), burst),
 	}
 }

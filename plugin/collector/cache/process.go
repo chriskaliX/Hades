@@ -10,7 +10,6 @@ import (
 	"collector/share"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"runtime"
 	"strconv"
@@ -72,6 +71,8 @@ func NewPool() *ProcessPool {
 
 func (p *ProcessPool) Get() *Process {
 	pr := p.p.Get().(*Process)
+	pr.GID = -1
+	pr.UID = -1
 	return pr
 }
 
@@ -79,7 +80,6 @@ func (p *ProcessPool) Put(pr *Process) {
 	pr.CgroupId = 0
 	pr.Uts_inum = 0
 	pr.TID = 0
-	pr.PName = ""
 	pr.TTY = 0
 	pr.TTYName = ""
 	pr.RemoteAddr = ""
@@ -93,6 +93,8 @@ func (p *ProcessPool) Put(pr *Process) {
 	pr.Stime = 0
 	pr.Rss = 0
 	pr.Vsize = 0
+	pr.PidTree = ""
+	pr.PpidArgv = ""
 	p.p.Put(pr)
 }
 
@@ -102,17 +104,17 @@ type Process struct {
 	CgroupId   int     `json:"cgroupid,omitempty"`
 	Uts_inum   int     `json:"uts_inum,omitempty"`
 	PID        int     `json:"pid"`
-	TID        int     `json:"tid,omitempty"`
+	TID        uint32  `json:"tid,omitempty"`
+	GID        int32   `json:"gid"`
 	PPID       int     `json:"ppid"`
+	PpidArgv   string  `json:"ppid_argv"`
 	Name       string  `json:"name"`
-	PName      string  `json:"pname,omitempty"`
 	Cmdline    string  `json:"cmdline"`
+	Comm       string  `json:"comm"`
 	Exe        string  `json:"exe"`
 	Hash       string  `json:"hash"`
-	UID        uint32  `json:"uid"`
+	UID        int32   `json:"uid"`
 	Username   string  `json:"username"`
-	EUID       uint32  `json:"euid"`
-	Eusername  string  `json:"eusername"`
 	Cwd        string  `json:"cwd"`
 	Session    int     `json:"session"`
 	TTY        int     `json:"tty,omitempty"`
@@ -122,11 +124,11 @@ type Process struct {
 	RemotePort string  `json:"remoteport,omitempty"`
 	LocalAddr  string  `json:"localaddr,omitempty"`
 	LocalPort  string  `json:"localport,omitempty"`
-	PidTree    string  `json:"pidtree,omitempty"`
+	PidTree    string  `json:"pid_tree"`
 	Source     string  `json:"source"`
 	NodeName   string  `json:"nodename,omitempty"` // TODO: support this in netlink
-	Stdin      string  `json:"stdin,omitempty"`
-	Stdout     string  `json:"stdout,omitempty"`
+	Stdin      string  `json:"stdin"`
+	Stdout     string  `json:"stdout"`
 	Utime      uint64  `json:"utime,omitempty"`
 	Stime      uint64  `json:"stime,omitempty"`
 	Rss        uint64  `json:"resmem,omitempty"`
@@ -141,14 +143,16 @@ func (p *Process) GetStatus() (err error) {
 		return
 	}
 	defer file.Close()
-	s := bufio.NewScanner(io.LimitReader(file, 1024*512))
+	s := bufio.NewScanner(file)
 	for s.Scan() {
 		if strings.HasPrefix(s.Text(), "Name:") {
 			p.Name = strings.Fields(s.Text())[1]
 		} else if strings.HasPrefix(s.Text(), "Uid:") {
 			fields := strings.Fields(s.Text())
-			p.UID = share.ParseUint32(fields[1])
-			p.EUID = share.ParseUint32(fields[2])
+			p.UID = share.ParseInt32(fields[1])
+		} else if strings.HasPrefix(s.Text(), "Gid:") {
+			fields := strings.Fields(s.Text())
+			p.GID = share.ParseInt32(fields[1])
 			break
 		}
 	}
@@ -167,9 +171,16 @@ func (p *Process) GetExe() (err error) {
 
 // In some situation, cmdline can be extremely large. A limit should
 // be done here. In Elkeid LKM it's 256 as default.
+// 直接修改 Read 最大值
 func (p *Process) GetCmdline() (err error) {
+	p.Cmdline, err = getCmdline(p.PID)
+	return
+}
+
+// The one and only real function of get cmdline, cache will be filled automatically
+func getCmdline(pid int) (cmdline string, err error) {
 	var res []byte
-	if res, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/cmdline"); err != nil {
+	if res, err = os.ReadFile("/proc/" + strconv.Itoa(pid) + "/cmdline"); err != nil {
 		return
 	}
 	if len(res) == 0 {
@@ -177,10 +188,30 @@ func (p *Process) GetCmdline() (err error) {
 	}
 	res = bytes.ReplaceAll(res, []byte{0}, []byte{' '})
 	res = bytes.TrimSpace(res)
-	p.Cmdline = string(res)
-	if len(p.Cmdline) > maxCmdline {
-		p.Cmdline = p.Cmdline[:maxCmdline]
+	cmdline = string(res)
+	if len(cmdline) > maxCmdline {
+		cmdline = cmdline[:maxCmdline]
 	}
+	ArgvCache.Add(pid, cmdline)
+	return
+}
+
+func (p *Process) GetComm() (err error) {
+	p.Comm, err = getComm(p.PID)
+	return
+}
+
+func getComm(pid int) (comm string, err error) {
+	var res []byte
+	if res, err = os.ReadFile("/proc/" + strconv.Itoa(pid) + "/comm"); err != nil {
+		return
+	}
+	if len(res) == 0 {
+		return
+	}
+	res = bytes.TrimSpace(res)
+	comm = string(res)
+	CmdlineCache.Add(pid, comm)
 	return
 }
 
@@ -199,7 +230,7 @@ func (p *Process) GetStat(simple bool) (err error) {
 		err = errors.New("invalid stat format")
 		return
 	}
-	// wrap the `()`
+	// unwrap the `()`
 	if len(fields[1]) > 1 {
 		p.Name = string(fields[1][1 : len(fields[1])-1])
 	}
@@ -240,8 +271,12 @@ func GetFds(pid int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	files := make([]string, 0, 10)
-	for _, fd := range fds {
+	files := make([]string, 0, 4)
+	for index, fd := range fds {
+		// In some peticular situation, count of fd over 100k, limit for this
+		if index > 100 {
+			break
+		}
 		file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + fd.Name())
 		if err != nil {
 			// skip error(better use for sockets)
@@ -250,6 +285,14 @@ func GetFds(pid int) ([]string, error) {
 		files = append(files, file)
 	}
 	return files, nil
+}
+
+func getFd(pid int, index int) (string, error) {
+	file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + strconv.Itoa(index))
+	if len(file) > maxCmdline {
+		file = file[:maxCmdline-1]
+	}
+	return file, err
 }
 
 // Elkeid impletement still get problem when pid is too much, like 100,000+
@@ -293,12 +336,29 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	if err = proc.GetExe(); err != nil {
 		return
 	}
+	if err = proc.GetComm(); err != nil {
+		return
+	}
+	proc.Stdin, _ = getFd(proc.PID, 0)
+	proc.Stdout, _ = getFd(proc.PID, 0)
+
 	proc.Hash = share.Sandbox.GetHash(proc.Exe)
 	if err = proc.GetStat(simple); err != nil {
 		return
 	}
-	proc.Username = DefaultUserCache.GetUsername(proc.UID)
-	proc.Eusername = DefaultUserCache.GetUsername(proc.EUID)
+	if proc.UID >= 0 {
+		proc.Username = DefaultUserCache.GetUsername(uint32(proc.UID))
+	}
+
+	if ppid, ok := PidCache.Get(pid); ok {
+		proc.PPID = int(ppid.(uint32))
+	}
+
+	if argv, ok := ArgvCache.Get(proc.PPID); ok {
+		proc.PpidArgv = argv.(string)
+	} else {
+		proc.PpidArgv, _ = getCmdline(proc.PPID)
+	}
 	// inodes 于 fd 关联, 获取 remote_ip
 	// pprof 了一下, 这边占用比较大, 每个进程起来都带上 remote_addr 会导致 IO 高一点
 	// 剔除了这部分对于 inodes 的关联, 默认不检测 socket 了

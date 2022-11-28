@@ -3,11 +3,10 @@
 package hash
 
 import (
-	"encoding/hex"
+	"bufio"
 	"fmt"
-	"hash"
-	"io"
 	"os"
+	"strconv"
 	"syscall"
 
 	"github.com/chriskaliX/SDK/config"
@@ -92,15 +91,17 @@ func (h *HashCache) genHash(path string, size int64) (result string) {
 		return
 	}
 	defer file.Close()
-	hash := h.pool.Get().(hash.Hash)
-	defer h.pool.Put(hash)
-	defer hash.Reset()
-	// use CopyN for potential TOUTOC problem
-	if _, err = io.CopyN(hash, file, size); err != nil {
+
+	reader := bufio.NewReader(file)
+	if _, err := reader.Read(h.buf); err != nil {
 		result = config.FieldInvalid
 		return
 	}
-	result = hex.EncodeToString(hash.Sum(nil))
+	h.hash.Write([]byte(strconv.FormatInt(size, 10)))
+	h.hash.Write(h.buf)
+	result = fmt.Sprintf("%x", h.hash.Sum64())
+	h.buf = h.buf[:0]
+	h.hash.Reset()
 	return
 }
 

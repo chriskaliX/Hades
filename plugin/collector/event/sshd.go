@@ -54,7 +54,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 	// BUG: centos exit
 	// In centos, it's in /var/log/messages
 	switch _platformfamily {
-	case "fedora", "redhat":
+	case "fedora", "redhat", "rhel":
 		path = "/var/log/secure"
 	default:
 		path = "/var/log/auth.log"

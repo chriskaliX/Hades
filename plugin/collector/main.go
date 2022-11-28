@@ -4,6 +4,7 @@ import (
 	"collector/event"
 	"collector/share"
 	"flag"
+	_ "net/http/pprof"
 	"runtime"
 
 	"github.com/chriskaliX/SDK"
@@ -12,7 +13,11 @@ import (
 )
 
 func init() {
-	runtime.GOMAXPROCS(4)
+	n := runtime.NumCPU()
+	if n > 4 {
+		n = 4
+	}
+	runtime.GOMAXPROCS(n)
 }
 
 func collector(sandbox SDK.ISandbox) error {
@@ -65,9 +70,9 @@ func collector(sandbox SDK.ISandbox) error {
 	//
 	// In Hades, we remove the NCP way since we have a better tool(eBPF)
 	// you can modify this if it is needed.
-	// ncp, _ := event.GetEvent("ncp")
-	// ncp.SetType(event.Realtime)
-	// go event.RunEvent(ncp, false, sandbox.Context())
+	ncp, _ := event.GetEvent("ncp")
+	ncp.SetType(event.Realtime)
+	go event.RunEvent(ncp, false, sandbox.Context())
 
 	// socket
 	// change to snapshot since eBPFdriver already hooks the bind call
