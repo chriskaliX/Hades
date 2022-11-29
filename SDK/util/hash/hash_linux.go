@@ -91,7 +91,6 @@ func (h *HashCache) genHash(path string, size int64) (result string) {
 		return
 	}
 	defer file.Close()
-
 	reader := bufio.NewReader(file)
 	if _, err := reader.Read(h.buf); err != nil {
 		result = config.FieldInvalid

@@ -193,7 +193,7 @@ func (n *Netlink) Handle() (result string, err error) {
 		var parentTgid uint32
 		var childTgid uint32
 		n.DecodeFork(&childTgid, &parentTgid)
-		cache.PidCache.Add(childTgid, parentTgid)
+		cache.PidCache.Add(int(childTgid), int(parentTgid))
 	case PROC_EVENT_EXEC:
 		var pid uint32
 		var tpid uint32
@@ -209,8 +209,8 @@ func (n *Netlink) Handle() (result string, err error) {
 		}
 		// whitelist to check
 		// filter here
-		process.TID = tpid
-		process.PidTree = cache.GetPstree(tpid)
+		process.TID = int(tpid)
+		process.PidTree = cache.GetPidTree(int(tpid))
 		result, err = sonic.MarshalString(process)
 		return
 	// skip exit

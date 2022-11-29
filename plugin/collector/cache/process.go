@@ -104,15 +104,15 @@ type Process struct {
 	CgroupId   int     `json:"cgroupid,omitempty"`
 	Uts_inum   int     `json:"uts_inum,omitempty"`
 	PID        int     `json:"pid"`
-	TID        uint32  `json:"tid,omitempty"`
-	GID        int32   `json:"gid"`
+	TID        int     `json:"tid,omitempty"`
+	GID        int     `json:"gid"`
 	PPID       int     `json:"ppid"`
 	PpidArgv   string  `json:"ppid_argv"`
 	Name       string  `json:"name"`
 	Cmdline    string  `json:"cmdline"`
 	Comm       string  `json:"comm"`
 	Exe        string  `json:"exe"`
-	Hash       string  `json:"hash"`
+	Hash       string  `json:"exe_hash"`
 	UID        int32   `json:"uid"`
 	Username   string  `json:"username"`
 	Cwd        string  `json:"cwd"`
@@ -152,7 +152,7 @@ func (p *Process) GetStatus() (err error) {
 			p.UID = share.ParseInt32(fields[1])
 		} else if strings.HasPrefix(s.Text(), "Gid:") {
 			fields := strings.Fields(s.Text())
-			p.GID = share.ParseInt32(fields[1])
+			p.GID = int(share.ParseInt32(fields[1]))
 			break
 		}
 	}
@@ -203,7 +203,7 @@ func (p *Process) GetComm() (err error) {
 
 func getComm(pid int) (comm string, err error) {
 	var res []byte
-	if res, err = os.ReadFile("/proc/" + strconv.Itoa(pid) + "/comm"); err != nil {
+	if res, err = os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); err != nil {
 		return
 	}
 	if len(res) == 0 {
@@ -351,7 +351,7 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	}
 
 	if ppid, ok := PidCache.Get(pid); ok {
-		proc.PPID = int(ppid.(uint32))
+		proc.PPID = ppid.(int)
 	}
 
 	if argv, ok := ArgvCache.Get(proc.PPID); ok {

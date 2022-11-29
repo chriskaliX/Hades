@@ -18,6 +18,7 @@ require (
 
 require (
 	github.com/avast/retry-go v3.0.0+incompatible // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20220526154910-8bf9453eb81a // indirect
 	github.com/florianl/go-tc v0.4.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect

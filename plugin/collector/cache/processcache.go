@@ -7,37 +7,41 @@ import (
 	"k8s.io/utils/lru"
 )
 
-const MaxProcess = 8
-const MaxProcessCache = 2048
+const MaxProcess = 4
+const MaxArgv = 2048
+const MaxPidCmdline = 4096
 
-var PidCache = lru.New(MaxProcessCache)
-var ArgvCache = lru.New(MaxProcessCache)
-var CmdlineCache = lru.New(MaxProcessCache)
+var PidCache = lru.New(MaxPidCmdline)
+var ArgvCache = lru.New(MaxArgv)
+var CmdlineCache = lru.New(MaxPidCmdline)
 
-// if pid tree get from argv or exe, the field would be enlarged...
-// https://github.com/EBWi11/AgentSmith-HIDS/blob/master/doc/How-to-use-AgentSmith-HIDS-to-detect-reverse-shell/%E5%A6%82%E4%BD%95%E5%88%A9%E7%94%A8AgentSmith-HIDS%E6%A3%80%E6%B5%8B%E5%8F%8D%E5%BC%B9shell.md
-func GetPstree(pid uint32) (pidtree string) {
+func GetPidTree(pid int) (pidtree string) {
+	var first = true
 	for i := 0; i < MaxProcess; i++ {
+		pidtree = fmt.Sprintf("%s%d.", pidtree, pid)
 		if cmdline, ok := CmdlineCache.Get(pid); ok {
-			pidtree = pidtree + fmt.Sprint(pid) + "." + cmdline.(string) + "<"
-		} else if i == 0 {
-			// if the very first time, try to get the comm
-			if ppid, ok := PidCache.Get(pid); ok {
-				if comm, err := getComm(int(ppid.(uint32))); err == nil {
-					pidtree = pidtree + fmt.Sprint(pid) + "." + comm + "<"
-				}
+			pidtree = pidtree + cmdline.(string)
+			goto PidLoop
+		}
+		// every event get one chance to flash the comm if a pid was found
+		if first {
+			first = false
+			if comm, err := getComm(pid); err == nil {
+				pidtree = pidtree + comm
+				goto PidLoop
 			}
-		} else {
+		}
+		break
+	PidLoop:
+		// break if the pid hits
+		if pid == 0 || pid == 1 {
 			break
 		}
-
-		if pid == 1 {
-			break
-		}
-		if ppid, ok := PidCache.Get(pid); !ok {
-			break
+		if ppid, ok := PidCache.Get(pid); ok {
+			pid = ppid.(int)
+			pidtree = pidtree + "<"
 		} else {
-			pid = ppid.(uint32)
+			break
 		}
 	}
 	return strings.TrimRight(pidtree, "<")
