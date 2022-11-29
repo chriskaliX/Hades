@@ -39,6 +39,7 @@ type Process struct {
 	Stdout   string `json:"stdout"`
 	PidTree  string `json:"pid_tree"`
 	PodName  string `json:"pod_name"`
+	NodeName   string  `json:"nodename"`
 	Source   string `json:"source"`
 
 	TTY        int     `json:"tty,omitempty"`
@@ -48,7 +49,6 @@ type Process struct {
 	RemotePort string  `json:"remoteport,omitempty"`
 	LocalAddr  string  `json:"localaddr,omitempty"`
 	LocalPort  string  `json:"localport,omitempty"`
-	NodeName   string  `json:"nodename,omitempty"`
 	Utime      uint64  `json:"utime,omitempty"`
 	Stime      uint64  `json:"stime,omitempty"`
 	Rss        uint64  `json:"resmem,omitempty"`
@@ -75,6 +75,7 @@ func (p *Process) reset() {
 	p.Stdin = ""
 	p.Stdout = ""
 	p.PidTree = ""
+	p.NodeName = ""
 }
 
 type ProcessPool struct {
