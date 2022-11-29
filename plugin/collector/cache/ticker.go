@@ -20,11 +20,8 @@ func init() {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				GTicker.cachetime.Store(time.Now())
-			}
+		for range ticker.C {
+			GTicker.cachetime.Store(time.Now())
 		}
 	}()
 }
