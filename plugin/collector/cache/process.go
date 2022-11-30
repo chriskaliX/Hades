@@ -39,7 +39,7 @@ type Process struct {
 	Stdout   string `json:"stdout"`
 	PidTree  string `json:"pid_tree"`
 	PodName  string `json:"pod_name"`
-	NodeName   string  `json:"nodename"`
+	NodeName string `json:"nodename"`
 	Source   string `json:"source"`
 
 	TTY        int     `json:"tty,omitempty"`
