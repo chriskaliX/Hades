@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"collector/cache"
 	ns "collector/cache/namespace"
-	"collector/cache/user"
 	"collector/share"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Process struct {
@@ -21,13 +19,14 @@ type Process struct {
 	Pns      int    `json:"pns"`
 	RootPns  int    `json:"root_pns"`
 	PID      int    `json:"pid"`
+	PGID     int    `json:"pgid"`
+	PgidArgv string `json:"pgid_argv,omitempty"`
 	TID      int    `json:"tid,omitempty"`
-	GID      int    `json:"gid"`
 	Session  int    `json:"session"`
 	PPID     int    `json:"ppid"`
-	PpidArgv string `json:"ppid_argv"`
+	PpidArgv string `json:"ppid_argv,omitempty"`
 	Name     string `json:"name"`
-	Cmdline  string `json:"cmdline"`
+	Argv     string `json:"argv"`
 	Exe      string `json:"exe"`
 	Hash     string `json:"exe_hash"`
 	UID      int32  `json:"uid"`
@@ -60,10 +59,9 @@ func (p *Process) reset() {
 	p.RootPns = cache.RootPns
 	p.PID = 0
 	p.TID = 0
-	p.GID = 0
 	p.PPID = 0
 	p.Name = ""
-	p.Cmdline = ""
+	p.Argv = ""
 	p.Exe = ""
 	p.Hash = ""
 	p.UID = 0
@@ -103,9 +101,6 @@ func (p *Process) GetStatus() (err error) {
 		} else if strings.HasPrefix(s.Text(), "Uid:") {
 			fields := strings.Fields(s.Text())
 			p.UID = share.ParseInt32(fields[1])
-		} else if strings.HasPrefix(s.Text(), "Gid:") {
-			fields := strings.Fields(s.Text())
-			p.GID = int(share.ParseInt32(fields[1]))
 			break
 		}
 	}
@@ -123,7 +118,7 @@ func (p *Process) GetExe() (err error) {
 }
 
 func (p *Process) GetCmdline() (err error) {
-	p.Cmdline, err = getCmdline(p.PID)
+	p.Argv, err = getCmdline(p.PID)
 	return
 }
 
@@ -191,9 +186,6 @@ func (p *Process) GetEnv() {
 	p.PodName, p.NodeName = ns.Cache.Get(uint32(p.PID), uint32(p.Pns))
 }
 
-// TODO: unfinished with CPUPercentage. And FDs havn't go through
-// the format of `stat`:
-// Reference: https://stackoverflow.com/questions/39066998/what-are-the-meaning-of-values-at-proc-pid-stat
 func (p *Process) GetStat(simple bool) (err error) {
 	var stat []byte
 	if stat, err = os.ReadFile("/proc/" + strconv.Itoa(p.PID) + "/stat"); err != nil {
@@ -201,19 +193,17 @@ func (p *Process) GetStat(simple bool) (err error) {
 	}
 	statStr := string(stat)
 	fields := strings.Fields(statStr)
-	// precheck length
 	if len(fields) < 24 {
 		err = errors.New("invalid stat format")
 		return
 	}
-	// unwrap "()"
 	if len(fields[1]) > 1 {
 		p.Name = string(fields[1][1 : len(fields[1])-1])
 	}
 	p.PPID, _ = strconv.Atoi(fields[3])
+	p.PGID, _ = strconv.Atoi(fields[3])
 	p.Session, _ = strconv.Atoi(fields[5])
 	p.TTY, _ = strconv.Atoi(fields[6])
-	// simple
 	if simple {
 		return
 	}
@@ -234,113 +224,9 @@ func (p *Process) GetStat(simple bool) (err error) {
 	if len(fields) > 42 {
 		iotime, _ = strconv.ParseUint(string(fields[42]), 10, 64)
 	}
-	// Add cutime and cstime if children processes is needed
-	// Be careful with this. The cpu usage here is counted by all cpu
-	total := uint64(time.Now().Unix()) - p.StartTime
-	p.Cpu = (float64((p.Utime + p.Stime + iotime)) / userHz) / float64(total)
+	p.Cpu = (float64((p.Utime + p.Stime + iotime)) / float64(sysTime)) * float64(nproc)
 	p.Cpu, _ = strconv.ParseFloat(fmt.Sprintf("%.6f", p.Cpu), 64)
 	return
-}
-
-func GetFds(pid int) ([]string, error) {
-	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")
-	if err != nil {
-		return nil, err
-	}
-	files := make([]string, 0, 4)
-	for index, fd := range fds {
-		// In some peticular situation, count of fd over 100k, limit for this
-		if index > 100 {
-			break
-		}
-		file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + fd.Name())
-		if err != nil {
-			// skip error(better use for sockets)
-			continue
-		}
-		files = append(files, file)
-	}
-	return files, nil
-}
-
-func getFd(pid int, index int) (string, error) {
-	file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + strconv.Itoa(index))
-	if len(file) > maxCmdline {
-		file = file[:maxCmdline-1]
-	}
-	return file, err
-}
-
-// Elkeid impletement still get problem when pid is too much, like 100,000+
-func GetPids(limit int) (pids []int, err error) {
-	// pre allocation
-	pids = make([]int, 0, 100)
-	d, err := os.Open("/proc")
-	if err != nil {
-		return
-	}
-	names, err := d.Readdirnames(limit + 50)
-	if err != nil {
-		return
-	}
-	for _, name := range names {
-		if limit == 0 {
-			return
-		}
-		pid, err := strconv.ParseInt(name, 10, 64)
-		if err == nil {
-			pids = append(pids, int(pid))
-			limit -= 1
-		}
-	}
-	return
-}
-
-// get single process information by it's pid
-func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
-	proc = Pool.Get()
-	proc.PID = pid
-	if err = proc.GetStatus(); err != nil {
-		return
-	}
-	if err = proc.GetCwd(); err != nil {
-		return
-	}
-	if err = proc.GetCmdline(); err != nil {
-		return
-	}
-	if err = proc.GetExe(); err != nil {
-		return
-	}
-	if err = proc.GetComm(); err != nil {
-		return
-	}
-	if err = proc.GetNs(); err != nil {
-		return
-	}
-	proc.GetNs()
-	proc.GetEnv()
-
-	proc.Stdin, _ = getFd(proc.PID, 0)
-	proc.Stdout, _ = getFd(proc.PID, 0)
-	proc.Hash = share.Sandbox.GetHash(proc.Exe)
-	// netlink do not get stat information
-	if err = proc.GetStat(simple); err != nil {
-		return
-	}
-	if proc.UID >= 0 {
-		proc.Username = user.Cache.GetUsername(uint32(proc.UID))
-	}
-	if ppid, ok := PidCache.Get(pid); ok {
-		proc.PPID = ppid.(int)
-	}
-	if argv, ok := ArgvCache.Get(proc.PPID); ok {
-		proc.PpidArgv = argv.(string)
-	} else {
-		proc.PpidArgv, _ = getCmdline(proc.PPID)
-	}
-
-	return proc, nil
 }
 
 func init() {
@@ -350,11 +236,22 @@ func init() {
 	}
 	defer file.Close()
 	s := bufio.NewScanner(file)
+	t := uint64(0)
 	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		if t == 0 {
+			for i, f := range fields {
+				if i == 8 {
+					break
+				}
+				u, _ := strconv.ParseUint(f, 10, 64)
+				t += u
+			}
+			sysTime = t
+		}
 		if !strings.HasPrefix(s.Text(), "btime") {
 			continue
 		}
-		fields := strings.Fields(s.Text())
 		if len(fields) < 2 {
 			continue
 		}

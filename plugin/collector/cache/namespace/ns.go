@@ -59,7 +59,7 @@ func (n *NsCache) Get(pid uint32, pns uint32) (podname string, nodename string) 
 		nodename = invalid
 	}
 	// if pname and nodename is valid, not need to get from environ
-	if pname != invalid && name != invalid {
+	if podname != invalid && nodename != invalid {
 		return
 	}
 

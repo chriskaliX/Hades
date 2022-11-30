@@ -198,6 +198,9 @@ func (n *Netlink) Handle() (result string, err error) {
 		// TODO: filter here
 		p.TID = int(tpid)
 		p.PidTree = process.GetPidTree(int(tpid))
+		if argv, ok := process.ArgvCache.Get(p.PGID); ok {
+			p.PgidArgv = argv.(string)
+		}
 		result, err = sonic.MarshalString(p)
 		return
 	default:

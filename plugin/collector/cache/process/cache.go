@@ -8,13 +8,13 @@ import (
 	"k8s.io/utils/lru"
 )
 
-const MaxProcess = 4
-const MaxArgv = 2048
-const MaxPidCmdline = 4096
+const maxPidTrace = 4
+const maxArgv = 2048
+const maxPid = 4096
 
-var PidCache = lru.New(MaxPidCmdline)
-var ArgvCache = lru.New(MaxArgv)
-var CmdlineCache = lru.New(MaxPidCmdline)
+var PidCache = lru.New(maxPid)
+var ArgvCache = lru.New(maxArgv)
+var CmdlineCache = lru.New(maxPid)
 
 var Pool = NewPool()
 
@@ -42,7 +42,7 @@ func (p *ProcessPool) Put(pr *Process) {
 
 func GetPidTree(pid int) (pidtree string) {
 	var first = true
-	for i := 0; i < MaxProcess; i++ {
+	for i := 0; i < maxPidTrace; i++ {
 		pidtree = fmt.Sprintf("%s%d.", pidtree, pid)
 		if cmdline, ok := CmdlineCache.Get(pid); ok {
 			pidtree = pidtree + cmdline.(string)

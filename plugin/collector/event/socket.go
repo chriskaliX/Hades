@@ -80,7 +80,7 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 				sockets[index].Comm = proc.Name
 			}
 			if err = proc.GetCmdline(); err == nil {
-				sockets[index].Cmdline = proc.Cmdline
+				sockets[index].Cmdline = proc.Argv
 			}
 			socket := sockets[index]
 			result[strconv.Itoa(int(socket.Inode))] = socket
