@@ -216,7 +216,6 @@ func (n *Netlink) Handle() (result string, err error) {
 	// skip exit
 	case PROC_EVENT_EXIT:
 	}
-	err = ErrNothing
 	return
 }
 

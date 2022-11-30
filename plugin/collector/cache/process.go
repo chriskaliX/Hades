@@ -19,7 +19,7 @@ import (
 )
 
 type Process struct {
-	CgroupId int    `json:"cgroupid"`
+	CgroupId int    `json:"cgroupid,omitempty"`
 	Pns      int    `json:"pns"`
 	RootPns  int    `json:"root_pns"`
 	PID      int    `json:"pid"`
@@ -341,13 +341,9 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	if err = proc.GetComm(); err != nil {
 		return
 	}
-	if err = proc.GetCgroup(); err != nil {
-		return
-	}
 	if err = proc.GetNs(); err != nil {
 		return
 	}
-	proc.GetCgroup()
 	proc.GetNs()
 	proc.GetEnv()
 
