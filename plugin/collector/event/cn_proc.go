@@ -18,7 +18,7 @@ import (
 
 var (
 	ErrTooShort = errors.New("buffer too short")
-	ErrNothing  = errors.New("nothing")
+	errIngore   = errors.New("ingore")
 )
 
 const (
@@ -187,13 +187,15 @@ func (n *Netlink) Handle() (result string, err error) {
 		return
 	}
 	switch hdrwhat {
-	case PROC_EVENT_NONE:
 	// pay attention to tgid & tpid
 	case PROC_EVENT_FORK:
 		var parentTgid uint32
 		var childTgid uint32
 		n.DecodeFork(&childTgid, &parentTgid)
 		cache.PidCache.Add(int(childTgid), int(parentTgid))
+		// Only add in cache, not event report needed
+		err = errIngore
+		return
 	case PROC_EVENT_EXEC:
 		var pid uint32
 		var tpid uint32
@@ -215,6 +217,11 @@ func (n *Netlink) Handle() (result string, err error) {
 		return
 	// skip exit
 	case PROC_EVENT_EXIT:
+		err = errIngore
+		return
+	default:
+		err = errIngore
+		return
 	}
 	return
 }
