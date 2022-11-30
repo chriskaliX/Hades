@@ -1,7 +1,7 @@
 package event
 
 import (
-	"collector/cache"
+	"collector/cache/process"
 	"collector/socket"
 	"strconv"
 	"strings"
@@ -48,14 +48,14 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 		}
 	}
 	// fds & relate here, a thing to be noticed here, should a procCache to speed up this?
-	if pids, err = cache.GetPids(1000); err != nil {
+	if pids, err = process.GetPids(1000); err != nil {
 		return
 	}
 	for _, pid := range pids {
 		var fds []string
 		var index int
 		// Logical bug here,
-		if fds, err = cache.GetFds(pid); err != nil {
+		if fds, err = process.GetFds(pid); err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
@@ -74,7 +74,7 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 				continue
 			}
 			sockets[index].PID = pid
-			proc := cache.DProcessPool.Get()
+			proc := process.Pool.Get()
 			proc.PID = pid
 			if err = proc.GetStat(false); err == nil {
 				sockets[index].Comm = proc.Name

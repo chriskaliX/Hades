@@ -2,7 +2,7 @@ package event
 
 import (
 	"bufio"
-	"collector/cache"
+	cache "collector/cache/user"
 	"encoding/binary"
 	"net"
 	"os"
@@ -100,7 +100,7 @@ func (User) Run() (result map[string]interface{}, err error) {
 	// append all
 	for _, user := range userMap {
 		result[strconv.FormatUint(uint64(user.UID), 10)] = user
-		cache.DefaultUserCache.Update(user)
+		cache.Cache.Update(user)
 	}
 	return
 }

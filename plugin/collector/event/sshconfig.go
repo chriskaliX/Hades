@@ -2,7 +2,7 @@ package event
 
 import (
 	"bufio"
-	"collector/cache"
+	"collector/cache/user"
 	"io"
 	"os"
 	"path/filepath"
@@ -64,7 +64,7 @@ func (s SshConfig) Run() (result map[string]interface{}, err error) {
 // Depend on usercache, execute after GetUser
 func (SshConfig) sshConfigPath() (configs map[uint32]string) {
 	configs = make(map[uint32]string)
-	users := cache.DefaultUserCache.GetUsers()
+	users := user.Cache.GetUsers()
 	for _, user := range users {
 		configs[user.UID] = filepath.Join(user.HomeDir, userSshConfig)
 	}

@@ -1,12 +1,11 @@
-// Process contains a process pool and the operation of getting
-// information of a process.
-//
-// TODO: compatible in windows
-package cache
+package process
 
 import (
 	"bufio"
 	"bytes"
+	"collector/cache"
+	ns "collector/cache/namespace"
+	"collector/cache/user"
 	"collector/share"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -59,7 +57,7 @@ type Process struct {
 func (p *Process) reset() {
 	p.CgroupId = 0
 	p.Pns = 0
-	p.RootPns = root_pns
+	p.RootPns = cache.RootPns
 	p.PID = 0
 	p.TID = 0
 	p.GID = 0
@@ -78,10 +76,6 @@ func (p *Process) reset() {
 	p.NodeName = ""
 }
 
-type ProcessPool struct {
-	p sync.Pool
-}
-
 // In promthues/procfs, it returns out that in every disros that they researched, USER_HZ
 // is actually hardcoded to 100 on all Go-supported platforms. See the reference here:
 // https://github.com/prometheus/procfs/blob/116b5c4f80ab09a0a6a848a7606652821b90d065/proc_stat.go
@@ -94,26 +88,6 @@ const maxCmdline = 256
 var bootTime = uint64(0)
 var sysTime = uint64(0)
 var nproc = runtime.NumCPU()
-var DProcessPool = NewPool()
-var root_pns = 0
-
-func NewPool() *ProcessPool {
-	return &ProcessPool{p: sync.Pool{
-		New: func() interface{} {
-			return &Process{}
-		},
-	}}
-}
-
-func (p *ProcessPool) Get() *Process {
-	pr := p.p.Get().(*Process)
-	pr.reset()
-	return pr
-}
-
-func (p *ProcessPool) Put(pr *Process) {
-	p.p.Put(pr)
-}
 
 // readonly, change to readfile
 func (p *Process) GetStatus() (err error) {
@@ -214,7 +188,7 @@ func (p *Process) GetCgroup() (err error) {
 }
 
 func (p *Process) GetEnv() {
-	p.PodName, p.NodeName = DefaultNsCache.Get(uint32(p.PID), uint32(p.Pns))
+	p.PodName, p.NodeName = ns.Cache.Get(uint32(p.PID), uint32(p.Pns))
 }
 
 // TODO: unfinished with CPUPercentage. And FDs havn't go through
@@ -324,7 +298,7 @@ func GetPids(limit int) (pids []int, err error) {
 
 // get single process information by it's pid
 func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
-	proc = DProcessPool.Get()
+	proc = Pool.Get()
 	proc.PID = pid
 	if err = proc.GetStatus(); err != nil {
 		return
@@ -355,7 +329,7 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 		return
 	}
 	if proc.UID >= 0 {
-		proc.Username = DefaultUserCache.GetUsername(uint32(proc.UID))
+		proc.Username = user.Cache.GetUsername(uint32(proc.UID))
 	}
 	if ppid, ok := PidCache.Get(pid); ok {
 		proc.PPID = ppid.(int)
@@ -385,14 +359,5 @@ func init() {
 			continue
 		}
 		bootTime, _ = strconv.ParseUint(fields[1], 10, 64)
-	}
-
-	var name string
-	name, err = os.Readlink("/proc/1/ns/pid")
-	if err != nil {
-		return
-	}
-	if len(name) >= 6 {
-		root_pns, _ = strconv.Atoi(name[5 : len(name)-1])
 	}
 }

@@ -32,18 +32,18 @@ type BasicEvent struct {
 	mode int
 	// event type. It's periodicity or realtime. As default
 	// it's periodicity
-	_type int
+	datatype int
 	// The cache in here.
 	// The key should be unique. It's just like the primary
 	// key we used in SQL.
-	_cache *sync.Map
+	cache *sync.Map
 	// A filter is here. Key
-	_filter *sync.Map
+	filter *sync.Map
 }
 
 func (b *BasicEvent) Init(name string) error {
-	_cache, _ := _cacheMap.LoadOrStore(name, &sync.Map{})
-	b._cache = _cache.(*sync.Map)
+	cache, _ := _cacheMap.LoadOrStore(name, &sync.Map{})
+	b.cache = cache.(*sync.Map)
 	b.SetStatus(true)
 	return nil
 }
@@ -73,16 +73,16 @@ func (b *BasicEvent) SetMode(mode int) {
 }
 
 func (b BasicEvent) Type() int {
-	return b._type
+	return b.datatype
 }
 
-func (b *BasicEvent) SetType(_type int) {
-	b._type = _type
+func (b *BasicEvent) SetType(datatype int) {
+	b.datatype = datatype
 }
 
 // Check if the key in here, check in different
 func (b *BasicEvent) Diff(key string) (loaded bool) {
-	_, loaded = b._cache.LoadOrStore(key, true)
+	_, loaded = b.cache.LoadOrStore(key, true)
 	return loaded
 }
 

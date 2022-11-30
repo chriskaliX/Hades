@@ -28,19 +28,19 @@ func (Sshd) String() string {
 }
 
 func (Sshd) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{})
-	var (
-		file *os.File
-		scan *bufio.Scanner
-	)
+	result = make(map[string]interface{}, 4)
+	var file *os.File
+	var scan *bufio.Scanner
 	if file, err = os.Open(sshdConfig); err != nil {
 		return
 	}
 	defer file.Close()
-	config := make(map[string]string, 2)
-	// Default
-	config["pubkey_authentication"] = "yes"
-	config["passwd_authentication"] = "yes"
+	// Default value of the configuration
+	result["pubkey_authentication"] = "yes"
+	result["passwd_authentication"] = "no"
+	result["permit_emptypassword"] = "no"
+	result["max_authtries"] = "-1" // In my vm, it is 6
+
 	scan = bufio.NewScanner(io.LimitReader(file, 1024*1024))
 	for scan.Scan() {
 		text := strings.TrimSpace(scan.Text())
@@ -58,19 +58,14 @@ func (Sshd) Run() (result map[string]interface{}, err error) {
 		if len(fields) == 2 {
 			switch strings.TrimSpace(fields[0]) {
 			case "PasswordAuthentication":
-				config["passwd_authentication"] = strings.TrimSpace(fields[1])
+				result["passwd_authentication"] = strings.TrimSpace(fields[1])
 			case "PubkeyAuthentication":
-				config["pubkey_authentication"] = strings.TrimSpace(fields[1])
+				result["pubkey_authentication"] = strings.TrimSpace(fields[1])
+			case "PermitEmptyPasswords":
+				result["permit_emptypassword"] = strings.TrimSpace(fields[1])
+			case "MaxAuthTries":
+				result["max_auth_tries"] = strings.TrimSpace(fields[1])
 			}
-		}
-	}
-	// set key+value as a primary key
-	for key, value := range config {
-		result[key+value] = map[string]string{
-			key: value,
-		}
-		// TODO: process here
-		if err != nil {
 		}
 	}
 	return

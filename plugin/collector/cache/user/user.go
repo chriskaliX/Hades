@@ -1,6 +1,7 @@
-package cache
+package user
 
 import (
+	"collector/cache"
 	"math/rand"
 	"net"
 	"os/user"
@@ -25,8 +26,8 @@ type User struct {
 	LastLoginIP   net.IP `json:"last_login_ip"`
 }
 
-var DefaultUserCache = &UserCache{
-	cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, GTicker),
+var Cache = &UserCache{
+	cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, cache.GTicker),
 }
 
 type UserCache struct {

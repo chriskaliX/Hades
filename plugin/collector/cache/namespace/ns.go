@@ -1,7 +1,8 @@
-package cache
+package namepsace
 
 import (
 	"bytes"
+	"collector/cache"
 	"fmt"
 	"math/rand"
 	"os"
@@ -13,15 +14,14 @@ import (
 )
 
 const (
-	// the ccache max cache size is 5000
 	nsCacheSize       = 4096
 	nsLimiterBurst    = 25
 	nsLimiterInterval = 40 * time.Millisecond
 )
 
-const InValid = "-1"
+const invalid = "-1"
 
-var DefaultNsCache = NewNsCache()
+var Cache = NewNsCache()
 var hostname string
 
 type NsCache struct {
@@ -33,8 +33,8 @@ type NsCache struct {
 func NewNsCache() *NsCache {
 	cache := &NsCache{
 		rlimiter:  rate.NewLimiter(rate.Every(nsLimiterInterval), nsLimiterBurst),
-		cache:     utilcache.NewLRUExpireCacheWithClock(nsCacheSize, GTicker),
-		namecache: utilcache.NewLRUExpireCacheWithClock(nsCacheSize, GTicker),
+		cache:     utilcache.NewLRUExpireCacheWithClock(nsCacheSize, cache.GTicker),
+		namecache: utilcache.NewLRUExpireCacheWithClock(nsCacheSize, cache.GTicker),
 	}
 	return cache
 }
@@ -46,26 +46,25 @@ func (n *NsCache) Get(pid uint32, pns uint32) (podname string, nodename string) 
 	if ok {
 		podname = pname.(string)
 	} else {
-		podname = InValid
+		podname = invalid
 	}
 
 	name, ok := n.namecache.Get(pns)
 	if ok {
 		nodename = name.(string)
-	} else if pns == uint32(root_pns) {
-		n.namecache.Add(uint32(root_pns), hostname, 5 * time.Minute)
+	} else if pns == uint32(cache.RootPns) {
+		n.namecache.Add(uint32(cache.RootPns), hostname, 5*time.Minute)
 		nodename = hostname
 	} else {
-		nodename = InValid
+		nodename = invalid
 	}
 	// if pname and nodename is valid, not need to get from environ
-	if pname != InValid && name != InValid {
+	if pname != invalid && name != invalid {
 		return
 	}
 
 	// missed, get it from environ
 	if n.rlimiter.Allow() {
-		// extract pod name from /proc/<pid>/environ
 		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
 		if err != nil {
 			return
@@ -91,11 +90,11 @@ func (n *NsCache) Get(pid uint32, pns uint32) (podname string, nodename string) 
 		}
 		// missed, no pod_name is got. save invalid for a minite
 		// just for better performance
-		if nodename == InValid {
-			n.namecache.Add(pns, InValid, 5 * time.Minute)
+		if nodename == invalid {
+			n.namecache.Add(pns, invalid, 5*time.Minute)
 		}
-		if podname == InValid {
-			n.cache.Add(pns, InValid, 5 * time.Minute)
+		if podname == invalid {
+			n.cache.Add(pns, invalid, 5*time.Minute)
 		}
 		return
 	}

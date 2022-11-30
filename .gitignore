@@ -15,7 +15,7 @@ agent/deploy/hadesctl
 agent/deploy/hades-agent
 
 # server
-server/hboat
+server/frontend/
 
 # ignore certs
 cert/

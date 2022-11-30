@@ -1,8 +1,9 @@
-package cache
+package process
 
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"k8s.io/utils/lru"
 )
@@ -14,6 +15,30 @@ const MaxPidCmdline = 4096
 var PidCache = lru.New(MaxPidCmdline)
 var ArgvCache = lru.New(MaxArgv)
 var CmdlineCache = lru.New(MaxPidCmdline)
+
+var Pool = NewPool()
+
+type ProcessPool struct {
+	p sync.Pool
+}
+
+func NewPool() *ProcessPool {
+	return &ProcessPool{p: sync.Pool{
+		New: func() interface{} {
+			return &Process{}
+		},
+	}}
+}
+
+func (p *ProcessPool) Get() *Process {
+	pr := p.p.Get().(*Process)
+	pr.reset()
+	return pr
+}
+
+func (p *ProcessPool) Put(pr *Process) {
+	p.p.Put(pr)
+}
 
 func GetPidTree(pid int) (pidtree string) {
 	var first = true

@@ -2,7 +2,7 @@ package socket
 
 import (
 	"bufio"
-	"collector/cache"
+	"collector/cache/user"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -190,7 +190,7 @@ loop:
 				Inode:     sockInfo.INode,
 				Type:      protocol,
 			}
-			socket.Username = cache.DefaultUserCache.GetUser(socket.UID).Username
+			socket.Username = user.Cache.GetUser(socket.UID).Username
 			sockets = append(sockets, socket)
 		}
 	}
@@ -314,7 +314,7 @@ func parseProcNet(family, protocol uint8, path string) (sockets []Socket, err er
 						continue
 					}
 					socket.UID = uint32(uid)
-					socket.Username = cache.DefaultUserCache.GetUser(uint32(uid)).Username
+					socket.Username = user.Cache.GetUser(uint32(uid)).Username
 				case "inode":
 					inode, err := strconv.ParseUint(key, 0, 64)
 					if err != nil {

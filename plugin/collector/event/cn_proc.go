@@ -1,7 +1,7 @@
 package event
 
 import (
-	"collector/cache"
+	"collector/cache/process"
 	"collector/share"
 	"context"
 	"encoding/binary"
@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"golang.org/x/time/rate"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+	"golang.org/x/time/rate"
 )
 
 var (
@@ -36,10 +36,10 @@ const (
 var _ Event = (*Netlink)(nil)
 
 type Netlink struct {
-	buffer    []byte
-	cursor    int
-	sock   	  *nl.NetlinkSocket
-	rlimiter  *rate.Limiter
+	buffer   []byte
+	cursor   int
+	sock     *nl.NetlinkSocket
+	rlimiter *rate.Limiter
 
 	BasicEvent
 }
@@ -54,7 +54,7 @@ func (n *Netlink) String() string {
 
 func (n *Netlink) Init(name string) (err error) {
 	n.BasicEvent.Init(name)
-	n.rlimiter = rate.NewLimiter(rate.Every(20 * time.Millisecond), 50)
+	n.rlimiter = rate.NewLimiter(rate.Every(20*time.Millisecond), 50)
 
 	var nlmsg nl.NetlinkRequest
 	nlmsg.Pid = uint32(os.Getpid())
@@ -103,7 +103,7 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 				if result, err = n.Handle(); err != nil {
 					continue
 				}
-				rawdata["data"] = string(result)
+				rawdata["data"] = result
 				rec := &protocol.Record{
 					DataType: Netlink_DATATYPE,
 					Data: &protocol.Payload{
@@ -179,33 +179,32 @@ func (n *Netlink) Handle() (result string, err error) {
 		if err = n.DecodeFork(&childTgid, &parentTgid); err != nil {
 			return
 		}
-		cache.PidCache.Add(int(childTgid), int(parentTgid))
+		process.PidCache.Add(int(childTgid), int(parentTgid))
 		// Only add in cache, not event report needed
 		err = errIngore
 		return
 	case PROC_EVENT_EXEC:
 		var pid, tpid uint32
-		process := cache.DProcessPool.Get()
+		var p *process.Process
 		if err = n.DecodeExec(&pid, &tpid); err != nil {
 			return
 		}
-		process, err = cache.GetProcessInfo(int(pid), true)
-		process.Source = "netlink"
-		defer cache.DProcessPool.Put(process)
+		p, err = process.GetProcessInfo(int(pid), true)
+		p.Source = "netlink"
+		defer process.Pool.Put(p)
 		if err != nil {
 			return
 		}
 		// TODO: filter here
-		process.TID = int(tpid)
-		process.PidTree = cache.GetPidTree(int(tpid))
-		result, err = sonic.MarshalString(process)
+		p.TID = int(tpid)
+		p.PidTree = process.GetPidTree(int(tpid))
+		result, err = sonic.MarshalString(p)
 		return
 	default:
 		// PROC_EVENT_EXIT not record for now
 		err = errIngore
 		return
 	}
-	return
 }
 
 func init() {
