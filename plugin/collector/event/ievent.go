@@ -123,11 +123,9 @@ func eventTask(event Event) (err error) {
 	if err != nil {
 		return err
 	}
-	// debug code here
 	data["data"] = rawdata
 	rec := &protocol.Record{
-		DataType:  int32(event.DataType()),
-		Timestamp: time.Now().Unix(),
+		DataType: int32(event.DataType()),
 		Data: &protocol.Payload{
 			Fields: data,
 		},

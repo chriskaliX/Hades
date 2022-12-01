@@ -17,7 +17,7 @@ const (
 )
 
 // cache for maps
-var _cacheMap = sync.Map{}
+var cacheMap = sync.Map{}
 
 // BasicEvent for events
 type BasicEvent struct {
@@ -42,7 +42,7 @@ type BasicEvent struct {
 }
 
 func (b *BasicEvent) Init(name string) error {
-	cache, _ := _cacheMap.LoadOrStore(name, &sync.Map{})
+	cache, _ := cacheMap.LoadOrStore(name, &sync.Map{})
 	b.cache = cache.(*sync.Map)
 	b.SetStatus(true)
 	return nil

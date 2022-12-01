@@ -58,13 +58,13 @@ func (Sshd) Run() (result map[string]interface{}, err error) {
 		if len(fields) == 2 {
 			switch strings.TrimSpace(fields[0]) {
 			case "PasswordAuthentication":
-				result["passwd_authentication"] = strings.TrimSpace(fields[1])
+				result["passwd_authentication"] = "passwd_authentication" + "=" + strings.TrimSpace(fields[1])
 			case "PubkeyAuthentication":
-				result["pubkey_authentication"] = strings.TrimSpace(fields[1])
+				result["pubkey_authentication"] = "pubkey_authentication" + "=" + strings.TrimSpace(fields[1])
 			case "PermitEmptyPasswords":
-				result["permit_emptypassword"] = strings.TrimSpace(fields[1])
+				result["permit_emptypassword"] = "permit_emptypassword" + "=" + strings.TrimSpace(fields[1])
 			case "MaxAuthTries":
-				result["max_auth_tries"] = strings.TrimSpace(fields[1])
+				result["max_auth_tries"] = "max_auth_tries" + "=" + strings.TrimSpace(fields[1])
 			}
 		}
 	}

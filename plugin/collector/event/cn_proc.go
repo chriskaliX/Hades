@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	ErrTooShort = errors.New("buffer too short")
+	errTooShort = errors.New("buffer too short")
 	errIngore   = errors.New("ingore")
 )
 
@@ -54,15 +54,16 @@ func (n *Netlink) String() string {
 
 func (n *Netlink) Init(name string) (err error) {
 	n.BasicEvent.Init(name)
-	n.rlimiter = rate.NewLimiter(rate.Every(20*time.Millisecond), 50)
-
+	// ratelimiter not that accurate in Millisecond way
+	n.rlimiter = rate.NewLimiter(rate.Every(2*time.Millisecond), 200)
 	var nlmsg nl.NetlinkRequest
 	nlmsg.Pid = uint32(os.Getpid())
 	nlmsg.Type = unix.NLMSG_DONE
 	nlmsg.Len = uint32(unix.SizeofNlMsghdr)
 	// PROC_CN_MCAST_LISTEN be careful
-	nlmsg.AddData(nl.NewCnMsg(CN_IDX_PROC, CN_VAL_PROC, PROC_CN_MCAST_LISTEN))
-
+	nlmsg.AddData(
+		nl.NewCnMsg(CN_IDX_PROC, CN_VAL_PROC, PROC_CN_MCAST_LISTEN),
+	)
 	if n.sock, err = nl.SubscribeAt(
 		netns.None(),
 		netns.None(),
@@ -70,7 +71,6 @@ func (n *Netlink) Init(name string) (err error) {
 		CN_IDX_PROC); err != nil {
 		return err
 	}
-
 	n.sock.Send(&nlmsg)
 	return nil
 }
@@ -93,10 +93,6 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 			}
 			for _, msg := range msgs {
 				if msg.Header.Type != syscall.NLMSG_DONE {
-					continue
-				}
-				// rate limit here
-				if !n.rlimiter.Allow() {
 					continue
 				}
 				n.SetBuffer(msg.Data)
@@ -124,7 +120,7 @@ func (n *Netlink) SetBuffer(buf []byte) {
 
 func (n *Netlink) DecodeMsg() (err error) {
 	if len(n.buffer[n.cursor:]) < 20 {
-		err = ErrTooShort
+		err = errTooShort
 		return
 	}
 	n.cursor = n.cursor + 20
@@ -133,7 +129,7 @@ func (n *Netlink) DecodeMsg() (err error) {
 
 func (n *Netlink) DecodeHdr(header *uint32) (err error) {
 	if len(n.buffer[n.cursor:]) < 16 {
-		err = ErrTooShort
+		err = errTooShort
 		return
 	}
 	*header = binary.LittleEndian.Uint32(n.buffer[n.cursor : n.cursor+4])
@@ -143,7 +139,7 @@ func (n *Netlink) DecodeHdr(header *uint32) (err error) {
 
 func (n *Netlink) DecodeFork(child *uint32, parent *uint32) (err error) {
 	if len(n.buffer[n.cursor:]) < 16 {
-		err = ErrTooShort
+		err = errTooShort
 		return
 	}
 	// only tgid is used
@@ -155,7 +151,7 @@ func (n *Netlink) DecodeFork(child *uint32, parent *uint32) (err error) {
 
 func (n *Netlink) DecodeExec(pid *uint32, tgid *uint32) (err error) {
 	if len(n.buffer[n.cursor:]) < 8 {
-		err = ErrTooShort
+		err = errTooShort
 		return
 	}
 	*pid = binary.LittleEndian.Uint32(n.buffer[n.cursor : n.cursor+4])
@@ -184,6 +180,10 @@ func (n *Netlink) Handle() (result string, err error) {
 		err = errIngore
 		return
 	case PROC_EVENT_EXEC:
+		if !n.rlimiter.Allow() {
+			err = errIngore
+			return
+		}
 		var pid, tpid uint32
 		var p *process.Process
 		if err = n.DecodeExec(&pid, &tpid); err != nil {

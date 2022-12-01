@@ -15,8 +15,8 @@ import (
 const (
 	// the ccache max cache size is 5000
 	nsCacheSize       = 4096
-	nsLimiterBurst    = 25
-	nsLimiterInterval = 40 * time.Millisecond
+	nsLimiterBurst    = 100
+	nsLimiterInterval = 2 * time.Millisecond
 )
 
 // environment variables for k8s

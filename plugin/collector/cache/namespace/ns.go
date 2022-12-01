@@ -15,8 +15,8 @@ import (
 
 const (
 	nsCacheSize       = 4096
-	nsLimiterBurst    = 25
-	nsLimiterInterval = 40 * time.Millisecond
+	nsLimiterBurst    = 100
+	nsLimiterInterval = 2 * time.Millisecond
 )
 
 const invalid = "-1"
@@ -62,41 +62,40 @@ func (n *NsCache) Get(pid uint32, pns uint32) (podname string, nodename string) 
 	if podname != invalid && nodename != invalid {
 		return
 	}
-
 	// missed, get it from environ
-	if n.rlimiter.Allow() {
-		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
-		if err != nil {
-			return
-		}
-		envList := bytes.Split(_byte, []byte{0})
-		for _, env := range envList {
-			_env := strings.Split(string(env), "=")
-			if len(_env) != 2 {
-				continue
-			}
-			// TODO: check this out, just try to get from env which is not reliable
-			if _env[0] == "HOSTNAME" {
-				duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
-				n.namecache.Add(pns, _env[1], duration)
-				nodename = _env[1]
-			}
-			if _env[0] == "MY_POD_NAME" || _env[0] == "POD_NAME" {
-				// get it right, save to cache and return
-				duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
-				n.cache.Add(pns, _env[1], duration)
-				podname = _env[1]
-			}
-		}
-		// missed, no pod_name is got. save invalid for a minite
-		// just for better performance
-		if nodename == invalid {
-			n.namecache.Add(pns, invalid, 5*time.Minute)
-		}
-		if podname == invalid {
-			n.cache.Add(pns, invalid, 5*time.Minute)
-		}
+	// if !n.rlimiter.Allow() {
+	// 	return
+	// }
+	_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
+	if err != nil {
 		return
+	}
+	envList := bytes.Split(_byte, []byte{0})
+	for _, env := range envList {
+		_env := strings.Split(string(env), "=")
+		if len(_env) != 2 {
+			continue
+		}
+		// TODO: check this out, just try to get from env which is not reliable
+		if _env[0] == "HOSTNAME" {
+			duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
+			n.namecache.Add(pns, _env[1], duration)
+			nodename = _env[1]
+		}
+		if _env[0] == "MY_POD_NAME" || _env[0] == "POD_NAME" {
+			// get it right, save to cache and return
+			duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
+			n.cache.Add(pns, _env[1], duration)
+			podname = _env[1]
+		}
+	}
+	// missed, no pod_name is got. save invalid for a minite
+	// just for better performance
+	if nodename == invalid {
+		n.namecache.Add(pns, invalid, 5*time.Minute)
+	}
+	if podname == invalid {
+		n.cache.Add(pns, invalid, 5*time.Minute)
 	}
 	return
 }

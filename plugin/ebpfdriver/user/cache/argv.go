@@ -13,8 +13,8 @@ import (
 
 const (
 	argvCacheSize       = 8192
-	argvLimiterBurst    = 25
-	argvLimiterInterval = 40 * time.Millisecond
+	argvLimiterBurst    = 100
+	argvLimiterInterval = 2 * time.Millisecond
 	argvMaxLength       = 512
 )
 

@@ -44,13 +44,13 @@ func collector(sandbox SDK.ISandbox) error {
 
 	// sshdconfig
 	sshdconfig, _ := event.GetEvent("sshdconfig")
-	sshdconfig.SetMode(event.Differential)
+	sshdconfig.SetMode(event.Snapshot)
 	sshdconfig.SetInterval(3600)
 	go event.RunEvent(sshdconfig, false, sandbox.Context())
 
 	// ssh
 	sshconfig, _ := event.GetEvent("sshconfig")
-	sshconfig.SetMode(event.Differential)
+	sshconfig.SetMode(event.Snapshot)
 	sshconfig.SetInterval(3600)
 	go event.RunEvent(sshconfig, false, sandbox.Context())
 
@@ -66,16 +66,12 @@ func collector(sandbox SDK.ISandbox) error {
 	ssh.SetType(event.Realtime)
 	go event.RunEvent(ssh, false, sandbox.Context())
 
-	// ncp = netlink/cn_proc
-	//
-	// In Hades, we remove the NCP way since we have a better tool(eBPF)
-	// you can modify this if it is needed.
+	// ncp(netlink cn_proc)
 	ncp, _ := event.GetEvent("ncp")
 	ncp.SetType(event.Realtime)
 	go event.RunEvent(ncp, false, sandbox.Context())
 
 	// socket
-	// change to snapshot since eBPFdriver already hooks the bind call
 	socket, _ := event.GetEvent("socket")
 	socket.SetMode(event.Snapshot)
 	socket.SetInterval(300)

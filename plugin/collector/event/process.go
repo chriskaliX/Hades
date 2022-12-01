@@ -29,7 +29,6 @@ func (Process) String() string {
 	return "process"
 }
 
-// TODO: Log process
 func (p Process) Run() (result map[string]interface{}, err error) {
 	result = make(map[string]interface{})
 	var processes []*process.Process
