@@ -22,6 +22,6 @@ func assertEqual(t *testing.T, expected, actual interface{}) {
 func TestNsCache(t *testing.T) {
 	pod, node := Cache.Get(1, uint32(cache.RootPns))
 	hostname, _ := os.Hostname()
-	assertEqual(t, pod, hostname)
-	assertEqual(t, node, "-1")
+	assertEqual(t, pod, "-1")
+	assertEqual(t, node, hostname)
 }

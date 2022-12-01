@@ -3,9 +3,13 @@ package process
 import (
 	"collector/cache/user"
 	"collector/share"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
+
+const maxPidTrace = 4
 
 func GetFds(pid int) ([]string, error) {
 	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")
@@ -42,7 +46,7 @@ func GetPids(limit int) (pids []int, err error) {
 	if err != nil {
 		return
 	}
-	names, err := d.Readdirnames(limit + 50)
+	names, err := d.Readdirnames(limit + 128)
 	if err != nil {
 		return
 	}
@@ -82,7 +86,6 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 		return
 	}
 
-	proc.GetNs()
 	proc.GetEnv()
 
 	proc.Stdin, _ = getFd(proc.PID, 0)
@@ -105,4 +108,35 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	}
 
 	return proc, nil
+}
+
+func GetPidTree(pid int) (pidtree string) {
+	var first = true
+	for i := 0; i < maxPidTrace; i++ {
+		pidtree = fmt.Sprintf("%s%d.", pidtree, pid)
+		if cmdline, ok := CmdlineCache.Get(pid); ok {
+			pidtree = pidtree + cmdline.(string)
+			goto PidLoop
+		}
+		// every event get one chance to flash the comm if a pid was found
+		if first {
+			first = false
+			if comm, err := getComm(pid); err == nil {
+				pidtree = pidtree + comm
+				goto PidLoop
+			}
+		}
+		break
+	PidLoop:
+		if pid == 0 || pid == 1 {
+			break
+		}
+		if ppid, ok := PidCache.Get(pid); ok {
+			pid = ppid.(int)
+			pidtree = pidtree + "<"
+		} else {
+			break
+		}
+	}
+	return strings.TrimRight(pidtree, "<")
 }
