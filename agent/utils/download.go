@@ -6,13 +6,19 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
 )
 
+var downloadTimeout = 10 * time.Minute
+
 // Download function to download executable or gzip or remote server
+// From Elkeid v1.9.1
 //
 // Elkeid v1.9.1 enhance this function by setting a more robust http client
 // configuration and also the reader part
@@ -41,15 +47,17 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 	if err = CheckSignature(dst, sha256sum); err == nil {
 		return
 	}
-	// In Elkeid v1.9.1, only Timeout is different from DefaultTransport
+	// In Elkeid v1.9.1, only Timeout is different from DefaultTransport.
+	// Before v1.9.1 the timeout was controlled by subctx, now it is
+	// controlled by client itself.
 	client := &http.Client{
 		Transport: http.DefaultTransport,
-		Timeout:   time.Minute * 10,
+		Timeout:   downloadTimeout,
 	}
 	for _, rawurl := range urls {
 		var req *http.Request
 		var resp *http.Response
-		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
+		subctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		if req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil); err != nil {
 			continue
@@ -61,13 +69,16 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 			err = errors.New("http error: " + resp.Status)
 			continue
 		}
+		// Set the limitation of download, but I think it would be alright
+		// since the time limitation is also set. This configration helps
+		// avoid download too much to fill up the disk even within 10 mins.
+		resp.Body = http.MaxBytesReader(nil, resp.Body, 512*1024*1024)
+		hasher.Reset()
 		// Before Elkeid v1.9.1, ioutil.ReadAll is used and it may
 		// lead memory grows rapidly since it reads everything into
 		// memeory, using io.TeeReader to both read from Reader and
 		// calculate the hash
-		// Also the decompress should change
-		resp.Body = http.MaxBytesReader(nil, resp.Body, 512*1024*1024)
-		hasher.Reset()
+		// Also the decompress should be updated
 		r := io.TeeReader(resp.Body, hasher)
 		switch suffix {
 		case "tar.gz":
@@ -76,37 +87,38 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 			err = DecompressDefault(dst, r)
 		}
 		resp.Body.Close()
-		if err == nil {
-
+		if err != nil {
+			continue
 		}
-		break
+		if c := hex.EncodeToString(hasher.Sum(nil)); c != sha256sum {
+			err = fmt.Errorf("checksum doesn't match: %s vs %s", checksum, sha256sum)
+			zap.S().Error(err)
+		} else {
+			break
+		}
 	}
 	return
 }
 
-func CheckSignature(dst string, sign string) (err error) {
-	var (
-		f         *os.File
-		signBytes []byte
-	)
-	if f, err = os.Open(dst); err != nil {
-		return
+// CheckSignature checks the dst and sign for local usage
+func CheckSignature(dst string, sign string) error {
+	f, err := os.Open(dst)
+	if err != nil {
+		return err
 	}
 	defer f.Close()
-
-	if signBytes, err = hex.DecodeString(sign); err != nil {
-		return
+	signBytes, err := hex.DecodeString(sign)
+	if err != nil {
+		return err
 	}
 	hasher := sha256.New()
-	// @Reference: https://pandaychen.github.io/2020/01/01/MAGIC-GO-IO-PACKAGE/
 	if _, err = io.Copy(hasher, f); err != nil {
-		return
+		return err
 	}
 	if !bytes.Equal(hasher.Sum(nil), signBytes) {
 		err = errors.New("signature doesn't match")
-		return
+		return err
 	}
-	// make it executable
 	f.Chmod(0o0700)
-	return
+	return nil
 }

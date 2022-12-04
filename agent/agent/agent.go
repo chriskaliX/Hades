@@ -7,9 +7,8 @@ import (
 const (
 	Product = "hades-agent"
 	EnvName = "SPECIFIED_AGENT_ID_HADES"
+	Version = ""
 )
-
-var Version string
 
 // The only instance of the agent
 var Instance = New()

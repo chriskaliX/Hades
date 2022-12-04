@@ -31,4 +31,5 @@ require (
 	google.golang.org/genproto v0.0.0-20220902135211-223410557253 // indirect
 	google.golang.org/grpc v1.49.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	k8s.io/apimachinery v0.25.4
 )
