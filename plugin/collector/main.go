@@ -1,11 +1,13 @@
 package main
 
 import (
+	"collector/cache/process"
 	"collector/event"
-	"collector/share"
+	"collector/eventmanager"
 	"flag"
 	_ "net/http/pprof"
 	"runtime"
+	"time"
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/logger"
@@ -18,66 +20,6 @@ func init() {
 		n = 4
 	}
 	runtime.GOMAXPROCS(n)
-}
-
-func collector(sandbox SDK.ISandbox) error {
-	// user
-	user, _ := event.GetEvent("user")
-	user.SetMode(event.Snapshot)
-	user.SetType(event.Periodicity)
-	user.SetInterval(600)
-	go event.RunEvent(user, true, sandbox.Context())
-
-	// processes
-	process, _ := event.GetEvent("process")
-	process.SetMode(event.Snapshot)
-	process.SetType(event.Periodicity)
-	process.SetInterval(3600)
-	go event.RunEvent(process, false, sandbox.Context())
-
-	// yum
-	yum, _ := event.GetEvent("yum")
-	yum.SetMode(event.Differential)
-	yum.SetType(event.Periodicity)
-	yum.SetInterval(3600)
-	go event.RunEvent(yum, false, sandbox.Context())
-
-	// sshdconfig
-	sshdconfig, _ := event.GetEvent("sshdconfig")
-	sshdconfig.SetMode(event.Snapshot)
-	sshdconfig.SetInterval(3600)
-	go event.RunEvent(sshdconfig, false, sandbox.Context())
-
-	// ssh
-	sshconfig, _ := event.GetEvent("sshconfig")
-	sshconfig.SetMode(event.Snapshot)
-	sshconfig.SetInterval(3600)
-	go event.RunEvent(sshconfig, false, sandbox.Context())
-
-	// for crontab and sshd and cn_proc and crontab . It's sync job
-	// By the way a limit to pid tree should be strictly considered.
-	// For collections, we need snapshot
-	cron, _ := event.GetEvent("cron")
-	cron.SetType(event.Realtime)
-	go event.RunEvent(cron, false, sandbox.Context())
-
-	// ssh login events
-	ssh, _ := event.GetEvent("ssh")
-	ssh.SetType(event.Realtime)
-	go event.RunEvent(ssh, false, sandbox.Context())
-
-	// ncp(netlink cn_proc)
-	ncp, _ := event.GetEvent("ncp")
-	ncp.SetType(event.Realtime)
-	go event.RunEvent(ncp, false, sandbox.Context())
-
-	// socket
-	socket, _ := event.GetEvent("socket")
-	socket.SetMode(event.Snapshot)
-	socket.SetInterval(300)
-	go event.RunEvent(socket, false, sandbox.Context())
-
-	return nil
 }
 
 func main() {
@@ -103,7 +45,18 @@ func main() {
 	if err := sandbox.Init(sconfig); err != nil {
 		return
 	}
-	share.Sandbox = sandbox
-	// run
-	sandbox.Run(collector)
+	process.HashCache = sandbox.Hash
+	em := eventmanager.New(sandbox)
+	// Add events
+	em.AddEvent(&event.Netlink{}, eventmanager.Start, eventmanager.None)
+	em.AddEvent(&event.Crontab{}, eventmanager.Start, eventmanager.None)
+	em.AddEvent(&event.Process{}, 15*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.Socket{}, 10*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.SSH{}, eventmanager.Start, eventmanager.None)
+	em.AddEvent(&event.SshConfig{}, 30*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.Sshd{}, 30*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.User{}, 10*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.User{}, 10*time.Minute, eventmanager.Snapshot)
+
+	sandbox.Run(em.Run)
 }

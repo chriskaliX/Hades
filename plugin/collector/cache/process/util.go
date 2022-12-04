@@ -2,14 +2,17 @@ package process
 
 import (
 	"collector/cache/user"
-	"collector/share"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/chriskaliX/SDK/util/hash"
 )
 
 const maxPidTrace = 4
+
+var HashCache hash.IHashCache
 
 func GetFds(pid int) ([]string, error) {
 	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")
@@ -90,7 +93,7 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 
 	proc.Stdin, _ = getFd(proc.PID, 0)
 	proc.Stdout, _ = getFd(proc.PID, 0)
-	proc.Hash = share.Sandbox.GetHash(proc.Exe)
+	proc.Hash = HashCache.GetHash(proc.Exe)
 	// netlink do not get stat information
 	if err = proc.GetStat(simple); err != nil {
 		return

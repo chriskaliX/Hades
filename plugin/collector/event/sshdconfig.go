@@ -2,10 +2,15 @@ package event
 
 import (
 	"bufio"
+	"collector/eventmanager"
 	"io"
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
 const (
@@ -13,26 +18,28 @@ const (
 	SSHD_DATATYPE = 3002
 )
 
-var _ Event = (*Sshd)(nil)
+var _ eventmanager.IEvent = (*Sshd)(nil)
 
-type Sshd struct {
-	BasicEvent
-}
+type Sshd struct{}
 
 func (Sshd) DataType() int {
 	return SSHD_DATATYPE
 }
 
-func (Sshd) String() string {
+func (Sshd) Name() string {
 	return "sshdconfig"
 }
 
-func (Sshd) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{}, 4)
-	var file *os.File
+func (n *Sshd) Flag() int {
+	return eventmanager.Periodic
+}
+
+func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
+	result := make(map[string]string, 4)
 	var scan *bufio.Scanner
-	if file, err = os.Open(sshdConfig); err != nil {
-		return
+	file, err := os.Open(sshdConfig)
+	if err != nil {
+		return err
 	}
 	defer file.Close()
 	// Default value of the configuration
@@ -68,9 +75,20 @@ func (Sshd) Run() (result map[string]interface{}, err error) {
 			}
 		}
 	}
-	return
-}
 
-func init() {
-	RegistEvent(&Sshd{})
+	data, err := sonic.MarshalString(result)
+	if err != nil {
+		return err
+	}
+	rec := &protocol.Record{
+		DataType: SSHD_DATATYPE,
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	s.SendRecord(rec)
+
+	return nil
 }

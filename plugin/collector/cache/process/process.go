@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"collector/cache"
 	ns "collector/cache/namespace"
-	"collector/share"
+	"collector/utils"
 	"errors"
 	"fmt"
 	"os"
@@ -34,10 +34,9 @@ type Process struct {
 	Cwd      string `json:"cwd"`
 	Stdin    string `json:"stdin"`
 	Stdout   string `json:"stdout"`
-	PidTree  string `json:"pid_tree"`
+	PidTree  string `json:"pid_tree,omitempty"`
 	PodName  string `json:"pod_name"`
 	NodeName string `json:"nodename"`
-	Source   string `json:"source"`
 
 	TTY        int     `json:"tty,omitempty"`
 	TTYName    string  `json:"ttyname,omitempty"`
@@ -100,7 +99,7 @@ func (p *Process) GetStatus() (err error) {
 			p.Name = strings.Fields(s.Text())[1]
 		} else if strings.HasPrefix(s.Text(), "Uid:") {
 			fields := strings.Fields(s.Text())
-			p.UID = share.ParseInt32(fields[1])
+			p.UID = utils.ParseInt32(fields[1])
 			break
 		}
 	}

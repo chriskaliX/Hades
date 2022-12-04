@@ -2,15 +2,16 @@ package event
 
 import (
 	"collector/cache/process"
-	"collector/share"
-	"context"
+	"collector/eventmanager"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"syscall"
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -33,30 +34,34 @@ const (
 	Netlink_DATATYPE     = 1000
 )
 
-var _ Event = (*Netlink)(nil)
+var _ eventmanager.IEvent = (*Netlink)(nil)
 
 type Netlink struct {
 	buffer   []byte
 	cursor   int
 	sock     *nl.NetlinkSocket
 	rlimiter *rate.Limiter
-
-	BasicEvent
 }
 
 func (n *Netlink) DataType() int {
 	return Netlink_DATATYPE
 }
 
-func (n *Netlink) String() string {
+func (n *Netlink) Flag() int {
+	return eventmanager.Realtime
+}
+
+func (n *Netlink) Name() string {
 	return "ncp"
 }
 
-func (n *Netlink) Init(name string) (err error) {
-	n.BasicEvent.Init(name)
-	// ratelimiter not that accurate in Millisecond way
-	n.rlimiter = rate.NewLimiter(rate.Every(2*time.Millisecond), 200)
+func (n *Netlink) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	fmt.Println("in")
 	var nlmsg nl.NetlinkRequest
+	var result string
+	rawdata := make(map[string]string)
+
+	n.rlimiter = rate.NewLimiter(rate.Every(2*time.Millisecond), 200)
 	nlmsg.Pid = uint32(os.Getpid())
 	nlmsg.Type = unix.NLMSG_DONE
 	nlmsg.Len = uint32(unix.SizeofNlMsghdr)
@@ -72,18 +77,14 @@ func (n *Netlink) Init(name string) (err error) {
 		return err
 	}
 	n.sock.Send(&nlmsg)
-	return nil
-}
 
-func (n *Netlink) RunSync(ctx context.Context) (err error) {
-	var result string
-	rawdata := make(map[string]string)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-s.Context().Done():
+			return nil
+		case <-sig:
 			return nil
 		default:
-			// always receive
 			msgs, from, err := n.sock.Receive()
 			if err != nil {
 				continue
@@ -106,7 +107,7 @@ func (n *Netlink) RunSync(ctx context.Context) (err error) {
 						Fields: rawdata,
 					},
 				}
-				share.Sandbox.SendRecord(rec)
+				s.SendRecord(rec)
 			}
 		}
 	}
@@ -190,7 +191,6 @@ func (n *Netlink) Handle() (result string, err error) {
 			return
 		}
 		p, err = process.GetProcessInfo(int(pid), true)
-		p.Source = "netlink"
 		defer process.Pool.Put(p)
 		if err != nil {
 			return
@@ -208,8 +208,4 @@ func (n *Netlink) Handle() (result string, err error) {
 		err = errIngore
 		return
 	}
-}
-
-func init() {
-	RegistEvent(&Netlink{})
 }

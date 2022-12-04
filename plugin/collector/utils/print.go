@@ -1,12 +1,8 @@
-package share
+package utils
 
 import (
 	"strconv"
-
-	"github.com/chriskaliX/SDK"
 )
-
-var Sandbox SDK.ISandbox
 
 func ParseUint32(input string) (output uint32) {
 	_output, err := strconv.ParseUint(input, 10, 32)

@@ -7,11 +7,82 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 )
+
+// Download function to download executable or gzip or remote server
+//
+// Elkeid v1.9.1 enhance this function by setting a more robust http client
+// configuration and also the reader part
+//
+// var DefaultTransport RoundTripper = &Transport{
+// 	Proxy: ProxyFromEnvironment,
+// 	DialContext: (&net.Dialer{
+// 			Timeout:   30 * time.Second,
+// 			KeepAlive: 30 * time.Second,
+// 	}).DialContext,
+// 	ForceAttemptHTTP2:     true,
+// 	MaxIdleConns:          100,
+// 	IdleConnTimeout:       90 * time.Second,
+// 	TLSHandshakeTimeout:   10 * time.Second,
+// 	ExpectContinueTimeout: 1 * time.Second,
+// }
+//
+// https://github.com/golang/go/blob/b2faff18ce28edad98303d2c3134dec1331fd7b5/src/net/http/transport.go
+func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
+	var checksum []byte
+	// check wheater this already exist
+	if checksum, err = hex.DecodeString(sha256sum); err != nil {
+		return
+	}
+	hasher := sha256.New()
+	if err = CheckSignature(dst, sha256sum); err == nil {
+		return
+	}
+	// In Elkeid v1.9.1, only Timeout is different from DefaultTransport
+	client := &http.Client{
+		Transport: http.DefaultTransport,
+		Timeout:   time.Minute * 10,
+	}
+	for _, rawurl := range urls {
+		var req *http.Request
+		var resp *http.Response
+		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
+		defer cancel()
+		if req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil); err != nil {
+			continue
+		}
+		if resp, err = client.Do(req); err != nil {
+			continue
+		}
+		if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
+			err = errors.New("http error: " + resp.Status)
+			continue
+		}
+		// Before Elkeid v1.9.1, ioutil.ReadAll is used and it may
+		// lead memory grows rapidly since it reads everything into
+		// memeory, using io.TeeReader to both read from Reader and
+		// calculate the hash
+		// Also the decompress should change
+		resp.Body = http.MaxBytesReader(nil, resp.Body, 512*1024*1024)
+		hasher.Reset()
+		r := io.TeeReader(resp.Body, hasher)
+		switch suffix {
+		case "tar.gz":
+			err = DecompressTarGz(dst, r)
+		default:
+			err = DecompressDefault(dst, r)
+		}
+		resp.Body.Close()
+		if err == nil {
+
+		}
+		break
+	}
+	return
+}
 
 func CheckSignature(dst string, sign string) (err error) {
 	var (
@@ -37,60 +108,5 @@ func CheckSignature(dst string, sign string) (err error) {
 	}
 	// make it executable
 	f.Chmod(0o0700)
-	return
-}
-
-func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
-	var (
-		checksum []byte
-	)
-	// check wheater this already exist
-	if checksum, err = hex.DecodeString(sha256sum); err != nil {
-		return
-	}
-	hasher := sha256.New()
-	// extra work, but to simplify
-	if err = CheckSignature(dst, sha256sum); err == nil {
-		return
-	}
-	// in elkeid, `defer` in loop... emmm, not a best practice I think, but nothing wrong
-	for _, rawurl := range urls {
-		var req *http.Request
-		var resp *http.Response
-		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
-		defer cancel()
-		if req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil); err != nil {
-			continue
-		}
-		if resp, err = http.DefaultClient.Do(req); err != nil {
-			continue
-		}
-		if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
-			err = errors.New("http error: " + resp.Status)
-			continue
-		}
-		defer resp.Body.Close()
-		var buf []byte
-		// @Notes: ReadAll may not be a best practice, but a dump to mem/file is needed
-		// So, the filesize is limited! Another option is to download and io.Copy to file
-		// @Reference: https://stackoverflow.com/questions/11692860/how-can-i-efficiently-download-a-large-file-using-go
-		if buf, err = ioutil.ReadAll(resp.Body); err != nil {
-			continue
-		}
-		hasher.Reset()
-		hasher.Write(buf)
-		if !bytes.Equal(hasher.Sum(nil), checksum) {
-			err = errors.New("checksum doesn't match")
-			continue
-		}
-		br := bytes.NewBuffer(buf)
-		switch suffix {
-		case "tar.gz":
-			err = DecompressTarGz(dst, br)
-		default:
-			err = DecompressDefault(dst, br)
-		}
-		break
-	}
 	return
 }

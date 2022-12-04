@@ -14,17 +14,6 @@ import (
 	"github.com/chriskaliX/SDK/transport/client"
 )
 
-var _ ILogger = (*zap.SugaredLogger)(nil)
-
-type ILogger interface {
-	Debug(args ...interface{})
-	Info(args ...interface{})
-	Warn(args ...interface{})
-	Error(args ...interface{})
-	Fatal(args ...interface{})
-	Panic(args ...interface{})
-}
-
 type Config struct {
 	// SDK fields
 	Client *client.Client
@@ -38,7 +27,7 @@ type Config struct {
 	RemoteLevel zapcore.LevelEnabler
 }
 
-func New(config *Config) *zap.SugaredLogger {
+func New(config *Config) *zap.Logger {
 	var l *zap.Logger
 	remoteConfig := zap.NewProductionEncoderConfig()
 	remoteConfig.CallerKey = "source"
@@ -67,5 +56,5 @@ func New(config *Config) *zap.SugaredLogger {
 	)
 	l = zap.New(core, zap.AddCaller())
 	zap.ReplaceGlobals(l)
-	return zap.S()
+	return l
 }

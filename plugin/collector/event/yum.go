@@ -2,6 +2,7 @@ package event
 
 import (
 	"bufio"
+	"collector/eventmanager"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -9,6 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
 // Based on Elkeid and osquery
@@ -21,28 +26,30 @@ const (
 	YUM_RECORDLIMIT        = 1000
 )
 
-var _ Event = (*Yum)(nil)
+var _ eventmanager.IEvent = (*Yum)(nil)
 
-type Yum struct {
-	BasicEvent
-}
+type Yum struct{}
 
 func (Yum) DataType() int {
 	return YUM_DATATYPE
 }
 
-func (Yum) String() string {
+func (Yum) Name() string {
 	return "yum"
 }
 
-func (y *Yum) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{})
+func (n *Yum) Flag() int {
+	return eventmanager.Periodic
+}
+
+func (y *Yum) Run(s SDK.ISandbox, sig chan struct{}) error {
+	result := make([]string, 0, 20)
 	files := y.getfiles(yumReposDir)
 	files = append(files, yumConfig)
 Loop:
 	for _, file := range files {
-		var f *os.File
-		if f, err = os.Open(file); err != nil {
+		f, err := os.Open(file)
+		if err != nil {
 			continue
 		}
 		s := bufio.NewScanner(io.LimitReader(f, 1024*1024))
@@ -50,7 +57,7 @@ Loop:
 			fields := strings.Split(s.Text(), "=")
 			if len(fields) == 2 && strings.TrimSpace(fields[0]) == "baseurl" {
 				url := strings.TrimSpace(fields[1])
-				result[y.MD5(url)] = url
+				result = append(result, url)
 				if len(result) > YUM_RECORDLIMIT {
 					f.Close()
 					break Loop
@@ -59,7 +66,22 @@ Loop:
 		}
 		f.Close()
 	}
-	return
+
+	data, err := sonic.MarshalString(result)
+	if err != nil {
+		return err
+	}
+	rec := &protocol.Record{
+		DataType: YUM_DATATYPE,
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	s.SendRecord(rec)
+
+	return nil
 }
 
 func (*Yum) MD5(v string) string {
@@ -84,8 +106,4 @@ func (Yum) getfiles(pth string) (files []string) {
 		return nil
 	})
 	return files
-}
-
-func init() {
-	RegistEvent(&Yum{})
 }
