@@ -54,7 +54,7 @@ func getAgentStat(now time.Time) {
 	rec.Data.Fields["tx_tps"] = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	rec.Data.Fields["rx_tps"] = strconv.FormatFloat(rxTPX, 'f', 8, 64)
 	// change load to gopsutil
-	rec.Data.Fields["du"] = strconv.FormatUint(resource.GetDirSize(agent.Instance.Workdir, "plugin"), 10)
+	rec.Data.Fields["du"] = strconv.FormatUint(resource.GetDirSize(agent.Workdir, "plugin"), 10)
 	rec.Data.Fields["grs"] = strconv.Itoa(runtime.NumGoroutine())
 	rec.Data.Fields["nproc"] = strconv.Itoa(runtime.NumCPU())
 	rec.Data.Fields["boot_at"] = strconv.FormatUint(resource.GetBootTime(), 10)

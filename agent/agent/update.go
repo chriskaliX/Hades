@@ -22,11 +22,13 @@ func Update(config proto.Config) (err error) {
 	switch host.PlatformFamily {
 	case "debian":
 		cmd = exec.Command("dpkg", "-i", dst)
-	// ref:https://docs.fedoraproject.org/ro/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch-command-reference.html
 	case "rhel", "fedora", "suse":
 		cmd = exec.Command("rpm", "-Uvh", dst)
 	default:
-		cmd = exec.Command("dpkg", "-i", dst)
+		// Other platform including
+		// gentoo slackware arch exherbo alpine
+		// coreos solus neokylin
+		cmd = exec.Command(dst)
 	}
 	err = cmd.Run()
 	return

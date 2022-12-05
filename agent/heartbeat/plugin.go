@@ -13,8 +13,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func getPlgStat(now time.Time) {
-	plgs := plugin.DefaultManager.GetAll()
+func getPlgStat(p *plugin.Manager, now time.Time) {
+	plgs := p.GetAll()
 	for _, plg := range plgs {
 		if !plg.IsExited() {
 			rec := &proto.Record{

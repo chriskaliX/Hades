@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"agent/host"
+	"agent/plugin"
 	"context"
 	"sync"
 	"time"
@@ -9,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func Startup(ctx context.Context, wg *sync.WaitGroup) {
+func Startup(ctx context.Context, p *plugin.Manager, wg *sync.WaitGroup) {
 	defer wg.Done()
 	zap.S().Info("health daemon startup")
 	getAgentStat(time.Now())
@@ -23,7 +24,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 			{
 				host.RefreshHost()
 				getAgentStat(t)
-				getPlgStat(t)
+				getPlgStat(p, t)
 			}
 		}
 	}

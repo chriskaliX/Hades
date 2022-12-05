@@ -91,7 +91,7 @@ func (t *Transfer) Send(client proto.Transfer_TransferClient) (err error) {
 	// Send the copy
 	err = client.Send(&proto.PackagedData{
 		Records:      recs,
-		AgentId:      agent.Instance.ID,
+		AgentId:      agent.ID,
 		IntranetIpv4: host.PrivateIPv4.Load().([]string),
 		IntranetIpv6: host.PrivateIPv6.Load().([]string),
 		ExtranetIpv4: host.PublicIPv4.Load().([]string),
@@ -130,11 +130,11 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 		return
 	}
 	switch cmd.Task.ObjectName {
-	case agent.Instance.Product:
+	case agent.Product:
 		switch cmd.Task.DataType {
 		case config.TaskShutdown:
 			zap.S().Info("agent shutdown is called")
-			agent.Instance.Cancel()
+			agent.Cancel()
 			return
 		case config.TaskRestart:
 		case config.TaskSetenv:
@@ -171,7 +171,7 @@ func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
 		zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, config.Version)
 		if err = agent.Update(*config); err == nil {
 			zap.S().Info("agent update successfully")
-			agent.Instance.Cancel()
+			agent.Cancel()
 			return
 		}
 		zap.S().Error("agent update failed:", err)

@@ -1,86 +1,73 @@
-//go:build linux
+//go:build !windows
 
 package agent
 
 import (
-	"agent/config"
 	"bytes"
-	"context"
 	"errors"
 	"os"
-	"runtime"
 
 	"github.com/google/uuid"
+	"golang.org/x/exp/slices"
 )
 
-func New() (agent *Agent) {
-	var err error
-	agent = &Agent{
-		Product: Product,
-		Version: Version,
-		OS:      runtime.GOOS,
-	}
-	agent.Context, agent.Cancel = context.WithCancel(context.Background())
-	if agent.Workdir, err = os.Getwd(); err != nil {
-		agent.Workdir = config.HADES_PIDPATH
-	}
-	agent.genUUIDLinux()
-	return
+const (
+	HADES_HOME       = "/etc/hades/"
+	HADES_PIDPATH    = "/var/run/"
+	HADES_LOGHOME    = "/var/log/hades/"
+	HADES_MACHINE_ID = HADES_HOME + "machine-id"
+)
+
+var hardwarePlaceholders = []string{
+	"00000000-0000-0000-0000-000000000000",
+	"03000200-0400-0500-0006-000700080009",
+	"03020100-0504-0706-0809-0a0b0c0d0e0f",
+	"10000000-0000-8000-0040-000000000000",
 }
 
 // Linux uuid generator, from Elkeid
-func (a *Agent) genUUIDLinux() {
-	var (
-		ok     bool
-		source []byte
-	)
-	if a.ID, ok = os.LookupEnv(EnvName); ok {
-		return
-	}
+func genUUID() {
+	var source []byte
 	// From `/var/lib/cloud/data/instance-id` for cloud situation
 	// instance if from cloud-init, which is very common in cloud host
 	// instance-id is one of the metadata of the cloud-init, but this
 	// may be wrong since 'nocloud' is also considered.
-	//
 	// Reference: https://zhuanlan.zhihu.com/p/27664869
-	if instanceId, err := a.fromIDFile("/var/lib/cloud/data/instance-id"); err == nil {
+	if instanceId, err := fromIDFile("/var/lib/cloud/data/instance-id"); err == nil {
 		source = append(source, instanceId...)
 	}
 	// From `/sys/class/dmi/id/product_uuid` which is generated in kernel
 	// rce/drivers/firmware/dmi-id.c and it is not changeable. It's widely
 	// used, including in osquery.
-	//
 	// If failed with getting this file as uuid, then generate in another way
 	// By the way, this file is unchangable
-	//
 	// https://github.com/osquery/osquery/blob/master/osquery/core/system.cpp
-	if pdid, err := a.fromIDFile("/sys/class/dmi/id/product_uuid"); err == nil {
-		source = append(source, pdid...)
+	if pdid, err := fromIDFile("/sys/class/dmi/id/product_uuid"); err == nil {
+		if !slices.Contains(hardwarePlaceholders, string(pdid)) {
+			source = append(source, pdid...)
+		}
 	}
-	// from /sys/class/net/eth0/address
-	if emac, err := a.fromIDFile("/sys/class/net/eth0/address"); err == nil {
+	if emac, err := fromIDFile("/sys/class/net/eth0/address"); err == nil {
 		source = append(source, emac...)
 	}
-	// since may have "nocloud", over 8 is reasonable
 	if len(source) > 8 {
-		a.ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
+		ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
 		return
 	}
-	// get machine-id from the file
-	mid, err := a.fromUUIDFile("/etc/machine-id")
+	mid, err := fromUUIDFile("/etc/machine-id")
 	if err == nil {
-		a.ID = mid.String()
+		ID = mid.String()
 		return
 	}
-	mid, err = a.fromUUIDFile(config.HADES_MACHINE_ID)
+	mid, err = fromUUIDFile(HADES_MACHINE_ID)
 	if err == nil {
-		a.ID = mid.String()
+		ID = mid.String()
 		return
 	}
-	a.ID = uuid.New().String()
+	ID = uuid.New().String()
 }
 
-func (Agent) fromUUIDFile(file string) (id uuid.UUID, err error) {
+func fromUUIDFile(file string) (id uuid.UUID, err error) {
 	var idBytes []byte
 	if idBytes, err = os.ReadFile(file); err == nil {
 		id, err = uuid.ParseBytes(bytes.TrimSpace(idBytes))
@@ -88,7 +75,7 @@ func (Agent) fromUUIDFile(file string) (id uuid.UUID, err error) {
 	return
 }
 
-func (Agent) fromIDFile(file string) (id []byte, err error) {
+func fromIDFile(file string) (id []byte, err error) {
 	if id, err = os.ReadFile(file); err == nil {
 		if len(id) < 6 {
 			err = errors.New("id too short")

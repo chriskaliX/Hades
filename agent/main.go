@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"math/rand"
 	"os"
 	"os/signal"
 	"runtime"
@@ -29,13 +30,12 @@ import (
 const MAX_PROCS = 8
 
 func init() {
-	// Limitation of procs
-	// TODO: container situation
 	numcpu := runtime.NumCPU()
 	if numcpu > MAX_PROCS {
 		numcpu = MAX_PROCS
 	}
 	runtime.GOMAXPROCS(numcpu)
+	rand.Seed(time.Now().UnixNano())
 }
 
 func main() {
@@ -77,17 +77,13 @@ func main() {
 	wg := &sync.WaitGroup{}
 	// transport to server not added
 	wg.Add(3)
-	go plugin.Startup(agent.Instance.Context, wg)
-	go heartbeat.Startup(agent.Instance.Context, wg)
+	m := &plugin.Manager{}
+	go plugin.Startup(agent.Context, m, wg)
+	go heartbeat.Startup(agent.Context, m, wg)
 	go func() {
-		transport.Startup(agent.Instance.Context, wg)
-		agent.Instance.Cancel()
+		transport.Startup(agent.Context, wg)
+		agent.Cancel()
 	}()
-
-	// https://colobu.com/2015/10/09/Linux-Signals/
-	// SIGTERM 信号: 结束程序(可以被捕获、阻塞或忽略)
-	// https://github.com/osquery/osquery/blob/master/osquery/process/posix/process.cpp
-	// osquery 中也是用这个方式, 作为 gracefulExit 的方式, 应该对 plugin 也如此处理
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGTERM)
@@ -95,7 +91,7 @@ func main() {
 		zap.S().Error("receive signal:", sig.String())
 		zap.S().Info("wait for 5 secs to exit")
 		<-time.After(time.Second * 5)
-		agent.Instance.Cancel()
+		agent.Cancel()
 	}()
 	wg.Wait()
 }

@@ -19,8 +19,8 @@ var (
 	errDupPlugin = errors.New("duplicate plugin load")
 )
 
-func Load(ctx context.Context, config proto.Config) (err error) {
-	loadedPlg, ok := DefaultManager.Get(config.GetName())
+func Load(ctx context.Context, p *Manager, config proto.Config) (err error) {
+	loadedPlg, ok := p.Get(config.GetName())
 	// logical problem
 	if ok {
 		if loadedPlg.Version() == config.GetVersion() && !loadedPlg.IsExited() {
@@ -33,7 +33,7 @@ func Load(ctx context.Context, config proto.Config) (err error) {
 	if config.GetSignature() == "" {
 		config.Signature = config.GetSha256()
 	}
-	plg, err := server.NewServer(ctx, agent.Instance.Workdir, &config)
+	plg, err := server.NewServer(ctx, agent.Workdir, &config)
 	if err != nil {
 		return
 	}
@@ -41,22 +41,22 @@ func Load(ctx context.Context, config proto.Config) (err error) {
 	go plg.Wait()
 	go plg.Receive(pool.SDKGet, transport.DTransfer)
 	go plg.Task()
-	DefaultManager.Register(plg.Name(), plg)
+	p.Register(plg.Name(), plg)
 	return nil
 }
 
-func Startup(ctx context.Context, wg *sync.WaitGroup) {
+func Startup(ctx context.Context, p *Manager, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		select {
 		case <-ctx.Done():
-			DefaultManager.UnregisterAll()
+			p.UnregisterAll()
 			return
-		case cfgs := <-DefaultManager.syncCh:
+		case cfgs := <-p.syncCh:
 			// 加载插件
 			for _, cfg := range cfgs {
 				if cfg.Name != agent.Product {
-					err := Load(ctx, *cfg)
+					err := Load(ctx, p, *cfg)
 					// 相同版本的同名插件正在运行，无需操作
 					if err == errDupPlugin {
 						continue
@@ -69,10 +69,10 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				}
 			}
 			// 移除插件
-			for _, plg := range DefaultManager.GetAll() {
+			for _, plg := range p.GetAll() {
 				if _, ok := cfgs[plg.Name()]; !ok {
 					plg.Shutdown()
-					DefaultManager.UnRegister(plg.Name())
+					p.UnRegister(plg.Name())
 					if err := os.RemoveAll(plg.GetWorkingDirectory()); err != nil {
 						zap.S().Error(err)
 					}
