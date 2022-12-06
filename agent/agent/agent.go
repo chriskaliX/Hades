@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"os"
+	"sync/atomic"
 )
 
 const (
@@ -15,6 +16,12 @@ var (
 	Context, Cancel = context.WithCancel(context.Background())
 	Workdir, _      = os.Getwd()
 	ID              string
+	// update in metrics
+	Hostname    atomic.Value
+	PrivateIPv4 atomic.Value
+	PublicIPv4  atomic.Value
+	PrivateIPv6 atomic.Value
+	PublicIPv6  atomic.Value
 )
 
 func init() {

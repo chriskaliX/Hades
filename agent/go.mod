@@ -11,7 +11,6 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/golang-lru v0.5.4
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/shirou/gopsutil/v3 v3.22.8
 	go.uber.org/atomic v1.10.0
@@ -31,6 +30,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/lufia/plan9stats v0.0.0-20220517141722-cf486979b281 // indirect
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20220216144756-c35f1ee13d7c // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
@@ -45,4 +45,5 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220902135211-223410557253 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
 )

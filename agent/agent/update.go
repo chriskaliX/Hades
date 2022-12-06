@@ -1,13 +1,20 @@
 package agent
 
 import (
-	"agent/host"
 	"agent/proto"
 	"agent/utils"
 	"context"
 	"os/exec"
 	"path"
+
+	"github.com/shirou/gopsutil/v3/host"
 )
+
+var platform string
+
+func init() {
+	platform, _, _, _ = host.PlatformInformation()
+}
 
 // agent self-update
 // Windows compatible is not invalid for now
@@ -19,7 +26,7 @@ func Update(config proto.Config) (err error) {
 		return
 	}
 	var cmd *exec.Cmd
-	switch host.PlatformFamily {
+	switch platform {
 	case "debian":
 		cmd = exec.Command("dpkg", "-i", dst)
 	case "rhel", "fedora", "suse":

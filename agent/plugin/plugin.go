@@ -45,18 +45,18 @@ func Load(ctx context.Context, p *Manager, config proto.Config) (err error) {
 	return nil
 }
 
-func Startup(ctx context.Context, p *Manager, wg *sync.WaitGroup) {
+func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		select {
 		case <-ctx.Done():
-			p.UnregisterAll()
+			DefaultManager.UnregisterAll()
 			return
-		case cfgs := <-p.syncCh:
+		case cfgs := <-DefaultManager.syncCh:
 			// 加载插件
 			for _, cfg := range cfgs {
 				if cfg.Name != agent.Product {
-					err := Load(ctx, p, *cfg)
+					err := Load(ctx, DefaultManager, *cfg)
 					// 相同版本的同名插件正在运行，无需操作
 					if err == errDupPlugin {
 						continue
@@ -69,10 +69,10 @@ func Startup(ctx context.Context, p *Manager, wg *sync.WaitGroup) {
 				}
 			}
 			// 移除插件
-			for _, plg := range p.GetAll() {
+			for _, plg := range DefaultManager.GetAll() {
 				if _, ok := cfgs[plg.Name()]; !ok {
 					plg.Shutdown()
-					p.UnRegister(plg.Name())
+					DefaultManager.UnRegister(plg.Name())
 					if err := os.RemoveAll(plg.GetWorkingDirectory()); err != nil {
 						zap.S().Error(err)
 					}

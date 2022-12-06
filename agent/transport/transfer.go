@@ -2,7 +2,6 @@ package transport
 
 import (
 	"agent/agent"
-	"agent/host"
 	"agent/proto"
 	"agent/transport/pool"
 	"errors"
@@ -92,11 +91,11 @@ func (t *Transfer) Send(client proto.Transfer_TransferClient) (err error) {
 	err = client.Send(&proto.PackagedData{
 		Records:      recs,
 		AgentId:      agent.ID,
-		IntranetIpv4: host.PrivateIPv4.Load().([]string),
-		IntranetIpv6: host.PrivateIPv6.Load().([]string),
-		ExtranetIpv4: host.PublicIPv4.Load().([]string),
-		ExtranetIpv6: host.PublicIPv6.Load().([]string),
-		Hostname:     host.Hostname.Load().(string),
+		IntranetIpv4: agent.PrivateIPv4.Load().([]string),
+		IntranetIpv6: agent.PrivateIPv6.Load().([]string),
+		ExtranetIpv4: agent.PublicIPv4.Load().([]string),
+		ExtranetIpv6: agent.PublicIPv6.Load().([]string),
+		Hostname:     agent.Hostname.Load().(string),
 		Version:      agent.Version,
 		Product:      agent.Product,
 	})

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"agent/agent"
-	"agent/heartbeat"
 	"agent/log"
+	"agent/metrics"
 	"agent/plugin"
 	"agent/transport"
 	"agent/transport/connection"
@@ -77,9 +77,8 @@ func main() {
 	wg := &sync.WaitGroup{}
 	// transport to server not added
 	wg.Add(3)
-	m := &plugin.Manager{}
-	go plugin.Startup(agent.Context, m, wg)
-	go heartbeat.Startup(agent.Context, m, wg)
+	go plugin.Startup(agent.Context, wg)
+	go metrics.Startup(agent.Context, wg)
 	go func() {
 		transport.Startup(agent.Context, wg)
 		agent.Cancel()
