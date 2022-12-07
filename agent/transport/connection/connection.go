@@ -49,9 +49,9 @@ var GrpcAddr string
 var InsecureTransport bool
 var InsecureTLS bool
 
-var GRPCConnection *GRPCConn
+var GRPCConnection *Connection
 
-var _ connection.INetRetry = (*GRPCConn)(nil)
+var _ connection.INetRetry = (*Connection)(nil)
 
 // Grpc instance for establish connection with server in a load-balanced way
 //
@@ -67,7 +67,7 @@ var _ connection.INetRetry = (*GRPCConn)(nil)
 //
 // The os.Setenv way to cache the variables is also working in Windows.
 // Compatibility is not concerned for now.
-type GRPCConn struct {
+type Connection struct {
 	Addr     string
 	Options  []grpc.DialOption
 	Conn     *grpc.ClientConn
@@ -76,15 +76,15 @@ type GRPCConn struct {
 }
 
 // Get the connection from gRPCConn
-func GetConnection(g *GRPCConn, ctx context.Context) (conn *grpc.ClientConn, err error) {
+func GetConnection(g *Connection, ctx context.Context) (conn *grpc.ClientConn, err error) {
 	if err = connection.IRetry(g, ctx); err != nil {
 		return nil, err
 	}
 	return g.Conn, nil
 }
 
-func New() *GRPCConn {
-	gConn := &GRPCConn{
+func New() *Connection {
+	gConn := &Connection{
 		Options: []grpc.DialOption{
 			// Disable retry, which does not impact to transparent retry.
 			// Just let the IRetry to take over this
@@ -119,30 +119,30 @@ func New() *GRPCConn {
 }
 
 // INetRetry Impls
-func (g *GRPCConn) String() string {
+func (g *Connection) String() string {
 	return "grpc"
 }
 
-func (g *GRPCConn) GetMaxDelay() uint {
+func (g *Connection) GetMaxDelay() uint {
 	return 120
 }
 
 // Retry forever, in case server shutdown or networking fluctuation
 // makes all agent shutdown
-func (g *GRPCConn) GetMaxRetry() uint {
+func (g *Connection) GetMaxRetry() uint {
 	return 0
 }
 
-func (g *GRPCConn) GetInterval() uint {
+func (g *Connection) GetInterval() uint {
 	return 3
 }
 
-func (g *GRPCConn) GetHashMod() uint {
+func (g *Connection) GetHashMod() uint {
 	return uint(rand.Intn(10))
 }
 
 // TODO: A look-aside LB is needed, for now, only server-side, dns
-func (g *GRPCConn) Connect() (err error) {
+func (g *Connection) Connect() (err error) {
 	g.Conn, err = grpc.Dial(g.Addr, g.Options...)
 	return
 }

@@ -79,7 +79,7 @@ func (m *PluginMetric) Flush(now time.Time) {
 					Fields: fields,
 				},
 			}
-			transport.DTransfer.Transmission(rec, false)
+			transport.DefaultTrans.Transmission(rec, false)
 		}
 	}
 }

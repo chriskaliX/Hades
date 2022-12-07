@@ -126,7 +126,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 		zap.S().Error(err)
 	}
 
-	txTPS, rxTPX := transport.DTransfer.GetState(now)
+	txTPS, rxTPX := transport.DefaultTrans.GetState(now)
 	m.TxTps = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	m.RxTps = strconv.FormatFloat(rxTPX, 'f', 8, 64)
 	m.Du = strconv.FormatUint(getDirSize(agent.Workdir, "plugin"), 10)
@@ -158,6 +158,6 @@ func (m *AgentMetric) Flush(now time.Time) {
 				Fields: fields,
 			},
 		}
-		transport.DTransfer.Transmission(rec, false)
+		transport.DefaultTrans.Transmission(rec, false)
 	}
 }

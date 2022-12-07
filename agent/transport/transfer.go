@@ -26,7 +26,7 @@ var (
 
 const size = 8186 // remain 6 space for importance, always available
 
-var DTransfer = NewTransfer()
+var DefaultTrans = New()
 
 type Transfer struct {
 	mu         sync.Mutex
@@ -37,7 +37,7 @@ type Transfer struct {
 	updateTime time.Time
 }
 
-func NewTransfer() *Transfer {
+func New() *Transfer {
 	return &Transfer{
 		buf:        [8192]*proto.Record{},
 		updateTime: time.Now(),
