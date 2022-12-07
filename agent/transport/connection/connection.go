@@ -41,6 +41,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	_ "google.golang.org/grpc/xds"
 )
 
@@ -49,24 +50,10 @@ var GrpcAddr string
 var InsecureTransport bool
 var InsecureTLS bool
 
-var GRPCConnection *Connection
+var DefaultConn *Connection
 
 var _ connection.INetRetry = (*Connection)(nil)
 
-// Grpc instance for establish connection with server in a load-balanced way
-//
-// In Elkeid, there is 3 ways of connection.
-//  1. service discovery
-//     It is done by the server (registry/detail). Client side query the
-//     service discovery host by look up the os env, and this is the reason
-//     that a setting-env operation is used in Elkeid in Task.
-//  2. private network
-//     private network addr, same with service discovery by env looking up.
-//  3. public network
-//     same way
-//
-// The os.Setenv way to cache the variables is also working in Windows.
-// Compatibility is not concerned for now.
 type Connection struct {
 	Addr     string
 	Options  []grpc.DialOption
@@ -86,34 +73,20 @@ func GetConnection(g *Connection, ctx context.Context) (conn *grpc.ClientConn, e
 func New() *Connection {
 	gConn := &Connection{
 		Options: []grpc.DialOption{
-			// Disable retry, which does not impact to transparent retry.
-			// Just let the IRetry to take over this
-			// grpc.WithDisableRetry(),
-			// Get connection failed details
-			grpc.WithReturnConnectionError(),
-			// FailOnNonTempDialError is an EXPERIMENTAL option for grpc
-			// connection and it uses with WithBlock. The PR is here
-			// https://github.com/grpc/grpc-go/pull/985
-			//
-			// Without the FailOnNonTempDialError, client will not retry
-			// for a temporary error like server restarts. For purpose of
-			// retrying, WithDisableRetry may should be moved since gRPC
-			// connection is a special case.
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
-			// Default timeout set, TODO: with context
-			grpc.WithTimeout(time.Second * 3),
+			// grpc.WithConnectParams(),
+			grpc.WithStatsHandler(&DefaultStatsHandler),
+			// grpc.WithResolvers(),
 		},
 		Addr: GrpcAddr,
 	}
 	zap.S().Infof("grpc addr: %s, insecure: %v, insecure-tls: %v", gConn.Addr, InsecureTransport, InsecureTLS)
 	// insecure transport, for debug
 	if InsecureTransport {
-		gConn.Options = append(gConn.Options, grpc.WithInsecure())
+		gConn.Options = append(gConn.Options, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
-		gConn.Options = append(gConn.Options,
-			grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig("hades.com"))),
-		)
+		gConn.Options = append(gConn.Options, grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig("hades.com"))))
 	}
 	return gConn
 }
@@ -143,6 +116,8 @@ func (g *Connection) GetHashMod() uint {
 
 // TODO: A look-aside LB is needed, for now, only server-side, dns
 func (g *Connection) Connect() (err error) {
-	g.Conn, err = grpc.Dial(g.Addr, g.Options...)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	g.Conn, err = grpc.DialContext(ctx, g.Addr, g.Options...)
 	return
 }

@@ -45,7 +45,7 @@ func LoadTLSConfig(host string) *tls.Config {
 		// in Elkeid/Hades.
 		ClientAuth: tls.RequireAndVerifyClientCert,
 		// Verify certificate by function, avoid MITM
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			zap.S().Info("grpc tls verify cert start")
 			certs := make([]*x509.Certificate, len(rawCerts))
 			// Totally by Elkeid, have not checked yet
