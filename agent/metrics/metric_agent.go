@@ -4,6 +4,7 @@ import (
 	"agent/agent"
 	"agent/proto"
 	"agent/transport"
+	"agent/transport/connection"
 	"os"
 	"runtime"
 	"strconv"
@@ -77,6 +78,8 @@ type AgentMetric struct {
 	Rss        string `mapstructure:"rss"`
 	ReadSpeed  string `mapstructure:"read_speed"`
 	WriteSpeed string `mapstructure:"write_speed"`
+	TxSpeed    string `mapstructure:"tx_speed"`
+	RxSpeed    string `mapstructure:"rx_speed"`
 	FdCnt      string `mapstructure:"fd_cnt"`
 	StartAt    string `mapstructure:"start_at"`
 	TxTps      string `mapstructure:"tx_tps"`
@@ -125,7 +128,9 @@ func (m *AgentMetric) Flush(now time.Time) {
 	} else {
 		zap.S().Error(err)
 	}
-
+	s := connection.DefaultStatsHandler.GetStats(now)
+	m.RxSpeed = strconv.FormatFloat(s.RxSpeed, 'f', 8, 64)
+	m.TxSpeed = strconv.FormatFloat(s.TxSpeed, 'f', 8, 64)
 	txTPS, rxTPX := transport.DefaultTrans.GetState(now)
 	m.TxTps = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	m.RxTps = strconv.FormatFloat(rxTPX, 'f', 8, 64)

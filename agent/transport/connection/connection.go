@@ -32,6 +32,9 @@ package connection
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"math/rand"
 	"time"
 
@@ -40,9 +43,9 @@ import (
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	_ "google.golang.org/grpc/xds"
 )
 
 // Grpc address
@@ -50,74 +53,130 @@ var GrpcAddr string
 var InsecureTransport bool
 var InsecureTLS bool
 
-var DefaultConn *Connection
+var DefaultConn = New()
+
+// Get the connection from gRPCConn
+func GetConnection(ctx context.Context) (conn *grpc.ClientConn, err error) {
+	var ok bool
+	conn, ok = DefaultConn.Conn.Load().(*grpc.ClientConn)
+	if ok {
+		// Connection pre check
+		switch conn.GetState() {
+		case connectivity.Idle:
+			// connect
+		case connectivity.Connecting, connectivity.TransientFailure:
+			conn.Close()
+		case connectivity.Ready:
+			return conn, nil
+		}
+	}
+	if err = connection.IRetry(DefaultConn, ctx); err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
 
 var _ connection.INetRetry = (*Connection)(nil)
 
 type Connection struct {
-	Addr     string
-	Options  []grpc.DialOption
-	Conn     *grpc.ClientConn
-	NetMode  atomic.String // to specific the network mode, just like Elkeid
-	Protocol atomic.String // xDS future
-}
-
-// Get the connection from gRPCConn
-func GetConnection(g *Connection, ctx context.Context) (conn *grpc.ClientConn, err error) {
-	if err = connection.IRetry(g, ctx); err != nil {
-		return nil, err
-	}
-	return g.Conn, nil
+	Addr    string
+	Options []grpc.DialOption
+	Conn    atomic.Value
+	NetMode atomic.String
 }
 
 func New() *Connection {
-	gConn := &Connection{
+	conn := &Connection{
 		Options: []grpc.DialOption{
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
-			// grpc.WithConnectParams(),
 			grpc.WithStatsHandler(&DefaultStatsHandler),
-			// grpc.WithResolvers(),
 		},
 		Addr: GrpcAddr,
 	}
-	zap.S().Infof("grpc addr: %s, insecure: %v, insecure-tls: %v", gConn.Addr, InsecureTransport, InsecureTLS)
+	zap.S().Infof("grpc addr: %s, insecure: %v, insecure-tls: %v", conn.Addr, InsecureTransport, InsecureTLS)
 	// insecure transport, for debug
+	var cred credentials.TransportCredentials
 	if InsecureTransport {
-		gConn.Options = append(gConn.Options, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cred = insecure.NewCredentials()
 	} else {
-		gConn.Options = append(gConn.Options, grpc.WithTransportCredentials(credentials.NewTLS(LoadTLSConfig("hades.com"))))
+		cred = credentials.NewTLS(conn.loadTLSConfig("hades.com"))
 	}
-	return gConn
+	conn.Options = append(conn.Options, grpc.WithTransportCredentials(cred))
+	return conn
 }
 
 // INetRetry Impls
-func (g *Connection) String() string {
-	return "grpc"
-}
+func (c *Connection) String() string { return "grpc" }
 
-func (g *Connection) GetMaxDelay() uint {
-	return 120
-}
+func (c *Connection) GetMaxDelay() uint { return 120 }
 
 // Retry forever, in case server shutdown or networking fluctuation
 // makes all agent shutdown
-func (g *Connection) GetMaxRetry() uint {
-	return 0
-}
+func (c *Connection) GetMaxRetry() uint { return 0 }
 
-func (g *Connection) GetInterval() uint {
-	return 3
-}
+func (c *Connection) GetInterval() uint { return 3 }
 
-func (g *Connection) GetHashMod() uint {
-	return uint(rand.Intn(10))
-}
+func (c *Connection) GetHashMod() uint { return uint(rand.Intn(10)) }
 
 // TODO: A look-aside LB is needed, for now, only server-side, dns
-func (g *Connection) Connect() (err error) {
+func (c *Connection) Connect() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	g.Conn, err = grpc.DialContext(ctx, g.Addr, g.Options...)
-	return
+	conn, err := grpc.DialContext(ctx, c.Addr, c.Options...)
+	if err != nil {
+		return err
+	}
+	c.Conn.Store(conn)
+	return nil
+}
+
+func (g *Connection) loadTLSConfig(host string) *tls.Config {
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(CaCert)
+	keyPair, _ := tls.X509KeyPair(ClientCert, ClientKey)
+	return &tls.Config{
+		// Elkeid has removed ServerName while InsecureSkipVerify is introduced.
+		// ServerName: host,
+		// Skip the verification step, by useing the VerifyPeerCertificate. In
+		// production environment, use `InsecureSkipVerify` with combination
+		// with `VerifyConnection` or `VerifyPeerCertificate`
+		//
+		// In Elkeid, InsecureSkipVerify is always true.
+		InsecureSkipVerify: InsecureTLS,
+		RootCAs:            certPool,
+		MinVersion:         tls.VersionTLS12,
+		Certificates:       []tls.Certificate{keyPair},
+		// Enforce the client cerificate during the handshake (server related)
+		// This is different with kolide/launcher since cert is always required
+		// in Elkeid/Hades.
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		// Verify certificate by function, avoid MITM
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			zap.S().Info("grpc tls verify cert start")
+			certs := make([]*x509.Certificate, len(rawCerts))
+			// Totally by Elkeid, have not checked yet
+			// get asn1 data from the server certs
+			for i, asn1Data := range rawCerts {
+				cert, err := x509.ParseCertificate(asn1Data)
+				if err != nil {
+					return errors.New("tls: failed to parse certificate from server: " + err.Error())
+				}
+				certs[i] = cert
+			}
+			opts := x509.VerifyOptions{
+				Roots:         certPool,
+				DNSName:       host,
+				Intermediates: x509.NewCertPool(),
+			}
+			for _, cert := range certs[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			_, err := certs[0].Verify(opts)
+			if err != nil {
+				zap.S().Errorln(err)
+			}
+			return err
+		},
+	}
 }

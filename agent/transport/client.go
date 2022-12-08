@@ -28,8 +28,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		default:
 			// get the connection
-			connection.DefaultConn = connection.New()
-			conn, err := connection.GetConnection(connection.DefaultConn, ctx)
+			conn, err := connection.GetConnection(ctx)
 			if err != nil {
 				continue
 			}
