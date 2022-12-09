@@ -6,8 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -15,30 +15,28 @@ import (
 	"go.uber.org/zap"
 )
 
-func CheckSignature(dst string, sign string) (err error) {
-	var (
-		f         *os.File
-		signBytes []byte
-	)
-	if f, err = os.Open(dst); err != nil {
-		return
+var downloadTimeout = 10 * time.Minute
+
+func CheckSignature(dst string, sign string) error {
+	f, err := os.Open(dst)
+	if err != nil {
+		return err
 	}
 	defer f.Close()
-	if signBytes, err = hex.DecodeString(sign); err != nil {
-		return
+	signBytes, err := hex.DecodeString(sign)
+	if err != nil {
+		return err
 	}
 	hasher := sha256.New()
-	//  https://pandaychen.github.io/2020/01/01/MAGIC-GO-IO-PACKAGE/
 	if _, err = io.Copy(hasher, f); err != nil {
-		return
+		return err
 	}
 	if !bytes.Equal(hasher.Sum(nil), signBytes) {
 		err = errors.New("signature doesn't match")
-		return
+		return err
 	}
-	// make it executable
 	f.Chmod(0o0700)
-	return
+	return nil
 }
 
 // Download function get the plugin executable file from urls
@@ -48,50 +46,63 @@ func CheckSignature(dst string, sign string) (err error) {
 // memory is always needed
 func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
 	var checksum []byte
+	// check wheater this already exist
 	if checksum, err = hex.DecodeString(sha256sum); err != nil {
 		return
 	}
 	hasher := sha256.New()
-	// extra work, but to simplify
 	if err = CheckSignature(dst, sha256sum); err == nil {
 		return
 	}
-	// in elkeid, `defer` in loop... emmm, not a best practice I think, but nothing wrong
+	// In Elkeid v1.9.1, only Timeout is different from DefaultTransport.
+	// Before v1.9.1 the timeout was controlled by subctx, now it is
+	// controlled by client itself.
+	client := &http.Client{
+		Transport: http.DefaultTransport,
+		Timeout:   downloadTimeout,
+	}
 	for _, rawurl := range urls {
 		var req *http.Request
 		var resp *http.Response
-		var buf []byte
-		subctx, cancel := context.WithTimeout(ctx, time.Minute*3)
+		subctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		if req, err = http.NewRequestWithContext(subctx, "GET", rawurl, nil); err != nil {
 			continue
 		}
-		if resp, err = http.DefaultClient.Do(req); err != nil {
+		if resp, err = client.Do(req); err != nil {
 			continue
 		}
 		if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
 			err = errors.New("http error: " + resp.Status)
 			continue
 		}
-		defer resp.Body.Close()
-		if buf, err = ioutil.ReadAll(resp.Body); err != nil {
-			continue
-		}
+		// Set the limitation of download, but I think it would be alright
+		// since the time limitation is also set. This configration helps
+		// avoid download too much to fill up the disk even within 10 mins.
+		resp.Body = http.MaxBytesReader(nil, resp.Body, 512*1024*1024)
 		hasher.Reset()
-		hasher.Write(buf)
-		if !bytes.Equal(hasher.Sum(nil), checksum) {
-			err = errors.New("checksum doesn't match")
-			continue
-		}
-		br := bytes.NewBuffer(buf)
-		zap.S().Info("start to decompress to ", dst)
+		// Before Elkeid v1.9.1, ioutil.ReadAll is used and it may
+		// lead memory grows rapidly since it reads everything into
+		// memeory, using io.TeeReader to both read from Reader and
+		// calculate the hash
+		// Also the decompress should be updated
+		r := io.TeeReader(resp.Body, hasher)
 		switch suffix {
 		case "tar.gz":
-			err = DecompressTarGz(dst, br)
+			err = DecompressTarGz(dst, r)
 		default:
-			err = DecompressDefault(dst, br)
+			err = DecompressDefault(dst, r)
 		}
-		break
+		resp.Body.Close()
+		if err != nil {
+			continue
+		}
+		if c := hex.EncodeToString(hasher.Sum(nil)); c != sha256sum {
+			err = fmt.Errorf("checksum doesn't match: %s vs %s", checksum, sha256sum)
+			zap.S().Error(err)
+		} else {
+			break
+		}
 	}
 	return
 }

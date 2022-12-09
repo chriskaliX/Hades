@@ -51,8 +51,8 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 			// stuck here
 			subWg.Wait()
 			cancel()
-			time.Sleep(5 * time.Second)
 			zap.S().Info("transfer has been canceled, wait next try to transfer for 5 seconds")
+			time.Sleep(5 * time.Second)
 		}
 	}
 }

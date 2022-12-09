@@ -70,7 +70,7 @@ func GetConnection(ctx context.Context) (conn *grpc.ClientConn, err error) {
 			return conn, nil
 		}
 	}
-	if err = connection.IRetry(DefaultConn, ctx); err != nil {
+	if err = connection.IRetry(ctx, DefaultConn); err != nil {
 		return nil, err
 	}
 	return conn, nil

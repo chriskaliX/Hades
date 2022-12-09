@@ -70,7 +70,6 @@ func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 	return nil
 }
 
-// Sync
 func (m *Manager) Sync(cfgs map[string]*proto.Config) (err error) {
 	select {
 	case m.syncCh <- cfgs:
