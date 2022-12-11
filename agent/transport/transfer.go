@@ -51,6 +51,7 @@ func (t *Transfer) Transmission(rec *proto.Record, important bool) (err error) {
 	if t.offset >= size {
 		if important && t.offset < len(t.buf) {
 			t.buf[t.offset] = rec
+			t.offset++
 		}
 		err = ErrBufferOverflow
 		return
@@ -66,6 +67,7 @@ func (t *Transfer) TransmissionSDK(rec protocol.ProtoType, important bool) (err 
 	if t.offset >= size {
 		if important && t.offset < len(t.buf) {
 			t.buf[t.offset] = rec.(*proto.Record)
+			t.offset++
 		}
 		err = ErrBufferOverflow
 		return
@@ -88,7 +90,7 @@ func (t *Transfer) Send(client proto.Transfer_TransferClient) (err error) {
 	t.offset = 0
 	t.mu.Unlock()
 	// Send the copy
-	err = client.Send(&proto.PackagedData{
+	if err = client.Send(&proto.PackagedData{
 		Records:      recs,
 		AgentId:      agent.ID,
 		IntranetIpv4: agent.PrivateIPv4.Load().([]string),
@@ -98,8 +100,7 @@ func (t *Transfer) Send(client proto.Transfer_TransferClient) (err error) {
 		Hostname:     agent.Hostname.Load().(string),
 		Version:      agent.Version,
 		Product:      agent.Product,
-	})
-	if err != nil {
+	}); err != nil {
 		zap.S().Error(err)
 	} else {
 		atomic.AddUint64(&t.txCnt, uint64(len(recs)))
@@ -120,6 +121,38 @@ func (t *Transfer) Receive(client proto.Transfer_TransferClient) (err error) {
 	// resolve task & config
 	t.resolveTask(cmd)
 	t.resolveConfig(cmd)
+	return
+}
+
+func (t *Transfer) GetState(now time.Time) (txTPS, rxTPS float64) {
+	instant := now.Sub(t.updateTime).Seconds()
+	if instant != 0 {
+		txTPS = float64(atomic.SwapUint64(&t.txCnt, 0)) / float64(instant)
+		rxTPS = float64(atomic.SwapUint64(&t.rxCnt, 0)) / float64(instant)
+	}
+	t.updateTime = now
+	return
+}
+
+func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
+	if cmd == nil || cmd.Configs == nil {
+		return
+	}
+	configs := map[string]*proto.Config{}
+	for _, config := range cmd.Configs {
+		configs[config.Name] = config
+	}
+	if config, ok := configs[agent.Product]; ok && config.Version != agent.Version {
+		zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, config.Version)
+		if err = agent.Update(*config); err == nil {
+			zap.S().Info("agent update successfully")
+			agent.Cancel()
+			return
+		}
+		zap.S().Error("agent update failed:", err)
+	}
+	delete(configs, agent.Product)
+	PluginConfigChan <- configs
 	return
 }
 
@@ -144,38 +177,5 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 	default:
 		PluginTaskChan <- cmd.Task
 	}
-	return
-}
-
-func (t *Transfer) GetState(now time.Time) (txTPS, rxTPS float64) {
-	instant := now.Sub(t.updateTime).Seconds()
-	if instant != 0 {
-		txTPS = float64(atomic.SwapUint64(&t.txCnt, 0)) / float64(instant)
-		rxTPS = float64(atomic.SwapUint64(&t.rxCnt, 0)) / float64(instant)
-	}
-	t.updateTime = now
-	return
-}
-
-func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
-	if cmd == nil || cmd.Configs == nil {
-		return
-	}
-	configs := map[string]*proto.Config{}
-	for _, config := range cmd.Configs {
-		configs[config.Name] = config
-	}
-
-	if config, ok := configs[agent.Product]; ok && config.Version != agent.Version {
-		zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, config.Version)
-		if err = agent.Update(*config); err == nil {
-			zap.S().Info("agent update successfully")
-			agent.Cancel()
-			return
-		}
-		zap.S().Error("agent update failed:", err)
-	}
-	delete(configs, agent.Product)
-	PluginConfigChan <- configs
 	return
 }

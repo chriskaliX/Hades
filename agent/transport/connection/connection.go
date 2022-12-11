@@ -36,10 +36,10 @@ import (
 	"crypto/x509"
 	"errors"
 	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/chriskaliX/SDK/util/connection"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
@@ -82,7 +82,7 @@ type Connection struct {
 	Addr    string
 	Options []grpc.DialOption
 	Conn    atomic.Value
-	NetMode atomic.String
+	NetMode atomic.Value
 }
 
 func New() *Connection {

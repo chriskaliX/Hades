@@ -13,11 +13,12 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/shirou/gopsutil/v3 v3.22.8
-	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.23.0
-	google.golang.org/grpc v1.49.0
+	google.golang.org/grpc v1.51.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
+
+require go.uber.org/atomic v1.7.0 // indirect
 
 require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
