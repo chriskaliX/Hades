@@ -112,20 +112,6 @@ func (r *Resolver) lookup() (*resolver.State, error) {
 	return &state, nil
 }
 
-// formatIP returns ok = false if addr is not a valid textual representation of an IP address.
-// If addr is an IPv4 address, return the addr and ok = true.
-// If addr is an IPv6 address, return the addr enclosed in square brackets and ok = true.
-func formatIP(addr string) (addrIP string, ok bool) {
-	ip := net.ParseIP(addr)
-	if ip == nil {
-		return "", false
-	}
-	if ip.To4() != nil {
-		return addr, true
-	}
-	return "[" + addr + "]", true
-}
-
 func (r *Resolver) lookupHost() ([]resolver.Address, error) {
 	addrs, err := r.resolver.LookupHost(r.ctx, r.host)
 	if err != nil {
@@ -161,4 +147,18 @@ func handleDNSError(err error, lookupType string) error {
 		logger.Info(err)
 	}
 	return err
+}
+
+// formatIP returns ok = false if addr is not a valid textual representation of an IP address.
+// If addr is an IPv4 address, return the addr and ok = true.
+// If addr is an IPv6 address, return the addr enclosed in square brackets and ok = true.
+func formatIP(addr string) (addrIP string, ok bool) {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return "", false
+	}
+	if ip.To4() != nil {
+		return addr, true
+	}
+	return "[" + addr + "]", true
 }
