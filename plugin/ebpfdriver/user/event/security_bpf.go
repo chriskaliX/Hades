@@ -66,6 +66,6 @@ func (SecurityBpf) GetProbes() []*manager.Probe {
 	}
 }
 
-func init() {
-	decoder.RegistEvent(&SecurityBpf{})
-}
+// func init() {
+// 	decoder.RegistEvent(&SecurityBpf{})
+// }

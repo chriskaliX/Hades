@@ -53,8 +53,8 @@ type Context struct {
 	// Nodename is the uts namespace nodename
 	Nodename string `json:"nodename"`
 	// Retval is the return value of the syscall
-	RetVal uint64 `json:"retval"`
-	Argnum uint8  `json:"-"`
+	RetVal int64 `json:"retval"`
+	Argnum uint8 `json:"-"`
 	// Padding field for memory align
 	_ [3]byte `json:"-"`
 	// Extra context value from event and user space
@@ -92,8 +92,8 @@ func (ctx *Context) DecodeContext(decoder *EbpfDecoder) error {
 	ctx.Comm = string(bytes.TrimRight(decoder.buffer[offset+52:offset+68], "\x00"))
 	ctx.PComm = string(bytes.TrimRight(decoder.buffer[offset+68:offset+84], "\x00"))
 	ctx.Nodename = string(bytes.Trim(decoder.buffer[offset+84:offset+148], "\x00"))
-	ctx.RetVal = uint64(binary.LittleEndian.Uint64(decoder.buffer[offset+148 : offset+156]))
-	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+156 : offset+168]))
+	ctx.RetVal = int64(binary.LittleEndian.Uint64(decoder.buffer[offset+152 : offset+160]))
+	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+160 : offset+168]))
 	decoder.cursor += ctx.GetSizeBytes()
 	return nil
 }

@@ -100,7 +100,7 @@ typedef struct data_context {
     char comm[TASK_COMM_LEN];    // command
     char pcomm[TASK_COMM_LEN];   // parent command
     char nodename[MAX_NODENAME]; // uts_name => 64, in tracee, it's 16 here
-    __u64 retval;                // return value(useful when it's exit or kill)
+    __s64 retval;                // return value(useful when it's exit or kill)
     __u8 argnum;                 // argnum
 } context_t;
 

@@ -41,7 +41,6 @@ int BPF_KPROBE(kprobe_security_socket_connect)
     default:
         return 0;
     }
-
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 1);
     return events_perf_submit(&data);
@@ -142,7 +141,7 @@ struct udpdata
 
 // @Reference: https://en.wikipedia.org/wiki/Domain_Name_System
 SEC("kretprobe/udp_recvmsg")
-int BPF_KRETPROBE(kretprobe_udp_recvmsg)
+int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     struct msghdr **msgpp = bpf_map_lookup_elem(&udpmsg, &pid_tgid);
@@ -199,6 +198,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
         if (context_filter(&data.context))
             return 0;
         data.context.type = UDP_RECVMSG;
+        data.context.retval = retval;
 
         int opcode = (string_p->buf[2] >> 3) & 0x0f;
         int rcode = string_p->buf[3] & 0x0f;

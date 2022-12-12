@@ -38,6 +38,12 @@ struct _sys_enter_execveat {
     int flags;
 };
 
+struct _sys_exit {
+    unsigned long long unused;
+    long syscall_nr;
+    long ret;
+};
+
 /*
  * In tracee, they do not capture the args since the pointer...
  * Reference:
@@ -97,6 +103,7 @@ int sys_exit_execve(void *ctx)
     if (context_filter(&data.context))
         goto delete;
     data.context.type = SYS_ENTER_EXECVE;
+    data.context.retval = READ_KERN(ctx->ret);
     /* filename
    * The filename contains dot slash thing. It's not abs path,
    * but the args[0] of execve(at)
