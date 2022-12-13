@@ -2,7 +2,6 @@ package decoder
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"hades-ebpf/user/helper"
 	"hades-ebpf/user/share"
@@ -166,7 +165,7 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 	}
 	// precheck size
 	if size >= 8192 {
-		err = errors.New(fmt.Sprintf("string size too long, size: %d", size))
+		err = fmt.Errorf("string size too long, size: %d", size)
 		return
 	}
 	buf := share.BufferPool.Get()

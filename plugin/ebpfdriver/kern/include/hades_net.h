@@ -14,35 +14,50 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-SEC("kprobe/security_socket_connect")
-int BPF_KPROBE(kprobe_security_socket_connect)
+BPF_LRU_HASH(tcp_connect_cache, u64, struct sk *, 1024);
+
+// The pointer should by avaliable through the whole process. Just save the pointer
+SEC("kprobe/tcp_connect")
+int BPF_KPROBE(kprobe_tcp_connect)
 {
+    struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+    if (sk == 0)
+        return 0;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    return bpf_map_update_elem(&tcp_connect_cache, &pid_tgid, &sk, BPF_ANY);
+}
+
+SEC("kretprobe/tcp_connect")
+int BPF_KRETPROBE(kretprobe_tcp_connect)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct sock **skp = bpf_map_lookup_elem(&tcp_connect_cache, &pid_tgid);
+    if (skp == 0)
+        return 0;
+    struct sock *sk = (struct sock *)*skp;
+
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SECURITY_SOCKET_CONNECT;
+    data.context.type = SYSCONNECT;
 
-    struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
-    if (!address)
-        return 0;
-    sa_family_t sa_fam = READ_KERN(address->sa_family);
-    if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
-        return 0;
-    switch (sa_fam)
-    {
-    case AF_INET:
-        save_to_submit_buf(&data, (void *)address, sizeof(struct sockaddr_in), 0);
-        break;
-    case AF_INET6:
-        save_to_submit_buf(&data, (void *)address, sizeof(struct sockaddr_in6), 0);
-        break;
-    default:
+    u16 family = READ_KERN(sk->sk_family);
+    save_to_submit_buf(&data, &family, sizeof(u16), 0);
+    if (family == AF_INET) {
+        net_conn_v4_t net_details = {};
+        get_network_details_from_sock_v4(sk, &net_details, 0);
+        save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
+    } else if (family == AF_INET6) {
+        net_conn_v6_t net_details = {};
+        get_network_details_from_sock_v6(sk, &net_details, 0);
+        save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v6), 1);
+    } else {
         return 0;
     }
     void *exe = get_exe_from_task(data.task);
-    save_str_to_buf(&data, exe, 1);
+    save_str_to_buf(&data, exe, 2);
     return events_perf_submit(&data);
 }
 

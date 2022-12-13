@@ -434,6 +434,7 @@ inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
     return sk_fullsock ? pinet6_own_impl : NULL;
 }
 
+// From tracee
 static __always_inline int
 get_network_details_from_sock_v6(struct sock *sk, net_conn_v6_t *net_details,
                                  int peer)
