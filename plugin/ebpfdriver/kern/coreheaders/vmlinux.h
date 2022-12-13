@@ -1623,6 +1623,9 @@ struct range {
 	u64 end;
 };
 
+// pt_regs different from arch x86 and arm64
+#if defined(__TARGET_ARCH_x86)
+
 struct pt_regs {
 	long unsigned int r15;
 	long unsigned int r14;
@@ -1646,6 +1649,37 @@ struct pt_regs {
 	long unsigned int sp;
 	long unsigned int ss;
 };
+
+#elif defined(__TARGET_ARCH_arm64)
+
+struct user_pt_regs {
+    __u64 regs[31];
+    __u64 sp;
+    __u64 pc;
+    __u64 pstate;
+};
+
+struct pt_regs {
+    union {
+        struct user_pt_regs user_regs;
+        struct {
+            u64 regs[31];
+            u64 sp;
+            u64 pc;
+            u64 pstate;
+        };
+    };
+    u64 orig_x0;
+    s32 syscallno;
+    u32 unused2;
+    u64 orig_addr_limit;
+    u64 pmr_save;
+    u64 stackframe[2];
+    u64 lockdep_hardirqs;
+    u64 exit_rcu;
+};
+
+#endif
 
 struct math_emu_info {
 	long int ___orig_eip;
