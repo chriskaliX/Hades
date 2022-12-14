@@ -120,11 +120,13 @@ func (s *SysConnect) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 func (SysConnect) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
+			UID:              "KprobeTcpConnect",
 			Section:          "kprobe/tcp_connect",
 			EbpfFuncName:     "kprobe_tcp_connect",
 			AttachToFuncName: "tcp_connect",
 		},
 		{
+			UID:              "KretprobeTcpConnect",
 			Section:          "kretprobe/tcp_connect",
 			EbpfFuncName:     "kretprobe_tcp_connect",
 			AttachToFuncName: "tcp_connect",

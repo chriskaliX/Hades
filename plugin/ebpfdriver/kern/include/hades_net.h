@@ -14,17 +14,18 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-BPF_LRU_HASH(tcp_connect_cache, u64, struct sk *, 1024);
+BPF_LRU_HASH(tcp_connect_cache, u64, struct sk *, 2048);
 
 // The pointer should by avaliable through the whole process. Just save the pointer
-SEC("kprobe/tcp_connect")
+SEC("kprobe/tcp_connect") // tcp_v4_(v6)_connect
 int BPF_KPROBE(kprobe_tcp_connect)
 {
     struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
     if (sk == 0)
         return 0;
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    return bpf_map_update_elem(&tcp_connect_cache, &pid_tgid, &sk, BPF_ANY);
+    bpf_map_update_elem(&tcp_connect_cache, &pid_tgid, &sk, BPF_ANY);
+    return 0;
 }
 
 SEC("kretprobe/tcp_connect")
@@ -42,6 +43,7 @@ int BPF_KRETPROBE(kretprobe_tcp_connect)
     if (context_filter(&data.context))
         return 0;
     data.context.type = SYSCONNECT;
+    data.context.retval = PT_REGS_RC(ctx);
 
     u16 family = READ_KERN(sk->sk_family);
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
@@ -54,10 +56,12 @@ int BPF_KRETPROBE(kretprobe_tcp_connect)
         get_network_details_from_sock_v6(sk, &net_details, 0);
         save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v6), 1);
     } else {
+        bpf_map_delete_elem(&tcp_connect_cache, &pid_tgid);
         return 0;
     }
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 2);
+    bpf_map_delete_elem(&tcp_connect_cache, &pid_tgid);
     return events_perf_submit(&data);
 }
 

@@ -5,6 +5,7 @@ import (
 	"agent/proto"
 	"agent/transport/pool"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -120,6 +121,7 @@ func (t *Transfer) Receive(client proto.Transfer_TransferClient) (err error) {
 	atomic.AddUint64(&t.rxCnt, 1)
 	// resolve task & config
 	t.resolveTask(cmd)
+	agent.SetRunning()
 	t.resolveConfig(cmd)
 	return
 }
@@ -150,6 +152,7 @@ func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
 			return
 		}
 		zap.S().Error("agent update failed:", err)
+		agent.SetAbnormal(fmt.Sprintf("agent update failed: %s", err))
 	}
 	delete(configs, agent.Product)
 	PluginConfigChan <- configs

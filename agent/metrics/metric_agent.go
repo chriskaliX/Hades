@@ -73,20 +73,22 @@ type AgentMetric struct {
 	BootTime        string `mapstructure:"boot_at"`
 	TotalMemory     string `mapstructure:"total_memory"`
 	// Agent related inforamtion
-	Pid        string `mapstructure:"pid"`
-	Cpu        string `mapstructure:"cpu"`
-	Rss        string `mapstructure:"rss"`
-	ReadSpeed  string `mapstructure:"read_speed"`
-	WriteSpeed string `mapstructure:"write_speed"`
-	TxSpeed    string `mapstructure:"tx_speed"`
-	RxSpeed    string `mapstructure:"rx_speed"`
-	FdCnt      string `mapstructure:"fd_cnt"`
-	StartAt    string `mapstructure:"start_at"`
-	TxTps      string `mapstructure:"tx_tps"`
-	RxTps      string `mapstructure:"rx_tps"`
-	Du         string `mapstructure:"du"`
-	Grs        string `mapstructure:"grs"`
-	Nproc      string `mapstructure:"nproc"`
+	Pid         string `mapstructure:"pid"`
+	Cpu         string `mapstructure:"cpu"`
+	Rss         string `mapstructure:"rss"`
+	ReadSpeed   string `mapstructure:"read_speed"`
+	WriteSpeed  string `mapstructure:"write_speed"`
+	TxSpeed     string `mapstructure:"tx_speed"`
+	RxSpeed     string `mapstructure:"rx_speed"`
+	FdCnt       string `mapstructure:"fd_cnt"`
+	StartAt     string `mapstructure:"start_at"`
+	TxTps       string `mapstructure:"tx_tps"`
+	RxTps       string `mapstructure:"rx_tps"`
+	Du          string `mapstructure:"du"`
+	Grs         string `mapstructure:"grs"`
+	Nproc       string `mapstructure:"nproc"`
+	State       string `mapstructure:"state"`
+	StateDetail string `mapstructure:"state_detail"`
 	// Host related information
 	SysCpu string `mapstructure:"sys_cpu"`
 	SysMem string `mapstructure:"sys_mem"`
@@ -137,6 +139,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 	m.Du = strconv.FormatUint(getDirSize(agent.Workdir, "plugin"), 10)
 	m.Grs = strconv.Itoa(runtime.NumGoroutine())
 	m.Nproc = strconv.Itoa(runtime.NumCPU())
+	m.State, m.StateDetail = agent.State()
 
 	if cpuPercents, err := cpu.Percent(0, false); err == nil {
 		m.SysCpu = strconv.FormatFloat(cpuPercents[0], 'f', 8, 64)

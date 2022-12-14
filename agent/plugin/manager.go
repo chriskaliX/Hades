@@ -60,6 +60,7 @@ func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 	}
 	plg, err := server.NewServer(ctx, agent.Workdir, &cfg)
 	if err != nil {
+		agent.SetAbnormal(fmt.Sprintf("plugin % starts failed: %s", cfg.Name, err))
 		return
 	}
 	plg.Wg().Add(3)
@@ -92,6 +93,7 @@ func (m *Manager) UnRegister(name string) (err error) {
 	plg.Shutdown()
 	m.plugins.Delete(name)
 	if err = os.RemoveAll(plg.GetWorkingDirectory()); err != nil {
+		agent.SetAbnormal(fmt.Sprintf("%s remove work dir failed: %s", name, err.Error()))
 		return
 	}
 	return
