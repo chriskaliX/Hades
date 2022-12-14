@@ -14,10 +14,11 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-BPF_LRU_HASH(tcp_connect_cache, u64, struct sk *, 2048);
+BPF_LRU_HASH(tcp_connect_cache, u64, struct sock *, 1024);
 
 // The pointer should by avaliable through the whole process. Just save the pointer
-SEC("kprobe/tcp_connect") // tcp_v4_(v6)_connect
+// TODO: need fix
+SEC("kprobe/tcp_connect")
 int BPF_KPROBE(kprobe_tcp_connect)
 {
     struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
@@ -28,7 +29,7 @@ int BPF_KPROBE(kprobe_tcp_connect)
     return 0;
 }
 
-SEC("kretprobe/tcp_connect")
+SEC("kretprobe/connect")
 int BPF_KRETPROBE(kretprobe_tcp_connect)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();

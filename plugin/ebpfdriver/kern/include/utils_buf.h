@@ -440,7 +440,8 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
             if (buf->envp_cursor >
                 (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
                 goto out;
-            if (has_prefix(ssh_connection,
+            if (ssh_connection_flag == 0 &&
+                has_prefix(ssh_connection,
                            (char *)&(buf->envp[buf->envp_cursor + sizeof(int)]),
                            9)) {
                 ssh_connection_flag = 1;

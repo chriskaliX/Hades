@@ -127,9 +127,9 @@ func (SysConnect) GetProbes() []*manager.Probe {
 		},
 		{
 			UID:              "KretprobeTcpConnect",
-			Section:          "kretprobe/tcp_connect",
+			Section:          "kretprobe/connect",
 			EbpfFuncName:     "kretprobe_tcp_connect",
-			AttachToFuncName: "tcp_connect",
+			AttachToFuncName: "connect",
 		},
 	}
 }
