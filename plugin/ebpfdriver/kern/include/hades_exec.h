@@ -38,12 +38,6 @@ struct _sys_enter_execveat {
     int flags;
 };
 
-struct _sys_exit {
-    unsigned long long unused;
-    long syscall_nr;
-    long ret;
-};
-
 /*
  * In tracee, they do not capture the args since the pointer...
  * Reference:

@@ -708,6 +708,24 @@ static __always_inline void *get_exe_from_task(struct task_struct *task)
     return path;
 }
 
+// Hades wrapper of kernel sockfd_lookup with sock return
+static __always_inline struct sock *hades_sockfd_lookup(int fd)
+{
+    struct file *file = file_get_raw(fd);
+    if (file == NULL)
+        return NULL;
+    // socket_from_file
+    const struct file_operations *f_op = READ_KERN(file->f_op);
+    if (f_op == NULL)
+        return NULL;
+    // missing f_op check here
+    struct socket *socket = READ_KERN(file->private_data);
+    if (socket == NULL)
+        return NULL;
+    struct sock *sock = READ_KERN(socket->sk);
+    return sock;
+}
+
 // In tracee, the field protocol is generate by the function `get_sock_protocol`
 // which differ from kernel version, kinda interestring, let's find out.
 // the sock struct is defined in `net/sock.h`. It's a massive struct, but what

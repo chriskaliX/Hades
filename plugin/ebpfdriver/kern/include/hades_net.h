@@ -14,40 +14,62 @@
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
 
-BPF_LRU_HASH(tcp_connect_cache, u64, struct sock *, 1024);
+struct _sys_enter_connect {
+    unsigned long long unused;
+    long syscall_nr;
+    int fd;
+    struct sockaddr *uservaddr;
+    int addr;
+};
+
+typedef struct net_ctx {
+    int fd;
+	sa_family_t sa_family;
+	// char sa_data[14];
+    int addr;
+} net_ctx_t;
+
+BPF_LRU_HASH(connect_cache, u64, net_ctx_t, 1024);
 
 // The pointer should by avaliable through the whole process. Just save the pointer
-// TODO: need fix
-SEC("kprobe/tcp_connect")
-int BPF_KPROBE(kprobe_tcp_connect)
+SEC("tracepoint/syscalls/sys_enter_connect")
+int sys_enter_connect(struct _sys_enter_connect *ctx)
 {
-    struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
-    if (sk == 0)
+    net_ctx_t net_ctx;
+    struct sockaddr* sa = READ_KERN(ctx->uservaddr);
+    if (sa == 0)
         return 0;
+    net_ctx.fd = READ_KERN(ctx->fd);
+    net_ctx.addr = READ_KERN(ctx->addr);
+    // __builtin_memcpy(net_ctx.sa_data, READ_KERN(sa->sa_data), 14);
+    net_ctx.sa_family = READ_KERN(sa->sa_family);
+
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    bpf_map_update_elem(&tcp_connect_cache, &pid_tgid, &sk, BPF_ANY);
-    return 0;
+    return bpf_map_update_elem(&connect_cache, &pid_tgid, &net_ctx, BPF_ANY);
 }
 
-SEC("kretprobe/connect")
-int BPF_KRETPROBE(kretprobe_tcp_connect)
+SEC("tracepoint/syscalls/sys_exit_connect")
+int sys_exit_connect(struct _sys_exit *ctx)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct sock **skp = bpf_map_lookup_elem(&tcp_connect_cache, &pid_tgid);
-    if (skp == 0)
+    net_ctx_t *net_ctx = bpf_map_lookup_elem(&connect_cache, &pid_tgid);
+    if (net_ctx == 0)
         return 0;
-    struct sock *sk = (struct sock *)*skp;
-
+    
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
     if (context_filter(&data.context))
         return 0;
     data.context.type = SYSCONNECT;
-    data.context.retval = PT_REGS_RC(ctx);
+    data.context.retval = READ_KERN(ctx->ret);
 
-    u16 family = READ_KERN(sk->sk_family);
+    u16 family = READ_KERN(net_ctx->sa_family);
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
+    int fd = READ_KERN(net_ctx->fd);
+    struct sock *sk = hades_sockfd_lookup(fd);
+    if (sk == NULL)
+        return 0;
     if (family == AF_INET) {
         net_conn_v4_t net_details = {};
         get_network_details_from_sock_v4(sk, &net_details, 0);
@@ -57,12 +79,12 @@ int BPF_KRETPROBE(kretprobe_tcp_connect)
         get_network_details_from_sock_v6(sk, &net_details, 0);
         save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v6), 1);
     } else {
-        bpf_map_delete_elem(&tcp_connect_cache, &pid_tgid);
+        bpf_map_delete_elem(&connect_cache, &pid_tgid);
         return 0;
     }
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 2);
-    bpf_map_delete_elem(&tcp_connect_cache, &pid_tgid);
+    bpf_map_delete_elem(&connect_cache, &pid_tgid);
     return events_perf_submit(&data);
 }
 
