@@ -95,7 +95,7 @@ func (r Readline) checkLibray() (libpath string, err error) {
 		}
 	}
 	if libname == "" {
-		err = errors.New("No libreadline.so is found, use /bin/bash")
+		err = errors.New("libreadline.so is found, use /bin/bash")
 		return
 	}
 	var paths = GetDynLibDirs()

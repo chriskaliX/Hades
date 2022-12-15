@@ -15,6 +15,8 @@ type InodeCreate struct {
 	Filename           string `json:"filename"`
 	Dport              uint16 `json:"dport"`
 	Dip                string `json:"dip"`
+	Sport              uint16 `json:"sport"`
+	Sip                string `json:"sip"`
 	Family             uint16 `json:"family"`
 }
 
@@ -37,7 +39,7 @@ func (i *InodeCreate) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	if i.Filename, err = e.DecodeString(); err != nil {
 		return
 	}
-	if i.Family, i.Dport, i.Dip, err = e.DecodeRemoteAddr(); err != nil {
+	if i.Family, i.Sport, i.Dport, i.Sip, i.Dip, err = e.DecodeAddr(); err != nil {
 		return
 	}
 	return

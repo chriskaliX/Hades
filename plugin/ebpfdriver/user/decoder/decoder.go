@@ -178,6 +178,7 @@ func (decoder *EbpfDecoder) DecodeString() (s string, err error) {
 	return
 }
 
+// Deprecated
 func (decoder *EbpfDecoder) DecodeRemoteAddr() (family, port uint16, addr string, err error) {
 	var (
 		_addr uint32
@@ -216,6 +217,83 @@ func (decoder *EbpfDecoder) DecodeRemoteAddr() (family, port uint16, addr string
 		if err = decoder.DecodeUint32BigEndian(&_flowinfo); err != nil {
 			return
 		}
+	}
+	return
+}
+
+func (decoder *EbpfDecoder) DecodeAddr() (family, sport, dport uint16, sip, dip string, err error) {
+	var index uint8
+	// get family firstly
+	if err = decoder.DecodeUint8(&index); err != nil {
+		return
+	}
+	if err = decoder.DecodeUint16(&family); err != nil {
+		return
+	}
+	if err = decoder.DecodeUint8(&index); err != nil {
+		return
+	}
+	switch family {
+	case 0, 2:
+		// Pay attention to memory align
+		var _addr uint32
+		if err = decoder.DecodeUint32BigEndian(&_addr); err != nil {
+			return
+		}
+		sip = helper.PrintUint32IP(_addr)
+		if err = decoder.DecodeUint16BigEndian(&sport); err != nil {
+			return
+		}
+		decoder.ReadByteSliceFromBuff(2)
+		if err = decoder.DecodeUint32BigEndian(&_addr); err != nil {
+			return
+		}
+		dip = helper.PrintUint32IP(_addr)
+		if err = decoder.DecodeUint16BigEndian(&dport); err != nil {
+			return
+		}
+		decoder.ReadByteSliceFromBuff(2)
+	case 10:
+		// struct in6_addr {
+		// 	union {
+		// 		__u8 u6_addr8[16];
+		// 		__be16 u6_addr16[8];
+		// 		__be32 u6_addr32[4];
+		// 	} in6_u;
+		// };
+		// typedef struct network_connection_v6 {
+		// 	struct in6_addr local_address;
+		// 	__u16 local_port;
+		// 	struct in6_addr remote_address;
+		// 	__u16 remote_port;
+		// 	__u32 flowinfo;
+		// 	__u32 scope_id;
+		// } net_conn_v6_t;
+		var _addr []byte = make([]byte, 16)
+		// local ip
+		if err = decoder.DecodeBytes(_addr, 16); err != nil {
+			return
+		}
+		sip = helper.Print16BytesSliceIP(_addr)
+		// local port
+		if err = decoder.DecodeUint16BigEndian(&sport); err != nil {
+			return
+		}
+		decoder.ReadByteSliceFromBuff(2)
+		// remote ip
+		if err = decoder.DecodeBytes(_addr, 16); err != nil {
+			return
+		}
+		dip = helper.Print16BytesSliceIP(_addr)
+		// remote port
+		if err = decoder.DecodeUint16BigEndian(&dport); err != nil {
+			return
+		}
+		// Align and unused field clean up
+		decoder.ReadByteSliceFromBuff(10)
+	default:
+		err = fmt.Errorf("family %d not support", family)
+		return
 	}
 	return
 }

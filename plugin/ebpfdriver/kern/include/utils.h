@@ -614,21 +614,15 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
                 family = READ_KERN(sk->sk_family);
                 if (family == AF_INET) {
                     net_conn_v4_t net_details = {};
-                    struct sockaddr_in remote;
+                    save_to_submit_buf(data, &family, sizeof(u16), index);
                     get_network_details_from_sock_v4(sk, &net_details, 0);
-                    get_remote_sockaddr_in_from_network_details(
-                            &remote, (void *)&net_details, family);
-                    save_to_submit_buf(data, &remote,
-                                       sizeof(struct sockaddr_in), index);
+                    save_to_submit_buf(data, &net_details, sizeof(struct network_connection_v4), index);
                     return 1;
                 } else if (family == AF_INET6) {
                     net_conn_v6_t net_details = {};
-                    struct sockaddr_in6 remote;
+                    save_to_submit_buf(data, &family, sizeof(u16), index);
                     get_network_details_from_sock_v6(sk, &net_details, 0);
-                    get_remote_sockaddr_in6_from_network_details(
-                            &remote, &net_details, family);
-                    save_to_submit_buf(data, &remote,
-                                       sizeof(struct sockaddr_in6), index);
+                    save_to_submit_buf(data, &net_details, sizeof(struct network_connection_v6), index);
                     return 1;
                 }
             }
@@ -642,9 +636,10 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
  * SS_FREE/SS_UNCONNECTED or any possible new states are to be skipped */
 static __always_inline __u32 get_socket_info(event_data_t *data, u8 index)
 {
-    struct sockaddr_in remote;
+    net_conn_v4_t net_details = {};
     struct files_struct *files = NULL;
     struct fdtable *fdt = NULL;
+    int family = 0;
 
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL)
@@ -673,10 +668,8 @@ static __always_inline __u32 get_socket_info(event_data_t *data, u8 index)
         task = READ_KERN(task->real_parent);
     }
 exit:
-    remote.sin_family = 0;
-    remote.sin_port = 0;
-    remote.sin_addr.s_addr = 0;
-    save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+    save_to_submit_buf(data, &family, sizeof(u16), index);
+    save_to_submit_buf(data, &net_details, sizeof(struct network_connection_v4), index);
     return 0;
 }
 
