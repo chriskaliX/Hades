@@ -31,7 +31,6 @@ const configMap = "config_map"
 const conf_DENY_BPF uint32 = 0
 const conf_STEXT uint32 = 1
 const conf_ETEXT uint32 = 2
-const eventMap = "exec_events"
 
 // filters
 const filterPid = "pid_filter"
@@ -67,7 +66,15 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
 			{
-				Map: manager.Map{Name: eventMap},
+				Map: manager.Map{Name: "exec_events"},
+				PerfMapOptions: manager.PerfMapOptions{
+					PerfRingBufferSize: 256 * os.Getpagesize(),
+					DataHandler:        driver.dataHandler,
+					LostHandler:        driver.lostHandler,
+				},
+			},
+			{
+				Map: manager.Map{Name: "net_events"},
 				PerfMapOptions: manager.PerfMapOptions{
 					PerfRingBufferSize: 256 * os.Getpagesize(),
 					DataHandler:        driver.dataHandler,
@@ -202,7 +209,6 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	eventDecoder.SetContext(ctx)
 	err = eventDecoder.DecodeEvent(decoder.DefaultDecoder)
 	if err == event.ErrFilter {
-		// it's been filtered
 		return
 	}
 	if err != nil {

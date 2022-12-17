@@ -12,6 +12,8 @@ import (
 type Event interface {
 	// ID returns the unique id for event
 	ID() uint32
+	// Name returns the name of the event
+	Name() string
 	// GetExe returns the exe from the event, if it is not collected
 	// return a empty string
 	GetExe() string
@@ -21,8 +23,6 @@ type Event interface {
 	Context() *Context
 	// DecodeEvent decodes buffer into event struct
 	DecodeEvent(*EbpfDecoder) error
-	// Name returns the name of the event
-	Name() string
 	// GetProbes returns the bpf probe used in the event
 	GetProbes() []*manager.Probe
 	// GetMaps returns the bpf map used in the event

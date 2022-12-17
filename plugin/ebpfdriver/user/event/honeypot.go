@@ -41,15 +41,15 @@ func (HoneyPot) GetExe() string {
 func (HoneyPot) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			Section:       "xdp/ingress",
-			EbpfFuncName:  "hades_xdp",
-			Ifindex:       0,
-			Ifname:        "eth0",
-			XDPAttachMode: manager.XdpAttachModeSkb,
+			Section:          "classifier/ingress",
+			EbpfFuncName:     "hades_ingress",
+			Ifindex:          0,
+			Ifname:           "eth0",
+			NetworkDirection: manager.Ingress,
 		},
 	}
 }
 
-// func init() {
-// 	decoder.RegistEvent(&HoneyPot{})
-// }
+func init() {
+	decoder.RegistEvent(&HoneyPot{})
+}

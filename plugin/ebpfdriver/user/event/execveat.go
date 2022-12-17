@@ -20,7 +20,9 @@ type ExecveAt struct {
 	Stdin              string `json:"stdin"`
 	Stdout             string `json:"stdout"`
 	Dport              uint16 `json:"dport"`
+	Sport              uint16 `json:"sport"`
 	Dip                string `json:"dip"`
+	Sip                string `json:"sip"`
 	Family             uint16 `json:"family"`
 	SocketPid          uint32 `json:"socket_pid"`
 	SocketArgv         string `json:"socket_argv"`
@@ -66,7 +68,7 @@ func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	if e.Stdout, err = decoder.DecodeString(); err != nil {
 		return
 	}
-	if e.Family, e.Dport, e.Dip, err = decoder.DecodeRemoteAddr(); err != nil {
+	if e.Family, e.Sport, e.Dport, e.Sip, e.Dip, err = decoder.DecodeAddr(); err != nil {
 		return
 	}
 	if err = decoder.DecodeUint8(&dummy); err != nil {

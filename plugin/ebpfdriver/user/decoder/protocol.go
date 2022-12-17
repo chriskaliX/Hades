@@ -25,38 +25,23 @@ func init() {
 // Context contains the kern space struct data_context and the
 // user space extra field from the path
 type Context struct {
-	// Starttime from bpf_ktime_get_ns() returns the time
-	// elasped since system boot in nanoseconds
-	Starttime uint64 `json:"starttime"`
-	// CgroupID from bpf_get_current_cgroup_id() which
-	// returns the current cgroup id
-	CgroupID uint64 `json:"cgroupid"`
-	// Pns is the pid namespace
-	Pns uint32 `json:"pns"`
-	// Type returns the type of the syscall
-	Type uint32 `json:"type"`
-	Pid  uint32 `json:"pid"`
-	Tid  uint32 `json:"tid"`
-	Uid  uint32 `json:"uid"`
-	Gid  uint32 `json:"gid"`
-	// Ppid is the parent pid of the event
-	Ppid uint32 `json:"ppid"`
-	// Pgid is the process group id
-	Pgid uint32 `json:"pgid"`
-	// SessionID is get from task->sessionid. It usually
-	// indicates the tty number
-	SessionID uint32 `json:"sessionid"`
-	// Comm is the task->comm
-	Comm string `json:"comm"`
-	// PComm is the parent task->comm
-	PComm string `json:"pcomm"`
-	// Nodename is the uts namespace nodename
-	Nodename string `json:"nodename"`
-	// Retval is the return value of the syscall
-	RetVal int64 `json:"retval"`
-	Argnum uint8 `json:"-"`
-	// Padding field for memory align
-	_ [3]byte `json:"-"`
+	Starttime uint64  `json:"starttime"` // elasped since system boot in nanoseconds
+	CgroupID  uint64  `json:"cgroupid"`
+	Pns       uint32  `json:"pns"`  // pid namespace
+	Type      uint32  `json:"type"` // Type returns the type of the syscall
+	Pid       uint32  `json:"pid"`
+	Tid       uint32  `json:"tid"`
+	Uid       uint32  `json:"uid"`
+	Gid       uint32  `json:"gid"`
+	Ppid      uint32  `json:"ppid"` // Ppid is the parent pid of the event
+	Pgid      uint32  `json:"pgid"` // Pgid is the process group id
+	SessionID uint32  `json:"sessionid"`
+	Comm      string  `json:"comm"`     // Comm is the task->comm
+	PComm     string  `json:"pcomm"`    // PComm is the parent task->comm
+	Nodename  string  `json:"nodename"` // Nodename is the uts namespace nodename
+	RetVal    int64   `json:"retval"`   // Retval is the return value of the syscall
+	Argnum    uint8   `json:"-"`
+	_         [3]byte `json:"-"` // Padding field for memory align
 	// Extra context value from event and user space
 	ExeHash  string `json:"exe_hash"`
 	Username string `json:"username"`
