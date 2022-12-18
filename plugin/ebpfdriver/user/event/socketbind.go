@@ -11,12 +11,11 @@ import (
 var _ decoder.Event = (*SocketBind)(nil)
 
 type SocketBind struct {
-	decoder.BasicEvent `json:"-"`
-	Family             int16  `json:"family"`
-	LocalPort          string `json:"local_port"`
-	LocalAddr          string `json:"local_addr"`
-	Protocol           uint16 `json:"protocol"`
-	Exe                string `json:"-"`
+	Family    int16  `json:"family"`
+	LocalPort string `json:"local_port"`
+	LocalAddr string `json:"local_addr"`
+	Protocol  uint16 `json:"protocol"`
+	Exe       string `json:"-"`
 }
 
 func (SocketBind) ID() uint32 {
@@ -95,6 +94,12 @@ func (SocketBind) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (SocketBind) GetMaps() []*manager.Map {
+	return nil
+}
+
+func (SocketBind) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&SocketBind{})

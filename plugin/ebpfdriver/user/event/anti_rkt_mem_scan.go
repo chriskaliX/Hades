@@ -2,7 +2,6 @@ package event
 
 import (
 	"errors"
-	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/helper"
 
@@ -14,14 +13,15 @@ var _ decoder.Event = (*MemScan)(nil)
 // The mapping of syscall index and it's name is not used now
 // so the syscall_name is always empty
 type MemScan struct {
-	decoder.BasicEvent `json:"-"`
-	Address            uint64 `json:"address"`
-	Count              uint32 `json:"count"`
+	Address uint64 `json:"address"`
+	Count   uint32 `json:"count"`
 }
 
 func (MemScan) ID() uint32 {
 	return 1207
 }
+
+func (MemScan) GetExe() string { return "" }
 
 func (s *MemScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
@@ -44,10 +44,8 @@ func (s *MemScan) Trigger(m *manager.Manager) error {
 	table := helper.Ksyms.Get("vmap_area_list")
 	if table == nil {
 		err := errors.New("vmap_area_list is not found")
-		fmt.Println(err)
 		return err
 	}
-	fmt.Println("triggered")
 	s.trigger(table.Address)
 	return nil
 }
@@ -72,6 +70,8 @@ func (MemScan) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (MemScan) GetMaps() []*manager.Map { return nil }
 
 // func init() {
 // 	decoder.RegistEvent(&MemScan{})

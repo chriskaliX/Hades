@@ -5,8 +5,7 @@ package event
 // var _ decoder.Event = (*JVM)(nil)
 
 // type JVM struct {
-// 	decoder.BasicEvent `json:"-"`
-// 	Exe                string `json:"-"`
+// 	// 	Exe                string `json:"-"`
 // }
 
 // func (JVM) ID() uint32 {

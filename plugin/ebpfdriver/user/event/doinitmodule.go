@@ -9,12 +9,11 @@ import (
 var _ decoder.Event = (*DoInitModule)(nil)
 
 type DoInitModule struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Modname            string `json:"modname"`
-	Pidtree            string `json:"pid_tree"`
-	Cwd                string `json:"cwd"`
-	PrivEscalation     uint8  `json:"priv_esca"`
+	Exe            string `json:"-"`
+	Modname        string `json:"modname"`
+	Pidtree        string `json:"pid_tree"`
+	Cwd            string `json:"cwd"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (DoInitModule) ID() uint32 {
@@ -55,6 +54,10 @@ func (d *DoInitModule) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (DoInitModule) GetMaps() []*manager.Map { return nil }
+
+func (DoInitModule) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&DoInitModule{})

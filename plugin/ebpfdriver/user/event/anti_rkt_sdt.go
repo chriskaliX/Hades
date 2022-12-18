@@ -2,7 +2,6 @@ package event
 
 import (
 	"errors"
-	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/helper"
 
@@ -14,14 +13,15 @@ var _ decoder.Event = (*SCTScan)(nil)
 // The mapping of syscall index and it's name is not used now
 // so the syscall_name is always empty
 type SCTScan struct {
-	decoder.BasicEvent `json:"-"`
-	Index              uint64 `json:"index"`
-	SyscallName        string `json:"syscall_name"`
+	Index       uint64 `json:"index"`
+	SyscallName string `json:"syscall_name"`
 }
 
 func (SCTScan) ID() uint32 {
 	return 1200
 }
+
+func (SCTScan) GetExe() string { return "" }
 
 func (s *SCTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
@@ -42,7 +42,7 @@ func (s *SCTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	}
 	// address is available, not hooked
 	if sym := helper.Ksyms.Get(addr); sym != nil {
-		return ErrIgnore
+		return decoder.ErrIgnore
 	}
 	return nil
 }
@@ -55,7 +55,6 @@ func (s *SCTScan) Trigger(m *manager.Manager) error {
 	sct := helper.Ksyms.Get("sys_call_table")
 	if sct == nil {
 		err := errors.New("sys_call_table is not found")
-		fmt.Println(err)
 		return err
 	}
 
@@ -86,6 +85,8 @@ func (SCTScan) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (SCTScan) GetMaps() []*manager.Map { return nil }
 
 func init() {
 	decoder.RegistEvent(&SCTScan{})

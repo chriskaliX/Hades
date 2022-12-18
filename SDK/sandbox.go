@@ -102,11 +102,12 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 	defer s.Logger.Info(fmt.Sprintf("%s is exited", s.name))
 	s.Logger.Info(fmt.Sprintf("%s run is called", s.name))
 	if err = mfunc(s); err != nil {
+		zap.S().Error("sandbox main func failed, %s", err.Error())
 		return err
 	}
 	s.Logger.Info(fmt.Sprintf("%s is running", s.name))
 	// os.Interrupt for command line
-	signal.Notify(s.sigs, syscall.SIGTERM)
+	signal.Notify(s.sigs, syscall.SIGTERM, syscall.SIGTERM, os.Interrupt)
 	for {
 		select {
 		case sig := <-s.sigs:

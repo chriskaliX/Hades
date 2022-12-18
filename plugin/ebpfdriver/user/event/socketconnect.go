@@ -9,13 +9,12 @@ import (
 var _ decoder.Event = (*SysConnect)(nil)
 
 type SysConnect struct {
-	decoder.BasicEvent `json:"-"`
-	Family             uint16 `json:"family"`
-	Dport              uint16 `json:"dport"`
-	Dip                string `json:"dip"`
-	Sport              uint16 `json:"sport"`
-	Sip                string `json:"sip"`
-	Exe                string `json:"-"`
+	Family uint16 `json:"family"`
+	Dport  uint16 `json:"dport"`
+	Dip    string `json:"dip"`
+	Sport  uint16 `json:"sport"`
+	Sip    string `json:"sip"`
+	Exe    string `json:"-"`
 }
 
 func (SysConnect) ID() uint32 {
@@ -54,6 +53,10 @@ func (SysConnect) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (s *SysConnect) GetMaps() []*manager.Map { return nil }
+
+func (SysConnect) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&SysConnect{})

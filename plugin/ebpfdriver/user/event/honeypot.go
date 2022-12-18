@@ -1,7 +1,6 @@
 package event
 
 import (
-	"fmt"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/helper"
 
@@ -9,7 +8,14 @@ import (
 )
 
 type HoneyPot struct {
-	decoder.BasicEvent `json:"-"`
+	Ts       uint64 `json:"timestamp"`
+	Len      uint32 `json:"length"`
+	Ifindex  uint32 `json:"ifindex"`
+	Sip      string `json:"sip"`
+	Dip      string `json:"dip"`
+	Sport    uint16 `json:"sport"`
+	Dport    uint16 `json:"dport"` // dport here is the ingress port
+	Protocol uint8  `json:"protocol"`
 }
 
 func (HoneyPot) ID() uint32 {
@@ -17,16 +23,37 @@ func (HoneyPot) ID() uint32 {
 }
 
 func (h *HoneyPot) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
-	var index uint8
-	var _addr uint32
-	if err = e.DecodeUint8(&index); err != nil {
+	if err = e.DecodeUint64(&h.Ts); err != nil {
 		return
 	}
-	if err = e.DecodeUint32BigEndian(&_addr); err != nil {
+	if err = e.DecodeUint32(&h.Len); err != nil {
 		return
 	}
-	addr := helper.PrintUint32IP(_addr)
-	fmt.Println(addr)
+	if err = e.DecodeUint32(&h.Ifindex); err != nil {
+		return
+	}
+	var _addr []byte = make([]byte, 16)
+	// local ip
+	if err = e.DecodeBytes(_addr, 16); err != nil {
+		return
+	}
+	h.Sip = helper.Print16BytesSliceIP(_addr)
+	// local port
+	if err = e.DecodeBytes(_addr, 16); err != nil {
+		return
+	}
+	h.Dip = helper.Print16BytesSliceIP(_addr)
+	// remote ip
+	if err = e.DecodeUint16BigEndian(&h.Sport); err != nil {
+		return
+	}
+	if err = e.DecodeUint16BigEndian(&h.Dport); err != nil {
+		return
+	}
+	// Align and unused field clean up
+	if err = e.DecodeUint8(&h.Protocol); err != nil {
+		return
+	}
 	return
 }
 
@@ -40,16 +67,33 @@ func (HoneyPot) GetExe() string {
 
 func (HoneyPot) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
+		// {
+		// 	Section:          "classifier/ingress",
+		// 	EbpfFuncName:     "hades_ingress",
+		// 	Ifindex:          0,
+		// 	Ifname:           "ens33",
+		// 	NetworkDirection: manager.Ingress,
+		// },
+		// {
+		// 	Section:          "classifier/egress",
+		// 	EbpfFuncName:     "hades_egress",
+		// 	Ifindex:          0,
+		// 	Ifname:           "ens33",
+		// 	NetworkDirection: manager.Egress,
+		// },
 		{
-			Section:          "classifier/ingress",
-			EbpfFuncName:     "hades_ingress",
-			Ifindex:          0,
-			Ifname:           "eth0",
-			NetworkDirection: manager.Ingress,
+			UID:              "kprobe_tcp_reset",
+			Section:          "kprobe/tcp_v4_send_reset",
+			EbpfFuncName:     "kprobe_tcp_reset",
+			AttachToFuncName: "tcp_v4_send_reset",
 		},
 	}
 }
 
-func init() {
-	decoder.RegistEvent(&HoneyPot{})
-}
+func (HoneyPot) GetMaps() []*manager.Map { return nil }
+
+func (HoneyPot) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
+
+// func init() {
+// 	decoder.RegistEvent(&HoneyPot{})
+// }

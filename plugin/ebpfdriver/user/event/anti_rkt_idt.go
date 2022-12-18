@@ -12,14 +12,15 @@ import (
 var _ decoder.Event = (*IDTScan)(nil)
 
 type IDTScan struct {
-	decoder.BasicEvent `json:"-"`
-	Index              uint64 `json:"index"`
-	Address            string `json:"addr"`
+	Index   uint64 `json:"index"`
+	Address string `json:"addr"`
 }
 
 func (IDTScan) ID() uint32 {
 	return 1201
 }
+
+func (IDTScan) GetExe() string { return "" }
 
 func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
@@ -40,7 +41,7 @@ func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	if idt := helper.Ksyms.Get(addr); idt != nil {
-		return ErrIgnore
+		return decoder.ErrIgnore
 	}
 	i.Address = fmt.Sprintf("%x", addr)
 	return nil
@@ -81,6 +82,8 @@ func (IDTScan) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (IDTScan) GetMaps() []*manager.Map { return nil }
 
 func init() {
 	decoder.RegistEvent(&IDTScan{})

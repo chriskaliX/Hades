@@ -7,11 +7,10 @@ import (
 )
 
 type SecurityBpf struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Cmd                int32  `json:"cmd"`
-	ProgName           string `json:"name"`
-	Type               uint32 `json:"type"`
+	Exe      string `json:"-"`
+	Cmd      int32  `json:"cmd"`
+	ProgName string `json:"name"`
+	Type     uint32 `json:"type"`
 }
 
 func (SecurityBpf) ID() uint32 {

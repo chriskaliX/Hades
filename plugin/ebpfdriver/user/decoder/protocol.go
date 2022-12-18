@@ -10,13 +10,9 @@ import (
 	"github.com/bytedance/sonic"
 )
 
-var contextPool sync.Pool
 var slimCredPool sync.Pool
 
 func init() {
-	contextPool.New = func() interface{} {
-		return &Context{}
-	}
 	slimCredPool.New = func() interface{} {
 		return &SlimCred{}
 	}
@@ -96,14 +92,6 @@ func (c *Context) FillContext(name, exe string) {
 
 func (c *Context) MarshalJson() ([]byte, error) {
 	return sonic.Marshal(c)
-}
-
-func NewContext() *Context {
-	return contextPool.Get().(*Context)
-}
-
-func PutContext(data *Context) {
-	contextPool.Put(data)
 }
 
 type SlimCred struct {

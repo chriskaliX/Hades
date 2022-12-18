@@ -9,10 +9,9 @@ import (
 var _ decoder.Event = (*MemfdCreate)(nil)
 
 type MemfdCreate struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Uname              string `json:"uname"`
-	Flags              uint32 `json:"flags"`
+	Exe   string `json:"-"`
+	Uname string `json:"uname"`
+	Flags uint32 `json:"flags"`
 }
 
 func (MemfdCreate) ID() uint32 {
@@ -54,6 +53,10 @@ func (m *MemfdCreate) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (m *MemfdCreate) GetMaps() []*manager.Map { return nil }
+
+func (MemfdCreate) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&MemfdCreate{})

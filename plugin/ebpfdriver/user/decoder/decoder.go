@@ -2,7 +2,9 @@
 package decoder
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hades-ebpf/user/helper"
 	"hades-ebpf/user/share"
@@ -11,44 +13,71 @@ import (
 )
 
 var DefaultDecoder = New(make([]byte, 0))
+var ErrFilter = errors.New("filter")
+var ErrIgnore = errors.New("ignore")
 
 const (
-	sizeint8  = 1
-	sizeint16 = 2
-	sizeint32 = 4
-	sizeint64 = 8
+	sizeint8    = 1
+	sizeint16   = 2
+	sizeint32   = 4
+	sizeint64   = 8
+	sizeContext = 168
 )
-
-// dummy field for internal uses
-var dummy uint8
 
 // eBPF events decoder, functions in this struct is not thread-safe
 type EbpfDecoder struct {
 	buffer []byte // raw buffer which is read from kern perf(or ringbuf)
 	cursor int    // cursor of the buffer
-	index  uint8  // index of the event, for less alloc since it's internal
+	// internal values
+	index    uint8 // index of the event, for less alloc since it's internal
+	cache    []byte
+	dummy    uint8
+	eventCtx *Context
 }
 
 func New(rawBuffer []byte) *EbpfDecoder {
 	return &EbpfDecoder{
-		buffer: rawBuffer,
-		cursor: 0,
+		buffer:   rawBuffer,
+		cursor:   0,
+		cache:    make([]byte, 16),
+		eventCtx: &Context{},
 	}
 }
 
 // ReInit the decoder by accepting a new event buffer
-func (d *EbpfDecoder) ReInit(_byte []byte) {
+func (d *EbpfDecoder) SetBuffer(_byte []byte) {
 	d.buffer = append([]byte(nil), _byte...)
 	d.cursor = 0
 	d.index = 0
 }
 
-func (d *EbpfDecoder) BuffLen() int {
-	return len(d.buffer)
-}
+func (d *EbpfDecoder) BuffLen() int { return len(d.buffer) }
 
-func (d *EbpfDecoder) ReadAmountBytes() int {
-	return d.cursor
+func (d *EbpfDecoder) ReadAmountBytes() int { return d.cursor }
+
+func (d *EbpfDecoder) DecodeContext() (*Context, error) {
+	offset := d.cursor
+	if len(d.buffer[offset:]) < sizeContext {
+		return nil, fmt.Errorf("can't read context from buffer: buffer too short")
+	}
+	d.eventCtx.Starttime = binary.LittleEndian.Uint64(d.buffer[offset : offset+8])
+	d.eventCtx.CgroupID = binary.LittleEndian.Uint64(d.buffer[offset+8 : offset+16])
+	d.eventCtx.Pns = binary.LittleEndian.Uint32(d.buffer[offset+16 : offset+20])
+	d.eventCtx.Type = binary.LittleEndian.Uint32(d.buffer[offset+20 : offset+24])
+	d.eventCtx.Pid = binary.LittleEndian.Uint32(d.buffer[offset+24 : offset+28])
+	d.eventCtx.Tid = binary.LittleEndian.Uint32(d.buffer[offset+28 : offset+32])
+	d.eventCtx.Uid = binary.LittleEndian.Uint32(d.buffer[offset+32 : offset+36])
+	d.eventCtx.Gid = binary.LittleEndian.Uint32(d.buffer[offset+36 : offset+40])
+	d.eventCtx.Ppid = binary.LittleEndian.Uint32(d.buffer[offset+40 : offset+44])
+	d.eventCtx.Pgid = binary.LittleEndian.Uint32(d.buffer[offset+44 : offset+48])
+	d.eventCtx.SessionID = binary.LittleEndian.Uint32(d.buffer[offset+48 : offset+52])
+	d.eventCtx.Comm = string(bytes.TrimRight(d.buffer[offset+52:offset+68], "\x00"))
+	d.eventCtx.PComm = string(bytes.TrimRight(d.buffer[offset+68:offset+84], "\x00"))
+	d.eventCtx.Nodename = string(bytes.Trim(d.buffer[offset+84:offset+148], "\x00"))
+	d.eventCtx.RetVal = int64(binary.LittleEndian.Uint64(d.buffer[offset+152 : offset+160]))
+	d.eventCtx.Argnum = uint8(binary.LittleEndian.Uint16(d.buffer[offset+160 : offset+168]))
+	d.cursor += sizeContext
+	return d.eventCtx, nil
 }
 
 func (d *EbpfDecoder) DecodeUint8(msg *uint8) error {
@@ -171,7 +200,7 @@ func (d *EbpfDecoder) DecodeString() (s string, err error) {
 	if err = d.DecodeBytes(buf.Bytes()[:size-1], uint32(size-1)); err != nil {
 		return
 	}
-	d.DecodeUint8(&dummy)
+	d.DecodeUint8(&d.dummy)
 	s = string(buf.Bytes()[:size-1])
 	return
 }
@@ -224,22 +253,21 @@ func (d *EbpfDecoder) DecodeAddr() (family, sport, dport uint16, sip, dip string
 		// 	__u32 flowinfo;
 		// 	__u32 scope_id;
 		// } net_conn_v6_t;
-		var _addr []byte = make([]byte, 16)
 		// local ip
-		if err = d.DecodeBytes(_addr, 16); err != nil {
+		if err = d.DecodeBytes(d.cache, 16); err != nil {
 			return
 		}
-		sip = helper.Print16BytesSliceIP(_addr)
+		sip = helper.Print16BytesSliceIP(d.cache)
 		// local port
 		if err = d.DecodeUint16BigEndian(&sport); err != nil {
 			return
 		}
 		d.ReadByteSliceFromBuff(2)
 		// remote ip
-		if err = d.DecodeBytes(_addr, 16); err != nil {
+		if err = d.DecodeBytes(d.cache, 16); err != nil {
 			return
 		}
-		dip = helper.Print16BytesSliceIP(_addr)
+		dip = helper.Print16BytesSliceIP(d.cache)
 		// remote port
 		if err = d.DecodeUint16BigEndian(&dport); err != nil {
 			return
@@ -278,7 +306,7 @@ func (d *EbpfDecoder) DecodePidTree(privilege_flag *uint8) (pidtree string, err 
 			break
 		}
 		strArr = append(strArr, strconv.FormatUint(uint64(pid), 10)+"."+str)
-		d.DecodeUint8(&dummy)
+		d.DecodeUint8(&d.dummy)
 	}
 	pidtree = strings.Join(strArr, "<")
 	// We add a cred check here...
@@ -347,7 +375,7 @@ func (d *EbpfDecoder) DecodeStrArray() (strArr []string, err error) {
 			return
 		}
 		strArr = append(strArr, str)
-		d.DecodeUint8(&dummy)
+		d.DecodeUint8(&d.dummy)
 	}
 	return
 }

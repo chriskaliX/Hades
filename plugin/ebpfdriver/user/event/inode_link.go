@@ -10,10 +10,9 @@ var _ decoder.Event = (*InodeLink)(nil)
 
 // Sha256 maybe, and others
 type InodeLink struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Old                string `json:"old"`
-	New                string `json:"new"`
+	Exe string `json:"-"`
+	Old string `json:"old"`
+	New string `json:"new"`
 }
 
 func (InodeLink) ID() uint32 {
@@ -48,6 +47,10 @@ func (InodeLink) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (i *InodeLink) GetMaps() []*manager.Map { return nil }
+
+func (InodeLink) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&InodeLink{})

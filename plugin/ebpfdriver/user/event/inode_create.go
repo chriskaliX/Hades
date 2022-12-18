@@ -10,14 +10,13 @@ var _ decoder.Event = (*InodeCreate)(nil)
 
 // Sha256 maybe, and others
 type InodeCreate struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Filename           string `json:"filename"`
-	Dport              uint16 `json:"dport"`
-	Dip                string `json:"dip"`
-	Sport              uint16 `json:"sport"`
-	Sip                string `json:"sip"`
-	Family             uint16 `json:"family"`
+	Exe      string `json:"-"`
+	Filename string `json:"filename"`
+	Dport    uint16 `json:"dport"`
+	Dip      string `json:"dip"`
+	Sport    uint16 `json:"sport"`
+	Sip      string `json:"sip"`
+	Family   uint16 `json:"family"`
 }
 
 func (InodeCreate) ID() uint32 {
@@ -55,6 +54,10 @@ func (InodeCreate) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (i *InodeCreate) GetMaps() []*manager.Map { return nil }
+
+func (InodeCreate) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&InodeCreate{})

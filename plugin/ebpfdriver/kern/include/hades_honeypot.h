@@ -1,4 +1,8 @@
 /* Hades-ePot(Experimental)
+ * ePot monitor all ingress for filters. It detects all port scan actions.
+ * TCP: maybe tcp_send_reset is a better choice.
+ * IMCP: maybe icmp_rcv
+ * UDP: will send ICMP unreachable, hook icmp send and grep unreachable
  *
  * ePot in driver for temporary, this will be moved into honeyPot plugin
  * Authors: chriskalix@protonmail.com
@@ -36,9 +40,6 @@ skb_revalidate_data(struct __sk_buff *skb, uint8_t **head, uint8_t **tail, const
 
 typedef struct net_packet {
     uint64_t ts;
-    u32 event_id;
-    u32 host_tid;
-    char comm[TASK_COMM_LEN];
     u32 len;
     u32 ifindex;
     struct in6_addr src_addr, dst_addr;
@@ -57,11 +58,9 @@ static __always_inline int tc_probe(struct __sk_buff *skb, bool ingress)
     // eth headers
     struct ethhdr *eth = (struct ethhdr *)start;
     net_packet_t pkt = {0};
-    // pkt.event_id = NET_PACKET;
     pkt.ts = bpf_ktime_get_ns();
     pkt.len = skb->len;
     pkt.ifindex = skb->ifindex;
-
     uint32_t l4_hdr_off;
     // For internal network, for now, only ipv4
     switch (bpf_ntohs(eth->h_proto))
@@ -70,7 +69,6 @@ static __always_inline int tc_probe(struct __sk_buff *skb, bool ingress)
             l4_hdr_off = sizeof(struct ethhdr) + sizeof(struct iphdr);
             if (!skb_revalidate_data(skb, &start, &end, l4_hdr_off))
                 return TC_ACT_UNSPEC;
-
             // create a IPv4-Mapped IPv6 Address
             struct iphdr *ip = (void *) start + sizeof(struct ethhdr);
             pkt.src_addr.s6_addr32[3] = ip->saddr;
@@ -109,12 +107,10 @@ static __always_inline int tc_probe(struct __sk_buff *skb, bool ingress)
         default:
             return TC_ACT_UNSPEC;
     }
-    // net
-    u64 flags = BPF_F_CURRENT_CPU;
     // TODO: filter
     size_t pkt_size = sizeof(pkt);
     // switch to net_events
-    bpf_perf_event_output(skb, &exec_events, flags, &pkt, pkt_size);
+    bpf_perf_event_output(skb, &net_events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
     return TC_ACT_UNSPEC;
 };
 
@@ -127,4 +123,44 @@ SEC("classifier/ingress")
 int hades_ingress(struct __sk_buff *skb)
 {
     return tc_probe(skb, true);
+}
+
+SEC("classifier/egress")
+int hades_egress(struct __sk_buff *skb)
+{
+    return tc_probe(skb, false);
+}
+
+struct _tcp_send_reset {
+    unsigned long long unused;
+    long syscall_nr;
+    const void * skbaddr;
+    const void * skaddr; 
+    int state;
+    __u16 sport;
+    __u16 dport;
+    __u16 family;
+    __u8 saddr[4];
+    __u8 daddr[4];
+    __u8 saddr_v6[16];
+    __u8 daddr_v6[16];
+};
+
+// Below here, not tc used, under work
+SEC("kprobe/tcp_v4_send_reset")
+int BPF_KPROBE(kprobe_tcp_reset)
+{
+    event_data_t data = {};
+    if (!init_event_data(&data, ctx))
+        return 0;
+    // if (context_filter(&data.context))
+    //     return 0;
+    data.context.type = 3000;
+
+    net_packet_t pkt = {0};
+    pkt.ts = bpf_ktime_get_ns();
+    // struct sock *sk = PT_REGS_PARM1(ctx);
+    size_t pkt_size = sizeof(pkt);
+    save_to_submit_buf(&data, &pkt, pkt_size, 1);
+    return events_perf_submit(&data);
 }

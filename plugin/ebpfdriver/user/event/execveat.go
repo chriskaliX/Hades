@@ -13,24 +13,23 @@ import (
 var _ decoder.Event = (*ExecveAt)(nil)
 
 type ExecveAt struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Cwd                string `json:"cwd"`
-	TTYName            string `json:"tty_name"`
-	Stdin              string `json:"stdin"`
-	Stdout             string `json:"stdout"`
-	Dport              uint16 `json:"dport"`
-	Sport              uint16 `json:"sport"`
-	Dip                string `json:"dip"`
-	Sip                string `json:"sip"`
-	Family             uint16 `json:"family"`
-	SocketPid          uint32 `json:"socket_pid"`
-	SocketArgv         string `json:"socket_argv"`
-	PidTree            string `json:"pid_tree"`
-	Argv               string `json:"argv"`
-	PrivEscalation     uint8  `json:"priv_esca"`
-	SSHConnection      string `json:"ssh_connection"`
-	LDPreload          string `json:"ld_preload"`
+	Exe            string `json:"-"`
+	Cwd            string `json:"cwd"`
+	TTYName        string `json:"tty_name"`
+	Stdin          string `json:"stdin"`
+	Stdout         string `json:"stdout"`
+	Dport          uint16 `json:"dport"`
+	Sport          uint16 `json:"sport"`
+	Dip            string `json:"dip"`
+	Sip            string `json:"sip"`
+	Family         uint16 `json:"family"`
+	SocketPid      uint32 `json:"socket_pid"`
+	SocketArgv     string `json:"socket_argv"`
+	PidTree        string `json:"pid_tree"`
+	Argv           string `json:"argv"`
+	PrivEscalation uint8  `json:"priv_esca"`
+	SSHConnection  string `json:"ssh_connection"`
+	LDPreload      string `json:"ld_preload"`
 }
 
 func (ExecveAt) ID() uint32 {
@@ -45,53 +44,53 @@ func (e *ExecveAt) GetExe() string {
 	return e.Exe
 }
 
-func (e *ExecveAt) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
+func (e *ExecveAt) DecodeEvent(d *decoder.EbpfDecoder) (err error) {
 	var dummy uint8
-	if e.Exe, err = decoder.DecodeString(); err != nil {
+	if e.Exe, err = d.DecodeString(); err != nil {
 		return
 	}
 	// Dynamic window for execve
 	// TODO: count for those ignored exe
 	if !window.WindowCheck(e.Exe, window.DefaultExeWindow) {
-		err = ErrFilter
+		err = decoder.ErrFilter
 		return
 	}
-	if e.Cwd, err = decoder.DecodeString(); err != nil {
+	if e.Cwd, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.TTYName, err = decoder.DecodeString(); err != nil {
+	if e.TTYName, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdin, err = decoder.DecodeString(); err != nil {
+	if e.Stdin, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdout, err = decoder.DecodeString(); err != nil {
+	if e.Stdout, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Family, e.Sport, e.Dport, e.Sip, e.Dip, err = decoder.DecodeAddr(); err != nil {
+	if e.Family, e.Sport, e.Dport, e.Sip, e.Dip, err = d.DecodeAddr(); err != nil {
 		return
 	}
-	if err = decoder.DecodeUint8(&dummy); err != nil {
+	if err = d.DecodeUint8(&dummy); err != nil {
 		return
 	}
-	if err = decoder.DecodeUint32(&e.SocketPid); err != nil {
+	if err = d.DecodeUint32(&e.SocketPid); err != nil {
 		return
 	}
-	if e.PidTree, err = decoder.DecodePidTree(&e.PrivEscalation); err != nil {
+	if e.PidTree, err = d.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
 	var strArr []string
-	if strArr, err = decoder.DecodeStrArray(); err != nil {
+	if strArr, err = d.DecodeStrArray(); err != nil {
 		zap.S().Error("execveat cmdline error")
 		return
 	}
 	e.Argv = strings.Join(strArr, " ")
 	if !window.WindowCheck(e.Argv, window.DefaultArgvWindow) {
-		err = ErrFilter
+		err = decoder.ErrFilter
 		return
 	}
 	var envs []string
-	if envs, err = decoder.DecodeStrArray(); err != nil {
+	if envs, err = d.DecodeStrArray(); err != nil {
 		return
 	}
 	for _, env := range envs {
@@ -128,9 +127,9 @@ func (ExecveAt) GetProbes() []*manager.Probe {
 	}
 }
 
-func (e ExecveAt) FillCache() {
-	cache.DefaultArgvCache.Set(e.Context().Pid, e.Argv)
-}
+func (ExecveAt) GetMaps() []*manager.Map { return nil }
+
+func (ExecveAt) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&ExecveAt{})

@@ -6,12 +6,12 @@ import (
 	_ "embed"
 	"fmt"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/event"
 	"hades-ebpf/user/helper"
 	"hades-ebpf/user/share"
 	"math"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/chriskaliX/SDK"
@@ -49,13 +49,10 @@ type Driver struct {
 	context context.Context
 	cancel  context.CancelFunc
 	cronM   *cron.Cron
-}
-
-type IDriver interface {
-	Start() error
-	PostRun() error
-	Close(string) error
-	Stop() error
+	// driver state monitor
+	filterCount atomic.Value
+	dropCount   atomic.Value
+	transCount  atomic.Value
 }
 
 // New a driver with pre-set map and options
@@ -87,21 +84,17 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			{Name: filterPid},
 		},
 	}
-	// Get all registed events probes and maps, add into the manager
 	for _, event := range decoder.Events {
 		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
-		driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
+		if event.GetMaps() != nil {
+			driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
+		}
 	}
-	// init manager with options
-	// TODO: High CPU performance here
-	// github.com/ehids/ebpfmanager.(*Probe).Init
-	// github.com/ehids/ebpfmanager.getSyscallFnNameWithKallsyms
 	err := driver.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
 		DefaultKProbeMaxActive: 512,
 		VerifierOptions: ebpf.CollectionOptions{
 			Programs: ebpf.ProgramOptions{
-				// The logsize is just test value for now
-				LogSize: 2 * 1024 * 1024,
+				LogSize: 1 * 1024 * 1024,
 			},
 		},
 		RLimit: &unix.Rlimit{
@@ -113,9 +106,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	return driver, err
 }
 
-func (d *Driver) Start() error {
-	return d.Manager.Start()
-}
+func (d *Driver) Start() error { return d.Manager.Start() }
 
 // Init the driver with default value
 func (d *Driver) PostRun() (err error) {
@@ -153,9 +144,7 @@ func (d *Driver) PostRun() (err error) {
 		}
 	}
 	d.cronM.Start()
-
 	go d.taskResolve()
-	// TODO: filters are not added for now
 	return nil
 }
 
@@ -166,11 +155,11 @@ func (d *Driver) Close(UID string) (err error) {
 			return probe.Stop()
 		}
 	}
-	_, err = fmt.Printf("UID %s not found", UID)
-	return err
+	return fmt.Errorf("UID %s not found", UID)
 }
 
 func (d *Driver) Stop() error {
+	zap.S().Info("driver stop is called")
 	d.cancel()
 	return d.Manager.Stop(manager.CleanAll)
 }
@@ -179,50 +168,57 @@ func (d *Driver) Filter() {}
 
 func (d *Driver) taskResolve() {
 	for {
-		task := d.Sandbox.RecvTask()
-		switch task.DataType {
-		case EnableDenyBPF:
-			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(1)); err != nil {
-				zap.S().Error(err)
+		select {
+		case <-d.context.Done():
+		default:
+			task := d.Sandbox.RecvTask()
+			switch task.DataType {
+			case EnableDenyBPF:
+				if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(1)); err != nil {
+					zap.S().Error(err)
+				}
+			case DisableDenyBPF:
+				if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(0)); err != nil {
+					zap.S().Error(err)
+				}
 			}
-		case DisableDenyBPF:
-			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(0)); err != nil {
-				zap.S().Error(err)
-			}
+			time.Sleep(time.Second)
 		}
-		time.Sleep(time.Second)
 	}
 }
 
 // dataHandler handles the data from eBPF kernel space
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
-	// get and decode the context
-	ctx := decoder.NewContext()
-	decoder.DefaultDecoder.ReInit(data)
-	err := ctx.DecodeContext(decoder.DefaultDecoder)
-	if err != nil {
-		return
-	}
-	defer decoder.PutContext(ctx)
-	// get the event and set context into event
-	eventDecoder := decoder.Events[ctx.Type]
-	eventDecoder.SetContext(ctx)
-	err = eventDecoder.DecodeEvent(decoder.DefaultDecoder)
-	if err == event.ErrFilter {
-		return
-	}
-	if err != nil {
-		// Ignore
-		if err == event.ErrIgnore {
+	// set into buffer
+	decoder.DefaultDecoder.SetBuffer(data)
+	// variable init
+	var eventDecoder decoder.Event
+	var ctx *decoder.Context
+	var err error
+	var result string
+	if perfmap.Name == "exec_events" {
+		// get and decode the context
+		ctx, err = decoder.DefaultDecoder.DecodeContext()
+		if err != nil {
 			return
 		}
-		zap.S().Errorf("error: %s", err)
+		// get the event and set context into event
+		eventDecoder = decoder.Events[ctx.Type]
+		// Fillup the context by the values that Event offers
+		ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
+	} else {
+		// TODO: for now, only net_events, temporary hardcode
+		eventDecoder = decoder.Events[3000]
+	}
+	if err = eventDecoder.DecodeEvent(decoder.DefaultDecoder); err != nil {
+		if err == decoder.ErrFilter || err == decoder.ErrIgnore {
+			return
+		}
+		zap.S().Errorf("decode event error: %s", err)
 		return
 	}
-	// Fillup the context by the values that Event offers
-	ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
 	// marshal the data
-	result, err := decoder.MarshalJson(eventDecoder)
+	result, err = decoder.MarshalJson(eventDecoder, ctx)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -242,7 +238,6 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 
 // lostHandler handles the data for errors
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
-	rawdata := make(map[string]string)
 	rawdata["data"] = strconv.FormatUint(count, 10)
 	rec := &protocol.Record{
 		DataType: 999,
