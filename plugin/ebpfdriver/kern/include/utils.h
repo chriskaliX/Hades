@@ -345,7 +345,7 @@ static __always_inline void *get_path_str_simple(struct path *path)
         return NULL;
 
 #pragma unroll
-    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+    for (int i = 0; i < MAX_PATH_COMPONENTS_SIM; i++) {
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
