@@ -65,8 +65,8 @@ int BPF_KPROBE(kprobe_do_init_module)
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
-    void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    save_str_to_buf(&data, file_path, 1);
+    void *file_path = get_path_str_simple(GET_FIELD_ADDR(file->pwd));
+    save_str_to_buf(&data, file_path, 3);
     return events_perf_submit(&data);
 }
 

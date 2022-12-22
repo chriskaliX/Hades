@@ -279,9 +279,8 @@ static __always_inline void *get_path_str(struct path *path)
             for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
                 if ((s_flag != 0) && (tmp_inode[j] != '0')) { 
-                    if (j == 0) {
+                    if (j == 0)
                         break;
-                    } 
                     s_flag = 1;
                 }
 
@@ -306,6 +305,102 @@ static __always_inline void *get_path_str(struct path *path)
                                (void *)d_name.name);
             goto out;
         }
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1,
+                       &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
+                       &zero);
+    }
+out:
+    set_buf_off(STRING_BUF_IDX, buf_off);
+    return &string_p->buf[buf_off];
+}
+
+// strip fs judgement version, for shorter insts
+static __always_inline void *get_path_str_simple(struct path *path)
+{
+    struct path f_path;
+    bpf_probe_read(&f_path, sizeof(struct path), path);
+    char slash = '/';
+    int zero = 0;
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+    struct mount *mnt_parent_p;
+    struct mount *mnt_p = real_mount(vfsmnt); // get mount by vfsmnt
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
+    // from the middle, to avoid rewrite by this
+    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
+    struct dentry *mnt_root;
+    struct dentry *d_parent;
+    struct qstr d_name;
+    unsigned int len;
+    unsigned int off;
+    int sz;
+    // get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+        mnt_root = READ_KERN(vfsmnt->mnt_root);
+        d_parent = READ_KERN(dentry->d_parent);
+        // 1. dentry == d_parent means we reach the dentry root
+        // 2. dentry == mnt_root means we reach the mount root, they share the same dentry
+        if (dentry == mnt_root || dentry == d_parent) {
+            // We reached root, but not mount root - escaped?
+            if (dentry != mnt_root) {
+                break;
+            }
+            // dentry == mnt_root, but the mnt has not reach it's root
+            // so update the dentry as the mnt_mountpoint(in order to continue the dentry loop for the mountpoint)
+            // We reached root, but not global root - continue with mount point path
+            if (mnt_p != mnt_parent_p) {
+                bpf_probe_read(&dentry, sizeof(struct dentry *),
+                               &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount *),
+                               &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *),
+                               &mnt_p->mnt_parent);
+                vfsmnt = &mnt_p->mnt;
+                continue;
+            }
+            // dentry == mnt_root && mnt_p == mnt_parent_p, real root for all
+            // Global root - path fully parsed
+            break;
+        }
+        // Add this dentry name to path
+        d_name = READ_KERN(dentry->d_name);
+        len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
+        off = buf_off - len;
+        sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & (((MAX_PERCPU_BUFSIZE) >> 1) - 1);
+            sz = bpf_probe_read_str(
+                    &(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]),
+                    len, (void *)d_name.name);
+        } else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]),
+                           1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    // no path avaliable.
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+        buf_off = 0;
+        d_name = READ_KERN(dentry->d_name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *) d_name.name);
     } else {
         // Add leading slash
         buf_off -= 1;
