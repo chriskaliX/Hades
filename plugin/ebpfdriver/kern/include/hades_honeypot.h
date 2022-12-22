@@ -208,6 +208,7 @@ int BPF_KPROBE(kprobe_tcp_reset)
         save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
     }
     u8 protocol = IPPROTO_TCP;
+    save_to_submit_buf(&data, &protocol, sizeof(protocol), 2);
     return events_perf_submit(&data);
 }
 

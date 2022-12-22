@@ -7,6 +7,7 @@
 #include <net/ipv6.h>
 #include <linux/ipv6.h>
 #include <linux/pid_namespace.h>
+#include <uapi/linux/magic.h>
 #else
 #include <vmlinux.h>
 #include <missing_definitions.h>
@@ -410,7 +411,6 @@ static __always_inline void *get_path_str_simple(struct path *path)
         bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
                        &zero);
     }
-out:
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }

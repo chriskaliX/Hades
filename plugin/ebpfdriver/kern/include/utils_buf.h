@@ -259,11 +259,8 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
     // hard code the limit
     if (limit >= MAX_PID_TREE_TRACE)
         limit = MAX_PID_TREE_TRACE;
-#pragma UNROLL
+#pragma unroll
     for (int i = 0; i < MAX_PID_TREE_TRACE; i++) {
-        if (i == limit) {
-            goto out;
-        }
         pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)
@@ -303,10 +300,11 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
             flag = bpf_probe_read(&task, sizeof(task), &task->real_parent);
             if (flag != 0)
                 goto out;
-            continue;
         } else {
             goto out;
         }
+        if (i == (limit - 1))
+            break;
     }
 out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
@@ -360,11 +358,8 @@ static __always_inline int save_pid_tree_to_buf_simple(event_data_t *data, int l
     // hard code the limit
     if (limit >= MAX_PID_TREE_TRACE_SIM)
         limit = MAX_PID_TREE_TRACE_SIM;
-#pragma UNROLL
+#pragma unroll
     for (int i = 0; i < MAX_PID_TREE_TRACE_SIM; i++) {
-        if (i == limit) {
-            goto out;
-        }
         pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)
@@ -408,6 +403,8 @@ static __always_inline int save_pid_tree_to_buf_simple(event_data_t *data, int l
         } else {
             goto out;
         }
+        if (i == (limit - 1))
+            break;
     }
 out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
