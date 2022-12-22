@@ -263,9 +263,8 @@ static __always_inline void *get_path_str(struct path *path)
             char tmp_inode[9];
             int i, j;
             int k = 0; // when first char is no-zero, it's work
-
+            int s_flag = 0; // no-zero char start flag
             unsigned long inode = get_inode_nr_from_dentry(dentry);
-
 
         #pragma unroll
             for (i = 0; i < 8; i++) {
@@ -274,18 +273,17 @@ static __always_inline void *get_path_str(struct path *path)
             }
             // ISSUE fixed. It seems that the llvm would opt this if a
             // boolean in condition, which verifier would deny
-            int s_flag = 0; // no-zero char start flag
             // if front has zero value, move 
         #pragma unroll
             for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
-                if ((s_flag != 0) && (tmp_inode[j] != '0')) { 
+                if ((s_flag == 0) && (tmp_inode[j] != '0')) { 
                     if (j == 0)
                         break;
                     s_flag = 1;
                 }
 
-                if (s_flag) {
+                if (s_flag == 1) {
                     tmp_inode[k++] = tmp_inode[j];  
                 }
             }

@@ -61,9 +61,9 @@ func (HoneyPot) GetProbes() []*manager.Probe {
 		// },
 		// {
 		// 	UID:              "kprobe_tcp_reset",
-		// 	Section:          "kprobe/tcp_v4_send_reset",
+		// 	Section:          "kprobe/kfree_skb_reason",
 		// 	EbpfFuncName:     "kprobe_tcp_reset",
-		// 	AttachToFuncName: "tcp_v4_send_reset",
+		// 	AttachToFuncName: "kfree_skb_reason",
 		// },
 		{
 			UID:              "icmp",

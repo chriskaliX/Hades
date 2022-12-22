@@ -187,26 +187,33 @@ static inline int get_skb_info_v6(net_conn_v6_t* pdata, struct sk_buff *skb)
 }
 
 // How to know why tcp_send_reset, the reason
-SEC("kprobe/tcp_v4_send_reset")
+SEC("kprobe/kfree_skb_reason")
 int BPF_KPROBE(kprobe_tcp_reset)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-
     data.context.type = HONEYPOT_PORTSCAN_DETECT;
     u16 family = 2;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    // struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    // net_conn_v4_t net_details = {};
+    // if (sk == NULL) {
+    //     struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM2(ctx);
+    //     get_skb_info_v4(&net_details, skb);
+    //     save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
+    // } else {
+    //     get_network_details_from_sock_v4(sk, &net_details, 0);
+    //     save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
+    // }
     net_conn_v4_t net_details = {};
-    if (sk == NULL) {
-        struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM2(ctx);
-        get_skb_info_v4(&net_details, skb);
-        save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
-    } else {
-        get_network_details_from_sock_v4(sk, &net_details, 0);
-        save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
-    }
+    struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM1(ctx);
+    get_skb_info_v4(&net_details, skb);
+    save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
+    int reason = PT_REGS_PARM2(ctx);
+    if (reason != 1)
+        return 0;
+    bpf_printk("port %d, reason %d", net_details.remote_port, reason);
     u8 protocol = IPPROTO_TCP;
     save_to_submit_buf(&data, &protocol, sizeof(protocol), 2);
     return events_perf_submit(&data);

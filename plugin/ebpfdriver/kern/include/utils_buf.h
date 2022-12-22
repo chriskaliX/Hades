@@ -122,7 +122,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr,
         sz = bpf_probe_read_str(
                 &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
                 MAX_STRING_SIZE, ptr);
-        if (sz < 0) {
+        if (sz <= 0) {
             char nothing[] = "-1";
             // why check it again? nothing
             // just to make verifier happy, this will not happen
