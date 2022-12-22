@@ -5,6 +5,9 @@
 #ifndef CORE
 #include <net/sock.h>
 #include <linux/uio.h>
+#else
+#include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 #include "define.h"
@@ -25,27 +28,36 @@ struct _sys_enter_connect {
 typedef struct net_ctx {
     int fd;
 	sa_family_t sa_family;
-	// char sa_data[14];
+	// char sa_data[14];dss
     int addr;
 } net_ctx_t;
 
-BPF_LRU_HASH(connect_cache, u64, net_ctx_t, 1024);
+BPF_LRU_HASH(connect_cache, u64, net_ctx_t, 4096);
+
+__attribute__((always_inline)) int delete_connect_cache(u64 id)
+{
+    return bpf_map_delete_elem(&connect_cache, &id);
+}
 
 // The pointer should by avaliable through the whole process. Just save the pointer
 SEC("tracepoint/syscalls/sys_enter_connect")
 int sys_enter_connect(struct _sys_enter_connect *ctx)
 {
-    net_ctx_t net_ctx;
-    struct sockaddr* sa = READ_KERN(ctx->uservaddr);
-    if (sa == 0)
+    net_ctx_t net_ctx = {};
+    struct sockaddr* sa;
+    bpf_probe_read(&sa, sizeof(struct sockaddr),&ctx->uservaddr);
+    if (sa == NULL)
         return 0;
-    net_ctx.fd = READ_KERN(ctx->fd);
-    net_ctx.addr = READ_KERN(ctx->addr);
-    // __builtin_memcpy(net_ctx.sa_data, READ_KERN(sa->sa_data), 14);
-    net_ctx.sa_family = READ_KERN(sa->sa_family);
-
+    net_ctx.fd = ctx->fd;
+    net_ctx.addr = ctx->addr;
+    u16 family;
+    bpf_probe_read(&family, sizeof(u16),&sa->sa_family);
+    net_ctx.sa_family = family;
+    if (family != AF_INET && family != AF_INET6)
+        return 0;
     u64 pid_tgid = bpf_get_current_pid_tgid();
     return bpf_map_update_elem(&connect_cache, &pid_tgid, &net_ctx, BPF_ANY);
+    return 0;
 }
 
 SEC("tracepoint/syscalls/sys_exit_connect")
@@ -58,34 +70,37 @@ int sys_exit_connect(struct _sys_exit *ctx)
     
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
-        return 0;
+        goto delete;
     if (context_filter(&data.context))
-        return 0;
+        goto delete;
     data.context.type = SYSCONNECT;
-    data.context.retval = READ_KERN(ctx->ret);
-
-    u16 family = READ_KERN(net_ctx->sa_family);
+    data.context.retval = ctx->ret;
+    u16 family = net_ctx->sa_family;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
-    int fd = READ_KERN(net_ctx->fd);
+    int fd = net_ctx->fd;
+    
     struct sock *sk = hades_sockfd_lookup(fd);
     if (sk == NULL)
-        return 0;
+        goto delete;
+    
     if (family == AF_INET) {
         net_conn_v4_t net_details = {};
         get_network_details_from_sock_v4(sk, &net_details, 0);
         save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
+        
     } else if (family == AF_INET6) {
         net_conn_v6_t net_details = {};
         get_network_details_from_sock_v6(sk, &net_details, 0);
         save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v6), 1);
     } else {
-        bpf_map_delete_elem(&connect_cache, &pid_tgid);
-        return 0;
+        goto delete;
     }
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 2);
     bpf_map_delete_elem(&connect_cache, &pid_tgid);
     return events_perf_submit(&data);
+    delete: delete_connect_cache(pid_tgid);
+    return 0;
 }
 
 SEC("kprobe/security_socket_bind")

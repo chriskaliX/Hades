@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"hades-ebpf/user/decoder"
+	_ "hades-ebpf/user/event"
 	"hades-ebpf/user/helper"
 	"hades-ebpf/user/share"
 	"math"
@@ -196,6 +197,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	var ctx *decoder.Context
 	var err error
 	var result string
+	// TODO: only for temporary
 	if perfmap.Name == "exec_events" {
 		// get and decode the context
 		ctx, err = decoder.DefaultDecoder.DecodeContext()

@@ -16,7 +16,7 @@ type InodeLink struct {
 }
 
 func (InodeLink) ID() uint32 {
-	return 1031
+	return 1032
 }
 
 func (InodeLink) Name() string {
@@ -24,7 +24,7 @@ func (InodeLink) Name() string {
 }
 
 func (i *InodeLink) GetExe() string {
-	return i.Exe
+	return ""
 }
 
 func (i *InodeLink) DecodeEvent(e *decoder.EbpfDecoder) (err error) {

@@ -40,13 +40,13 @@ func (s *SysConnect) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 func (SysConnect) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
-			UID:              "KprobeTcpConnect",
+			UID:              "tracepoint_sys_enter_connect",
 			Section:          "tracepoint/syscalls/sys_enter_connect",
 			EbpfFuncName:     "sys_enter_connect",
 			AttachToFuncName: "sys_enter_connect",
 		},
 		{
-			UID:              "KretprobeTcpConnect",
+			UID:              "tracepoint_sys_exit_connect",
 			Section:          "tracepoint/syscalls/sys_exit_connect",
 			EbpfFuncName:     "sys_exit_connect",
 			AttachToFuncName: "sys_exit_connect",

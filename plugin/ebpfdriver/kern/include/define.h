@@ -295,6 +295,8 @@ static __always_inline int get_config(__u32 key)
 #define ANTI_RKT_FOPS             1202
 #define ANTI_RKT_MODULE           1203
 #define SYS_BPF                   1204
+// honeypot
+#define HONEYPOT_PORTSCAN_DETECT  3000
 
 struct _sys_exit {
     unsigned long long unused;

@@ -16,7 +16,7 @@ type InodeRename struct {
 }
 
 func (InodeRename) ID() uint32 {
-	return 1032
+	return 1031
 }
 
 func (InodeRename) Name() string {
