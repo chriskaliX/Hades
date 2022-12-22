@@ -41,6 +41,7 @@
 #define MAX_STR_ARR_ELEM    32
 #define MAX_PATH_COMPONENTS 16
 #define MAX_NODENAME        64
+#define MAX_PID_TREE_TRACE  12
 
 #define MAX_BUFFERS    3
 #define TMP_BUF_IDX    1

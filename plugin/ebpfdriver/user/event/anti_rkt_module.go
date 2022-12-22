@@ -55,12 +55,10 @@ func (m *ModuleScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 			break
 		}
 	}
-	// If kernel space and userspace get same count
-	// them no lefted
 	if m.UserCount == m.KernelCount {
 		err = decoder.ErrIgnore
 	}
-	return nil
+	return
 }
 
 func (ModuleScan) Name() string {

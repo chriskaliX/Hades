@@ -232,6 +232,7 @@ static __always_inline void *get_path_str(struct path *path)
         }
         dentry = d_parent;
     }
+
     // no path avaliable.
     if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
         // memfd files have no path in the filesystem -> extract their name
@@ -265,7 +266,7 @@ static __always_inline void *get_path_str(struct path *path)
             unsigned long inode = get_inode_nr_from_dentry(dentry);
 
 
-#pragma unroll
+        #pragma unroll
             for (i = 0; i < 8; i++) {
                 tmp_inode[7 - i] = inode % 10 + '0';
                 inode /= 10;
@@ -274,7 +275,7 @@ static __always_inline void *get_path_str(struct path *path)
             // boolean in condition, which verifier would deny
             int s_flag = 0; // no-zero char start flag
             // if front has zero value, move 
-#pragma unroll
+        #pragma unroll
             for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
                 if ((s_flag != 0) && (tmp_inode[j] != '0')) { 

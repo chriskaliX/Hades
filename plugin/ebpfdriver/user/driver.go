@@ -211,7 +211,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	// value count
 	if err = eventDecoder.DecodeEvent(decoder.DefaultDecoder); err != nil {
 		if err == decoder.ErrFilter {
-
+			return
 		} else if err == decoder.ErrIgnore {
 			return
 		}

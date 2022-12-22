@@ -257,10 +257,10 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
     __u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
     // hard code the limit
-    if (limit >= 12)
-        limit = 12;
-#pragma unroll
-    for (int i = 0; i < 12; i++) {
+    if (limit >= MAX_PID_TREE_TRACE)
+        limit = MAX_PID_TREE_TRACE;
+#pragma UNROLL
+    for (int i = 0; i < MAX_PID_TREE_TRACE; i++) {
         if (i == limit) {
             goto out;
         }
