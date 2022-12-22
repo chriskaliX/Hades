@@ -17,7 +17,7 @@ type UserFilter struct {
 	ArgvFilter *sync.Map
 }
 
-var tmpUser = NewUserFilter()
+var userFilter = NewUserFilter()
 var DefaultUserFilter = NewUserFilter()
 
 func NewUserFilter() *UserFilter {
@@ -37,7 +37,7 @@ func (filter *UserFilter) FilterOut(field int, in string) (result bool) {
 	case ArgvFilter:
 		result = filter.rangeFilter(filter.ArgvFilter, in)
 	}
-	return false
+	return result
 }
 
 func (filter *UserFilter) Set(_type, int, op int, value string) {
@@ -113,25 +113,22 @@ func (u *UserFilter) Load(filterConfig *FilterConfig) {
 			}
 			switch _type {
 			case "exe":
-				load(tmpUser.ExeFilter, v.Field(i).Index(index).String())
+				load(userFilter.ExeFilter, v.Field(i).Index(index).String())
 			case "dns":
-				load(tmpUser.DnsFilter, v.Field(i).Index(index).String())
+				load(userFilter.DnsFilter, v.Field(i).Index(index).String())
 			case "argv":
-				load(tmpUser.ArgvFilter, v.Field(i).Index(index).String())
+				load(userFilter.ArgvFilter, v.Field(i).Index(index).String())
 			}
 		}
 	}
-	u.replace(tmpUser)
+	u.replace(userFilter)
 }
 
 func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
 	f.Range(func(_key interface{}, _ interface{}) bool {
 		filter := _key.(StringFilter)
 		result = filter.FilterOut(in)
-		if result {
-			return false
-		}
-		return true
+		return !result
 	})
 	return false
 }

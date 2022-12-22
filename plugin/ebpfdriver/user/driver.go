@@ -218,7 +218,6 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		zap.S().Errorf("decode event error: %s", err)
 		return
 	}
-	// marshal the data
 	result, err := decoder.MarshalJson(eventDecoder, ctx)
 	if err != nil {
 		zap.S().Error(err)

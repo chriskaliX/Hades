@@ -16,6 +16,7 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
+#include "filter.h"
 
 struct _sys_enter_connect {
     unsigned long long unused;
@@ -144,8 +145,10 @@ int BPF_KPROBE(kprobe_security_socket_bind)
     return events_perf_submit(&data);
 }
 
+#define DNS_LIMIT_PERSEC 5000
+
 /* For DNS */
-BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 1024);
+BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 4096);
 // kprobe/kretprobe are used for get dns data. Proper way to get udp data,
 // is to hook the kretprobe of the udp_recvmsg just like Elkeid does. But
 // still, a uprobe of udp (like getaddrinfo and gethostbyname) to get this
@@ -154,6 +157,8 @@ BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 1024);
 SEC("kprobe/udp_recvmsg")
 int BPF_KPROBE(kprobe_udp_recvmsg)
 {
+    if (hades_filter(UDP_RECVMSG, DNS_LIMIT_PERSEC, POLICY_PASS) == 0)
+        return 0;
     // get the sock
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct inet_sock *inet = (struct inet_sock *)sk;
@@ -166,7 +171,7 @@ int BPF_KPROBE(kprobe_udp_recvmsg)
     // if all udp traffic is required, remove the dport thing.
     // By the way, I capture the Query part of dns structure and ignore TC flag,
     // which is somehow inaccurate though, but I'll do a uprobe hook for this all.
-    if (dport == 13568 || dport == 59668)
+    if (dport == 13568 || dport == 59668 || dport == 0)
     {
         struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
         // in msghdr->iov_iter. There are different way to filter. What we need

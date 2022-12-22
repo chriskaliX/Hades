@@ -27,8 +27,7 @@ type Window struct {
 	quota    int
 	duration time.Duration
 	// internal fields
-	cache *utilcache.LRUExpireCache
-	// TODO: counter just for temp
+	cache   *utilcache.LRUExpireCache
 	counter *lru.Cache
 }
 
@@ -71,9 +70,7 @@ func (w *Window) Check(input string) bool {
 }
 
 // default filter function, nothing to do
-func (w *Window) Filter(input string) bool {
-	return false
-}
+func (w *Window) Filter(input string) bool { return false }
 
 // true: alert
 // false: pass

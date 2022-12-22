@@ -59,12 +59,12 @@ func (HoneyPot) GetProbes() []*manager.Probe {
 		// 	Ifname:           "ens33",
 		// 	NetworkDirection: manager.Egress,
 		// },
-		// {
-		// 	UID:              "kprobe_tcp_reset",
-		// 	Section:          "kprobe/kfree_skb_reason",
-		// 	EbpfFuncName:     "kprobe_tcp_reset",
-		// 	AttachToFuncName: "kfree_skb_reason",
-		// },
+		{
+			UID:              "kprobe_tcp_reset",
+			Section:          "kprobe/tcp_v4_send_reset",
+			EbpfFuncName:     "kprobe_tcp_reset",
+			AttachToFuncName: "tcp_v4_send_reset",
+		},
 		{
 			UID:              "icmp",
 			Section:          "kprobe/__icmp_send",
