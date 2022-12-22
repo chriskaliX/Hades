@@ -40,6 +40,10 @@ const filterPid = "pid_filter"
 const EnableDenyBPF = 10
 const DisableDenyBPF = 11
 
+// Perfmap
+const execEvents = "exec_events"
+const netEvents = "net_events"
+
 var rawdata = make(map[string]string, 1)
 
 // Driver contains the ebpfmanager and eventDecoder. By default, Driver
@@ -53,7 +57,6 @@ type Driver struct {
 	// driver state monitor
 	filterCount atomic.Value
 	dropCount   atomic.Value
-	transCount  atomic.Value
 }
 
 // New a driver with pre-set map and options
@@ -64,15 +67,16 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
 			{
-				Map: manager.Map{Name: "exec_events"},
+				Map: manager.Map{Name: execEvents},
 				PerfMapOptions: manager.PerfMapOptions{
 					PerfRingBufferSize: 256 * os.Getpagesize(),
 					DataHandler:        driver.dataHandler,
 					LostHandler:        driver.lostHandler,
 				},
 			},
+			// network events, for now, only honeypot was introduced
 			{
-				Map: manager.Map{Name: "net_events"},
+				Map: manager.Map{Name: netEvents},
 				PerfMapOptions: manager.PerfMapOptions{
 					PerfRingBufferSize: 256 * os.Getpagesize(),
 					DataHandler:        driver.dataHandler,
@@ -171,6 +175,7 @@ func (d *Driver) taskResolve() {
 	for {
 		select {
 		case <-d.context.Done():
+			return
 		default:
 			task := d.Sandbox.RecvTask()
 			switch task.DataType {
@@ -194,33 +199,27 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	decoder.DefaultDecoder.SetBuffer(data)
 	// variable init
 	var eventDecoder decoder.Event
-	var ctx *decoder.Context
-	var err error
-	var result string
-	// TODO: only for temporary
-	if perfmap.Name == "exec_events" {
-		// get and decode the context
-		ctx, err = decoder.DefaultDecoder.DecodeContext()
-		if err != nil {
-			return
-		}
-		// get the event and set context into event
-		eventDecoder = decoder.Events[ctx.Type]
-		// Fillup the context by the values that Event offers
-		ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
-	} else {
-		// TODO: for now, only net_events, temporary hardcode
-		eventDecoder = decoder.Events[3000]
+	// get and decode the context
+	ctx, err := decoder.DefaultDecoder.DecodeContext()
+	if err != nil {
+		return
 	}
+	// get the event and set context into event
+	eventDecoder = decoder.Events[ctx.Type]
+	// Fillup the context by the values that Event offers
+	ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
+	// value count
 	if err = eventDecoder.DecodeEvent(decoder.DefaultDecoder); err != nil {
-		if err == decoder.ErrFilter || err == decoder.ErrIgnore {
+		if err == decoder.ErrFilter {
+
+		} else if err == decoder.ErrIgnore {
 			return
 		}
 		zap.S().Errorf("decode event error: %s", err)
 		return
 	}
 	// marshal the data
-	result, err = decoder.MarshalJson(eventDecoder, ctx)
+	result, err := decoder.MarshalJson(eventDecoder, ctx)
 	if err != nil {
 		zap.S().Error(err)
 		return

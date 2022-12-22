@@ -337,7 +337,7 @@ int trigger_module_scan(struct pt_regs *ctx)
 
     // local bpf way of list_for_each_entry
 #pragma unroll
-    for (int index = 0; index < 512; index++)
+    for (int index = 0; index < 256; index++)
     {
         out = index;
         if (&cur->entry == (&list))
