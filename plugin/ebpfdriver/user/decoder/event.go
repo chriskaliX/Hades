@@ -13,6 +13,7 @@ var Events = map[uint32]Event{}
 
 type EventCronFunc func(m *manager.Manager) error
 
+// Event is the interface that all events should implement
 type Event interface {
 	// ID returns the unique id for event
 	ID() uint32

@@ -61,8 +61,9 @@ type Driver struct {
 
 // New a driver with pre-set map and options
 func NewDriver(s SDK.ISandbox) (*Driver, error) {
-	driver := &Driver{}
-	driver.Sandbox = s
+	driver := &Driver{
+		Sandbox: s,
+	}
 	// init ebpfmanager with maps and perf_events
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
@@ -113,24 +114,24 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 
 func (d *Driver) Start() error { return d.Manager.Start() }
 
-// Init the driver with default value
+// init the driver with default value
 func (d *Driver) PostRun() (err error) {
 	// Get Pid filter
-	if err := helper.MapUpdate(d.Manager, filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
+	if err := d.mapUpdate(filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
 		zap.S().Error(err)
 	}
 	// STEXT ETEXT for rootkit detection
 	if _stext := helper.Ksyms.Get("_stext"); _stext != nil {
-		if err := helper.MapUpdate(d.Manager, configMap, conf_STEXT, _stext.Address); err != nil {
+		if err := d.mapUpdate(configMap, conf_STEXT, _stext.Address); err != nil {
 			zap.S().Error(err)
 		}
 	}
 	if _etext := helper.Ksyms.Get("_etext"); _etext != nil {
-		if err := helper.MapUpdate(d.Manager, configMap, conf_ETEXT, _etext.Address); err != nil {
+		if err := d.mapUpdate(configMap, conf_ETEXT, _etext.Address); err != nil {
 			zap.S().Error(err)
 		}
 	}
-	zap.S().Info("init configuration has been loaded")
+	zap.S().Info("ebpfdriver init configuration has been loaded")
 	// By default, we do not ban BPF program unless you choose on this..
 	d.cronM = cron.New(cron.WithSeconds())
 	// Regist the cronjobs of the event
@@ -180,11 +181,11 @@ func (d *Driver) taskResolve() {
 			task := d.Sandbox.RecvTask()
 			switch task.DataType {
 			case EnableDenyBPF:
-				if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(1)); err != nil {
+				if err := d.mapUpdate(configMap, conf_DENY_BPF, uint64(1)); err != nil {
 					zap.S().Error(err)
 				}
 			case DisableDenyBPF:
-				if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(0)); err != nil {
+				if err := d.mapUpdate(configMap, conf_DENY_BPF, uint64(0)); err != nil {
 					zap.S().Error(err)
 				}
 			}
@@ -246,4 +247,16 @@ func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, ma
 		},
 	}
 	d.Sandbox.SendRecord(rec)
+}
+
+// internal map operation
+func (d *Driver) mapUpdate(name string, key uint32, value interface{}) error {
+	bpfmap, found, err := d.Manager.GetMap(name)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("bpfmap %s not found", name)
+	}
+	return bpfmap.Update(key, value, ebpf.UpdateAny)
 }

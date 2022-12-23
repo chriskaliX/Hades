@@ -9,8 +9,8 @@ import (
 
 	"github.com/aquasecurity/libbpfgo/helpers"
 	"github.com/mitchellh/hashstructure/v2"
-
 	"go.uber.org/zap"
+	"k8s.io/utils/strings/slices"
 )
 
 /*
@@ -110,7 +110,7 @@ func NewKernelSymbolsMap() *KernelSymbolTable {
 		// special
 		lower := strings.ToLower(line[2])
 
-		if contains(whiteList, lower) || strings.HasPrefix(lower, "entry_int80") {
+		if slices.Contains(whiteList, lower) || strings.HasPrefix(lower, "entry_int80") {
 			symbol := helpers.KernelSymbol{
 				Name:    symbolName,
 				Type:    symbolType,
@@ -142,14 +142,4 @@ func NewKernelSymbolsMap() *KernelSymbolTable {
 	}
 	KernelSymbols.initialized = true
 	return &KernelSymbols
-}
-
-// Internal contains for backport slice.Contains before golang 1.18
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }

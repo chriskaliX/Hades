@@ -5,18 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hades-ebpf/user/cache"
-	"sync"
 
 	"github.com/bytedance/sonic"
 )
-
-var slimCredPool sync.Pool
-
-func init() {
-	slimCredPool.New = func() interface{} {
-		return &SlimCred{}
-	}
-}
 
 // Context contains the kern space struct data_context and the
 // user space extra field from the path
@@ -105,14 +96,4 @@ type SlimCred struct {
 	Fsgid uint32 /* GID for VFS ops */
 }
 
-func (s SlimCred) GetSizeBytes() uint32 {
-	return 32
-}
-
-func NewSlimCred() *SlimCred {
-	return slimCredPool.Get().(*SlimCred)
-}
-
-func PutSlimCred(data *SlimCred) {
-	slimCredPool.Put(data)
-}
+func (s SlimCred) GetSizeBytes() uint32 { return 32 }

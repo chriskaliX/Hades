@@ -2,10 +2,10 @@ package event
 
 import (
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
 	"strconv"
 
 	manager "github.com/ehids/ebpfmanager"
+	"golang.org/x/sys/unix"
 )
 
 var _ decoder.Event = (*SocketBind)(nil)
@@ -43,7 +43,7 @@ func (s *SocketBind) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	}
 	s.Family = family
 	switch s.Family {
-	case 2:
+	case unix.AF_INET:
 		var _port uint16
 		if decoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
@@ -53,9 +53,9 @@ func (s *SocketBind) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		if decoder.DecodeUint32BigEndian(&_addr); err != nil {
 			return
 		}
-		s.LocalAddr = helper.PrintUint32IP(_addr)
+		s.LocalAddr = decoder.DecodeUint32Ip(_addr)
 		decoder.ReadByteSliceFromBuff(8)
-	case 10:
+	case unix.AF_INET6:
 		var _port uint16
 		if decoder.DecodeUint16BigEndian(&_port); err != nil {
 			return
@@ -70,7 +70,7 @@ func (s *SocketBind) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		if err != nil {
 			return
 		}
-		s.LocalAddr = helper.Print16BytesSliceIP(_addr)
+		s.LocalAddr = decoder.DecodeSliceIp(_addr)
 		// reuse
 		decoder.DecodeUint32BigEndian(&_flowinfo)
 	}
