@@ -10,7 +10,7 @@ import (
 // TODO: version tag
 var RootCmd = &cobra.Command{
 	Use:     "ebpfdriver",
-	Version: "v1.0.2",
+	Version: "v1.1.0",
 }
 
 func Execute() {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/utils"
 
 	manager "github.com/ehids/ebpfmanager"
 )
@@ -40,7 +40,7 @@ func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	if err = e.DecodeUint64(&addr); err != nil {
 		return
 	}
-	if idt := helper.Ksyms.Get(addr); idt != nil {
+	if idt := utils.Ksyms.Get(addr); idt != nil {
 		return decoder.ErrIgnore
 	}
 	i.Address = fmt.Sprintf("%x", addr)
@@ -52,7 +52,7 @@ func (IDTScan) Name() string {
 }
 
 func (i *IDTScan) Trigger(m *manager.Manager) error {
-	idt := helper.Ksyms.Get("idt_table")
+	idt := utils.Ksyms.Get("idt_table")
 	if idt == nil {
 		err := errors.New("idt_table is not found")
 		return err

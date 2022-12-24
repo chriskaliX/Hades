@@ -41,9 +41,7 @@ type Context struct {
 
 // GetSizeBytes returns the bytes of the context in kern space
 // and padding of the struct is also included.
-func (Context) GetSizeBytes() int {
-	return 168
-}
+func (Context) GetSizeBytes() int { return 168 }
 
 func (ctx *Context) DecodeContext(decoder *EbpfDecoder) error {
 	offset := decoder.cursor

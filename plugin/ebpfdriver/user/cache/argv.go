@@ -15,7 +15,7 @@ const (
 	argvCacheSize       = 8192
 	argvLimiterBurst    = 100
 	argvLimiterInterval = 2 * time.Millisecond
-	argvMaxLength       = 512
+	argvMaxLength       = 1024
 )
 
 var DefaultArgvCache = NewArgvCache()
@@ -27,7 +27,6 @@ type ArgvCache struct {
 
 func NewArgvCache() *ArgvCache {
 	// the default value is from Elkeid, which is reasonable
-	// lru from the k8s
 	acache := &ArgvCache{
 		rlimiter: rate.NewLimiter(
 			rate.Every(argvLimiterInterval), argvLimiterBurst,

@@ -3,7 +3,7 @@ package event
 import (
 	"errors"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/utils"
 
 	manager "github.com/ehids/ebpfmanager"
 )
@@ -41,7 +41,7 @@ func (s *SCTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	// address is available, not hooked
-	if sym := helper.Ksyms.Get(addr); sym != nil {
+	if sym := utils.Ksyms.Get(addr); sym != nil {
 		return decoder.ErrIgnore
 	}
 	return nil
@@ -52,7 +52,7 @@ func (SCTScan) Name() string {
 }
 
 func (s *SCTScan) Trigger(m *manager.Manager) error {
-	sct := helper.Ksyms.Get("sys_call_table")
+	sct := utils.Ksyms.Get("sys_call_table")
 	if sct == nil {
 		err := errors.New("sys_call_table is not found")
 		return err

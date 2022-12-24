@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"hades-ebpf/user/decoder"
 	_ "hades-ebpf/user/event"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/user/filter"
 	"hades-ebpf/user/share"
+	"hades-ebpf/utils"
 	"math"
 	"os"
 	"strconv"
@@ -29,20 +30,29 @@ var _bytecode []byte
 
 // config
 const configMap = "config_map"
-const conf_DENY_BPF uint32 = 0
-const conf_STEXT uint32 = 1
-const conf_ETEXT uint32 = 2
+const (
+	confDenyBPF uint32 = 0
+	configSTEXT uint32 = 1
+	configETEXT uint32 = 2
+)
 
 // filters
 const filterPid = "pid_filter"
 
 // Task
-const EnableDenyBPF = 10
-const DisableDenyBPF = 11
+const (
+	TaskDisableProbe   = 7
+	TaskEnableProbe    = 8
+	TaskWhiteList      = 9
+	TaskEnableDenyBPF  = 10
+	TaskDisableDenyBPF = 11
+)
 
 // Perfmap
-const execEvents = "exec_events"
-const netEvents = "net_events"
+const (
+	execEvents = "exec_events"
+	netEvents  = "net_events"
+)
 
 var rawdata = make(map[string]string, 1)
 
@@ -121,13 +131,13 @@ func (d *Driver) PostRun() (err error) {
 		zap.S().Error(err)
 	}
 	// STEXT ETEXT for rootkit detection
-	if _stext := helper.Ksyms.Get("_stext"); _stext != nil {
-		if err := d.mapUpdate(configMap, conf_STEXT, _stext.Address); err != nil {
+	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
+		if err := d.mapUpdate(configMap, configSTEXT, _stext.Address); err != nil {
 			zap.S().Error(err)
 		}
 	}
-	if _etext := helper.Ksyms.Get("_etext"); _etext != nil {
-		if err := d.mapUpdate(configMap, conf_ETEXT, _etext.Address); err != nil {
+	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
+		if err := d.mapUpdate(configMap, configETEXT, _etext.Address); err != nil {
 			zap.S().Error(err)
 		}
 	}
@@ -164,13 +174,20 @@ func (d *Driver) Close(UID string) (err error) {
 	return fmt.Errorf("UID %s not found", UID)
 }
 
+func (d *Driver) StartProbe(UID string) (err error) {
+	for _, probe := range d.Manager.Probes {
+		if UID == probe.UID {
+			return probe.Init(d.Manager)
+		}
+	}
+	return fmt.Errorf("UID %s not found", UID)
+}
+
 func (d *Driver) Stop() error {
 	zap.S().Info("driver stop is called")
 	d.cancel()
 	return d.Manager.Stop(manager.CleanAll)
 }
-
-func (d *Driver) Filter() {}
 
 func (d *Driver) taskResolve() {
 	for {
@@ -180,12 +197,20 @@ func (d *Driver) taskResolve() {
 		default:
 			task := d.Sandbox.RecvTask()
 			switch task.DataType {
-			case EnableDenyBPF:
-				if err := d.mapUpdate(configMap, conf_DENY_BPF, uint64(1)); err != nil {
+			case TaskDisableProbe:
+				d.Close(task.Data)
+			case TaskEnableProbe:
+				d.StartProbe(task.Data)
+			case TaskWhiteList:
+				if err := filter.LoadConfigFromTask(task); err != nil {
 					zap.S().Error(err)
 				}
-			case DisableDenyBPF:
-				if err := d.mapUpdate(configMap, conf_DENY_BPF, uint64(0)); err != nil {
+			case TaskEnableDenyBPF:
+				if err := d.mapUpdate(configMap, confDenyBPF, uint64(1)); err != nil {
+					zap.S().Error(err)
+				}
+			case TaskDisableDenyBPF:
+				if err := d.mapUpdate(configMap, confDenyBPF, uint64(0)); err != nil {
 					zap.S().Error(err)
 				}
 			}

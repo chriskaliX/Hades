@@ -3,6 +3,7 @@ package cache
 import (
 	"bytes"
 	"fmt"
+	"hades-ebpf/utils"
 	"math/rand"
 	"os"
 	"strings"
@@ -35,7 +36,7 @@ type NsCache struct {
 func NewNsCache() *NsCache {
 	cache := &NsCache{
 		rlimiter: rate.NewLimiter(rate.Every(nsLimiterInterval), nsLimiterBurst),
-		cache:    utilcache.NewLRUExpireCacheWithClock(nsCacheSize, GTicker),
+		cache:    utilcache.NewLRUExpireCacheWithClock(nsCacheSize, utils.Clock),
 	}
 	return cache
 }

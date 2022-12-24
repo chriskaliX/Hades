@@ -3,7 +3,7 @@ package event
 import (
 	"errors"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/utils"
 
 	manager "github.com/ehids/ebpfmanager"
 )
@@ -41,7 +41,7 @@ func (MemScan) Name() string {
 }
 
 func (s *MemScan) Trigger(m *manager.Manager) error {
-	table := helper.Ksyms.Get("vmap_area_list")
+	table := utils.Ksyms.Get("vmap_area_list")
 	if table == nil {
 		err := errors.New("vmap_area_list is not found")
 		return err

@@ -107,7 +107,7 @@ static __always_inline int context_filter(context_t *context)
         return 1;
     if (bpf_map_lookup_elem(&cgroup_id_filter, &context->cgroup_id) != 0)
         return 1;
-    if (bpf_map_lookup_elem(&cgroup_id_filter, &context->pns) != 0)
+    if (bpf_map_lookup_elem(&pns_filter, &context->pns) != 0)
         return 1;
     return 0;
 }

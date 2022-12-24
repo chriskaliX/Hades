@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/utils"
 	"io"
 	"os"
 
@@ -66,7 +66,7 @@ func (ModuleScan) Name() string {
 }
 
 func (i *ModuleScan) Trigger(m *manager.Manager) error {
-	idt := helper.Ksyms.Get("module_kset")
+	idt := utils.Ksyms.Get("module_kset")
 	if idt == nil {
 		err := errors.New("mod_kset is not found")
 		return err

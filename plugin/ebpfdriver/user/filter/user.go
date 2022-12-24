@@ -1,7 +1,8 @@
+// Userspace filter
 package filter
 
 import (
-	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -17,7 +18,6 @@ type UserFilter struct {
 	ArgvFilter *sync.Map
 }
 
-var userFilter = NewUserFilter()
 var DefaultUserFilter = NewUserFilter()
 
 func NewUserFilter() *UserFilter {
@@ -28,114 +28,39 @@ func NewUserFilter() *UserFilter {
 	}
 }
 
-func (filter *UserFilter) FilterOut(field int, in string) (result bool) {
+// true = pass
+// false = do not pass
+func (f *UserFilter) FilterOut(field int, in string) (result bool) {
 	switch field {
 	case ExeFilter:
-		result = filter.rangeFilter(filter.ExeFilter, in)
+		// exe filter
+		_, ok := f.ExeFilter.Load(in)
+		return !ok
 	case DnsFilter:
-		result = filter.rangeFilter(filter.DnsFilter, in)
+		// dns filter
+		result = true
+		f.DnsFilter.Range(func(key any, value any) bool {
+			if strings.HasSuffix(in, key.(string)) {
+				result = false
+				return false
+			}
+			return true
+		})
+		return result
 	case ArgvFilter:
-		result = filter.rangeFilter(filter.ArgvFilter, in)
+		_, ok := f.ArgvFilter.Load(in)
+		return !ok
 	}
 	return result
 }
 
-func (filter *UserFilter) Set(_type, int, op int, value string) {
-	s := StringFilter{
-		Operation: op,
-		Value:     value,
-	}
+func (filter *UserFilter) Set(_type int, value string) {
 	switch _type {
 	case ExeFilter:
-		filter.ExeFilter.Store(s, true)
+		filter.ExeFilter.Store(value, true)
 	case DnsFilter:
-		filter.DnsFilter.Store(s, true)
+		filter.DnsFilter.Store(value, true)
 	case ArgvFilter:
-		filter.ArgvFilter.Store(s, true)
+		filter.ArgvFilter.Store(value, true)
 	}
-}
-
-func (u *UserFilter) Delete(_type int, op int, value string) {
-	var _map *sync.Map
-	switch _type {
-	case ExeFilter:
-		_map = u.ExeFilter
-	case DnsFilter:
-		_map = u.DnsFilter
-	case ArgvFilter:
-		_map = u.ArgvFilter
-	}
-	// Delete the filter
-	_map.Range(func(_key interface{}, _ interface{}) bool {
-		filter := _key.(StringFilter)
-		if filter.Operation == op && filter.Value == value {
-			_map.Delete(_key)
-			return false
-		}
-		return true
-	})
-}
-
-// TODO: unfinished
-func (u *UserFilter) Load(filterConfig *FilterConfig) {
-	t := reflect.TypeOf(filterConfig).Elem()
-	v := reflect.ValueOf(filterConfig).Elem()
-	load := func(m *sync.Map, input string) {
-		filter := StringFilter{}
-		filter.Value = input[1:]
-		switch string(input[0]) {
-		case "0":
-			filter.Operation = Prefix
-		case "1":
-			filter.Operation = Suffix
-		case "2":
-			filter.Operation = Equal
-		case "3":
-			filter.Operation = Contains
-		}
-		m.Store(filter, 0)
-	}
-	// go range the filter type
-	for i := 0; i < t.NumField(); i++ {
-		// only get slice
-		if v.Field(i).Kind() != reflect.Slice {
-			continue
-		}
-		_type := t.Field(i).Tag.Get("json")
-		if _type != "exe" && _type != "dns" && _type != "argv" {
-			continue
-		}
-		for index := 0; index < v.Field(i).Len(); index++ {
-			value := v.Field(i).Index(index).String()
-			// length pre-check
-			if len(value) < 2 {
-				continue
-			}
-			switch _type {
-			case "exe":
-				load(userFilter.ExeFilter, v.Field(i).Index(index).String())
-			case "dns":
-				load(userFilter.DnsFilter, v.Field(i).Index(index).String())
-			case "argv":
-				load(userFilter.ArgvFilter, v.Field(i).Index(index).String())
-			}
-		}
-	}
-	u.replace(userFilter)
-}
-
-func (filter *UserFilter) rangeFilter(f *sync.Map, in string) (result bool) {
-	f.Range(func(_key interface{}, _ interface{}) bool {
-		filter := _key.(StringFilter)
-		result = filter.FilterOut(in)
-		return !result
-	})
-	return false
-}
-
-func (filter *UserFilter) replace(user *UserFilter) {
-	// replace
-	filter.ExeFilter = user.ExeFilter
-	filter.ArgvFilter = user.ArgvFilter
-	filter.DnsFilter = user.ArgvFilter
 }
