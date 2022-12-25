@@ -103,7 +103,6 @@ func (e *Event) GetInfo(pidCache *lru.Cache) (err error) {
 	}
 	e.Stdin, _ = e.getFd(0)
 	e.Stdout, _ = e.getFd(1)
-
 	e.getPidTree(pidCache)
 	return
 }
