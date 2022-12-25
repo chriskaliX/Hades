@@ -4,6 +4,7 @@ import (
 	"hades-ebpf/user"
 	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
+	_ "hades-ebpf/user/event"
 	"hades-ebpf/user/share"
 
 	"hades-ebpf/cmd"
@@ -17,9 +18,11 @@ import (
 	_ "net/http/pprof"
 )
 
-func driver(s SDK.ISandbox) error {
+var driver *user.Driver
+
+func appRun(s SDK.ISandbox) (err error) {
 	decoder.SetAllowList(share.EventFilter)
-	driver, err := user.NewDriver(s)
+	driver, err = user.NewDriver(s)
 	if err != nil {
 		zap.S().Error(err)
 		return err
@@ -51,16 +54,20 @@ func main() {
 				RemoteLevel: zapcore.ErrorLevel,
 			},
 		}
-
 		// sandbox init
 		sandbox := SDK.NewSandbox()
 		if err := sandbox.Init(sconfig); err != nil {
 			return
 		}
-		// TODO: Dirty init jusr for now
+		defer func() {
+			if driver != nil {
+				driver.Stop()
+				return
+			}
+		}()
 		cache.DefaultHashCache = sandbox.Hash
 		// Better UI for command line usage
-		sandbox.Run(driver)
+		sandbox.Run(appRun)
 	})
 	cmd.Execute()
 }

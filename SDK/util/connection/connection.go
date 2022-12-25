@@ -24,7 +24,7 @@ type INetRetry interface {
 	GetMaxDelay() uint
 }
 
-func IRetry(netRetry INetRetry, ctx context.Context) (err error) {
+func IRetry(ctx context.Context, netRetry INetRetry) (err error) {
 	var (
 		maxRetries   uint
 		maxDelay     uint
@@ -45,7 +45,7 @@ func IRetry(netRetry INetRetry, ctx context.Context) (err error) {
 			return
 		default:
 			if maxRetries > 0 && retries >= maxRetries {
-				err = fmt.Errorf("Abandon %s after %d retries.", netRetry.String(), retries)
+				err = fmt.Errorf("abandon %s after %d retries.", netRetry.String(), retries)
 				zap.S().Error(err)
 				return err
 			}

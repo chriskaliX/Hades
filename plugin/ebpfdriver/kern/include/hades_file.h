@@ -84,8 +84,8 @@ int BPF_KPROBE(kprobe_security_inode_link)
         return 0;
     data.context.type = SECURITY_INODE_LINK;
     
-    struct dentry *from = (struct dentry *) PT_REGS_PARM2(ctx);
-    struct dentry *to = (struct dentry *) PT_REGS_PARM4(ctx);
+    struct dentry *from = (struct dentry *) PT_REGS_PARM1(ctx);
+    struct dentry *to = (struct dentry *) PT_REGS_PARM3(ctx);
 
     void *from_ptr = get_dentry_path_str(from);
     if (from_ptr == NULL)

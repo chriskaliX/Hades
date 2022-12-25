@@ -2,8 +2,7 @@ package event
 
 import (
 	"bufio"
-	"collector/share"
-	"context"
+	"collector/eventmanager"
 	"io"
 	"os"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/fsnotify/fsnotify"
 	"github.com/shirou/gopsutil/host"
@@ -23,23 +23,25 @@ const (
 	SSH_DATATYPE = 3003
 )
 
-var _ Event = (*SSH)(nil)
+var _ eventmanager.IEvent = (*SSH)(nil)
 
-type SSH struct {
-	BasicEvent
-}
+type SSH struct{}
 
 func (SSH) DataType() int {
 	return SSH_DATATYPE
 }
 
-func (SSH) String() string {
+func (SSH) Name() string {
 	return "ssh"
+}
+
+func (n *SSH) Flag() int {
+	return eventmanager.Realtime
 }
 
 // Get and parse SSH log
 // 2022-03-22: for now, performance is under improved.
-func (SSH) RunSync(ctx context.Context) (err error) {
+func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 	// Redhat or Fedora Core: /var/log/secure
 	// Mandrake, FreeBSD, OpenBSD or Debian: /var/log/auth.log
 	// Format: Month Day Time Hostname ProcessName[ActionID] Message
@@ -66,7 +68,6 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 	}
 	lastSize = fs.Size()
 	// start a watcher
-	// TODO: make this to a interface
 	if watcher, err = fsnotify.NewWatcher(); err != nil {
 		zap.S().Error(err)
 		return
@@ -120,7 +121,6 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 					if err != nil {
 						continue
 					}
-					// TODO: 压测这里
 					timeNow = timeNow.AddDate(time.Now().Year(), 0, 0)
 					sshlog := make(map[string]string, 5)
 					rawdata := make(map[string]string, 1)
@@ -149,7 +149,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 									Fields: rawdata,
 								},
 							}
-							share.Sandbox.SendRecord(rec)
+							sandbox.SendRecord(rec)
 						}
 					// This is for the invalid user
 					case 16:
@@ -167,7 +167,7 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 									Fields: rawdata,
 								},
 							}
-							share.Sandbox.SendRecord(rec)
+							sandbox.SendRecord(rec)
 						}
 					}
 				}
@@ -177,12 +177,11 @@ func (SSH) RunSync(ctx context.Context) (err error) {
 		case err = <-watcher.Errors:
 			zap.S().Error(err)
 			return
-		case <-ctx.Done():
+		case <-sandbox.Context().Done():
 			return
+		case <-sig:
+			return
+		case <-time.After(10 * time.Second):
 		}
 	}
-}
-
-func init() {
-	RegistEvent(&SSH{})
 }

@@ -2,48 +2,59 @@ package event
 
 import (
 	"collector/cache/process"
-	"strconv"
+	"collector/eventmanager"
 	"time"
 
+	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
 )
 
 // modify this according to Elkeid
 const (
 	maxProcess             = 1500
-	ProcessIntervalMillSec = 100
+	ProcessIntervalMillSec = 40
 	PROCESS_DATATYPE       = 1001
 )
 
-var _ Event = (*Process)(nil)
+var _ eventmanager.IEvent = (*Process)(nil)
 
-type Process struct {
-	BasicEvent
-}
+type Process struct{}
 
 func (Process) DataType() int {
 	return PROCESS_DATATYPE
 }
 
-func (Process) String() string {
+func (Process) Name() string {
 	return "process"
 }
 
-func (p Process) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{})
-	var processes []*process.Process
-	processes, err = p.getProcess()
+func (n *Process) Flag() int {
+	return eventmanager.Periodic
+}
+
+func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
+	processes, err := p.getProcess()
 	if err != nil {
 		zap.S().Error("getprocess, err:", err)
-		return
+		return err
 	}
-	for _, process := range processes {
-		result[strconv.Itoa(process.PID)] = process
-		if err != nil {
-			continue
-		}
+	data, err := sonic.MarshalString(processes)
+	if err != nil {
+		return err
 	}
-	return
+	rec := &protocol.Record{
+		DataType:  1001,
+		Timestamp: time.Now().Unix(),
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	s.SendRecord(rec)
+	return nil
 }
 
 func (Process) getProcess() (procs []*process.Process, err error) {
@@ -61,8 +72,4 @@ func (Process) getProcess() (procs []*process.Process, err error) {
 		time.Sleep(time.Duration(ProcessIntervalMillSec) * time.Millisecond)
 	}
 	return
-}
-
-func init() {
-	RegistEvent(&Process{})
 }

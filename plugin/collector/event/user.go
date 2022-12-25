@@ -3,21 +3,24 @@ package event
 import (
 	"bufio"
 	cache "collector/cache/user"
+	"collector/eventmanager"
 	"encoding/binary"
 	"net"
 	"os"
 	"os/user"
 	"strconv"
 	"strings"
+
+	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/transport/protocol"
 )
 
 const USER_DATATYPE = 3004
 
-var _ Event = (*User)(nil)
+var _ eventmanager.IEvent = (*User)(nil)
 
-type User struct {
-	BasicEvent
-}
+type User struct{}
 
 type utmp struct {
 	Type   int16
@@ -44,19 +47,21 @@ func (User) DataType() int {
 	return USER_DATATYPE
 }
 
-func (User) String() string {
+func (User) Name() string {
 	return "user"
 }
 
+func (n *User) Flag() int {
+	return eventmanager.Periodic
+}
+
 // get user and update the usercache
-func (User) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{}, 8)
-	var (
-		passwd  *os.File
-		userMap = make(map[string]cache.User, 20)
-	)
-	if passwd, err = os.Open("/etc/passwd"); err != nil {
-		return
+func (User) Run(s SDK.ISandbox, sig chan struct{}) error {
+	result := make([]cache.User, 0, 20)
+	var userMap = make(map[string]cache.User, 20)
+	passwd, err := os.Open("/etc/passwd")
+	if err != nil {
+		return err
 	}
 	defer passwd.Close()
 	// basic information
@@ -99,12 +104,21 @@ func (User) Run() (result map[string]interface{}, err error) {
 	}
 	// append all
 	for _, user := range userMap {
-		result[strconv.FormatUint(uint64(user.UID), 10)] = user
+		result = append(result, user)
 		cache.Cache.Update(user)
 	}
-	return
-}
-
-func init() {
-	RegistEvent(&User{})
+	data, err := sonic.MarshalString(result)
+	if err != nil {
+		return err
+	}
+	rec := &protocol.Record{
+		DataType: SSHCONFIG_DATATYPE,
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	s.SendRecord(rec)
+	return nil
 }

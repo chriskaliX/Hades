@@ -60,13 +60,13 @@ int BPF_KPROBE(kprobe_do_init_module)
     // get exe from task
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 1);
-    save_pid_tree_to_buf(&data, 12, 2);
+    save_pid_tree_to_buf_simple(&data, 8, 2);
     // save file from current task->fs->pwd
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         return 0;
-    void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
-    save_str_to_buf(&data, file_path, 1);
+    void *file_path = get_path_str_simple(GET_FIELD_ADDR(file->pwd));
+    save_str_to_buf(&data, file_path, 3);
     return events_perf_submit(&data);
 }
 
@@ -337,7 +337,7 @@ int trigger_module_scan(struct pt_regs *ctx)
 
     // local bpf way of list_for_each_entry
 #pragma unroll
-    for (int index = 0; index < 512; index++)
+    for (int index = 0; index < 256; index++)
     {
         out = index;
         if (&cur->entry == (&list))

@@ -2,19 +2,18 @@ package event
 
 import (
 	"bufio"
-	"collector/share"
-	"context"
+	"collector/eventmanager"
 	"crypto/md5"
 	"errors"
 	"io"
 	"io/fs"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
@@ -31,7 +30,7 @@ var (
 
 const CRON_DATATYPE = 2001
 
-var _ Event = (*Crontab)(nil)
+var _ eventmanager.IEvent = (*Crontab)(nil)
 
 type Cron struct {
 	Minute     string `json:"minute"`
@@ -46,36 +45,31 @@ type Cron struct {
 
 type Crontab struct {
 	cronCache *lru.Cache
-	BasicEvent
-}
-
-func (c *Crontab) Init(name string) (err error) {
-	c.cronCache, _ = lru.New(240)
-	c.BasicEvent.Init(name)
-	return
 }
 
 func (Crontab) DataType() int {
 	return CRON_DATATYPE
 }
 
-func (Crontab) String() string {
+func (n *Crontab) Flag() int {
+	return eventmanager.Realtime
+}
+
+func (Crontab) Name() string {
 	return "cron"
 }
 
 // https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/tests/integration/tables/crontab.cpp
-/*
-	const std::string kSystemCron = "/etc/crontab";
+// const std::string kSystemCron = "/etc/crontab";
 
-	const std::vector<std::string> kCronSearchDirs = {
-		"/etc/cron.d/", // system all
-		"/var/at/tabs/", // user mac:lion
-		"/var/spool/cron/", // user linux:centos
-		"/var/spool/cron/crontabs/", // user linux:debian
-	};
-	https://github.com/osquery/osquery/blob/2c2b85cbd25a381eb0973017427928e5691c4431/osquery/tables/system/posix/crontab.cpp
-*/
-func Parse(withUser bool, path string, file *os.File) (crons []Cron) {
+// const std::vector<std::string> kCronSearchDirs = {
+// 	"/etc/cron.d/", // system all
+// 	"/var/at/tabs/", // user mac:lion
+// 	"/var/spool/cron/", // user linux:centos
+// 	"/var/spool/cron/crontabs/", // user linux:debian
+// };
+// https://github.com/osquery/osquery/blob/2c2b85cbd25a381eb0973017427928e5691c4431/osquery/tables/system/posix/crontab.cpp
+func (c *Crontab) parse(withUser bool, path string, file *os.File) (crons []Cron) {
 	r := bufio.NewScanner(io.LimitReader(file, 1024*1024))
 	for r.Scan() {
 		line := r.Text()
@@ -121,14 +115,13 @@ func Parse(withUser bool, path string, file *os.File) (crons []Cron) {
 					cron.Command = strings.Join(fields[6:], " ")
 				}
 				crons = append(crons, cron)
-				// flag, _ := cronCache.ContainsOrAdd(md5.Sum([]byte(cron.Command)), true)
 			}
 		}
 	}
 	return
 }
 
-func GetCron() (crons []Cron, err error) {
+func (c *Crontab) GetCron() (crons []Cron, err error) {
 	for _, dir := range CronSearchDirs {
 		err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
@@ -140,7 +133,7 @@ func GetCron() (crons []Cron, err error) {
 					return nil
 				}
 				flag := strings.HasPrefix(path, "/var/spool/cron")
-				crons = append(crons, Parse(flag, path, f)...)
+				crons = append(crons, c.parse(flag, path, f)...)
 				f.Close()
 			}
 			return nil
@@ -151,7 +144,7 @@ func GetCron() (crons []Cron, err error) {
 	}
 
 	if f, e := os.Open("/etc/crontab"); e == nil {
-		crons = append(crons, Parse(false, "/etc/crontab", f)...)
+		crons = append(crons, c.parse(false, "/etc/crontab", f)...)
 		f.Close()
 	}
 
@@ -161,9 +154,28 @@ func GetCron() (crons []Cron, err error) {
 	return
 }
 
-func (c Crontab) RunSync(ctx context.Context) (err error) {
-	init := true
-	ticker := time.NewTicker(time.Second * time.Duration(rand.Intn(6)+1))
+func (c *Crontab) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	if c.cronCache == nil {
+		c.cronCache, _ = lru.New(240)
+	}
+	// get crons if it start
+	if crons, err := c.GetCron(); err == nil {
+		for _, cron := range crons {
+			c.cronCache.Add(md5.Sum([]byte(cron.Command)), true)
+		}
+		if data, err := sonic.MarshalString(crons); err == nil {
+			rawdata := make(map[string]string)
+			rawdata["data"] = data
+			rec := &protocol.Record{
+				DataType:  2001,
+				Timestamp: time.Now().Unix(),
+				Data: &protocol.Payload{
+					Fields: rawdata,
+				},
+			}
+			s.SendRecord(rec)
+		}
+	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -178,27 +190,18 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 	}
 	watcher.Add("/etc/crontab")
 
+	timer := time.NewTicker(3 * time.Second)
+	defer timer.Stop()
+
 	for {
+		timer.Reset(3 * time.Second)
 		select {
-		case <-ticker.C:
-			// skip if not SnapShot
-			if !init && c.Type() != Snapshot {
-				continue
-			}
-			// only first time
-			if init {
-				ticker.Reset(time.Hour)
-				init = false
-			}
-			if crons, err := GetCron(); err == nil {
-				for _, cron := range crons {
-					c.cronCache.Add(md5.Sum([]byte(cron.Command)), true)
-				}
-				if data, err := sonic.MarshalString(crons); err == nil {
-					rawdata := make(map[string]string)
-					rawdata["data"] = data
-				}
-			}
+		case <-s.Context().Done():
+			return
+		case <-sig:
+			return
+		case <-timer.C:
+			continue
 		case event := <-watcher.Events:
 			if event.Op != fsnotify.Create && event.Op != fsnotify.Write && event.Op != fsnotify.Chmod {
 				continue
@@ -212,7 +215,7 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 			}
 			f, err := os.Open(event.Name)
 			flag := strings.HasPrefix(event.Name, "/var/spool/cron")
-			if crons := Parse(flag, event.Name, f); err == nil {
+			if crons := c.parse(flag, event.Name, f); err == nil {
 				tmp := crons[:0]
 				for _, cron := range crons {
 					sum := md5.Sum([]byte(cron.Command))
@@ -232,17 +235,11 @@ func (c Crontab) RunSync(ctx context.Context) (err error) {
 								Fields: rawdata,
 							},
 						}
-						share.Sandbox.SendRecord(rec)
+						s.SendRecord(rec)
 					}
 				}
 			}
 			f.Close()
-		case <-ctx.Done():
-			return
 		}
 	}
-}
-
-func init() {
-	RegistEvent(&Crontab{})
 }

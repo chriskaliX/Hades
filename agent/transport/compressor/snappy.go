@@ -24,7 +24,6 @@ package compressor
 
 import (
 	"io"
-	"io/ioutil"
 	"sync"
 
 	snappylib "github.com/golang/snappy"
@@ -32,6 +31,15 @@ import (
 )
 
 const Name = "snappy"
+
+func init() {
+	c := &compressor{}
+	c.poolCompressor.New = func() interface{} {
+		w := snappylib.NewBufferedWriter(io.Discard)
+		return &writer{Writer: w, pool: &c.poolCompressor}
+	}
+	encoding.RegisterCompressor(c)
+}
 
 type compressor struct {
 	poolCompressor   sync.Pool
@@ -46,15 +54,6 @@ type writer struct {
 type reader struct {
 	*snappylib.Reader
 	pool *sync.Pool
-}
-
-func init() {
-	c := &compressor{}
-	c.poolCompressor.New = func() interface{} {
-		w := snappylib.NewWriter(ioutil.Discard)
-		return &writer{Writer: w, pool: &c.poolCompressor}
-	}
-	encoding.RegisterCompressor(c)
 }
 
 func (c *compressor) Compress(w io.Writer) (io.WriteCloser, error) {

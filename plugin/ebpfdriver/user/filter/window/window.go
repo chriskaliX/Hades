@@ -1,7 +1,7 @@
 package window
 
 import (
-	"hades-ebpf/user/cache"
+	"hades-ebpf/utils"
 	"time"
 
 	utilcache "k8s.io/apimachinery/pkg/util/cache"
@@ -10,7 +10,7 @@ import (
 
 const (
 	filterFlag        = 1
-	filterDefaultTime = time.Hour
+	filterDefaultTime = 24 * time.Hour
 )
 
 // Window interface defines the basic functions that a
@@ -27,8 +27,7 @@ type Window struct {
 	quota    int
 	duration time.Duration
 	// internal fields
-	cache *utilcache.LRUExpireCache
-	// TODO: counter just for temp
+	cache   *utilcache.LRUExpireCache
 	counter *lru.Cache
 }
 
@@ -37,7 +36,7 @@ func NewWindow(quota int, duration time.Duration, size int) *Window {
 		quota:    quota,
 		duration: duration,
 	}
-	w.cache = utilcache.NewLRUExpireCacheWithClock(size, cache.GTicker)
+	w.cache = utilcache.NewLRUExpireCacheWithClock(size, utils.Clock)
 	w.counter = lru.New(size)
 	return w
 }
@@ -71,9 +70,7 @@ func (w *Window) Check(input string) bool {
 }
 
 // default filter function, nothing to do
-func (w *Window) Filter(input string) bool {
-	return false
-}
+func (w *Window) Filter(input string) bool { return false }
 
 // true: alert
 // false: pass

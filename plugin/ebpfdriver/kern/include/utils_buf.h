@@ -122,7 +122,7 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr,
         sz = bpf_probe_read_str(
                 &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
                 MAX_STRING_SIZE, ptr);
-        if (sz < 0) {
+        if (sz <= 0) {
             char nothing[] = "-1";
             // why check it again? nothing
             // just to make verifier happy, this will not happen
@@ -257,13 +257,109 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
     __u32 orig_off = data->buf_off + 1;
     data->buf_off += 2;
     // hard code the limit
-    if (limit >= 12)
-        limit = 12;
+    if (limit >= MAX_PID_TREE_TRACE)
+        limit = MAX_PID_TREE_TRACE;
 #pragma unroll
-    for (int i = 0; i < 12; i++) {
-        if (i == limit) {
+    for (int i = 0; i < MAX_PID_TREE_TRACE; i++) {
+        pid = READ_KERN(task->tgid);
+        // trace until pid = 1
+        if (pid == 0)
+            goto out;
+        // skip 0, only 1 & 2 are readed.
+        if (((i == 1) || (i == 2)) && (privilege_flag == 0)) {
+            parent_cred = (struct cred *)READ_KERN(task->real_cred);
+            // check here
+            privilege_flag = check_cred(current_cred, parent_cred);
+            // does verifier supports this? In Elkeid
+            current_cred = parent_cred;
+        }
+
+        if (data->buf_off > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+            goto out;
+        // read pid to buffer firstly
+        flag = bpf_probe_read(&(data->submit_p->buf[data->buf_off]),
+                              sizeof(int), &pid);
+        if (flag != 0)
+            goto out;
+        // read comm
+        if (data->buf_off >=
+            (MAX_PERCPU_BUFSIZE) - (TASK_COMM_LEN) - sizeof(int) - sizeof(int))
+            goto out;
+        int sz = bpf_probe_read_str(
+                &(data->submit_p
+                          ->buf[data->buf_off + sizeof(int) + sizeof(int)]),
+                TASK_COMM_LEN, &task->comm);
+        if (sz > 0) {
+            if (data->buf_off >
+                (MAX_PERCPU_BUFSIZE) - sizeof(int) - sizeof(int))
+                goto out;
+            bpf_probe_read(&(data->submit_p->buf[data->buf_off + sizeof(int)]),
+                           sizeof(int), &sz);
+            data->buf_off += sz + sizeof(int) + sizeof(int);
+            elem_num++;
+            flag = bpf_probe_read(&task, sizeof(task), &task->real_parent);
+            if (flag != 0)
+                goto out;
+        } else {
             goto out;
         }
+        if (i == (limit - 1))
+            break;
+    }
+out:
+    data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
+    data->context.argnum++;
+    // add the logic of privilege escalation
+    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] =
+            privilege_flag;
+    data->buf_off += 1;
+    if (privilege_flag) {
+        slim_cred_t slim = { 0 };
+        slim.uid = READ_KERN(current_cred->uid.val);
+        slim.gid = READ_KERN(current_cred->gid.val);
+        slim.suid = READ_KERN(current_cred->suid.val);
+        slim.sgid = READ_KERN(current_cred->sgid.val);
+        slim.euid = READ_KERN(current_cred->euid.val);
+        slim.egid = READ_KERN(current_cred->egid.val);
+        slim.fsuid = READ_KERN(current_cred->fsuid.val);
+        slim.fsgid = READ_KERN(current_cred->fsgid.val);
+        // this index maybe misleading...but anyway
+        save_to_submit_buf(data, (void *)&slim, sizeof(slim_cred_t), index);
+        slim.uid = READ_KERN(parent_cred->uid.val);
+        slim.gid = READ_KERN(parent_cred->gid.val);
+        slim.suid = READ_KERN(parent_cred->suid.val);
+        slim.sgid = READ_KERN(parent_cred->sgid.val);
+        slim.euid = READ_KERN(parent_cred->euid.val);
+        slim.egid = READ_KERN(parent_cred->egid.val);
+        slim.fsuid = READ_KERN(parent_cred->fsuid.val);
+        slim.fsgid = READ_KERN(parent_cred->fsgid.val);
+        save_to_submit_buf(data, (void *)&slim, sizeof(slim_cred_t), index);
+    }
+    return 1;
+}
+
+static __always_inline int save_pid_tree_to_buf_simple(event_data_t *data, int limit,
+                                                u8 index)
+{
+    u8 elem_num = 0;
+    u8 privilege_flag = 0;
+    __u32 pid;
+    int flag;
+
+    struct task_struct *task = data->task;
+    // add creds check here
+    // pay attention that here are three cred in task_struct
+    struct cred *current_cred = (struct cred *)READ_KERN(task->real_cred);
+    struct cred *parent_cred = NULL;
+
+    data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
+    __u32 orig_off = data->buf_off + 1;
+    data->buf_off += 2;
+    // hard code the limit
+    if (limit >= MAX_PID_TREE_TRACE_SIM)
+        limit = MAX_PID_TREE_TRACE_SIM;
+#pragma unroll
+    for (int i = 0; i < MAX_PID_TREE_TRACE_SIM; i++) {
         pid = READ_KERN(task->tgid);
         // trace until pid = 1
         if (pid == 0)
@@ -307,6 +403,8 @@ static __always_inline int save_pid_tree_to_buf(event_data_t *data, int limit,
         } else {
             goto out;
         }
+        if (i == (limit - 1))
+            break;
     }
 out:
     data->submit_p->buf[orig_off & ((MAX_PERCPU_BUFSIZE)-1)] = elem_num;
@@ -440,7 +538,8 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
             if (buf->envp_cursor >
                 (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
                 goto out;
-            if (has_prefix(ssh_connection,
+            if (ssh_connection_flag == 0 &&
+                has_prefix(ssh_connection,
                            (char *)&(buf->envp[buf->envp_cursor + sizeof(int)]),
                            9)) {
                 ssh_connection_flag = 1;

@@ -6,12 +6,14 @@ import (
 	_ "embed"
 	"fmt"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/event"
-	"hades-ebpf/user/helper"
+	_ "hades-ebpf/user/event"
+	"hades-ebpf/user/filter"
 	"hades-ebpf/user/share"
+	"hades-ebpf/utils"
 	"math"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/chriskaliX/SDK"
@@ -28,17 +30,29 @@ var _bytecode []byte
 
 // config
 const configMap = "config_map"
-const conf_DENY_BPF uint32 = 0
-const conf_STEXT uint32 = 1
-const conf_ETEXT uint32 = 2
-const eventMap = "exec_events"
+const (
+	confDenyBPF uint32 = 0
+	configSTEXT uint32 = 1
+	configETEXT uint32 = 2
+)
 
 // filters
 const filterPid = "pid_filter"
 
 // Task
-const EnableDenyBPF = 10
-const DisableDenyBPF = 11
+const (
+	TaskDisableProbe   = 7
+	TaskEnableProbe    = 8
+	TaskWhiteList      = 9
+	TaskEnableDenyBPF  = 10
+	TaskDisableDenyBPF = 11
+)
+
+// Perfmap
+const (
+	execEvents = "exec_events"
+	netEvents  = "net_events"
+)
 
 var rawdata = make(map[string]string, 1)
 
@@ -50,24 +64,30 @@ type Driver struct {
 	context context.Context
 	cancel  context.CancelFunc
 	cronM   *cron.Cron
-}
-
-type IDriver interface {
-	Start() error
-	PostRun() error
-	Close(string) error
-	Stop() error
+	// driver state monitor
+	filterCount atomic.Value
+	dropCount   atomic.Value
 }
 
 // New a driver with pre-set map and options
 func NewDriver(s SDK.ISandbox) (*Driver, error) {
-	driver := &Driver{}
-	driver.Sandbox = s
+	driver := &Driver{
+		Sandbox: s,
+	}
 	// init ebpfmanager with maps and perf_events
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
 			{
-				Map: manager.Map{Name: eventMap},
+				Map: manager.Map{Name: execEvents},
+				PerfMapOptions: manager.PerfMapOptions{
+					PerfRingBufferSize: 256 * os.Getpagesize(),
+					DataHandler:        driver.dataHandler,
+					LostHandler:        driver.lostHandler,
+				},
+			},
+			// network events, for now, only honeypot was introduced
+			{
+				Map: manager.Map{Name: netEvents},
 				PerfMapOptions: manager.PerfMapOptions{
 					PerfRingBufferSize: 256 * os.Getpagesize(),
 					DataHandler:        driver.dataHandler,
@@ -80,21 +100,17 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			{Name: filterPid},
 		},
 	}
-	// Get all registed events probes and maps, add into the manager
 	for _, event := range decoder.Events {
 		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
-		driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
+		if event.GetMaps() != nil {
+			driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
+		}
 	}
-	// init manager with options
-	// TODO: High CPU performance here
-	// github.com/ehids/ebpfmanager.(*Probe).Init
-	// github.com/ehids/ebpfmanager.getSyscallFnNameWithKallsyms
 	err := driver.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
 		DefaultKProbeMaxActive: 512,
 		VerifierOptions: ebpf.CollectionOptions{
 			Programs: ebpf.ProgramOptions{
-				// The logsize is just test value for now
-				LogSize: 2 * 1024 * 1024,
+				LogSize: 1 * 1024 * 1024,
 			},
 		},
 		RLimit: &unix.Rlimit{
@@ -106,28 +122,26 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	return driver, err
 }
 
-func (d *Driver) Start() error {
-	return d.Manager.Start()
-}
+func (d *Driver) Start() error { return d.Manager.Start() }
 
-// Init the driver with default value
+// init the driver with default value
 func (d *Driver) PostRun() (err error) {
 	// Get Pid filter
-	if err := helper.MapUpdate(d.Manager, filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
+	if err := d.mapUpdate(filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
 		zap.S().Error(err)
 	}
 	// STEXT ETEXT for rootkit detection
-	if _stext := helper.Ksyms.Get("_stext"); _stext != nil {
-		if err := helper.MapUpdate(d.Manager, configMap, conf_STEXT, _stext.Address); err != nil {
+	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
+		if err := d.mapUpdate(configMap, configSTEXT, _stext.Address); err != nil {
 			zap.S().Error(err)
 		}
 	}
-	if _etext := helper.Ksyms.Get("_etext"); _etext != nil {
-		if err := helper.MapUpdate(d.Manager, configMap, conf_ETEXT, _etext.Address); err != nil {
+	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
+		if err := d.mapUpdate(configMap, configETEXT, _etext.Address); err != nil {
 			zap.S().Error(err)
 		}
 	}
-	zap.S().Info("init configuration has been loaded")
+	zap.S().Info("ebpfdriver init configuration has been loaded")
 	// By default, we do not ban BPF program unless you choose on this..
 	d.cronM = cron.New(cron.WithSeconds())
 	// Regist the cronjobs of the event
@@ -146,9 +160,7 @@ func (d *Driver) PostRun() (err error) {
 		}
 	}
 	d.cronM.Start()
-
 	go d.taskResolve()
-	// TODO: filters are not added for now
 	return nil
 }
 
@@ -159,64 +171,80 @@ func (d *Driver) Close(UID string) (err error) {
 			return probe.Stop()
 		}
 	}
-	_, err = fmt.Printf("UID %s not found", UID)
-	return err
+	return fmt.Errorf("UID %s not found", UID)
+}
+
+func (d *Driver) StartProbe(UID string) (err error) {
+	for _, probe := range d.Manager.Probes {
+		if UID == probe.UID {
+			return probe.Init(d.Manager)
+		}
+	}
+	return fmt.Errorf("UID %s not found", UID)
 }
 
 func (d *Driver) Stop() error {
+	zap.S().Info("driver stop is called")
 	d.cancel()
 	return d.Manager.Stop(manager.CleanAll)
 }
 
-func (d *Driver) Filter() {}
-
 func (d *Driver) taskResolve() {
 	for {
-		task := d.Sandbox.RecvTask()
-		switch task.DataType {
-		case EnableDenyBPF:
-			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(1)); err != nil {
-				zap.S().Error(err)
+		select {
+		case <-d.context.Done():
+			return
+		default:
+			task := d.Sandbox.RecvTask()
+			switch task.DataType {
+			case TaskDisableProbe:
+				d.Close(task.Data)
+			case TaskEnableProbe:
+				d.StartProbe(task.Data)
+			case TaskWhiteList:
+				if err := filter.LoadConfigFromTask(task); err != nil {
+					zap.S().Error(err)
+				}
+			case TaskEnableDenyBPF:
+				if err := d.mapUpdate(configMap, confDenyBPF, uint64(1)); err != nil {
+					zap.S().Error(err)
+				}
+			case TaskDisableDenyBPF:
+				if err := d.mapUpdate(configMap, confDenyBPF, uint64(0)); err != nil {
+					zap.S().Error(err)
+				}
 			}
-		case DisableDenyBPF:
-			if err := helper.MapUpdate(d.Manager, configMap, conf_DENY_BPF, uint64(0)); err != nil {
-				zap.S().Error(err)
-			}
+			time.Sleep(time.Second)
 		}
-		time.Sleep(time.Second)
 	}
 }
 
 // dataHandler handles the data from eBPF kernel space
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
+	// set into buffer
+	decoder.DefaultDecoder.SetBuffer(data)
+	// variable init
+	var eventDecoder decoder.Event
 	// get and decode the context
-	ctx := decoder.NewContext()
-	decoder.DefaultDecoder.ReInit(data)
-	err := ctx.DecodeContext(decoder.DefaultDecoder)
+	ctx, err := decoder.DefaultDecoder.DecodeContext()
 	if err != nil {
 		return
 	}
-	defer decoder.PutContext(ctx)
 	// get the event and set context into event
-	eventDecoder := decoder.Events[ctx.Type]
-	eventDecoder.SetContext(ctx)
-	err = eventDecoder.DecodeEvent(decoder.DefaultDecoder)
-	if err == event.ErrFilter {
-		// it's been filtered
-		return
-	}
-	if err != nil {
-		// Ignore
-		if err == event.ErrIgnore {
-			return
-		}
-		zap.S().Errorf("error: %s", err)
-		return
-	}
+	eventDecoder = decoder.Events[ctx.Type]
 	// Fillup the context by the values that Event offers
 	ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
-	// marshal the data
-	result, err := decoder.MarshalJson(eventDecoder)
+	// value count
+	if err = eventDecoder.DecodeEvent(decoder.DefaultDecoder); err != nil {
+		if err == decoder.ErrFilter {
+			return
+		} else if err == decoder.ErrIgnore {
+			return
+		}
+		zap.S().Errorf("decode event error: %s", err)
+		return
+	}
+	result, err := decoder.MarshalJson(eventDecoder, ctx)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -236,7 +264,6 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 
 // lostHandler handles the data for errors
 func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, manager *manager.Manager) {
-	rawdata := make(map[string]string)
 	rawdata["data"] = strconv.FormatUint(count, 10)
 	rec := &protocol.Record{
 		DataType: 999,
@@ -245,4 +272,16 @@ func (d *Driver) lostHandler(CPU int, count uint64, perfMap *manager.PerfMap, ma
 		},
 	}
 	d.Sandbox.SendRecord(rec)
+}
+
+// internal map operation
+func (d *Driver) mapUpdate(name string, key uint32, value interface{}) error {
+	bpfmap, found, err := d.Manager.GetMap(name)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("bpfmap %s not found", name)
+	}
+	return bpfmap.Update(key, value, ebpf.UpdateAny)
 }

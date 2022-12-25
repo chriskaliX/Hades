@@ -19,6 +19,7 @@ import (
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/chriskaliX/SDK/util/hash"
 	"github.com/nightlyone/lockfile"
+	"go.uber.org/zap"
 )
 
 var _ ISandbox = (*Sandbox)(nil)
@@ -45,7 +46,7 @@ type ISandbox interface {
 type Sandbox struct {
 	// required fields
 	Clock  clock.IClock
-	Logger logger.ILogger
+	Logger *zap.Logger
 	Client *client.Client
 	name   string
 	// Optional fields
@@ -82,11 +83,6 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	sconfig.LogConfig.Clock = s.Clock
 	sconfig.LogConfig.Client = s.Client
 	s.Logger = logger.New(sconfig.LogConfig)
-	// lockfile for plugin
-	// if err := s.Lockfile(); err != nil {
-	// 	zap.S().Errorf("init failed with lockfile %s", err.Error())
-	// 	return err
-	// }
 	defer s.Logger.Info(fmt.Sprintf("sandbox %s init", s.name))
 	// Optional fields initialization
 	if sconfig.Hash {
@@ -106,11 +102,12 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 	defer s.Logger.Info(fmt.Sprintf("%s is exited", s.name))
 	s.Logger.Info(fmt.Sprintf("%s run is called", s.name))
 	if err = mfunc(s); err != nil {
+		zap.S().Error("sandbox main func failed, %s", err.Error())
 		return err
 	}
 	s.Logger.Info(fmt.Sprintf("%s is running", s.name))
 	// os.Interrupt for command line
-	signal.Notify(s.sigs, syscall.SIGTERM)
+	signal.Notify(s.sigs, syscall.SIGTERM, syscall.SIGTERM, os.Interrupt)
 	for {
 		select {
 		case sig := <-s.sigs:
@@ -224,7 +221,7 @@ func (s *Sandbox) recvTask() {
 		default:
 			task, err := s.Client.ReceiveTask()
 			if err != nil {
-				s.Logger.Error(err)
+				s.Logger.Error(err.Error())
 				time.Sleep(5 * time.Second)
 				continue
 			}

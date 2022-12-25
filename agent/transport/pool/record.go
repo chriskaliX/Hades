@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/chriskaliX/SDK/transport/protocol"
+	"golang.org/x/exp/maps"
 )
 
 const _size = 24 // default
@@ -29,12 +30,7 @@ func SDKGet() protocol.ProtoType {
 
 func Put(rec *proto.Record) {
 	defer recordPool.Put(rec)
-	// clear map. Is this needed?
 	if rec != nil && rec.Data != nil {
-		// https://github.com/golang/go/issues/45328
-		// already compile time optimistic
-		for k := range rec.Data.Fields {
-			delete(rec.Data.Fields, k)
-		}
+		maps.Clear(rec.Data.Fields)
 	}
 }

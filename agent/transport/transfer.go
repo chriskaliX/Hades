@@ -2,10 +2,10 @@ package transport
 
 import (
 	"agent/agent"
-	"agent/host"
 	"agent/proto"
 	"agent/transport/pool"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,7 +27,7 @@ var (
 
 const size = 8186 // remain 6 space for importance, always available
 
-var DTransfer = NewTransfer()
+var DefaultTrans = New()
 
 type Transfer struct {
 	mu         sync.Mutex
@@ -38,7 +38,7 @@ type Transfer struct {
 	updateTime time.Time
 }
 
-func NewTransfer() *Transfer {
+func New() *Transfer {
 	return &Transfer{
 		buf:        [8192]*proto.Record{},
 		updateTime: time.Now(),
@@ -52,6 +52,7 @@ func (t *Transfer) Transmission(rec *proto.Record, important bool) (err error) {
 	if t.offset >= size {
 		if important && t.offset < len(t.buf) {
 			t.buf[t.offset] = rec
+			t.offset++
 		}
 		err = ErrBufferOverflow
 		return
@@ -67,6 +68,7 @@ func (t *Transfer) TransmissionSDK(rec protocol.ProtoType, important bool) (err 
 	if t.offset >= size {
 		if important && t.offset < len(t.buf) {
 			t.buf[t.offset] = rec.(*proto.Record)
+			t.offset++
 		}
 		err = ErrBufferOverflow
 		return
@@ -89,18 +91,17 @@ func (t *Transfer) Send(client proto.Transfer_TransferClient) (err error) {
 	t.offset = 0
 	t.mu.Unlock()
 	// Send the copy
-	err = client.Send(&proto.PackagedData{
+	if err = client.Send(&proto.PackagedData{
 		Records:      recs,
-		AgentId:      agent.Instance.ID,
-		IntranetIpv4: host.PrivateIPv4.Load().([]string),
-		IntranetIpv6: host.PrivateIPv6.Load().([]string),
-		ExtranetIpv4: host.PublicIPv4.Load().([]string),
-		ExtranetIpv6: host.PublicIPv6.Load().([]string),
-		Hostname:     host.Hostname.Load().(string),
+		AgentId:      agent.ID,
+		IntranetIpv4: agent.PrivateIPv4.Load().([]string),
+		IntranetIpv6: agent.PrivateIPv6.Load().([]string),
+		ExtranetIpv4: agent.PublicIPv4.Load().([]string),
+		ExtranetIpv6: agent.PublicIPv6.Load().([]string),
+		Hostname:     agent.Hostname.Load().(string),
 		Version:      agent.Version,
 		Product:      agent.Product,
-	})
-	if err != nil {
+	}); err != nil {
 		zap.S().Error(err)
 	} else {
 		atomic.AddUint64(&t.txCnt, uint64(len(recs)))
@@ -120,31 +121,8 @@ func (t *Transfer) Receive(client proto.Transfer_TransferClient) (err error) {
 	atomic.AddUint64(&t.rxCnt, 1)
 	// resolve task & config
 	t.resolveTask(cmd)
+	agent.SetRunning()
 	t.resolveConfig(cmd)
-	return
-}
-
-func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
-	// resolve task by it's name
-	if cmd == nil || cmd.Task == nil {
-		return
-	}
-	switch cmd.Task.ObjectName {
-	case agent.Instance.Product:
-		switch cmd.Task.DataType {
-		case config.TaskShutdown:
-			zap.S().Info("agent shutdown is called")
-			agent.Instance.Cancel()
-			return
-		case config.TaskRestart:
-		case config.TaskSetenv:
-		default:
-			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
-			return ErrAgentDataType
-		}
-	default:
-		PluginTaskChan <- cmd.Task
-	}
 	return
 }
 
@@ -166,17 +144,41 @@ func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
 	for _, config := range cmd.Configs {
 		configs[config.Name] = config
 	}
-
 	if config, ok := configs[agent.Product]; ok && config.Version != agent.Version {
 		zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, config.Version)
 		if err = agent.Update(*config); err == nil {
 			zap.S().Info("agent update successfully")
-			agent.Instance.Cancel()
+			agent.Cancel()
 			return
 		}
 		zap.S().Error("agent update failed:", err)
+		agent.SetAbnormal(fmt.Sprintf("agent update failed: %s", err))
 	}
 	delete(configs, agent.Product)
 	PluginConfigChan <- configs
+	return
+}
+
+func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
+	// resolve task by it's name
+	if cmd == nil || cmd.Task == nil {
+		return
+	}
+	switch cmd.Task.ObjectName {
+	case agent.Product:
+		switch cmd.Task.DataType {
+		case config.TaskShutdown:
+			zap.S().Info("agent shutdown is called")
+			agent.Cancel()
+			return
+		case config.TaskRestart:
+		case config.TaskSetenv:
+		default:
+			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
+			return ErrAgentDataType
+		}
+	default:
+		PluginTaskChan <- cmd.Task
+	}
 	return
 }

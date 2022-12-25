@@ -5,6 +5,9 @@
 #ifndef CORE
 #include <net/sock.h>
 #include <linux/uio.h>
+#else
+#include <vmlinux.h>
+#include <missing_definitions.h>
 #endif
 
 #include "define.h"
@@ -13,38 +16,92 @@
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
 #include "bpf_tracing.h"
+#include "filter.h"
 
-SEC("kprobe/security_socket_connect")
-int BPF_KPROBE(kprobe_security_socket_connect)
+struct _sys_enter_connect {
+    unsigned long long unused;
+    long syscall_nr;
+    int fd;
+    struct sockaddr *uservaddr;
+    int addr;
+};
+
+typedef struct net_ctx {
+    int fd;
+	sa_family_t sa_family;
+	// char sa_data[14];dss
+    int addr;
+} net_ctx_t;
+
+BPF_LRU_HASH(connect_cache, u64, net_ctx_t, 4096);
+
+__attribute__((always_inline)) int delete_connect_cache(u64 id)
 {
+    return bpf_map_delete_elem(&connect_cache, &id);
+}
+
+// The pointer should by avaliable through the whole process. Just save the pointer
+SEC("tracepoint/syscalls/sys_enter_connect")
+int sys_enter_connect(struct _sys_enter_connect *ctx)
+{
+    net_ctx_t net_ctx = {};
+    struct sockaddr* sa;
+    bpf_probe_read(&sa, sizeof(struct sockaddr),&ctx->uservaddr);
+    if (sa == NULL)
+        return 0;
+    net_ctx.fd = ctx->fd;
+    net_ctx.addr = ctx->addr;
+    u16 family;
+    bpf_probe_read(&family, sizeof(u16),&sa->sa_family);
+    net_ctx.sa_family = family;
+    if (family != AF_INET && family != AF_INET6)
+        return 0;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    return bpf_map_update_elem(&connect_cache, &pid_tgid, &net_ctx, BPF_ANY);
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_connect")
+int sys_exit_connect(struct _sys_exit *ctx)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    net_ctx_t *net_ctx = bpf_map_lookup_elem(&connect_cache, &pid_tgid);
+    if (net_ctx == 0)
+        return 0;
+    
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
-        return 0;
+        goto delete;
     if (context_filter(&data.context))
-        return 0;
-    data.context.type = SECURITY_SOCKET_CONNECT;
-
-    struct sockaddr *address = (struct sockaddr *)PT_REGS_PARM2(ctx);
-    if (!address)
-        return 0;
-    sa_family_t sa_fam = READ_KERN(address->sa_family);
-    if ((sa_fam != AF_INET) && (sa_fam != AF_INET6))
-        return 0;
-    switch (sa_fam)
-    {
-    case AF_INET:
-        save_to_submit_buf(&data, (void *)address, sizeof(struct sockaddr_in), 0);
-        break;
-    case AF_INET6:
-        save_to_submit_buf(&data, (void *)address, sizeof(struct sockaddr_in6), 0);
-        break;
-    default:
-        return 0;
+        goto delete;
+    data.context.type = SYSCONNECT;
+    data.context.retval = ctx->ret;
+    u16 family = net_ctx->sa_family;
+    save_to_submit_buf(&data, &family, sizeof(u16), 0);
+    int fd = net_ctx->fd;
+    
+    struct sock *sk = hades_sockfd_lookup(fd);
+    if (sk == NULL)
+        goto delete;
+    
+    if (family == AF_INET) {
+        net_conn_v4_t net_details = {};
+        get_network_details_from_sock_v4(sk, &net_details, 0);
+        save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
+        
+    } else if (family == AF_INET6) {
+        net_conn_v6_t net_details = {};
+        get_network_details_from_sock_v6(sk, &net_details, 0);
+        save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v6), 1);
+    } else {
+        goto delete;
     }
-
     void *exe = get_exe_from_task(data.task);
-    save_str_to_buf(&data, exe, 1);
+    save_str_to_buf(&data, exe, 2);
+    bpf_map_delete_elem(&connect_cache, &pid_tgid);
     return events_perf_submit(&data);
+    delete: delete_connect_cache(pid_tgid);
+    return 0;
 }
 
 SEC("kprobe/security_socket_bind")
@@ -88,8 +145,10 @@ int BPF_KPROBE(kprobe_security_socket_bind)
     return events_perf_submit(&data);
 }
 
+#define DNS_LIMIT_PERSEC 5000
+
 /* For DNS */
-BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 1024);
+BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 4096);
 // kprobe/kretprobe are used for get dns data. Proper way to get udp data,
 // is to hook the kretprobe of the udp_recvmsg just like Elkeid does. But
 // still, a uprobe of udp (like getaddrinfo and gethostbyname) to get this
@@ -98,6 +157,8 @@ BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 1024);
 SEC("kprobe/udp_recvmsg")
 int BPF_KPROBE(kprobe_udp_recvmsg)
 {
+    if (hades_filter(UDP_RECVMSG, DNS_LIMIT_PERSEC, POLICY_PASS) == 0)
+        return 0;
     // get the sock
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct inet_sock *inet = (struct inet_sock *)sk;
@@ -110,7 +171,7 @@ int BPF_KPROBE(kprobe_udp_recvmsg)
     // if all udp traffic is required, remove the dport thing.
     // By the way, I capture the Query part of dns structure and ignore TC flag,
     // which is somehow inaccurate though, but I'll do a uprobe hook for this all.
-    if (dport == 13568 || dport == 59668)
+    if (dport == 13568 || dport == 59668 || dport == 0)
     {
         struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
         // in msghdr->iov_iter. There are different way to filter. What we need
@@ -142,7 +203,7 @@ struct udpdata
 
 // @Reference: https://en.wikipedia.org/wiki/Domain_Name_System
 SEC("kretprobe/udp_recvmsg")
-int BPF_KRETPROBE(kretprobe_udp_recvmsg)
+int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     struct msghdr **msgpp = bpf_map_lookup_elem(&udpmsg, &pid_tgid);
@@ -199,6 +260,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg)
         if (context_filter(&data.context))
             return 0;
         data.context.type = UDP_RECVMSG;
+        data.context.retval = retval;
 
         int opcode = (string_p->buf[2] >> 3) & 0x0f;
         int rcode = string_p->buf[3] & 0x0f;

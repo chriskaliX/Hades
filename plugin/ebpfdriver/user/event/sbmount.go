@@ -9,14 +9,13 @@ import (
 var _ decoder.Event = (*SbMount)(nil)
 
 type SbMount struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	DevName            string `json:"dev_name"`
-	Path               string `json:"path"`
-	Type               string `json:"type"`
-	Flags              uint64 `json:"flags"`
-	PidTree            string `json:"pid_tree"`
-	PrivEscalation     uint8  `json:"priv_esca"`
+	Exe            string `json:"-"`
+	DevName        string `json:"dev_name"`
+	Path           string `json:"path"`
+	Type           string `json:"type"`
+	Flags          uint64 `json:"flags"`
+	PidTree        string `json:"pid_tree"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (SbMount) ID() uint32 {
@@ -67,6 +66,10 @@ func (SbMount) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (s *SbMount) GetMaps() []*manager.Map { return nil }
+
+func (SbMount) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&SbMount{})

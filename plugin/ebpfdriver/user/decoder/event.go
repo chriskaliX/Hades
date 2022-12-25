@@ -9,34 +9,29 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
+var Events = map[uint32]Event{}
+
+type EventCronFunc func(m *manager.Manager) error
+
+// Event is the interface that all events should implement
 type Event interface {
 	// ID returns the unique id for event
 	ID() uint32
+	// Name returns the name of the event
+	Name() string
 	// GetExe returns the exe from the event, if it is not collected
 	// return a empty string
 	GetExe() string
-	// SetContext inject the context into the event(BasicEvent)
-	SetContext(*Context)
-	// Context return the context pointer
-	Context() *Context
 	// DecodeEvent decodes buffer into event struct
 	DecodeEvent(*EbpfDecoder) error
-	// Name returns the name of the event
-	Name() string
 	// GetProbes returns the bpf probe used in the event
 	GetProbes() []*manager.Probe
 	// GetMaps returns the bpf map used in the event
 	GetMaps() []*manager.Map
-	// FillCache caches some field, it runs after parse
-	FillCache()
 	// RegistCron registes the crontab functions into the driver
 	// and the driver manages those jobs
 	RegistCron() (string, EventCronFunc)
 }
-
-type EventCronFunc func(m *manager.Manager) error
-
-var Events = map[uint32]Event{}
 
 // SetAllowList
 func SetAllowList(allows []string) {
@@ -55,21 +50,21 @@ func RegistEvent(event Event) {
 	Events[event.ID()] = event
 }
 
-func MarshalJson(event Event) (result string, err error) {
-	var (
-		eventByte  []byte
-		ctxByte    []byte
-		resultByte []byte
-	)
+func MarshalJson(event Event, ctx *Context) (result string, err error) {
+	var eventByte, ctxByte, resultByte []byte
 	if eventByte, err = sonic.Marshal(event); err != nil {
 		return
 	}
-	if ctxByte, err = event.Context().MarshalJson(); err != nil {
-		return
+	if ctx != nil {
+		if ctxByte, err = ctx.MarshalJson(); err != nil {
+			return
+		}
+		resultByte = append(resultByte, ctxByte[:len(ctxByte)-2]...)
+		resultByte = append(resultByte, byte('"'), byte(','))
+		resultByte = append(resultByte, eventByte[1:]...)
+	} else {
+		resultByte = eventByte
 	}
-	resultByte = append(resultByte, ctxByte[:len(ctxByte)-2]...)
-	resultByte = append(resultByte, byte('"'), byte(','))
-	resultByte = append(resultByte, eventByte[1:]...)
 	result = string(resultByte)
 	return
 }

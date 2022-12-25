@@ -10,11 +10,10 @@ import (
 var _ decoder.Event = (*Prctl)(nil)
 
 type Prctl struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Option             string `json:"option"`
-	Newname            string `json:"newname,omitempty"`
-	Flag               uint32 `json:"flag,omitempty"`
+	Exe     string `json:"-"`
+	Option  string `json:"option"`
+	Newname string `json:"newname,omitempty"`
+	Flag    uint32 `json:"flag,omitempty"`
 }
 
 func (Prctl) ID() uint32 {
@@ -66,6 +65,10 @@ func (Prctl) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (p *Prctl) GetMaps() []*manager.Map { return nil }
+
+func (Prctl) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&Prctl{})

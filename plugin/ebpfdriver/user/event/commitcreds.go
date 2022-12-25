@@ -9,12 +9,11 @@ import (
 var _ decoder.Event = (*CommitCreds)(nil)
 
 type CommitCreds struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	NewUid             uint32 `json:"newuid"`
-	OldUid             uint32 `json:"olduid"`
-	PidTree            string `json:"pid_tree"`
-	PrivEscalation     uint8  `json:"priv_esca"`
+	Exe            string `json:"-"`
+	NewUid         uint32 `json:"newuid"`
+	OldUid         uint32 `json:"olduid"`
+	PidTree        string `json:"pid_tree"`
+	PrivEscalation uint8  `json:"priv_esca"`
 }
 
 func (CommitCreds) ID() uint32 {
@@ -62,6 +61,10 @@ func (CommitCreds) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (CommitCreds) GetMaps() []*manager.Map { return nil }
+
+func (CommitCreds) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&CommitCreds{})

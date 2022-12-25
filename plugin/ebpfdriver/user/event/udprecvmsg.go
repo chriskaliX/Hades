@@ -9,13 +9,12 @@ import (
 var _ decoder.Event = (*UdpRecvmsg)(nil)
 
 type UdpRecvmsg struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Opcode             int32  `json:"opcode"`
-	Rcode              int32  `json:"rcode"`
-	Qtype              int32  `json:"qtype"`
-	Atype              int32  `json:"atype"`
-	DnsData            string `json:"dns_data"`
+	Exe     string `json:"-"`
+	Opcode  int32  `json:"opcode"`
+	Rcode   int32  `json:"rcode"`
+	Qtype   int32  `json:"qtype"`
+	Atype   int32  `json:"atype"`
+	DnsData string `json:"dns_data"`
 }
 
 func (UdpRecvmsg) ID() uint32 {
@@ -72,6 +71,10 @@ func (u *UdpRecvmsg) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (u *UdpRecvmsg) GetMaps() []*manager.Map { return nil }
+
+func (UdpRecvmsg) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&UdpRecvmsg{})

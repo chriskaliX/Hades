@@ -3,14 +3,16 @@ package event
 import (
 	"bufio"
 	"collector/cache/user"
+	"collector/eventmanager"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
+	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/jinzhu/copier"
-	"github.com/mitchellh/hashstructure/v2"
 )
 
 const (
@@ -19,24 +21,24 @@ const (
 	SSHCONFIG_DATATYPE = 3005
 )
 
-var _ Event = (*SshConfig)(nil)
+var _ eventmanager.IEvent = (*SshConfig)(nil)
 
 type SshConfig struct {
 	// check if first time, pay attention to set true
 	firstTime bool
-	BasicEvent
 }
 
 func (SshConfig) DataType() int {
 	return SSHCONFIG_DATATYPE
 }
 
-func (SshConfig) String() string {
+func (SshConfig) Name() string {
 	return "sshconfig"
 }
 
-func (s SshConfig) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{})
+func (n *SshConfig) Flag() int { return eventmanager.Periodic }
+
+func (s SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	// get user configuration
 	configPath := s.sshConfigPath()
 	configs := make([]sshConfig, 0, 20)
@@ -49,16 +51,22 @@ func (s SshConfig) Run() (result map[string]interface{}, err error) {
 	if config, err := s.getSshConfig("0", systemSshConfig); err == nil {
 		configs = append(configs, config...)
 	}
-	// TODO: performance?
-	for _, config := range configs {
-		hash, _err := hashstructure.Hash(config, hashstructure.FormatV2, nil)
-		if _err != nil {
-			// TODO: log here
-			continue
-		}
-		result[strconv.FormatUint(hash, 10)] = config
+
+	data, err := sonic.MarshalString(configs)
+	if err != nil {
+		return err
 	}
-	return
+	rec := &protocol.Record{
+		DataType: SSHCONFIG_DATATYPE,
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	sandbox.SendRecord(rec)
+
+	return nil
 }
 
 // Depend on usercache, execute after GetUser
@@ -131,8 +139,4 @@ func (s *SshConfig) getSshConfig(uid string, path string) (configs []sshConfig, 
 	}
 	configs = append(configs, config)
 	return
-}
-
-func init() {
-	RegistEvent(&SshConfig{})
 }

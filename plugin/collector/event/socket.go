@@ -2,40 +2,39 @@ package event
 
 import (
 	"collector/cache/process"
+	"collector/eventmanager"
 	"collector/socket"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
+	"github.com/chriskaliX/SDK"
+	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
 )
 
 // use inode key as primary key
 const SOCKET_DATATYPE = 5001
 
-var _ Event = (*Socket)(nil)
+var _ eventmanager.IEvent = (*Socket)(nil)
 
-type Socket struct {
-	BasicEvent
-}
+type Socket struct{}
 
 func (Socket) DataType() int {
 	return SOCKET_DATATYPE
 }
 
-func (Socket) String() string {
+func (Socket) Name() string {
 	return "socket"
 }
 
-func (s Socket) Run() (result map[string]interface{}, err error) {
-	result = make(map[string]interface{})
-	var (
-		sockets []socket.Socket
-		pids    []int
-		ok      bool
-	)
+func (n *Socket) Flag() int { return eventmanager.Periodic }
 
-	sockets, err = socket.FromNetlink()
+func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
+	var ok bool
+	result := make([]socket.Socket, 0, 128)
+	sockets, err := socket.FromNetlink()
 	if err != nil {
 		zap.S().Warn("get socket from netlink failed:", err)
 		zap.S().Info("try getting socket from proc...")
@@ -48,15 +47,16 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 		}
 	}
 	// fds & relate here, a thing to be noticed here, should a procCache to speed up this?
-	if pids, err = process.GetPids(1000); err != nil {
-		return
+	pids, err := process.GetPids(1000)
+	if err != nil {
+		return err
 	}
 	for _, pid := range pids {
 		var fds []string
 		var index int
 		// Logical bug here,
 		if fds, err = process.GetFds(pid); err != nil {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 			continue
 		}
 		// get all file description here
@@ -83,15 +83,22 @@ func (s Socket) Run() (result map[string]interface{}, err error) {
 				sockets[index].Cmdline = proc.Argv
 			}
 			socket := sockets[index]
-			result[strconv.Itoa(int(socket.Inode))] = socket
+			result = append(result, socket)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	// clear the err here, since we use the err above
-	err = nil
-	return
-}
-
-func init() {
-	RegistEvent(&Socket{})
+	data, err := sonic.MarshalString(result)
+	if err != nil {
+		return err
+	}
+	rec := &protocol.Record{
+		DataType: 2001,
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	sandbox.SendRecord(rec)
+	return nil
 }

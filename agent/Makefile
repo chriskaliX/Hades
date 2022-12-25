@@ -1,5 +1,5 @@
 CMD_GO ?= go
-VERSION ?= 1.0.1
+VERSION ?= v1.0.2
 
 # colors
 INFO_COLOR = \033[34m[*]\033[0m
@@ -14,4 +14,4 @@ pre_show:
 
 .PHONY: build_agent
 build_agent:
-	$(CMD_GO) build -ldflags "-X agent/agent.Version='$(VERSION)'" -o hades-agent
+	$(CMD_GO) build -ldflags "-X agent/agent.Version=$(VERSION)" -o hades-agent

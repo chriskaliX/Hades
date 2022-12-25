@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"hades-ebpf/utils"
 	"math/rand"
 	"os/user"
 	"strconv"
@@ -21,11 +22,10 @@ type UserCache struct {
 
 func NewUserCache() *UserCache {
 	return &UserCache{
-		cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, GTicker),
+		cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, utils.Clock),
 	}
 }
 
-// username may changed, cache with timeout is needed
 func (u *UserCache) Get(_uid uint32) string {
 	uid := strconv.FormatUint(uint64(_uid), 10)
 	item, status := u.cache.Get(uid)

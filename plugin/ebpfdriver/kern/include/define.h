@@ -34,13 +34,16 @@
 #include "bpf_core_read.h"
 #include "bpf_helpers.h"
 
-#define TASK_COMM_LEN       16
-#define MAX_STR_FILTER_SIZE 128
-#define MAX_PERCPU_BUFSIZE  (1 << 15)
-#define MAX_STRING_SIZE     256
-#define MAX_STR_ARR_ELEM    32
-#define MAX_PATH_COMPONENTS 16
-#define MAX_NODENAME        64
+#define TASK_COMM_LEN           16
+#define MAX_STR_FILTER_SIZE     128
+#define MAX_PERCPU_BUFSIZE      (1 << 15)
+#define MAX_STRING_SIZE         256
+#define MAX_STR_ARR_ELEM        32
+#define MAX_PATH_COMPONENTS     16
+#define MAX_PATH_COMPONENTS_SIM 10
+#define MAX_NODENAME            64
+#define MAX_PID_TREE_TRACE      12
+#define MAX_PID_TREE_TRACE_SIM  8
 
 #define MAX_BUFFERS    3
 #define TMP_BUF_IDX    1
@@ -100,7 +103,7 @@ typedef struct data_context {
     char comm[TASK_COMM_LEN];    // command
     char pcomm[TASK_COMM_LEN];   // parent command
     char nodename[MAX_NODENAME]; // uts_name => 64, in tracee, it's 16 here
-    __u64 retval;                // return value(useful when it's exit or kill)
+    __s64 retval;                // return value(useful when it's exit or kill)
     __u8 argnum;                 // argnum
 } context_t;
 
@@ -277,7 +280,7 @@ static __always_inline int get_config(__u32 key)
 #define COMMIT_CREDS              1011
 #define SYS_ENTER_PRCTL           1020
 #define SYS_ENTER_PTRACE          1021
-#define SECURITY_SOCKET_CONNECT   1022
+#define SYSCONNECT                1022
 #define SECURITY_SOCKET_BIND      1024
 #define UDP_RECVMSG               1025
 #define DO_INIT_MODULE            1026
@@ -295,4 +298,12 @@ static __always_inline int get_config(__u32 key)
 #define ANTI_RKT_FOPS             1202
 #define ANTI_RKT_MODULE           1203
 #define SYS_BPF                   1204
+// honeypot
+#define HONEYPOT_PORTSCAN_DETECT  3000
+
+struct _sys_exit {
+    unsigned long long unused;
+    long syscall_nr;
+    long ret;
+};
 #endif //__DEFINE_H

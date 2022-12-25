@@ -7,6 +7,7 @@
 #include <net/ipv6.h>
 #include <linux/ipv6.h>
 #include <linux/pid_namespace.h>
+#include <uapi/linux/magic.h>
 #else
 #include <vmlinux.h>
 #include <missing_definitions.h>
@@ -106,7 +107,7 @@ static __always_inline int context_filter(context_t *context)
         return 1;
     if (bpf_map_lookup_elem(&cgroup_id_filter, &context->cgroup_id) != 0)
         return 1;
-    if (bpf_map_lookup_elem(&cgroup_id_filter, &context->pns) != 0)
+    if (bpf_map_lookup_elem(&pns_filter, &context->pns) != 0)
         return 1;
     return 0;
 }
@@ -232,6 +233,7 @@ static __always_inline void *get_path_str(struct path *path)
         }
         dentry = d_parent;
     }
+
     // no path avaliable.
     if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
         // memfd files have no path in the filesystem -> extract their name
@@ -261,32 +263,27 @@ static __always_inline void *get_path_str(struct path *path)
             char tmp_inode[9];
             int i, j;
             int k = 0; // when first char is no-zero, it's work
-            bool s_flag = false; // no-zero char start flag
-
+            int s_flag = 0; // no-zero char start flag
             unsigned long inode = get_inode_nr_from_dentry(dentry);
 
-
-#pragma unroll
+        #pragma unroll
             for (i = 0; i < 8; i++) {
                 tmp_inode[7 - i] = inode % 10 + '0';
                 inode /= 10;
             }
-
-
-            // if front has zero value, move 
-#pragma unroll
+            // ISSUE remains in arm64 ( |= not allow), just remove for now
+        #pragma unroll
             for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
-                if (!s_flag && tmp_inode[j] != '0') { 
-                    if (j == 0) {
+                #if defined(__TARGET_ARCH_x86)
+                if ((s_flag == 0) && (tmp_inode[j] != '0')) { 
+                    if (j == 0)
                         break;
-                    } 
-                    s_flag = true;
+                    s_flag = 1;
                 }
-
-                if (s_flag) {
+                if (s_flag == 1)
+                #endif
                     tmp_inode[k++] = tmp_inode[j];  
-                }
             }
 
             if (k != 0) {
@@ -315,6 +312,101 @@ static __always_inline void *get_path_str(struct path *path)
                        &zero);
     }
 out:
+    set_buf_off(STRING_BUF_IDX, buf_off);
+    return &string_p->buf[buf_off];
+}
+
+// strip fs judgement version, for shorter insts
+static __always_inline void *get_path_str_simple(struct path *path)
+{
+    struct path f_path;
+    bpf_probe_read(&f_path, sizeof(struct path), path);
+    char slash = '/';
+    int zero = 0;
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+    struct mount *mnt_parent_p;
+    struct mount *mnt_p = real_mount(vfsmnt); // get mount by vfsmnt
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
+    // from the middle, to avoid rewrite by this
+    u32 buf_off = (MAX_PERCPU_BUFSIZE >> 1);
+    struct dentry *mnt_root;
+    struct dentry *d_parent;
+    struct qstr d_name;
+    unsigned int len;
+    unsigned int off;
+    int sz;
+    // get per-cpu string buffer
+    buf_t *string_p = get_buf(STRING_BUF_IDX);
+    if (string_p == NULL)
+        return NULL;
+
+#pragma unroll
+    for (int i = 0; i < MAX_PATH_COMPONENTS_SIM; i++) {
+        mnt_root = READ_KERN(vfsmnt->mnt_root);
+        d_parent = READ_KERN(dentry->d_parent);
+        // 1. dentry == d_parent means we reach the dentry root
+        // 2. dentry == mnt_root means we reach the mount root, they share the same dentry
+        if (dentry == mnt_root || dentry == d_parent) {
+            // We reached root, but not mount root - escaped?
+            if (dentry != mnt_root) {
+                break;
+            }
+            // dentry == mnt_root, but the mnt has not reach it's root
+            // so update the dentry as the mnt_mountpoint(in order to continue the dentry loop for the mountpoint)
+            // We reached root, but not global root - continue with mount point path
+            if (mnt_p != mnt_parent_p) {
+                bpf_probe_read(&dentry, sizeof(struct dentry *),
+                               &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount *),
+                               &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *),
+                               &mnt_p->mnt_parent);
+                vfsmnt = &mnt_p->mnt;
+                continue;
+            }
+            // dentry == mnt_root && mnt_p == mnt_parent_p, real root for all
+            // Global root - path fully parsed
+            break;
+        }
+        // Add this dentry name to path
+        d_name = READ_KERN(dentry->d_name);
+        len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
+        off = buf_off - len;
+        sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & (((MAX_PERCPU_BUFSIZE) >> 1) - 1);
+            sz = bpf_probe_read_str(
+                    &(string_p->buf[off & ((MAX_PERCPU_BUFSIZE >> 1) - 1)]),
+                    len, (void *)d_name.name);
+        } else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)]),
+                           1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    // no path avaliable.
+    if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
+        buf_off = 0;
+        d_name = READ_KERN(dentry->d_name);
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *) d_name.name);
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1,
+                       &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
+                       &zero);
+    }
     set_buf_off(STRING_BUF_IDX, buf_off);
     return &string_p->buf[buf_off];
 }
@@ -434,6 +526,7 @@ inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
     return sk_fullsock ? pinet6_own_impl : NULL;
 }
 
+// From tracee
 static __always_inline int
 get_network_details_from_sock_v6(struct sock *sk, net_conn_v6_t *net_details,
                                  int peer)
@@ -613,21 +706,15 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
                 family = READ_KERN(sk->sk_family);
                 if (family == AF_INET) {
                     net_conn_v4_t net_details = {};
-                    struct sockaddr_in remote;
+                    save_to_submit_buf(data, &family, sizeof(u16), index);
                     get_network_details_from_sock_v4(sk, &net_details, 0);
-                    get_remote_sockaddr_in_from_network_details(
-                            &remote, (void *)&net_details, family);
-                    save_to_submit_buf(data, &remote,
-                                       sizeof(struct sockaddr_in), index);
+                    save_to_submit_buf(data, &net_details, sizeof(struct network_connection_v4), index);
                     return 1;
                 } else if (family == AF_INET6) {
                     net_conn_v6_t net_details = {};
-                    struct sockaddr_in6 remote;
+                    save_to_submit_buf(data, &family, sizeof(u16), index);
                     get_network_details_from_sock_v6(sk, &net_details, 0);
-                    get_remote_sockaddr_in6_from_network_details(
-                            &remote, &net_details, family);
-                    save_to_submit_buf(data, &remote,
-                                       sizeof(struct sockaddr_in6), index);
+                    save_to_submit_buf(data, &net_details, sizeof(struct network_connection_v6), index);
                     return 1;
                 }
             }
@@ -641,9 +728,10 @@ static __always_inline int get_socket_info_sub(event_data_t *data,
  * SS_FREE/SS_UNCONNECTED or any possible new states are to be skipped */
 static __always_inline __u32 get_socket_info(event_data_t *data, u8 index)
 {
-    struct sockaddr_in remote;
+    net_conn_v4_t net_details = {};
     struct files_struct *files = NULL;
     struct fdtable *fdt = NULL;
+    int family = 0;
 
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     if (task == NULL)
@@ -672,10 +760,8 @@ static __always_inline __u32 get_socket_info(event_data_t *data, u8 index)
         task = READ_KERN(task->real_parent);
     }
 exit:
-    remote.sin_family = 0;
-    remote.sin_port = 0;
-    remote.sin_addr.s_addr = 0;
-    save_to_submit_buf(data, &remote, sizeof(struct sockaddr_in), index);
+    save_to_submit_buf(data, &family, sizeof(u16), index);
+    save_to_submit_buf(data, &net_details, sizeof(struct network_connection_v4), index);
     return 0;
 }
 
@@ -705,6 +791,24 @@ static __always_inline void *get_exe_from_task(struct task_struct *task)
     if (path == NULL)
         return &string_p->buf[0];
     return path;
+}
+
+// Hades wrapper of kernel sockfd_lookup with sock return
+static __always_inline struct sock *hades_sockfd_lookup(int fd)
+{
+    struct file *file = file_get_raw(fd);
+    if (file == NULL)
+        return NULL;
+    // socket_from_file
+    const struct file_operations *f_op = READ_KERN(file->f_op);
+    if (f_op == NULL)
+        return NULL;
+    // missing f_op check here
+    struct socket *socket = READ_KERN(file->private_data);
+    if (socket == NULL)
+        return NULL;
+    struct sock *sock = READ_KERN(socket->sk);
+    return sock;
 }
 
 // In tracee, the field protocol is generate by the function `get_sock_protocol`

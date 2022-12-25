@@ -10,12 +10,11 @@ import (
 var _ decoder.Event = (*CallUsermodeHelper)(nil)
 
 type CallUsermodeHelper struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"exe"`
-	Path               string `json:"path"`
-	Argv               string `json:"argv"`
-	Envp               string `json:"envp"`
-	Wait               int32  `json:"wait"`
+	Exe  string `json:"exe"`
+	Path string `json:"path"`
+	Argv string `json:"argv"`
+	Envp string `json:"envp"`
+	Wait int32  `json:"wait"`
 }
 
 func (CallUsermodeHelper) ID() uint32 {
@@ -65,6 +64,10 @@ func (CallUsermodeHelper) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (CallUsermodeHelper) GetMaps() []*manager.Map { return nil }
+
+func (CallUsermodeHelper) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&CallUsermodeHelper{})

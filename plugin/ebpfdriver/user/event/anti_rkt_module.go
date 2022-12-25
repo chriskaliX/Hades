@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/utils"
 	"io"
 	"os"
 
@@ -16,15 +16,16 @@ const maxModule = 512
 var _ decoder.Event = (*ModuleScan)(nil)
 
 type ModuleScan struct {
-	decoder.BasicEvent `json:"-"`
-	IterCount          uint32 `json:"iter_count"`
-	KernelCount        uint32 `json:"kernel_count"`
-	UserCount          uint32 `json:"user_count"`
+	IterCount   uint32 `json:"iter_count"`
+	KernelCount uint32 `json:"kernel_count"`
+	UserCount   uint32 `json:"user_count"`
 }
 
 func (ModuleScan) ID() uint32 {
 	return 1203
 }
+
+func (ModuleScan) GetExe() string { return "" }
 
 // In DecodeEvent, get the count of /proc/modules, and we do compare them
 func (m *ModuleScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
@@ -54,12 +55,10 @@ func (m *ModuleScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 			break
 		}
 	}
-	// If kernel space and userspace get same count
-	// them no lefted
 	if m.UserCount == m.KernelCount {
-		err = ErrIgnore
+		err = decoder.ErrIgnore
 	}
-	return nil
+	return
 }
 
 func (ModuleScan) Name() string {
@@ -67,7 +66,7 @@ func (ModuleScan) Name() string {
 }
 
 func (i *ModuleScan) Trigger(m *manager.Manager) error {
-	idt := helper.Ksyms.Get("module_kset")
+	idt := utils.Ksyms.Get("module_kset")
 	if idt == nil {
 		err := errors.New("mod_kset is not found")
 		return err
@@ -97,6 +96,8 @@ func (ModuleScan) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (ModuleScan) GetMaps() []*manager.Map { return nil }
 
 func init() {
 	decoder.RegistEvent(&ModuleScan{})

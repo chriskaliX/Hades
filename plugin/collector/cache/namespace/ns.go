@@ -3,6 +3,7 @@ package namepsace
 import (
 	"bytes"
 	"collector/cache"
+	"collector/utils"
 	"fmt"
 	"math/rand"
 	"os"
@@ -33,8 +34,8 @@ type NsCache struct {
 func NewNsCache() *NsCache {
 	cache := &NsCache{
 		rlimiter:  rate.NewLimiter(rate.Every(nsLimiterInterval), nsLimiterBurst),
-		cache:     utilcache.NewLRUExpireCacheWithClock(nsCacheSize, cache.GTicker),
-		namecache: utilcache.NewLRUExpireCacheWithClock(nsCacheSize, cache.GTicker),
+		cache:     utilcache.NewLRUExpireCacheWithClock(nsCacheSize, utils.Clock),
+		namecache: utilcache.NewLRUExpireCacheWithClock(nsCacheSize, utils.Clock),
 	}
 	return cache
 }

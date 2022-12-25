@@ -1,13 +1,20 @@
 package agent
 
 import (
-	"agent/host"
 	"agent/proto"
 	"agent/utils"
 	"context"
 	"os/exec"
 	"path"
+
+	"github.com/shirou/gopsutil/v3/host"
 )
+
+var platform string
+
+func init() {
+	platform, _, _, _ = host.PlatformInformation()
+}
 
 // agent self-update
 // Windows compatible is not invalid for now
@@ -19,15 +26,16 @@ func Update(config proto.Config) (err error) {
 		return
 	}
 	var cmd *exec.Cmd
-	switch host.PlatformFamily {
-	// 为了后续兼容性，先不合并debian与default分支
+	switch platform {
 	case "debian":
 		cmd = exec.Command("dpkg", "-i", dst)
-	// ref:https://docs.fedoraproject.org/ro/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch-command-reference.html
 	case "rhel", "fedora", "suse":
 		cmd = exec.Command("rpm", "-Uvh", dst)
 	default:
-		cmd = exec.Command("dpkg", "-i", dst)
+		// Other platform including
+		// gentoo slackware arch exherbo alpine
+		// coreos solus neokylin
+		cmd = exec.Command(dst)
 	}
 	err = cmd.Run()
 	return

@@ -12,22 +12,23 @@ import (
 var _ decoder.Event = (*Execve)(nil)
 
 type Execve struct {
-	decoder.BasicEvent `json:"-"`
-	Exe                string `json:"-"`
-	Cwd                string `json:"cwd"`
-	TTYName            string `json:"tty_name"`
-	Stdin              string `json:"stdin"`
-	Stdout             string `json:"stdout"`
-	Dport              uint16 `json:"dport"`
-	Dip                string `json:"dip"`
-	Family             uint16 `json:"family"`
-	SocketPid          uint32 `json:"socket_pid"`
-	SocketArgv         string `json:"socket_argv"`
-	PidTree            string `json:"pid_tree"`
-	Argv               string `json:"argv"`
-	PrivEscalation     uint8  `json:"priv_esca"`
-	SSHConnection      string `json:"ssh_connection"`
-	LDPreload          string `json:"ld_preload"`
+	Exe            string `json:"-"`
+	Cwd            string `json:"cwd"`
+	TTYName        string `json:"tty_name"`
+	Stdin          string `json:"stdin"`
+	Stdout         string `json:"stdout"`
+	Dport          uint16 `json:"dport"`
+	Dip            string `json:"dip"`
+	Sport          uint16 `json:"sport"`
+	Sip            string `json:"sip"`
+	Family         uint16 `json:"family"`
+	SocketPid      uint32 `json:"socket_pid"`
+	SocketArgv     string `json:"socket_argv"`
+	PidTree        string `json:"pid_tree"`
+	Argv           string `json:"argv"`
+	PrivEscalation uint8  `json:"priv_esca"`
+	SSHConnection  string `json:"ssh_connection"`
+	LDPreload      string `json:"ld_preload"`
 }
 
 func (Execve) ID() uint32 {
@@ -42,51 +43,51 @@ func (e *Execve) GetExe() string {
 	return e.Exe
 }
 
-func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
+func (e *Execve) DecodeEvent(d *decoder.EbpfDecoder) (err error) {
 	var dummy uint8
-	if e.Exe, err = decoder.DecodeString(); err != nil {
+	if e.Exe, err = d.DecodeString(); err != nil {
 		return
 	}
 	// Dynamic window for execve
 	if !window.WindowCheck(e.Exe, window.DefaultExeWindow) {
-		err = ErrFilter
+		err = decoder.ErrFilter
 		return
 	}
-	if e.Cwd, err = decoder.DecodeString(); err != nil {
+	if e.Cwd, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.TTYName, err = decoder.DecodeString(); err != nil {
+	if e.TTYName, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdin, err = decoder.DecodeString(); err != nil {
+	if e.Stdin, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdout, err = decoder.DecodeString(); err != nil {
+	if e.Stdout, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Family, e.Dport, e.Dip, err = decoder.DecodeRemoteAddr(); err != nil {
+	if e.Family, e.Sport, e.Dport, e.Sip, e.Dip, err = d.DecodeAddr(); err != nil {
 		return
 	}
-	if err = decoder.DecodeUint8(&dummy); err != nil {
+	if err = d.DecodeUint8(&dummy); err != nil {
 		return
 	}
-	if err = decoder.DecodeUint32(&e.SocketPid); err != nil {
+	if err = d.DecodeUint32(&e.SocketPid); err != nil {
 		return
 	}
-	if e.PidTree, err = decoder.DecodePidTree(&e.PrivEscalation); err != nil {
+	if e.PidTree, err = d.DecodePidTree(&e.PrivEscalation); err != nil {
 		return
 	}
 	var strArr []string
-	if strArr, err = decoder.DecodeStrArray(); err != nil {
+	if strArr, err = d.DecodeStrArray(); err != nil {
 		return
 	}
 	e.Argv = strings.Join(strArr, " ")
 	if !window.WindowCheck(e.Argv, window.DefaultArgvWindow) {
-		err = ErrFilter
+		err = decoder.ErrFilter
 		return
 	}
 	var envs []string
-	if envs, err = decoder.DecodeStrArray(); err != nil {
+	if envs, err = d.DecodeStrArray(); err != nil {
 		return
 	}
 	for _, env := range envs {
@@ -106,10 +107,6 @@ func (e *Execve) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 	return
 }
 
-func (e Execve) FillCache() {
-	cache.DefaultArgvCache.Set(e.Context().Pid, e.Argv)
-}
-
 func (Execve) GetProbes() []*manager.Probe {
 	return []*manager.Probe{
 		{
@@ -126,6 +123,10 @@ func (Execve) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (Execve) GetMaps() []*manager.Map { return nil }
+
+func (Execve) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&Execve{})

@@ -12,23 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
-const hardwareQuery = "SELECT UUID FROM Win32_ComputerSystemProduct"
-const addressQuery = "SELECT MACAddress FROM Win32_NetworkAdapter where PhysicalAdapter=True"
+const (
+	HADES_HOME       = "\\Program Files\\hades\\"
+	HADES_PIDPATH    = HADES_HOME
+	HADES_LOGHOME    = HADES_HOME + "log\\"
+	HADES_MACHINE_ID = HADES_HOME + "machine-id"
 
-func New() (agent *Agent) {
-	agent = &Agent{
-		Product: Product,
-		Version: Version,
-		OS:      runtime.GOOS,
-	}
-	var err error
-	agent.Context, agent.Cancel = context.WithCancel(context.Background())
-	if agent.Workdir, err = os.Getwd(); err != nil {
-		agent.Workdir = config.HADES_PIDPATH
-	}
-	agent.genUUIDWin()
-	return
-}
+	hardwareQuery = "SELECT UUID FROM Win32_ComputerSystemProduct"
+	addressQuery  = "SELECT MACAddress FROM Win32_NetworkAdapter where PhysicalAdapter=True"
+)
 
 type win32_ComputerSystemProduct struct {
 	UUID string
@@ -39,7 +31,7 @@ type win32_NetworkAdapter struct {
 }
 
 // Windows uuid generator,
-func (a *Agent) genUUIDWin() {
+func genUUID() {
 	var source []byte
 	// ComputerSystemProduct/UUID, just like dmi in linux, and it is
 	// also used in osquery.
@@ -53,9 +45,9 @@ func (a *Agent) genUUIDWin() {
 		source = append(source, []byte(macs[0].MacAddress)...)
 	}
 	if len(source) > 8 {
-		a.ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
+		ID = uuid.NewSHA1(uuid.NameSpaceOID, source).String()
 		return
 	}
 	// Cloud is not added for now
-	a.ID = uuid.New().String()
+	ID = uuid.New().String()
 }

@@ -9,11 +9,10 @@ import (
 var _ decoder.Event = (*KernelReadFile)(nil)
 
 type KernelReadFile struct {
-	decoder.BasicEvent `json:"-"`
-	TypeId             int32  `json:"typeid"`
-	Exe                string `json:"-"`
-	Filename           string `json:"filename"`
-	Md5                string `json:"md5"`
+	TypeId   int32  `json:"typeid"`
+	Exe      string `json:"-"`
+	Filename string `json:"filename"`
+	Md5      string `json:"md5"`
 }
 
 func (KernelReadFile) ID() uint32 {
@@ -48,6 +47,10 @@ func (KernelReadFile) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (k *KernelReadFile) GetMaps() []*manager.Map { return nil }
+
+func (KernelReadFile) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
 	decoder.RegistEvent(&KernelReadFile{})

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/helper"
+	"hades-ebpf/utils"
 
 	manager "github.com/ehids/ebpfmanager"
 )
@@ -12,14 +12,15 @@ import (
 var _ decoder.Event = (*IDTScan)(nil)
 
 type IDTScan struct {
-	decoder.BasicEvent `json:"-"`
-	Index              uint64 `json:"index"`
-	Address            string `json:"addr"`
+	Index   uint64 `json:"index"`
+	Address string `json:"addr"`
 }
 
 func (IDTScan) ID() uint32 {
 	return 1201
 }
+
+func (IDTScan) GetExe() string { return "" }
 
 func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	var (
@@ -39,8 +40,8 @@ func (i *IDTScan) DecodeEvent(e *decoder.EbpfDecoder) (err error) {
 	if err = e.DecodeUint64(&addr); err != nil {
 		return
 	}
-	if idt := helper.Ksyms.Get(addr); idt != nil {
-		return ErrIgnore
+	if idt := utils.Ksyms.Get(addr); idt != nil {
+		return decoder.ErrIgnore
 	}
 	i.Address = fmt.Sprintf("%x", addr)
 	return nil
@@ -51,7 +52,7 @@ func (IDTScan) Name() string {
 }
 
 func (i *IDTScan) Trigger(m *manager.Manager) error {
-	idt := helper.Ksyms.Get("idt_table")
+	idt := utils.Ksyms.Get("idt_table")
 	if idt == nil {
 		err := errors.New("idt_table is not found")
 		return err
@@ -81,6 +82,8 @@ func (IDTScan) GetProbes() []*manager.Probe {
 		},
 	}
 }
+
+func (IDTScan) GetMaps() []*manager.Map { return nil }
 
 func init() {
 	decoder.RegistEvent(&IDTScan{})
