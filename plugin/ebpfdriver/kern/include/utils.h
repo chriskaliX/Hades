@@ -271,21 +271,19 @@ static __always_inline void *get_path_str(struct path *path)
                 tmp_inode[7 - i] = inode % 10 + '0';
                 inode /= 10;
             }
-            // ISSUE fixed. It seems that the llvm would opt this if a
-            // boolean in condition, which verifier would deny
-            // if front has zero value, move 
+            // ISSUE remains in arm64 ( |= not allow), just remove for now
         #pragma unroll
             for (j = 0; j < 8; j++) { // e.g: 1234567
                 // find first no-zero value position
+                #if defined(__TARGET_ARCH_x86)
                 if ((s_flag == 0) && (tmp_inode[j] != '0')) { 
                     if (j == 0)
                         break;
                     s_flag = 1;
                 }
-
-                if (s_flag == 1) {
+                if (s_flag == 1)
+                #endif
                     tmp_inode[k++] = tmp_inode[j];  
-                }
             }
 
             if (k != 0) {
