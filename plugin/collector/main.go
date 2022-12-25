@@ -48,7 +48,6 @@ func main() {
 	process.HashCache = sandbox.Hash
 	em := eventmanager.New(sandbox)
 	// Add events
-	em.AddEvent(&event.Netlink{}, eventmanager.Start, eventmanager.None)
 	em.AddEvent(&event.Crontab{}, eventmanager.Start, eventmanager.None)
 	em.AddEvent(&event.Process{}, 15*time.Minute, eventmanager.Snapshot)
 	em.AddEvent(&event.Socket{}, 10*time.Minute, eventmanager.Snapshot)

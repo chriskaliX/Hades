@@ -1,7 +1,7 @@
 package user
 
 import (
-	"collector/cache"
+	"collector/utils"
 	"math/rand"
 	"net"
 	"os/user"
@@ -27,7 +27,7 @@ type User struct {
 }
 
 var Cache = &UserCache{
-	cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, cache.GTicker),
+	cache: utilcache.NewLRUExpireCacheWithClock(userCacheSize, utils.Clock),
 }
 
 type UserCache struct {

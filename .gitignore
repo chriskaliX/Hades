@@ -29,6 +29,7 @@ cert/
 # ignore binary
 plugin/ebpfdriver/ebpfdriver
 plugin/collector/collector
+plugin/ncp/ncp
 
 # libbpf test
 plugin/ebpfdriver/kern/headers/libbpf

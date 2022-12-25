@@ -29,9 +29,7 @@ func (Socket) Name() string {
 	return "socket"
 }
 
-func (n *Socket) Flag() int {
-	return eventmanager.Periodic
-}
+func (n *Socket) Flag() int { return eventmanager.Periodic }
 
 func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	var ok bool

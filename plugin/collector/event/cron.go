@@ -69,7 +69,7 @@ func (Crontab) Name() string {
 // 	"/var/spool/cron/crontabs/", // user linux:debian
 // };
 // https://github.com/osquery/osquery/blob/2c2b85cbd25a381eb0973017427928e5691c4431/osquery/tables/system/posix/crontab.cpp
-func Parse(withUser bool, path string, file *os.File) (crons []Cron) {
+func (c *Crontab) parse(withUser bool, path string, file *os.File) (crons []Cron) {
 	r := bufio.NewScanner(io.LimitReader(file, 1024*1024))
 	for r.Scan() {
 		line := r.Text()
@@ -115,14 +115,13 @@ func Parse(withUser bool, path string, file *os.File) (crons []Cron) {
 					cron.Command = strings.Join(fields[6:], " ")
 				}
 				crons = append(crons, cron)
-				// flag, _ := cronCache.ContainsOrAdd(md5.Sum([]byte(cron.Command)), true)
 			}
 		}
 	}
 	return
 }
 
-func GetCron() (crons []Cron, err error) {
+func (c *Crontab) GetCron() (crons []Cron, err error) {
 	for _, dir := range CronSearchDirs {
 		err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
@@ -134,7 +133,7 @@ func GetCron() (crons []Cron, err error) {
 					return nil
 				}
 				flag := strings.HasPrefix(path, "/var/spool/cron")
-				crons = append(crons, Parse(flag, path, f)...)
+				crons = append(crons, c.parse(flag, path, f)...)
 				f.Close()
 			}
 			return nil
@@ -145,7 +144,7 @@ func GetCron() (crons []Cron, err error) {
 	}
 
 	if f, e := os.Open("/etc/crontab"); e == nil {
-		crons = append(crons, Parse(false, "/etc/crontab", f)...)
+		crons = append(crons, c.parse(false, "/etc/crontab", f)...)
 		f.Close()
 	}
 
@@ -160,7 +159,7 @@ func (c *Crontab) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		c.cronCache, _ = lru.New(240)
 	}
 	// get crons if it start
-	if crons, err := GetCron(); err == nil {
+	if crons, err := c.GetCron(); err == nil {
 		for _, cron := range crons {
 			c.cronCache.Add(md5.Sum([]byte(cron.Command)), true)
 		}
@@ -216,7 +215,7 @@ func (c *Crontab) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			}
 			f, err := os.Open(event.Name)
 			flag := strings.HasPrefix(event.Name, "/var/spool/cron")
-			if crons := Parse(flag, event.Name, f); err == nil {
+			if crons := c.parse(flag, event.Name, f); err == nil {
 				tmp := crons[:0]
 				for _, cron := range crons {
 					sum := md5.Sum([]byte(cron.Command))

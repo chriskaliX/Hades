@@ -36,12 +36,9 @@ func (SshConfig) Name() string {
 	return "sshconfig"
 }
 
-func (n *SshConfig) Flag() int {
-	return eventmanager.Periodic
-}
+func (n *SshConfig) Flag() int { return eventmanager.Periodic }
 
 func (s SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
-
 	// get user configuration
 	configPath := s.sshConfigPath()
 	configs := make([]sshConfig, 0, 20)
