@@ -74,7 +74,6 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) o
 
 |   Event   | Type |
 | :-------: | :--: |
-|  cn_proc  |  S   |
 |  crontab  |  P   |
 | processes |  P   |
 |  socket   |  P   |
@@ -82,6 +81,10 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) o
 | ssh login |  S   |
 |   user    |  P   |
 |    yum    |  P   |
+
+### NCP
+
+> Netlink CN_PROC
 
 ## Contact
 

@@ -56,7 +56,6 @@ type Event struct {
 	Comm          string `json:"comm"`
 	PComm         string `json:"pcomm"`
 	// Nodename      string `json:"nodename"`
-	// CgroupId uint64 `json:"cgroupid"`
 	ExeHash  string `json:"exe_hash"`
 	Username string `json:"username"`
 	Exe      string `json:"exe"`
