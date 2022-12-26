@@ -23,6 +23,7 @@ const maxPidTrace = 4
 const defaultValue = "-1"
 
 var bootTime = uint64(0)
+var rootPns uint32
 
 var (
 	argvCache = lru.New(8192)
@@ -46,6 +47,7 @@ type Event struct {
 	StartTime     uint64 `json:"starttime"`
 	CgroupID      uint64 `json:"cgroupid"`
 	Pns           uint32 `json:"pns"`
+	RootPns       uint32 `json:"root_pns"`
 	Pid           uint32 `json:"pid"`
 	Tid           uint32 `json:"tid"`
 	Uid           int    `json:"uid"`
@@ -109,7 +111,7 @@ func (e *Event) GetInfo() (err error) {
 }
 
 func (e *Event) Reset() {
-	e.PidTree = ""
+	e.PidTree, e.RootPns = "", rootPns
 	e.Name, e.Cwd = defaultValue, defaultValue
 	e.Stdin, e.Stdout, e.Argv = defaultValue, defaultValue, defaultValue
 	e.SSHConnection, e.LDPreload = defaultValue, defaultValue
@@ -387,6 +389,13 @@ func init() {
 			getProcess()
 		}
 	}()
+	// pns
+	if pns, err := os.Readlink("/proc/1/ns/pid"); err == nil {
+		if len(pns) >= 6 {
+			pns, _ := strconv.Atoi(pns[5 : len(pns)-1])
+			rootPns = uint32(pns)
+		}
+	}
 
 	file, err := os.Open("/proc/stat")
 	if err != nil {
