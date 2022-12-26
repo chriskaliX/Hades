@@ -15,7 +15,6 @@ import (
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
-	"k8s.io/utils/lru"
 )
 
 const (
@@ -36,14 +35,13 @@ type Ncp struct {
 	sock   *nl.NetlinkSocket
 	buffer []byte
 	cursor int
-	// cache
-	pidCache *lru.Cache
 	// internal event
 	event *Event
 	// status fields
-	succCnt    uint64
-	failCnt    uint64
-	update     time.Time
+	succCnt uint64
+	failCnt uint64
+	update  time.Time
+	// control fields
 	isrunnging bool
 	sig        chan struct{}
 	close      chan struct{}
@@ -51,9 +49,8 @@ type Ncp struct {
 
 func New() *Ncp {
 	return &Ncp{
-		pidCache: lru.New(8192),
-		event:    &Event{},
-		update:   time.Now(),
+		event:  &Event{},
+		update: time.Now(),
 	}
 }
 
@@ -124,6 +121,14 @@ out:
 	return
 }
 
+func (n *Ncp) Run(s SDK.ISandbox) (err error) {
+	go n.Start(s)
+	for range s.Context().Done() {
+		return
+	}
+	return
+}
+
 func (n *Ncp) Stop() (err error) {
 	n.close <- struct{}{}
 	if n.sock != nil {
@@ -172,7 +177,7 @@ func (n *Ncp) decode() (result string, send bool, err error) {
 		if err = n.decodeFork(&tgid, &ptgid); err != nil {
 			return
 		}
-		n.pidCache.Add(tgid, ptgid)
+		pidCache.Add(tgid, ptgid)
 		return
 	case PROC_EVENT_EXEC:
 		send = true
@@ -183,7 +188,7 @@ func (n *Ncp) decode() (result string, send bool, err error) {
 		n.event.Reset()
 		n.event.Pid = pid
 		n.event.Tid = tpid
-		if err = n.event.GetInfo(n.pidCache); err != nil {
+		if err = n.event.GetInfo(); err != nil {
 			return
 		}
 		result, err = sonic.MarshalString(n.event)

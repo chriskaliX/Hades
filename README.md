@@ -28,8 +28,8 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 ## Plugins
 
-- [eBPF Driver](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver)
-- [Collector](https://github.com/chriskaliX/Hades/tree/main/plugin/collector)
+- [eBPF Driver](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver)
+- [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
 - HoneyPot
 - Monitor
 - Scanner
@@ -41,7 +41,7 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 > Here are 21 hooks over `tracepoints`/`kprobes`/`uprobes`. The fields are extended just like Elkeid(basically).
 
-For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) of these hooks.
+For [details](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver) of these hooks.
 
 
 | Hook                                       | Status & Description                  | ID   |
@@ -74,7 +74,6 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) o
 
 |   Event   | Type |
 | :-------: | :--: |
-|  cn_proc  |  S   |
 |  crontab  |  P   |
 | processes |  P   |
 |  socket   |  P   |
@@ -82,6 +81,10 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) o
 | ssh login |  S   |
 |   user    |  P   |
 |    yum    |  P   |
+
+### NCP
+
+> Netlink CN_PROC
 
 ## Contact
 

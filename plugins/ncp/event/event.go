@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"time"
 
 	"ncp/utils"
 
@@ -22,19 +23,20 @@ const maxPidTrace = 4
 const defaultValue = "-1"
 
 var bootTime = uint64(0)
+var rootPns uint32
 
 var (
 	argvCache = lru.New(8192)
 	commCache = lru.New(8192)
 	nsCache   = lru.New(8192)
 	userCache = lru.New(8192)
+	pidCache  = lru.New(8192)
 	fileCache = hash.NewWithClock(utils.Clock)
 )
 
 type Event struct {
 	Name          string `json:"name"`
 	Cwd           string `json:"cwd"`
-	TTYName       string `json:"tty_name"`
 	TTY           uint32 `json:"tty"`
 	Stdin         string `json:"stdin"`
 	Stdout        string `json:"stdout"`
@@ -45,6 +47,7 @@ type Event struct {
 	StartTime     uint64 `json:"starttime"`
 	CgroupID      uint64 `json:"cgroupid"`
 	Pns           uint32 `json:"pns"`
+	RootPns       uint32 `json:"root_pns"`
 	Pid           uint32 `json:"pid"`
 	Tid           uint32 `json:"tid"`
 	Uid           int    `json:"uid"`
@@ -54,16 +57,16 @@ type Event struct {
 	SessionID     uint32 `json:"sessionid"`
 	Comm          string `json:"comm"`
 	PComm         string `json:"pcomm"`
-	Nodename      string `json:"nodename"`
-	ExeHash       string `json:"exe_hash"`
-	Username      string `json:"username"`
-	Exe           string `json:"exe"`
-	PpidArgv      string `json:"ppid_argv"`
-	PgidArgv      string `json:"pgid_argv"`
-	PodName       string `json:"pod_name"`
+	// Nodename      string `json:"nodename"`
+	ExeHash  string `json:"exe_hash"`
+	Username string `json:"username"`
+	Exe      string `json:"exe"`
+	PpidArgv string `json:"ppid_argv"`
+	PgidArgv string `json:"pgid_argv"`
+	PodName  string `json:"pod_name"`
 }
 
-func (e *Event) GetInfo(pidCache *lru.Cache) (err error) {
+func (e *Event) GetInfo() (err error) {
 	if err = e.getCwd(); err != nil {
 		return
 	}
@@ -103,18 +106,18 @@ func (e *Event) GetInfo(pidCache *lru.Cache) (err error) {
 	}
 	e.Stdin, _ = e.getFd(0)
 	e.Stdout, _ = e.getFd(1)
-	e.getPidTree(pidCache)
+	e.getPidTree()
 	return
 }
 
 func (e *Event) Reset() {
-	e.PidTree = ""
-	e.Name, e.Cwd, e.TTYName = defaultValue, defaultValue, defaultValue
+	e.PidTree, e.RootPns = "", rootPns
+	e.Name, e.Cwd = defaultValue, defaultValue
 	e.Stdin, e.Stdout, e.Argv = defaultValue, defaultValue, defaultValue
 	e.SSHConnection, e.LDPreload = defaultValue, defaultValue
 	e.StartTime, e.CgroupID, e.Pns, e.Pid, e.Tid, e.Uid, e.Gid = 0, 0, 0, 0, 0, -1, -1
 	e.Ppid, e.Pgid, e.SessionID, e.TTY = 0, 0, 0, 0
-	e.Comm, e.PComm, e.Nodename, e.ExeHash, e.Username = defaultValue, defaultValue, defaultValue, defaultValue, defaultValue
+	e.Comm, e.PComm, e.ExeHash, e.Username = defaultValue, defaultValue, defaultValue, defaultValue
 	e.Exe, e.PpidArgv, e.PgidArgv, e.PodName = defaultValue, defaultValue, defaultValue, defaultValue
 
 }
@@ -255,7 +258,7 @@ func (e *Event) getExeHash() {
 	e.ExeHash = fileCache.GetHash(e.Exe)
 }
 
-func (e *Event) getPidTree(pidCache *lru.Cache) {
+func (e *Event) getPidTree() {
 	var first = true
 	pid := e.Tid
 	for i := 0; i < maxPidTrace; i++ {
@@ -325,7 +328,75 @@ func getComm(pid uint32) (comm string, err error) {
 	return
 }
 
+func getPids(limit int) (pids []int, err error) {
+	pids = make([]int, 0, 1000)
+	d, err := os.Open("/proc")
+	if err != nil {
+		return
+	}
+	names, err := d.Readdirnames(limit + 128)
+	if err != nil {
+		return
+	}
+	for _, name := range names {
+		if limit == 0 {
+			return
+		}
+		pid, err := strconv.ParseInt(name, 10, 64)
+		if err == nil {
+			pids = append(pids, int(pid))
+			limit -= 1
+		}
+	}
+	return
+}
+
+// This is the background job for filling the caches
+func getProcess() {
+	pids, err := getPids(1000)
+	if err != nil {
+		return
+	}
+	for _, pid := range pids {
+		time.Sleep(100 * time.Millisecond)
+		// comm
+		if comm, err := getComm(uint32(pid)); err != nil {
+			continue
+		} else {
+			commCache.Add(uint32(pid), comm)
+		}
+		// ppid
+		var stat []byte
+		if stat, err = os.ReadFile(fmt.Sprintf("/proc/%d/stat", uint32(pid))); err != nil {
+			continue
+		}
+		fields := strings.Fields(string(stat))
+		field, _ := strconv.Atoi(fields[3])
+		pidCache.Add(uint32(pid), uint32(field))
+	}
+}
+
 func init() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		init := true
+		defer ticker.Stop()
+		for range ticker.C {
+			if init {
+				ticker.Reset(10 * time.Minute)
+				init = false
+			}
+			getProcess()
+		}
+	}()
+	// pns
+	if pns, err := os.Readlink("/proc/1/ns/pid"); err == nil {
+		if len(pns) >= 6 {
+			pns, _ := strconv.Atoi(pns[5 : len(pns)-1])
+			rootPns = uint32(pns)
+		}
+	}
+
 	file, err := os.Open("/proc/stat")
 	if err != nil {
 		return

@@ -35,14 +35,14 @@ jobs:
       
       - name: build
         run: |
-          cd plugin/ebpfdriver
+          cd pluginss/ebpfdriver
           make core
           cd ../..
 
       - name: upload
         uses: actions/upload-artifact@v3
         with:
-          path: plugin/ebpfdriver/ebpfdriver
+          path: plugins/ebpfdriver/ebpfdriver
           name: ebpfdriver
       
   release:

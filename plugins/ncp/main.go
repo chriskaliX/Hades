@@ -46,7 +46,7 @@ func main() {
 				case event.Stop:
 					ncp.Stop()
 				case event.Start:
-					ncp.Start(sandbox)
+					go ncp.Start(sandbox)
 				}
 				time.Sleep(time.Second)
 			}
@@ -58,7 +58,9 @@ func main() {
 		defer ticker.Stop()
 		for range ticker.C {
 			succTPS, failTPS := ncp.GetState()
-			zap.S().Info(succTPS, failTPS)
+			if failTPS > 2 {
+				zap.S().Info(succTPS, failTPS)
+			}
 			data := make(map[string]string, 2)
 			data["success_tps"] = strconv.FormatFloat(succTPS, 'f', 6, 64)
 			data["failed_tps"] = strconv.FormatFloat(failTPS, 'f', 6, 64)
@@ -72,5 +74,5 @@ func main() {
 		}
 	}()
 
-	sandbox.Run(ncp.Start)
+	sandbox.Run(ncp.Run)
 }

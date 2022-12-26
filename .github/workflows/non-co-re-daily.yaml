@@ -30,5 +30,5 @@ jobs:
           sudo apt-get install linux-headers-$(uname -r)
       - name: Build non-CO-RE
         run: |
-          cd plugin/ebpfdriver
+          cd plugins/ebpfdriver
           make

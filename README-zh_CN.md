@@ -26,8 +26,8 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 ## 插件列表
 
-- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver)
-- [Collector](https://github.com/chriskaliX/Hades/tree/main/plugin/collector)
+- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver)
+- [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
 - HoneyPot
 - Monitor
 - Scanner
@@ -39,7 +39,7 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 > 支持 `21` 种 Hook，涵盖大部分安全审计检测需求，采集字段基本和 Elkeid 相同
 
-[Hook](https://github.com/chriskaliX/Hades/tree/main/plugin/ebpfdriver) 详情查看
+[Hook](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver) 详情查看
 
 | Hook                                       | Status & Description                  | ID   |
 | :----------------------------------------- | :------------------------------------ | :--- |
@@ -71,7 +71,6 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 |   Event   | Type |
 | :-------: | :--: |
-|  cn_proc  |  S   |
 |  crontab  |  P   |
 | processes |  P   |
 |  socket   |  P   |
@@ -79,6 +78,10 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 | ssh login |  S   |
 |   user    |  P   |
 |    yum    |  P   |
+
+### NCP
+
+> Netlink CN_PROC 事件采集
 
 ## 联系 & 交流
 
