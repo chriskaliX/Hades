@@ -4,8 +4,10 @@ import (
 	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/filter/window"
+	"reflect"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	manager "github.com/ehids/ebpfmanager"
 )
 
@@ -129,5 +131,7 @@ func (Execve) GetMaps() []*manager.Map { return nil }
 func (Execve) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
 func init() {
+	var execve Execve
+	sonic.Pretouch(reflect.TypeOf(execve))
 	decoder.RegistEvent(&Execve{})
 }

@@ -40,7 +40,7 @@ func appRun(s SDK.ISandbox) (err error) {
 
 func main() {
 	// inject into sandbox
-	cmd.RootCmd.Run = (func(c *cobra.Command, args []string) {
+	cmd.RootCmd.Run = (func(_ *cobra.Command, _ []string) {
 		sconfig := &SDK.SandboxConfig{
 			Debug: share.Debug,
 			Hash:  true,

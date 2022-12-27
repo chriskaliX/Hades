@@ -40,7 +40,7 @@ func load(m *sync.Map, newList []string) (err error) {
 		return
 	}
 	// remove firstly
-	m.Range(func(key any, value any) bool {
+	m.Range(func(key any, _ any) bool {
 		if slices.Contains(newList, key.(string)) {
 			index := slices.Index(newList, key.(string))
 			newList = slices.Delete(newList, index, index+1)

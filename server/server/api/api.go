@@ -5,11 +5,28 @@ import (
 	gApi "hboat/server/api/grpc"
 	"hboat/server/api/host"
 	"hboat/server/api/plugin"
+	"net/http"
 
 	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 )
+
+func CorsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "*")
+		c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, PATCH, OPTIONS")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Expose-Headers", "*")
+		if c.Request.Method == "OPTIONS" {
+			c.JSON(http.StatusOK, "")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
 
 func RunGrpcServer(port int) {
 	router := gin.Default()
@@ -36,5 +53,6 @@ func RunGrpcServer(port int) {
 	aGroup := router.Group("/api/v1/asset")
 	aGroup.GET("get", host.AgentAsset)
 
+	router.Use(CorsHandler())
 	router.Run(fmt.Sprintf(":%d", port))
 }

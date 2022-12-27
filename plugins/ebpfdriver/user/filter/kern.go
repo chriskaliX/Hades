@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"hades-ebpf/user/decoder"
+	"fmt"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
@@ -12,7 +12,7 @@ type KernelFilter struct{}
 
 func (filter *KernelFilter) Set(m *manager.Manager, name string, key interface{}) (err error) {
 	var _map *ebpf.Map
-	_map, err = decoder.GetMap(m, name)
+	_map, err = filter.getMap(m, name)
 	if err != nil {
 		return
 	}
@@ -23,7 +23,7 @@ func (filter *KernelFilter) Set(m *manager.Manager, name string, key interface{}
 
 func (filter *KernelFilter) Delete(m *manager.Manager, name string, key interface{}) (err error) {
 	var _map *ebpf.Map
-	_map, err = decoder.GetMap(m, name)
+	_map, err = filter.getMap(m, name)
 	if err != nil {
 		return
 	}
@@ -33,7 +33,7 @@ func (filter *KernelFilter) Delete(m *manager.Manager, name string, key interfac
 
 func (filter *KernelFilter) Get(m *manager.Manager, name string) (results []interface{}, err error) {
 	var _map *ebpf.Map
-	_map, err = decoder.GetMap(m, name)
+	_map, err = filter.getMap(m, name)
 	if err != nil {
 		return
 	}
@@ -42,4 +42,15 @@ func (filter *KernelFilter) Get(m *manager.Manager, name string) (results []inte
 		results = append(results, key)
 	}
 	return
+}
+
+func (filter *KernelFilter) getMap(m *manager.Manager, name string) (*ebpf.Map, error) {
+	analyzeCache, found, err := m.GetMap(name)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("%s not found", name)
+	}
+	return analyzeCache, nil
 }

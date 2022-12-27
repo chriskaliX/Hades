@@ -39,7 +39,7 @@ func (f *UserFilter) FilterOut(field int, in string) (result bool) {
 	case DnsFilter:
 		// dns filter
 		result = true
-		f.DnsFilter.Range(func(key any, value any) bool {
+		f.DnsFilter.Range(func(key any, _ any) bool {
 			if strings.HasSuffix(in, key.(string)) {
 				result = false
 				return false

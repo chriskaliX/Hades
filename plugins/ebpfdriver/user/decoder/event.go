@@ -2,9 +2,9 @@ package decoder
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/bytedance/sonic"
-	"github.com/cilium/ebpf"
 	manager "github.com/ehids/ebpfmanager"
 	"k8s.io/utils/strings/slices"
 )
@@ -69,13 +69,7 @@ func MarshalJson(event Event, ctx *Context) (result string, err error) {
 	return
 }
 
-func GetMap(m *manager.Manager, name string) (*ebpf.Map, error) {
-	analyzeCache, found, err := m.GetMap(name)
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		return nil, fmt.Errorf("%s not found", name)
-	}
-	return analyzeCache, nil
+func init() {
+	var ctx Context
+	sonic.Pretouch(reflect.TypeOf(ctx))
 }
