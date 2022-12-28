@@ -7,12 +7,15 @@ import (
 	"hades-ebpf/user/cache"
 
 	"github.com/bytedance/sonic"
+	"github.com/shirou/gopsutil/host"
 )
+
+var bootTime = uint64(0)
 
 // Context contains the kern space struct data_context and the
 // user space extra field from the path
 type Context struct {
-	Starttime uint64  `json:"starttime"` // elasped since system boot in nanoseconds
+	StartTime uint64  `json:"starttime"` // elasped since system boot in nanoseconds
 	CgroupID  uint64  `json:"cgroupid"`
 	Pns       uint32  `json:"pns"`  // pid namespace
 	Type      uint32  `json:"type"` // Type returns the type of the syscall
@@ -48,7 +51,8 @@ func (ctx *Context) DecodeContext(decoder *EbpfDecoder) error {
 	if len(decoder.buffer[offset:]) < ctx.GetSizeBytes() {
 		return fmt.Errorf("can't read context from buffer: buffer too short")
 	}
-	ctx.Starttime = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+8])
+	ctx.StartTime = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+8])
+	ctx.StartTime = ctx.StartTime + bootTime
 	ctx.CgroupID = binary.LittleEndian.Uint64(decoder.buffer[offset+8 : offset+16])
 	ctx.Pns = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
 	ctx.Type = binary.LittleEndian.Uint32(decoder.buffer[offset+20 : offset+24])
@@ -95,3 +99,7 @@ type SlimCred struct {
 }
 
 func (s SlimCred) GetSizeBytes() uint32 { return 32 }
+
+func init() {
+	bootTime, _ = host.BootTime()
+}

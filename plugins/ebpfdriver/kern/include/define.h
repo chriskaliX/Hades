@@ -306,4 +306,8 @@ struct _sys_exit {
     long syscall_nr;
     long ret;
 };
+
+// LOAD_CONSTANT by golang runtime. REPLACE some trival eBPF maps.
+#define LOAD_CONSTANT(param, var) asm("%0 = " param " ll" : "=r"(var))
+
 #endif //__DEFINE_H

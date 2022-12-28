@@ -463,6 +463,19 @@ int trigger_module_scan(struct pt_regs *ctx)
  * Warning: This function is under full test, PERFORMANCE IS UNKNOWN
  * from tracee. filldir
  */
+
+static __always_inline __u64 hades_constants_stext() {
+    __u64 val = 0;
+    LOAD_CONSTANT("hades_stext", val);
+    return val;
+}
+
+static __always_inline __u64 hades_constants_etext() {
+    __u64 val = 0;
+    LOAD_CONSTANT("hades_etext", val);
+    return val;
+}
+
 SEC("kprobe/security_file_permission")
 int BPF_KPROBE(kprobe_security_file_permission)
 {
@@ -496,8 +509,8 @@ int BPF_KPROBE(kprobe_security_file_permission)
         return 0;
     
     // get configuration from bpf_map, if not contained, skip
-    int stext = get_config(STEXT);
-    int etext = get_config(ETEXT);
+    u64 stext = hades_constants_stext();
+    u64 etext = hades_constants_etext();
     if (stext == 0 || etext == 0)
         return 0;
 

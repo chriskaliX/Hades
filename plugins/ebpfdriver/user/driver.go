@@ -13,7 +13,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/chriskaliX/SDK"
@@ -30,11 +29,7 @@ var _bytecode []byte
 
 // config
 const configMap = "config_map"
-const (
-	confDenyBPF uint32 = 0
-	configSTEXT uint32 = 1
-	configETEXT uint32 = 2
-)
+const confDenyBPF uint32 = 0
 
 // filters
 const filterPid = "pid_filter"
@@ -64,9 +59,6 @@ type Driver struct {
 	context context.Context
 	cancel  context.CancelFunc
 	cronM   *cron.Cron
-	// driver state monitor
-	filterCount atomic.Value
-	dropCount   atomic.Value
 }
 
 // New a driver with pre-set map and options
@@ -100,24 +92,48 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			{Name: filterPid},
 		},
 	}
+
 	for _, event := range decoder.Events {
 		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
 		if event.GetMaps() != nil {
 			driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
 		}
 	}
-	err := driver.Manager.InitWithOptions(bytes.NewReader(_bytecode), manager.Options{
-		DefaultKProbeMaxActive: 512,
-		VerifierOptions: ebpf.CollectionOptions{
-			Programs: ebpf.ProgramOptions{
-				LogSize: 1 * 1024 * 1024,
+	var stext, etext uint64
+	// Init options with constant value updated
+	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
+		stext = _stext.Address
+	}
+	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
+		etext = _etext.Address
+	}
+
+	err := driver.Manager.InitWithOptions(
+		bytes.NewReader(_bytecode),
+		manager.Options{
+			DefaultKProbeMaxActive: 512,
+			VerifierOptions: ebpf.CollectionOptions{
+				Programs: ebpf.ProgramOptions{
+					LogSize: 1 * 1024 * 1024,
+				},
 			},
-		},
-		RLimit: &unix.Rlimit{
-			Cur: math.MaxUint64,
-			Max: math.MaxUint64,
-		},
-	})
+			RLimit: &unix.Rlimit{
+				Cur: math.MaxUint64,
+				Max: math.MaxUint64,
+			},
+			// Init added, be careful that bpf_printk
+			ConstantEditors: []manager.ConstantEditor{
+				{
+					Name:  "hades_stext",
+					Value: stext,
+				},
+				{
+					Name:  "hades_etext",
+					Value: etext,
+				},
+			},
+		})
+
 	driver.context, driver.cancel = context.WithCancel(s.Context())
 	return driver, err
 }
@@ -129,17 +145,6 @@ func (d *Driver) PostRun() (err error) {
 	// Get Pid filter
 	if err := d.mapUpdate(filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
 		zap.S().Error(err)
-	}
-	// STEXT ETEXT for rootkit detection
-	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
-		if err := d.mapUpdate(configMap, configSTEXT, _stext.Address); err != nil {
-			zap.S().Error(err)
-		}
-	}
-	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
-		if err := d.mapUpdate(configMap, configETEXT, _etext.Address); err != nil {
-			zap.S().Error(err)
-		}
 	}
 	zap.S().Info("ebpfdriver init configuration has been loaded")
 	// By default, we do not ban BPF program unless you choose on this..
