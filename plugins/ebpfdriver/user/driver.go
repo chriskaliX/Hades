@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/chriskaliX/SDK"
@@ -31,9 +32,6 @@ var _bytecode []byte
 const configMap = "config_map"
 const confDenyBPF uint32 = 0
 
-// filters
-const filterPid = "pid_filter"
-
 // Task
 const (
 	TaskDisableProbe   = 7
@@ -41,12 +39,6 @@ const (
 	TaskWhiteList      = 9
 	TaskEnableDenyBPF  = 10
 	TaskDisableDenyBPF = 11
-)
-
-// Perfmap
-const (
-	execEvents = "exec_events"
-	netEvents  = "net_events"
 )
 
 var rawdata = make(map[string]string, 1)
@@ -63,33 +55,27 @@ type Driver struct {
 
 // New a driver with pre-set map and options
 func NewDriver(s SDK.ISandbox) (*Driver, error) {
-	driver := &Driver{
-		Sandbox: s,
-	}
+	driver := &Driver{Sandbox: s}
 	// init ebpfmanager with maps and perf_events
 	driver.Manager = &manager.Manager{
 		PerfMaps: []*manager.PerfMap{
-			{
-				Map: manager.Map{Name: execEvents},
-				PerfMapOptions: manager.PerfMapOptions{
-					PerfRingBufferSize: 256 * os.Getpagesize(),
-					DataHandler:        driver.dataHandler,
-					LostHandler:        driver.lostHandler,
-				},
-			},
+			{Map: manager.Map{Name: "exec_events"}, PerfMapOptions: manager.PerfMapOptions{
+				PerfRingBufferSize: 256 * os.Getpagesize(),
+				DataHandler:        driver.dataHandler,
+				LostHandler:        driver.lostHandler,
+			}},
 			// network events, for now, only honeypot was introduced
-			{
-				Map: manager.Map{Name: netEvents},
-				PerfMapOptions: manager.PerfMapOptions{
-					PerfRingBufferSize: 256 * os.Getpagesize(),
-					DataHandler:        driver.dataHandler,
-					LostHandler:        driver.lostHandler,
-				},
-			},
+			{Map: manager.Map{Name: "net_events"}, PerfMapOptions: manager.PerfMapOptions{
+				PerfRingBufferSize: 256 * os.Getpagesize(),
+				DataHandler:        driver.dataHandler,
+				LostHandler:        driver.lostHandler,
+			}},
 		},
 		Maps: []*manager.Map{
 			{Name: configMap},
-			{Name: filterPid},
+			{Name: "pid_filter", Contents: []ebpf.MapKV{{
+				Key: uint32(os.Getpid()), Value: uint32(0),
+			}}},
 		},
 	}
 
@@ -99,7 +85,8 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
 		}
 	}
-	var stext, etext uint64
+
+	var stext, etext, pgid uint64
 	// Init options with constant value updated
 	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
 		stext = _stext.Address
@@ -107,15 +94,16 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
 		etext = _etext.Address
 	}
+	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil {
+		pgid = uint64(_pgid)
+	}
 
 	err := driver.Manager.InitWithOptions(
 		bytes.NewReader(_bytecode),
 		manager.Options{
 			DefaultKProbeMaxActive: 512,
 			VerifierOptions: ebpf.CollectionOptions{
-				Programs: ebpf.ProgramOptions{
-					LogSize: 1 * 1024 * 1024,
-				},
+				Programs: ebpf.ProgramOptions{LogSize: 1 * 1024 * 1024},
 			},
 			RLimit: &unix.Rlimit{
 				Cur: math.MaxUint64,
@@ -123,14 +111,9 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			},
 			// Init added, be careful that bpf_printk
 			ConstantEditors: []manager.ConstantEditor{
-				{
-					Name:  "hades_stext",
-					Value: stext,
-				},
-				{
-					Name:  "hades_etext",
-					Value: etext,
-				},
+				{Name: "hades_stext", Value: stext},
+				{Name: "hades_etext", Value: etext},
+				{Name: "hades_pgid", Value: pgid},
 			},
 		})
 
@@ -142,10 +125,6 @@ func (d *Driver) Start() error { return d.Manager.Start() }
 
 // init the driver with default value
 func (d *Driver) PostRun() (err error) {
-	// Get Pid filter
-	if err := d.mapUpdate(filterPid, uint32(os.Getpid()), uint32(0)); err != nil {
-		zap.S().Error(err)
-	}
 	zap.S().Info("ebpfdriver init configuration has been loaded")
 	// By default, we do not ban BPF program unless you choose on this..
 	d.cronM = cron.New(cron.WithSeconds())
@@ -228,7 +207,6 @@ func (d *Driver) taskResolve() {
 func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, manager *manager.Manager) {
 	// set into buffer
 	decoder.DefaultDecoder.SetBuffer(data)
-	// variable init
 	var eventDecoder decoder.Event
 	// get and decode the context
 	ctx, err := decoder.DefaultDecoder.DecodeContext()

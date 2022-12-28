@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	utilcache "k8s.io/apimachinery/pkg/util/cache"
 )
 
@@ -34,7 +35,7 @@ func (u *UserCache) Get(_uid uint32) string {
 	}
 	user, err := user.LookupId(uid)
 	if err != nil {
-		return InVaild
+		return config.FieldInvalid
 	}
 	duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
 	u.cache.Add(uid, user.Username, duration)

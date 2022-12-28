@@ -3,10 +3,12 @@ package cache
 import (
 	"bytes"
 	"fmt"
+	"hades-ebpf/utils"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	"golang.org/x/time/rate"
 	"k8s.io/utils/lru"
 )
@@ -40,17 +42,17 @@ func NewArgvCache() *ArgvCache {
 func (a *ArgvCache) Get(pid uint32) string {
 	// pre check for pid
 	if pid == 0 {
-		return InVaild
+		return config.FieldInvalid
 	}
 	// get argv from cache
 	if value, ok := a.cache.Get(pid); ok {
 		return value.(string)
 	}
 	// get from /proc/{pid}/cmdline
-	if a.rlimiter.Allow() {
+	if a.rlimiter.AllowN(utils.Clock.Now(), 1) {
 		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
 		if err != nil {
-			return InVaild
+			return config.FieldInvalid
 		}
 		if len(_byte) > argvMaxLength {
 			_byte = _byte[:argvMaxLength]
@@ -59,7 +61,7 @@ func (a *ArgvCache) Get(pid uint32) string {
 		a.Set(pid, argv)
 		return argv
 	}
-	return OverRate
+	return config.FieldOverrate
 }
 
 // Set pid, argv to cache

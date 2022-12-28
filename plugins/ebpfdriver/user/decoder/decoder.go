@@ -61,6 +61,8 @@ func (d *EbpfDecoder) SetBuffer(_byte []byte) {
 
 func (d *EbpfDecoder) BuffLen() int { return len(d.buffer) }
 
+func (d *EbpfDecoder) GetContext() *Context { return d.eventCtx }
+
 func (d *EbpfDecoder) ReadAmountBytes() int { return d.cursor }
 
 func (d *EbpfDecoder) DecodeContext() (*Context, error) {

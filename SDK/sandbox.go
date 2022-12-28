@@ -17,7 +17,6 @@ import (
 	"github.com/chriskaliX/SDK/logger"
 	"github.com/chriskaliX/SDK/transport/client"
 	"github.com/chriskaliX/SDK/transport/protocol"
-	"github.com/chriskaliX/SDK/util/hash"
 	"github.com/nightlyone/lockfile"
 	"go.uber.org/zap"
 )
@@ -36,8 +35,6 @@ type ISandbox interface {
 	// Client related
 	SendRecord(*protocol.Record) error
 	SetSendHook(client.SendHookFunction)
-	// Hash Wrapper
-	GetHash(string) string
 	// TaskReceiver
 	RecvTask() *protocol.Task
 }
@@ -49,8 +46,6 @@ type Sandbox struct {
 	Logger *zap.Logger
 	Client *client.Client
 	name   string
-	// Optional fields
-	Hash hash.IHashCache
 	// context
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -62,7 +57,6 @@ type Sandbox struct {
 
 type SandboxConfig struct {
 	Debug     bool
-	Hash      bool
 	Name      string
 	LogConfig *logger.Config
 }
@@ -78,16 +72,12 @@ func (s *Sandbox) Init(sconfig *SandboxConfig) error {
 	s.debug = sconfig.Debug
 	s.taskCh = make(chan *protocol.Task)
 	// Required fields initialization
-	s.Clock = clock.New(time.Second)
+	s.Clock = clock.New(100 * time.Millisecond)
 	s.Client = client.New(s.Clock)
 	sconfig.LogConfig.Clock = s.Clock
 	sconfig.LogConfig.Client = s.Client
 	s.Logger = logger.New(sconfig.LogConfig)
 	defer s.Logger.Info(fmt.Sprintf("sandbox %s init", s.name))
-	// Optional fields initialization
-	if sconfig.Hash {
-		s.Hash = hash.NewWithClock(s.Clock)
-	}
 	// Environment setting
 	if !s.Client.IsHooked() && s.Debug() {
 		s.Client.SetSendHook(s.Client.SendDebug)
@@ -171,10 +161,6 @@ func (s *Sandbox) Cancel() {
 
 func (s *Sandbox) SetSendHook(hook client.SendHookFunction) {
 	s.Client.SetSendHook(hook)
-}
-
-func (s *Sandbox) GetHash(path string) string {
-	return s.Hash.GetHash(path)
 }
 
 // check pid file if it's not debug

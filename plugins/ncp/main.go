@@ -18,7 +18,6 @@ func main() {
 	flag.Parse()
 	sconfig := &SDK.SandboxConfig{
 		Debug: *debug,
-		Hash:  true,
 		Name:  "ncp",
 		LogConfig: &logger.Config{
 			Path:        "ncp.log",

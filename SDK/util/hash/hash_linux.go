@@ -47,7 +47,7 @@ func (h *HashCache) GetHash(path string) (hash string) {
 }
 
 func (h *HashCache) getHash(path string, f *fileHash) string {
-	if !h.rl.Allow() {
+	if !h.rl.AllowN(h.clock.Now(), 1) {
 		return config.FieldOverrate
 	}
 

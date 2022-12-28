@@ -2,6 +2,7 @@ package process
 
 import (
 	"collector/cache/user"
+	"collector/utils"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 
 const maxPidTrace = 4
 
-var HashCache hash.IHashCache
+var HashCache = hash.NewWithClock(utils.Clock)
 
 func GetFds(pid int) ([]string, error) {
 	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")

@@ -2,7 +2,6 @@ package main
 
 import (
 	"hades-ebpf/user"
-	"hades-ebpf/user/cache"
 	"hades-ebpf/user/decoder"
 	_ "hades-ebpf/user/event"
 	"hades-ebpf/user/share"
@@ -43,7 +42,6 @@ func main() {
 	cmd.RootCmd.Run = (func(_ *cobra.Command, _ []string) {
 		sconfig := &SDK.SandboxConfig{
 			Debug: share.Debug,
-			Hash:  true,
 			Name:  "ebpfdriver",
 			LogConfig: &logger.Config{
 				Path:        "ebpfdriver.log",
@@ -65,7 +63,6 @@ func main() {
 				return
 			}
 		}()
-		cache.DefaultHashCache = sandbox.Hash
 		// Better UI for command line usage
 		sandbox.Run(appRun)
 	})

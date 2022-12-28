@@ -10,6 +10,7 @@ var _ IClock = (*Clock)(nil)
 type IClock interface {
 	Now() time.Time
 	Reset(time.Duration)
+	Sleep(time.Duration)
 	Close()
 }
 
@@ -58,6 +59,8 @@ func (c *Clock) Now() time.Time {
 func (c *Clock) Reset(d time.Duration) {
 	c.ticker.Reset(d)
 }
+
+func (c *Clock) Sleep(d time.Duration) { time.Sleep(d) }
 
 func (c *Clock) Close() {
 	if c.ticker == nil {

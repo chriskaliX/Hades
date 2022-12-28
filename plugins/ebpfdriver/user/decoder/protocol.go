@@ -1,9 +1,6 @@
 package decoder
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
 	"hades-ebpf/user/cache"
 
 	"github.com/bytedance/sonic"
@@ -46,32 +43,6 @@ type Context struct {
 // and padding of the struct is also included.
 func (Context) GetSizeBytes() int { return 168 }
 
-func (ctx *Context) DecodeContext(decoder *EbpfDecoder) error {
-	offset := decoder.cursor
-	if len(decoder.buffer[offset:]) < ctx.GetSizeBytes() {
-		return fmt.Errorf("can't read context from buffer: buffer too short")
-	}
-	ctx.StartTime = binary.LittleEndian.Uint64(decoder.buffer[offset : offset+8])
-	ctx.StartTime = ctx.StartTime + bootTime
-	ctx.CgroupID = binary.LittleEndian.Uint64(decoder.buffer[offset+8 : offset+16])
-	ctx.Pns = binary.LittleEndian.Uint32(decoder.buffer[offset+16 : offset+20])
-	ctx.Type = binary.LittleEndian.Uint32(decoder.buffer[offset+20 : offset+24])
-	ctx.Pid = binary.LittleEndian.Uint32(decoder.buffer[offset+24 : offset+28])
-	ctx.Tid = binary.LittleEndian.Uint32(decoder.buffer[offset+28 : offset+32])
-	ctx.Uid = binary.LittleEndian.Uint32(decoder.buffer[offset+32 : offset+36])
-	ctx.Gid = binary.LittleEndian.Uint32(decoder.buffer[offset+36 : offset+40])
-	ctx.Ppid = binary.LittleEndian.Uint32(decoder.buffer[offset+40 : offset+44])
-	ctx.Pgid = binary.LittleEndian.Uint32(decoder.buffer[offset+44 : offset+48])
-	ctx.SessionID = binary.LittleEndian.Uint32(decoder.buffer[offset+48 : offset+52])
-	ctx.Comm = string(bytes.TrimRight(decoder.buffer[offset+52:offset+68], "\x00"))
-	ctx.PComm = string(bytes.TrimRight(decoder.buffer[offset+68:offset+84], "\x00"))
-	ctx.Nodename = string(bytes.Trim(decoder.buffer[offset+84:offset+148], "\x00"))
-	ctx.RetVal = int64(binary.LittleEndian.Uint64(decoder.buffer[offset+152 : offset+160]))
-	ctx.Argnum = uint8(binary.LittleEndian.Uint16(decoder.buffer[offset+160 : offset+168]))
-	decoder.cursor += ctx.GetSizeBytes()
-	return nil
-}
-
 // FillContext get some extra field from Event and userspace caches
 func (c *Context) FillContext(name, exe string) {
 	c.Syscall = name
@@ -83,9 +54,7 @@ func (c *Context) FillContext(name, exe string) {
 	c.ExeHash = cache.DefaultHashCache.GetHash(c.Exe)
 }
 
-func (c *Context) MarshalJson() ([]byte, error) {
-	return sonic.Marshal(c)
-}
+func (c *Context) MarshalJson() ([]byte, error) { return sonic.Marshal(c) }
 
 type SlimCred struct {
 	Uid   uint32 /* real UID of the task */

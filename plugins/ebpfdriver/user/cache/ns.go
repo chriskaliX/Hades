@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	"golang.org/x/time/rate"
 	utilcache "k8s.io/apimachinery/pkg/util/cache"
 )
@@ -50,11 +51,11 @@ func (n *NsCache) Get(pid uint32, pns uint32) string {
 		return item.(string)
 	}
 	// missed, get it from environ
-	if n.rlimiter.Allow() {
+	if n.rlimiter.AllowN(utils.Clock.Now(), 1) {
 		// extract pod name from /proc/<pid>/environ
 		_byte, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
 		if err != nil {
-			return InVaild
+			return config.FieldInvalid
 		}
 		envList := bytes.Split(_byte, []byte{0})
 		for _, env := range envList {
@@ -71,8 +72,8 @@ func (n *NsCache) Get(pid uint32, pns uint32) string {
 		}
 		// missed, no pod_name is got. save invalid for a minite
 		// just for better performance
-		n.cache.Add(pns, InVaild, time.Minute)
-		return InVaild
+		n.cache.Add(pns, config.FieldInvalid, time.Minute)
+		return config.FieldInvalid
 	}
-	return InVaild
+	return config.FieldOverrate
 }

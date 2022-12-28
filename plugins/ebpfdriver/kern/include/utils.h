@@ -53,6 +53,13 @@ static __always_inline int get_task_pgid(const struct task_struct *cur_task)
 // 在每次调 index 之前都需要 check 一下，所以看源码的时候很多地方会写：To satisfied the verifier...
 // TODO: 写一个文章记录一下这个...
 
+static __always_inline u64 hades_constants_pgid()
+{
+    u64 val = 0;
+    LOAD_CONSTANT("hades_pgid", val);
+    return val;
+}
+
 /* init_context */
 static __always_inline int init_context(context_t *context,
                                         struct task_struct *task)
@@ -100,6 +107,9 @@ static __always_inline int init_context(context_t *context,
 // 0 on false & 1 on true
 static __always_inline int context_filter(context_t *context)
 {
+    // filter by the pgid, all agent and plugins are reliable by default
+    if (context->pgid == (u32)hades_constants_pgid())
+        return 1;
     // ID filter for all
     if (bpf_map_lookup_elem(&pid_filter, &context->tid) != 0)
         return 1;

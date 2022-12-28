@@ -93,18 +93,14 @@ func (e *ExecveAt) DecodeEvent(d *decoder.EbpfDecoder) (err error) {
 	if envs, err = d.DecodeStrArray(); err != nil {
 		return
 	}
+	e.SSHConnection = "-1"
+	e.LDPreload = "-1"
 	for _, env := range envs {
 		if strings.HasPrefix(env, "SSH_") {
 			e.SSHConnection = strings.TrimPrefix(env, "SSH_CONNECTION=")
 		} else if strings.HasPrefix(env, "LD_PRE") {
 			e.LDPreload = strings.TrimPrefix(env, "LD_PRELOAD=")
 		}
-	}
-	if len(e.SSHConnection) == 0 {
-		e.SSHConnection = "-1"
-	}
-	if len(e.LDPreload) == 0 {
-		e.LDPreload = "-1"
 	}
 	e.SocketArgv = cache.DefaultArgvCache.Get(e.SocketPid)
 	return

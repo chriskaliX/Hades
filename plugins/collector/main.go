@@ -1,7 +1,6 @@
 package main
 
 import (
-	"collector/cache/process"
 	"collector/event"
 	"collector/eventmanager"
 	"flag"
@@ -29,7 +28,6 @@ func main() {
 	// start the sandbox
 	sconfig := &SDK.SandboxConfig{
 		Debug: debug,
-		Hash:  true,
 		Name:  "collector",
 		LogConfig: &logger.Config{
 			Path:        "collector.log",
@@ -45,7 +43,6 @@ func main() {
 	if err := sandbox.Init(sconfig); err != nil {
 		return
 	}
-	process.HashCache = sandbox.Hash
 	em := eventmanager.New(sandbox)
 	// Add events
 	em.AddEvent(&event.Crontab{}, eventmanager.Start, eventmanager.None)
