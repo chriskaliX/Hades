@@ -15,6 +15,10 @@ type UdpRecvmsg struct {
 	Qtype   int32  `json:"qtype"`
 	Atype   int32  `json:"atype"`
 	DnsData string `json:"dns_data"`
+	Sip     string `json:"sip"`
+	Sport   uint16 `json:"sport"`
+	Dip     string `json:"dip"`
+	Dport   uint16 `json:"dport"`
 }
 
 func (UdpRecvmsg) ID() uint32 {
@@ -50,6 +54,9 @@ func (u *UdpRecvmsg) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
 		return
 	}
 	if u.Exe, err = decoder.DecodeString(); err != nil {
+		return
+	}
+	if _, u.Sport, u.Dport, u.Sip, u.Dip, err = decoder.DecodeAddr(); err != nil {
 		return
 	}
 	return

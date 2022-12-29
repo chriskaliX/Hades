@@ -17,4 +17,4 @@
 
 |Name|Detailed|Module|
 |:-:|:-:|:-:|
-|cgroup v2| https://github.com/cilium/ebpf/pull/771| sockops |
+|cgroup v2| https://github.com/cilium/ebpf/pull/771 | sockops |

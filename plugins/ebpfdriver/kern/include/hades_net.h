@@ -147,8 +147,13 @@ int BPF_KPROBE(kprobe_security_socket_bind)
 
 #define DNS_LIMIT_PERSEC 5000
 
+typedef struct dns_context {
+    struct msghdr *msg;
+    net_conn_v4_t conn_v4;
+} dns_context_t;
+
 /* For DNS */
-BPF_LRU_HASH(udpmsg, u64, struct msghdr *, 4096);
+BPF_LRU_HASH(udpmsg, u64, dns_context_t, 4096);
 // kprobe/kretprobe are used for get dns data. Proper way to get udp data,
 // is to hook the kretprobe of the udp_recvmsg just like Elkeid does. But
 // still, a uprobe of udp (like getaddrinfo and gethostbyname) to get this
@@ -187,7 +192,13 @@ int BPF_KPROBE(kprobe_udp_recvmsg)
             return 0;
         // maybe bpf_get_prandom_u32() as a key...
         u64 pid_tgid = bpf_get_current_pid_tgid();
-        bpf_map_update_elem(&udpmsg, &pid_tgid, &msg, BPF_ANY);
+        dns_context_t data = {};
+        data.msg = msg;
+        net_conn_v4_t net_details = {};
+        get_network_details_from_sock_v4(sk, &net_details, 0);
+        data.conn_v4 = net_details;
+        // 0 saadr
+        bpf_map_update_elem(&udpmsg, &pid_tgid, &data, BPF_ANY);
     }
     return 0;
 }
@@ -206,8 +217,8 @@ SEC("kretprobe/udp_recvmsg")
 int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct msghdr **msgpp = bpf_map_lookup_elem(&udpmsg, &pid_tgid);
-    if (msgpp == 0)
+    dns_context_t *dns_context = bpf_map_lookup_elem(&udpmsg, &pid_tgid);
+    if (dns_context == 0)
         return 0;
     // Here are some information about msghdr:
     // @Reference: https://www.cnblogs.com/wanpengcoder/p/11749287.html
@@ -222,7 +233,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
     // @Reference: https://github.com/iovisor/bcc/issues/3859
     //
     // By the way this struct(msghdr) is defined in socket.h
-    struct msghdr *msg = (struct msghdr *)*msgpp;
+    struct msghdr *msg = dns_context->msg;
     // Check the msghdr length
     // issue #39 BUG fix:
     // due to wrong usage of READ_KERN
@@ -307,11 +318,13 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
 
         // commit: udata
         save_to_submit_buf(&data, &udata, sizeof(struct udpdata), 0);
-
         save_str_to_buf(&data, (void *)&string_p->buf[13], 1);
         // get exe from task
         void *exe = get_exe_from_task(data.task);
         save_str_to_buf(&data, exe, 1);
+        u16 family = 2;
+        save_to_submit_buf(&data, &family, sizeof(u16), 2);
+        save_to_submit_buf(&data, &dns_context->conn_v4, sizeof(struct network_connection_v4), 3);
         events_perf_submit(&data);
     }
     delete : bpf_map_delete_elem(&udpmsg, &pid_tgid);
