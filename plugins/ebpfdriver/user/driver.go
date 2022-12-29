@@ -215,8 +215,6 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	}
 	// get the event and set context into event
 	eventDecoder = decoder.Events[ctx.Type]
-	// Fillup the context by the values that Event offers
-	ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
 	// value count
 	if err = eventDecoder.DecodeEvent(decoder.DefaultDecoder); err != nil {
 		if err == decoder.ErrFilter {
@@ -227,6 +225,8 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		zap.S().Errorf("decode event error: %s", err)
 		return
 	}
+	// Fillup the context by the values that Event offers
+	ctx.FillContext(eventDecoder.Name(), eventDecoder.GetExe())
 	result, err := decoder.MarshalJson(eventDecoder, ctx)
 	if err != nil {
 		zap.S().Error(err)
