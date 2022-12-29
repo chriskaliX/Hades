@@ -2,8 +2,6 @@ package process
 
 import (
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -66,14 +64,6 @@ func TestProcess(t *testing.T) {
 	}
 	if err = proc.GetStat(false); err != nil {
 		t.Error(err)
-		return
-	}
-}
-
-func TestGetPidT(t *testing.T) {
-	pid := os.Getpid()
-	if pidTree := GetPidTree(pid); !strings.HasPrefix(pidTree, strconv.Itoa(pid)) {
-		t.Error("GetPidTree failed")
 		return
 	}
 }

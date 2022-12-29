@@ -277,7 +277,7 @@ func (e *Event) getPidTree() {
 		}
 		break
 	PidLoop:
-		if pid <= 1 {
+		if pid <= 2 {
 			break
 		}
 		if ppid, ok := pidCache.Get(pid); ok {
