@@ -240,9 +240,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 			Fields: rawdata,
 		},
 	}
-	if err = d.Sandbox.SendRecord(rec); err != nil {
-		zap.S().Error(err)
-	}
+	d.Sandbox.SendRecord(rec)
 }
 
 // lostHandler handles the data for errors
