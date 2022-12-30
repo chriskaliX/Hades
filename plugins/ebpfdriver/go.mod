@@ -1,6 +1,6 @@
 module hades-ebpf
 
-replace github.com/chriskaliX/SDK => ../../SDK
+replace github.com/chriskaliX/SDK => ../../SDK/go
 
 go 1.18
 

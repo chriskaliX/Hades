@@ -2,7 +2,7 @@ module ncp
 
 go 1.18
 
-replace github.com/chriskaliX/SDK => ../../SDK
+replace github.com/chriskaliX/SDK => ../../SDK/go
 
 require (
 	github.com/bytedance/sonic v1.4.0

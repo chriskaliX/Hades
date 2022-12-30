@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/chriskaliX/SDK/util/hash"
+	"github.com/chriskaliX/SDK/utils/hash"
 )
 
 var HashCache = hash.NewWithClock(utils.Clock)

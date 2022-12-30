@@ -1,4 +1,4 @@
-//go:build linux
+//go:build windows
 
 package server
 
@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/chriskaliX/SDK/transport/protocol"
-	"github.com/chriskaliX/SDK/util"
+	"github.com/chriskaliX/SDK/utils"
 	"go.uber.org/zap"
 )
 
+// NewServer does all things, except download/check/run the exec file
 func NewServer(ctx context.Context, workdir string, conf protocol.Config) (s *Server, err error) {
 	var rx_r, rx_w, tx_r, tx_w, errFile *os.File
 	// internal config parser
@@ -49,7 +50,7 @@ func NewServer(ctx context.Context, workdir string, conf protocol.Config) (s *Se
 	os.Remove(filepath.Join(s.workdir, s.Name()+".stderr"))
 	os.Remove(filepath.Join(s.workdir, s.Name()+".stdout"))
 	// cmdline
-	execPath := filepath.Join(s.workdir, s.Name())
+	execPath := filepath.Join(s.workdir, s.Name()) + ".exe"
 	// For now, downloading and check are in the NewPlugin. Maybe remove
 	// this later since is non-related behavior for new action.
 	err = util.CheckSignature(execPath, conf.GetSignature())
@@ -65,9 +66,12 @@ func NewServer(ctx context.Context, workdir string, conf protocol.Config) (s *Se
 	}
 	// cmdline init
 	cmd := exec.CommandContext(ctx, execPath)
-	cmd.ExtraFiles = append(cmd.ExtraFiles, tx_r, rx_w)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	// In Windows, ExtraFiles is not supported
+	// https://github.com/golang/go/issues/26182
+	cmd.Stdin = tx_r
+	cmd.Stdout = rx_w
 	cmd.Dir = s.workdir
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if errFile, err = os.OpenFile(execPath+".stderr", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
 		s.logger.Error("open stderr:", errFile)
 		return
@@ -88,6 +92,7 @@ func NewServer(ctx context.Context, workdir string, conf protocol.Config) (s *Se
 	return
 }
 
+// Syscall is system related.
 func (s *Server) Shutdown() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -100,7 +105,14 @@ func (s *Server) Shutdown() {
 	select {
 	case <-time.After(time.Second * 30):
 		s.logger.Warn("close by killing start")
-		syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
+		// In windows, some plugin needs to shutdown with driver uninstall
+		// in this case, DO NOT send kill imediately
+		process, err := os.FindProcess(s.cmd.Process.Pid)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+		process.Kill()
 		<-s.done
 		s.logger.Info("close by killing done")
 	case <-s.done:

@@ -273,9 +273,10 @@ static __always_inline void *get_path_str(struct path *path)
             char tmp_inode[9];
             int i, j;
             int k = 0; // when first char is no-zero, it's work
-            int s_flag = 0; // no-zero char start flag
             unsigned long inode = get_inode_nr_from_dentry(dentry);
-
+        #if defined(__TARGET_ARCH_x86)
+            int s_flag = 0; // no-zero char start flag
+        #endif
         #pragma unroll
             for (i = 0; i < 8; i++) {
                 tmp_inode[7 - i] = inode % 10 + '0';
@@ -485,6 +486,13 @@ static __always_inline void *get_dentry_path_str(struct dentry *dentry)
     return &string_p->buf[buf_off];
 }
 
+/* Be careful about inet_rcv_addr & inet_saddr
+ * There are some differences between inet_rcv_addr/inet_saddr and inet_num/inet_sport
+ * For inet_num & inet_sport: inet_sport = hton(inet_num)
+ * For inet_rcv_addr & inet_saddr: 
+ *     inet_rcv_addr: Bound local IPv4 addr
+ *     inet_saddr: Sending source
+ */ 
 static __always_inline int
 get_network_details_from_sock_v4(struct sock *sk, net_conn_v4_t *net_details,
                                  int peer)

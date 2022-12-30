@@ -2,7 +2,7 @@ module collector
 
 go 1.17
 
-replace github.com/chriskaliX/SDK => ../../SDK
+replace github.com/chriskaliX/SDK => ../../SDK/go
 
 require (
 	github.com/chriskaliX/SDK v1.0.0

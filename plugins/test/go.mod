@@ -2,7 +2,7 @@ module test
 
 go 1.19
 
-replace github.com/chriskaliX/SDK => ../../SDK
+replace github.com/chriskaliX/SDK => ../../SDK/go
 
 require (
 	github.com/chriskaliX/SDK v0.0.0-00010101000000-000000000000

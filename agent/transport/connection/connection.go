@@ -39,7 +39,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/chriskaliX/SDK/util/connection"
+	"github.com/chriskaliX/SDK/utils/connection"
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"

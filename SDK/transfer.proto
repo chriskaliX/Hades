@@ -8,9 +8,7 @@ message Record {
     Payload data = 3;
 }
 
-message Payload {
-    map<string, string> fields = 1;
-}
+message Payload { map<string, string> fields = 1; }
 
 message Task {
     int32 data_type = 1;

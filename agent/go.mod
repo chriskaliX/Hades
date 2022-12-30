@@ -2,7 +2,7 @@ module agent
 
 go 1.18
 
-replace github.com/chriskaliX/SDK => ../SDK
+replace github.com/chriskaliX/SDK => ../SDK/go
 
 require (
 	github.com/StackExchange/wmi v1.2.1
