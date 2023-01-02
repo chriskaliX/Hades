@@ -44,5 +44,6 @@ plugins/ebpfdriver/kern/headers/*.h
 # rust-demo
 target
 Cargo.lock
+ncp-rst
 # under work
 SDK/rust/
