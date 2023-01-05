@@ -413,9 +413,6 @@ func (d *EbpfDecoder) decodeStr(size uint32) (str string, err error) {
 
 // perf non-related fields
 func (d *EbpfDecoder) DecodeUint32Ip(in uint32) string {
-	if in == 0 {
-		return invalid
-	}
 	ip := make(net.IP, net.IPv4len)
 	binary.BigEndian.PutUint32(ip, in)
 	return ip.String()
