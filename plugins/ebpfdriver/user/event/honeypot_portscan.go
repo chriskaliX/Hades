@@ -83,12 +83,12 @@ func (HoneyPot) GetProbes() []*manager.Probe {
 			EbpfFuncName:     "krpobe_icmp_rcv",
 			AttachToFuncName: "icmp_rcv",
 		},
-		// {
-		// 	UID:              "krpobe_icmp6_rcv",
-		// 	Section:          "kprobe/icmp6_rcv",
-		// 	EbpfFuncName:     "krpobe_icmp6_rcv",
-		// 	AttachToFuncName: "icmp6_rcv",
-		// },
+		{
+			UID:              "krpobe_icmpv6_rcv",
+			Section:          "kprobe/icmpv6_rcv",
+			EbpfFuncName:     "krpobe_icmpv6_rcv",
+			AttachToFuncName: "icmpv6_rcv",
+		},
 	}
 }
 
