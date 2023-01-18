@@ -24,18 +24,19 @@ const defaultValue = "-1"
 
 var bootTime = uint64(0)
 var rootPns uint32
+var hostname string
 
 var (
-	argvCache = lru.New(8192)
-	commCache = lru.New(8192)
-	nsCache   = lru.New(8192)
-	userCache = lru.New(8192)
-	pidCache  = lru.New(8192)
-	fileCache = hash.NewWithClock(utils.Clock)
+	argvCache     = lru.New(8192)
+	commCache     = lru.New(8192)
+	nsCache       = lru.New(8192)
+	nodenameCache = lru.New(8192)
+	userCache     = lru.New(8192)
+	pidCache      = lru.New(8192)
+	fileCache     = hash.NewWithClock(utils.Clock)
 )
 
 type Event struct {
-	Name          string `json:"name"`
 	Cwd           string `json:"cwd"`
 	TTY           uint32 `json:"tty"`
 	Stdin         string `json:"stdin"`
@@ -43,7 +44,8 @@ type Event struct {
 	PidTree       string `json:"pid_tree"`
 	Argv          string `json:"argv"`
 	SSHConnection string `json:"ssh_connection"`
-	LDPreload     string `json:"ld_preload"`
+	LdPreload     string `json:"ld_preload"`
+	LdLibrary     string `json:"ld_library"`
 	StartTime     uint64 `json:"starttime"`
 	CgroupID      uint64 `json:"cgroupid"`
 	Pns           uint32 `json:"pns"`
@@ -57,13 +59,13 @@ type Event struct {
 	SessionID     uint32 `json:"sessionid"`
 	Comm          string `json:"comm"`
 	PComm         string `json:"pcomm"`
-	// Nodename      string `json:"nodename"`
-	ExeHash  string `json:"exe_hash"`
-	Username string `json:"username"`
-	Exe      string `json:"exe"`
-	PpidArgv string `json:"ppid_argv"`
-	PgidArgv string `json:"pgid_argv"`
-	PodName  string `json:"pod_name"`
+	Nodename      string `json:"nodename"`
+	ExeHash       string `json:"exe_hash"`
+	Username      string `json:"username"`
+	Exe           string `json:"exe"`
+	PpidArgv      string `json:"ppid_argv"`
+	PgidArgv      string `json:"pgid_argv"`
+	PodName       string `json:"pod_name"`
 }
 
 func (e *Event) GetInfo() (err error) {
@@ -92,6 +94,9 @@ func (e *Event) GetInfo() (err error) {
 	if err = e.getStatus(); err != nil {
 		return
 	}
+	if err = e.getHostname(e.Pns); err != nil {
+		return
+	}
 	if err = e.getUserName(); err != nil {
 		return
 	}
@@ -112,14 +117,13 @@ func (e *Event) GetInfo() (err error) {
 
 func (e *Event) Reset() {
 	e.PidTree, e.RootPns = "", rootPns
-	e.Name, e.Cwd = defaultValue, defaultValue
+	e.Comm, e.Cwd = defaultValue, defaultValue
 	e.Stdin, e.Stdout, e.Argv = defaultValue, defaultValue, defaultValue
-	e.SSHConnection, e.LDPreload = defaultValue, defaultValue
+	e.SSHConnection, e.LdPreload, e.LdLibrary = defaultValue, defaultValue, defaultValue
 	e.StartTime, e.CgroupID, e.Pns, e.Pid, e.Tid, e.Uid, e.Gid = 0, 0, 0, 0, 0, -1, -1
 	e.Ppid, e.Pgid, e.SessionID, e.TTY = 0, 0, 0, 0
 	e.Comm, e.PComm, e.ExeHash, e.Username = defaultValue, defaultValue, defaultValue, defaultValue
 	e.Exe, e.PpidArgv, e.PgidArgv, e.PodName = defaultValue, defaultValue, defaultValue, defaultValue
-
 }
 
 func (e *Event) getCwd() (err error) {
@@ -160,7 +164,7 @@ func (e *Event) getStat() (err error) {
 	var field int
 	field, _ = strconv.Atoi(fields[3])
 	e.Ppid = uint32(field)
-	field, _ = strconv.Atoi(fields[3])
+	field, _ = strconv.Atoi(fields[4])
 	e.Pgid = uint32(field)
 	field, _ = strconv.Atoi(fields[5])
 	e.SessionID = uint32(field)
@@ -189,23 +193,22 @@ func (e *Event) getEnviron() (err error) {
 		e.PodName = value.(string)
 	}
 	envs := bytes.Split(source, []byte{0})
-	for index, env := range envs {
-		if index >= 31 {
-			break
-		}
-		_env := strings.Split(string(env), "=")
+	for env := range envs {
+		_env := strings.Split(fmt.Sprint(env), "=")
 		if len(_env) != 2 {
 			continue
 		}
 		if len(e.SSHConnection) <= 2 && _env[0] == "SSH_CONNECTION" {
 			e.SSHConnection = _env[1]
-		} else if len(e.LDPreload) <= 2 && _env[0] == "LD_PRELOAD" {
-			e.LDPreload = _env[1]
+		} else if len(e.LdPreload) <= 2 && _env[0] == "LD_PRELOAD" {
+			e.LdPreload = _env[1]
 		} else if len(e.PodName) <= 2 && (_env[0] == "POD_NAME" || _env[0] == "MY_POD_NAME") {
 			e.PodName = _env[1]
 			if e.Pns != 0 {
 				nsCache.Add(e.Pns, e.PodName)
 			}
+		} else if _env[0] == "LD_LIBRARY" {
+			e.LdLibrary = _env[1]
 		}
 	}
 	return
@@ -219,9 +222,7 @@ func (e *Event) getStatus() (err error) {
 	defer file.Close()
 	s := bufio.NewScanner(file)
 	for s.Scan() {
-		if strings.HasPrefix(s.Text(), "Name:") {
-			e.Name = strings.Fields(s.Text())[1]
-		} else if strings.HasPrefix(s.Text(), "Uid:") {
+		if strings.HasPrefix(s.Text(), "Uid:") {
 			fields := strings.Fields(s.Text())
 			e.Uid, _ = strconv.Atoi(fields[1])
 			break
@@ -249,6 +250,23 @@ func (e *Event) getUserName() (err error) {
 	}
 	userCache.Add(e.Uid, usr)
 	return nil
+}
+
+// ratelimiter?
+func (e *Event) getHostname(pns uint32) (err error) {
+	if pns == rootPns {
+		e.Nodename = hostname
+		return
+	}
+	if value, ok := nodenameCache.Get(pns); ok {
+		e.Nodename = value.(string)
+	}
+	var res []byte
+	if res, err = os.ReadFile(fmt.Sprintf("/proc/%d/root/etc/hostname", e.Pid)); err != nil {
+		return
+	}
+	e.Nodename = string(res)
+	return
 }
 
 func (e *Event) getExeHash() {
@@ -377,6 +395,7 @@ func getProcess() {
 }
 
 func init() {
+	hostname, _ = os.Hostname()
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		init := true

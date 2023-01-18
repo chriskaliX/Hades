@@ -94,7 +94,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
 		etext = _etext.Address
 	}
-	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil {
+	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil && !share.Debug {
 		pgid = uint64(_pgid)
 	}
 
