@@ -69,7 +69,7 @@ func TestMain(t *testing.T) {
 			data := make(map[string]interface{}, 30)
 			json.Unmarshal([]byte(rec.Data.Fields["data"]), &data)
 			t.Log("important:", data)
-			if data["dip"] == "127.0.0.1" && data["dport"] == float64(8888) {
+			if data["dip"] == "172.16.17.1" && data["dport"] == float64(8090) {
 				connect_flag = true
 			}
 		}
@@ -88,5 +88,5 @@ func TestMain(t *testing.T) {
 }
 
 func connect() {
-	net.DialTimeout("tcp", "127.0.0.1:8888", 3*time.Second)
+	net.DialTimeout("tcp", "172.16.17.1:8090", 3*time.Second)
 }
