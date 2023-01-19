@@ -68,6 +68,7 @@ func TestMain(t *testing.T) {
 		case 1022:
 			data := make(map[string]interface{}, 30)
 			json.Unmarshal([]byte(rec.Data.Fields["data"]), &data)
+			t.Log("important:", data)
 			if data["dip"] == "8.8.8.8" && data["dport"] == float64(80) {
 				connect_flag = true
 			}

@@ -73,10 +73,13 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		},
 		Maps: []*manager.Map{
 			{Name: configMap},
-			{Name: "pid_filter", Contents: []ebpf.MapKV{{
-				Key: uint32(os.Getpid()), Value: uint32(0),
-			}}},
 		},
+	}
+
+	if !share.Debug {
+		driver.Manager.Maps = append(driver.Manager.Maps, &manager.Map{Name: "pid_filter", Contents: []ebpf.MapKV{{
+			Key: uint32(os.Getpid()), Value: uint32(0),
+		}}})
 	}
 
 	for _, event := range decoder.Events {
