@@ -1,12 +1,11 @@
 package test
 
 import (
-	"context"
 	"encoding/json"
 	"hades-ebpf/user"
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/user/share"
-	"os/exec"
+	"net"
 	"testing"
 	"time"
 
@@ -88,8 +87,5 @@ func TestMain(t *testing.T) {
 }
 
 func connect() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "curl", "8.8.8.8")
-	cmd.Run()
+	net.DialTimeout("tcp", "8.8.8.8:80", 3*time.Second)
 }
