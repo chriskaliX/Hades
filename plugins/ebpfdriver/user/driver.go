@@ -9,11 +9,9 @@ import (
 	_ "hades-ebpf/user/event"
 	"hades-ebpf/user/filter"
 	"hades-ebpf/user/share"
-	"hades-ebpf/utils"
 	"math"
 	"os"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/chriskaliX/SDK"
@@ -89,17 +87,17 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		}
 	}
 
-	var stext, etext, pgid uint64
-	// Init options with constant value updated
-	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
-		stext = _stext.Address
-	}
-	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
-		etext = _etext.Address
-	}
-	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil && !share.Debug {
-		pgid = uint64(_pgid)
-	}
+	// var stext, etext, pgid uint64
+	// // Init options with constant value updated
+	// if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
+	// 	stext = _stext.Address
+	// }
+	// if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
+	// 	etext = _etext.Address
+	// }
+	// if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil && !share.Debug {
+	// 	pgid = uint64(_pgid)
+	// }
 
 	err := driver.Manager.InitWithOptions(
 		bytes.NewReader(_bytecode),
@@ -114,9 +112,9 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			},
 			// Init added, be careful that bpf_printk
 			ConstantEditors: []manager.ConstantEditor{
-				{Name: "hades_stext", Value: stext},
-				{Name: "hades_etext", Value: etext},
-				{Name: "hades_pgid", Value: pgid},
+				// {Name: "hades_stext", Value: stext},
+				// {Name: "hades_etext", Value: etext},
+				// {Name: "hades_pgid", Value: pgid},
 			},
 		})
 
