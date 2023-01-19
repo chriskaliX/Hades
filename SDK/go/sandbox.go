@@ -108,12 +108,8 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 				return
 			}
 		case <-s.ctx.Done():
-			if s.debug {
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			s.Logger.Info(fmt.Sprintf("cancel received, %s will exit after 5 seconds", s.Name()))
-			<-time.After(5 * time.Second)
+			s.Logger.Info(fmt.Sprintf("cancel received, %s will exit after 1 seconds", s.Name()))
+			<-time.After(1 * time.Second)
 			return nil
 		default:
 			time.Sleep(time.Second)

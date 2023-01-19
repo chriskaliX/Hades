@@ -14,8 +14,8 @@ var bootTime = uint64(0)
 type Context struct {
 	StartTime uint64  `json:"starttime"` // elasped since system boot in nanoseconds
 	CgroupID  uint64  `json:"cgroupid"`
-	Pns       uint32  `json:"pns"`  // pid namespace
-	Type      uint32  `json:"type"` // Type returns the type of the syscall
+	Pns       uint32  `json:"pns"` // pid namespace
+	Type      uint32  `json:"-"`   // Type returns the type of the syscall
 	Pid       uint32  `json:"pid"`
 	Tid       uint32  `json:"tid"`
 	Uid       uint32  `json:"uid"`

@@ -11,6 +11,7 @@ require (
 	github.com/vishvananda/netns v0.0.1
 	go.uber.org/zap v1.24.0
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
+	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
 )
 
@@ -24,6 +25,5 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
-	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )

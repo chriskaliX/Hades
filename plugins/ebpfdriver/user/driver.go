@@ -235,7 +235,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 	rawdata["data"] = result
 	// send the record
 	rec := &protocol.Record{
-		DataType: 1000,
+		DataType: int32(ctx.Type),
 		Data: &protocol.Payload{
 			Fields: rawdata,
 		},

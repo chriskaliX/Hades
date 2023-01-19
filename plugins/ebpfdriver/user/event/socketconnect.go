@@ -6,6 +6,11 @@ import (
 	manager "github.com/ehids/ebpfmanager"
 )
 
+// Socket connect should be enforced with a filter.
+//
+// Also, the filter can be impletemented in kernel space since
+// the lru & map is easy in BPF. But for now, we just introduce
+// the map into userspace for filter usage.
 var _ decoder.Event = (*SysConnect)(nil)
 
 type SysConnect struct {
