@@ -21,7 +21,7 @@ var driver *user.Driver
 
 func appRun(s SDK.ISandbox) (err error) {
 	go func() {
-		time.Sleep(10 * time.Second)
+		time.Sleep(15 * time.Second)
 		s.Shutdown()
 	}()
 	driver, err = user.NewDriver(s)
@@ -77,7 +77,7 @@ func TestMain(t *testing.T) {
 	})
 	// test case
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(8 * time.Second)
 		connect()
 	}()
 

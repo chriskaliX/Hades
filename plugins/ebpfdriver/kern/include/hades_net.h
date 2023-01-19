@@ -29,7 +29,6 @@ struct _sys_enter_connect {
 typedef struct net_ctx {
     int fd;
 	sa_family_t sa_family;
-	// char sa_data[14];dss
     int addr;
 } net_ctx_t;
 
