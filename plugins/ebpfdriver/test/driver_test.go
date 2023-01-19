@@ -68,7 +68,6 @@ func TestMain(t *testing.T) {
 		case 1022:
 			data := make(map[string]interface{}, 30)
 			json.Unmarshal([]byte(rec.Data.Fields["data"]), &data)
-			t.Log("important:", data)
 			if data["dip"] == "172.16.17.1" && data["dport"] == float64(8090) {
 				connect_flag = true
 			}
@@ -77,7 +76,12 @@ func TestMain(t *testing.T) {
 	})
 	// test case
 	go func() {
-		time.Sleep(15 * time.Second)
+		for {
+			if (driver != nil) && driver.Status() {
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
 		connect()
 	}()
 
