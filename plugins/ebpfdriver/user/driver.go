@@ -3,14 +3,17 @@ package user
 import (
 	"bytes"
 	"context"
-	_ "embed"
+	"errors"
 	"fmt"
+	"hades-ebpf/conf"
 	"hades-ebpf/user/decoder"
 	_ "hades-ebpf/user/event"
 	"hades-ebpf/user/filter"
-	"hades-ebpf/user/share"
 	"hades-ebpf/utils"
+	"io"
+	"io/ioutil"
 	"math"
+	"net/http"
 	"os"
 	"strconv"
 	"syscall"
@@ -19,14 +22,14 @@ import (
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/btf"
 	manager "github.com/ehids/ebpfmanager"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
-)
 
-//go:embed hades_ebpf_driver.o
-var _bytecode []byte
+	"github.com/shirou/gopsutil/host"
+)
 
 // config
 const configMap = "config_map"
@@ -56,6 +59,16 @@ type Driver struct {
 
 // New a driver with pre-set map and options
 func NewDriver(s SDK.ISandbox) (*Driver, error) {
+	driverName, err := downloadBytecode()
+	if err != nil {
+		return nil, err
+	}
+	_bytecode, err := ioutil.ReadFile(driverName)
+	if err != nil {
+		return nil, err
+	}
+	zap.S().Infof("%s load success, length: %d", driverName, len(_bytecode))
+
 	driver := &Driver{Sandbox: s}
 	// init ebpfmanager with maps and perf_events
 	driver.Manager = &manager.Manager{
@@ -77,7 +90,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		},
 	}
 
-	if !share.Debug {
+	if !conf.Debug {
 		driver.Manager.Maps = append(driver.Manager.Maps, &manager.Map{Name: "pid_filter", Contents: []ebpf.MapKV{{
 			Key: uint32(os.Getpid()), Value: uint32(0),
 		}}})
@@ -98,11 +111,11 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	if _etext := utils.Ksyms.Get("_etext"); _etext != nil {
 		etext = _etext.Address
 	}
-	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil && !share.Debug {
+	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil && !conf.Debug {
 		pgid = uint64(_pgid)
 	}
 
-	err := driver.Manager.InitWithOptions(
+	if err = driver.Manager.InitWithOptions(
 		bytes.NewReader(_bytecode),
 		manager.Options{
 			DefaultKProbeMaxActive: 512,
@@ -119,10 +132,12 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 				{Name: "hades_etext", Value: etext},
 				{Name: "hades_pgid", Value: pgid},
 			},
-		})
+		}); err != nil {
+		return nil, err
+	}
 
 	driver.context, driver.cancel = context.WithCancel(s.Context())
-	return driver, err
+	return driver, nil
 }
 
 func (d *Driver) Status() bool {
@@ -148,7 +163,7 @@ func (d *Driver) PostRun() (err error) {
 		if cronFunc == nil {
 			continue
 		}
-		if share.Debug {
+		if conf.Debug {
 			interval = "*/20 * * * * *"
 		}
 		if _, err := d.cronM.AddFunc(interval, func() {
@@ -184,7 +199,11 @@ func (d *Driver) StartProbe(UID string) (err error) {
 func (d *Driver) Stop() error {
 	zap.S().Info("driver stop is called")
 	d.cancel()
-	return d.Manager.Stop(manager.CleanAll)
+	if err := d.Manager.Stop(manager.CleanAll); err != nil {
+		return err
+	}
+	d.status = false
+	return nil
 }
 
 func (d *Driver) taskResolve() {
@@ -279,4 +298,95 @@ func (d *Driver) mapUpdate(name string, key uint32, value interface{}) error {
 		return fmt.Errorf("bpfmap %s not found", name)
 	}
 	return bpfmap.Update(key, value, ebpf.UpdateAny)
+}
+
+func downloadBytecode() (driverName string, err error) {
+	// TODO: load driver bytecode dynamiclly by downloading, make the
+	// sha256 of ebpfdriver userspace stay the same
+	//
+	// By default, if BTF is enabled, use CORE version driver
+	var driverType string
+	if _, err := btf.LoadKernelSpec(); err != nil {
+		driverType = "nocore"
+	} else {
+		driverType = "core"
+	}
+
+	var arch string
+	arch, _ = host.KernelArch()
+	switch arch {
+	case "x86_64":
+		arch = "amd64"
+	case "aarch64":
+		arch = "arm64"
+	}
+
+	switch driverType {
+	case "core":
+		driverName = fmt.Sprintf("hades_ebpf_driver_%s_%s_%s.o", conf.VERSION, driverType, arch)
+	case "nocore":
+		version, _ := host.KernelVersion()
+		driverName = fmt.Sprintf("hades_ebpf_driver_%s_%s_%s_%s.o", conf.VERSION, driverType, arch, version)
+	}
+	zap.S().Infof("driver name: %s", driverName)
+	// TODO: Dynamically load, need to make sure the sha256 is correct. Or a replacement would easily attack this
+	if conf.Debug {
+		driverName = "hades_ebpf_driver.o"
+		return
+	}
+	// check local
+	if _, err = os.Stat(driverName); err == nil {
+		zap.S().Infof("driver %s exists", driverName)
+		return
+	}
+	// not exist, download the driver
+	for i := 0; i < 15; i++ {
+		if err := download(driverName); err != nil {
+			zap.S().Errorf("download driver failed: %s", err.Error())
+			time.Sleep(60 * time.Second)
+			continue
+		} else {
+			break
+		}
+	}
+	return
+}
+
+func download(driverName string) (err error) {
+	// In Elkeid v1.9.1, only Timeout is different from DefaultTransport.
+	// Before v1.9.1 the timeout was controlled by subctx, now it is
+	// controlled by client itself.
+	client := &http.Client{
+		Transport: http.DefaultTransport,
+		Timeout:   30 * time.Second,
+	}
+	url := conf.DOWNLOAD_URL + driverName
+	var req *http.Request
+	var resp *http.Response
+	if req, err = http.NewRequest("GET", url, nil); err != nil {
+		return
+	}
+	if resp, err = client.Do(req); err != nil {
+		return
+	}
+	if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
+		err = errors.New("http error: " + resp.Status)
+		return
+	}
+	resp.Body = http.MaxBytesReader(nil, resp.Body, 512*1024*1024)
+	save(driverName, resp.Body)
+	resp.Body.Close()
+	return
+}
+
+func save(dst string, r io.Reader) (err error) {
+	var f *os.File
+	if f, err = os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o0600); err != nil {
+		return
+	}
+	defer f.Close()
+	if _, err = io.Copy(f, r); err != nil {
+		return err
+	}
+	return
 }

@@ -2,8 +2,8 @@ package event
 
 import (
 	"fmt"
+	"hades-ebpf/conf"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/share"
 	"hades-ebpf/utils"
 	"time"
 
@@ -47,7 +47,7 @@ func (s *SysConnect) DecodeEvent(d *decoder.EbpfDecoder) (err error) {
 	}
 	key := fmt.Sprintf("%s%s%d", s.Sip, s.Dip, s.Dport)
 	// only works in not Debug
-	if !share.Debug {
+	if !conf.Debug {
 		if _, ok := connection_ttl_cache.Get(key); ok {
 			return decoder.ErrIgnore
 		} else {

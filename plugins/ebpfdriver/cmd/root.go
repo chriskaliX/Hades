@@ -1,16 +1,15 @@
 package cmd
 
 import (
-	"hades-ebpf/user/share"
+	"hades-ebpf/conf"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// TODO: version tag
 var RootCmd = &cobra.Command{
 	Use:     "ebpfdriver",
-	Version: "v1.1.0",
+	Version: conf.VERSION,
 }
 
 func Execute() {
@@ -24,6 +23,6 @@ func Execute() {
 
 func init() {
 	cobra.EnablePrefixMatching = true
-	RootCmd.PersistentFlags().BoolVar(&share.Debug, "debug", false, "set true send output to console")
-	RootCmd.Flags().StringSliceVarP(&share.EventFilter, "filter", "f", []string{}, "set filters, like 1203,1201")
+	RootCmd.PersistentFlags().BoolVar(&conf.Debug, "debug", false, "set true send output to console")
+	RootCmd.Flags().StringSliceVarP(&conf.EventFilter, "filter", "f", []string{}, "set filters, like 1203,1201")
 }

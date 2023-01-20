@@ -31,4 +31,4 @@ jobs:
       - name: Test
         run: |
           cd plugins/ebpfdriver
-          go test -v -exec sudo ./...
+          make testing

@@ -1,10 +1,10 @@
-package test
+package main
 
 import (
 	"encoding/json"
+	"hades-ebpf/conf"
 	"hades-ebpf/user"
 	"hades-ebpf/user/decoder"
-	"hades-ebpf/user/share"
 	"net"
 	"os/exec"
 	"strings"
@@ -43,9 +43,9 @@ func appRun(s SDK.ISandbox) (err error) {
 }
 
 func TestMain(t *testing.T) {
-	share.Debug = true
+	conf.Debug = true
 	sconfig := &SDK.SandboxConfig{
-		Debug: share.Debug,
+		Debug: conf.Debug,
 		Name:  "ebpfdriver",
 		LogConfig: &logger.Config{
 			Path:        "ebpfdriver.log",
@@ -113,7 +113,7 @@ func TestMain(t *testing.T) {
 	// Better UI for command line usage
 	sandbox.Run(appRun)
 	// clean up
-	exec.Command("rm", "-f", "dist/*.txt").Start() // clean up
+	exec.Command("rm", "-f", "test/dist/*.txt").Start() // clean up
 	assert.Equal(t, connect_flag, true, "connect testcase failed")
 	assert.Equal(t, execve_flag, true, "execve testcase failed")
 	assert.Equal(t, inode_create_flag, true, "inode_create testcase failed")

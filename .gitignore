@@ -41,7 +41,11 @@ plugins/ebpfdriver/kern/headers/*.h
 # windows
 **/*.exe
 
+# test
+plugins/ebpfdriver/test/dist/*.txt
+
 # rust-demo
 target
 Cargo.lock
 ncp-rst
+plugins/ebpfdriver/test/dist/2.txt

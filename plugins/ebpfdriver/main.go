@@ -1,10 +1,10 @@
 package main
 
 import (
+	"hades-ebpf/conf"
 	"hades-ebpf/user"
 	"hades-ebpf/user/decoder"
 	_ "hades-ebpf/user/event"
-	"hades-ebpf/user/share"
 
 	"hades-ebpf/cmd"
 
@@ -20,7 +20,7 @@ import (
 var driver *user.Driver
 
 func appRun(s SDK.ISandbox) (err error) {
-	decoder.SetAllowList(share.EventFilter)
+	decoder.SetAllowList(conf.EventFilter)
 	driver, err = user.NewDriver(s)
 	if err != nil {
 		zap.S().Error(err)
@@ -41,7 +41,7 @@ func main() {
 	// inject into sandbox
 	cmd.RootCmd.Run = (func(_ *cobra.Command, _ []string) {
 		sconfig := &SDK.SandboxConfig{
-			Debug: share.Debug,
+			Debug: conf.Debug,
 			Name:  "ebpfdriver",
 			LogConfig: &logger.Config{
 				Path:        "ebpfdriver.log",
