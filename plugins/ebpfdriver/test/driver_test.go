@@ -58,10 +58,7 @@ func TestMain(t *testing.T) {
 	}
 	decoder.SetAllowList([]string{"700", "1022", "1028", "1031"})
 	// sandbox init
-	sandbox := SDK.NewSandbox()
-	if err := sandbox.Init(sconfig); err != nil {
-		return
-	}
+	sandbox := SDK.NewSandbox(sconfig)
 	// flags
 	var connect_flag bool
 	var execve_flag bool
