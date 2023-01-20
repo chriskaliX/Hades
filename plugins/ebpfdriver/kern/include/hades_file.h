@@ -97,9 +97,3 @@ int BPF_KPROBE(kprobe_security_inode_link)
     save_str_to_buf(&data, to_ptr, 1);
     return events_perf_submit(&data);
 }
-
-// SEC("kprobe/security_file_open")
-// int BPF_KPROBE(kprobe_security_file_open)
-// {
-
-// }

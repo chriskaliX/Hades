@@ -35,7 +35,7 @@ jobs:
       
       - name: build
         run: |
-          cd pluginss/ebpfdriver
+          cd plugins/ebpfdriver
           make core
           cd ../..
 
