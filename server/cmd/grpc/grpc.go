@@ -1,7 +1,9 @@
 package grpc
 
 import (
+	"fmt"
 	"hboat/cmd/root"
+	"hboat/datasource"
 	"hboat/grpc"
 	"hboat/server/api"
 
@@ -12,7 +14,7 @@ var grpcCommand = &cobra.Command{
 	Use:   "grpc",
 	Short: "hboat grpc server",
 	Long:  `Hboat grpc server launcher`,
-	Run:   grpcFunc,
+	Run:   WebServer,
 }
 
 var enableCA bool
@@ -24,11 +26,17 @@ func init() {
 	grpcCommand.PersistentFlags().BoolVar(&enableCA, "ca", false, "enable ca")
 	grpcCommand.PersistentFlags().IntVar(&port, "port", 8888, "grpc serve port")
 	grpcCommand.PersistentFlags().StringVar(&addr, "addr", "0.0.0.0", "grpc serve address, set to localhost if you need")
-	grpcCommand.PersistentFlags().IntVar(&wport, "wport", 7811, "grpc web serve port")
+	grpcCommand.PersistentFlags().IntVar(&wport, "wport", 7811, "web service listen port")
 	root.RootCommand.AddCommand(grpcCommand)
 }
 
-func grpcFunc(command *cobra.Command, args []string) {
+// The main function of hboat
+func WebServer(command *cobra.Command, args []string) {
+	// init the datasources
+	if err := datasource.StartMongo(); err != nil {
+		fmt.Println(err.Error())
+	}
+	// run grpc and web
 	go api.RunGrpcServer(wport)
 	grpc.RunWrapper(enableCA, addr, port)
 }

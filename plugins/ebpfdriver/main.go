@@ -53,16 +53,7 @@ func main() {
 			},
 		}
 		// sandbox init
-		sandbox := SDK.NewSandbox()
-		if err := sandbox.Init(sconfig); err != nil {
-			return
-		}
-		defer func() {
-			if driver != nil {
-				driver.Stop()
-				return
-			}
-		}()
+		sandbox := SDK.NewSandbox(sconfig)
 		// Better UI for command line usage
 		sandbox.Run(appRun)
 	})

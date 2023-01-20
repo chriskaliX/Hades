@@ -29,10 +29,7 @@ func main() {
 		},
 	}
 	// sandbox init
-	sandbox := SDK.NewSandbox()
-	if err := sandbox.Init(sconfig); err != nil {
-		return
-	}
+	sandbox := SDK.NewSandbox(sconfig)
 	ncp := event.New()
 	// task
 	go func() {

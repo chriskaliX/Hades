@@ -26,7 +26,8 @@ var PluginC *mongo.Collection
 var AssetC *mongo.Collection
 
 func NewMongoDB(uri string, poolsize uint64) (*mongo.Client, error) {
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	var opt options.ClientOptions
 	opt.SetMaxPoolSize(poolsize)
 	opt.SetReadPreference(readpref.SecondaryPreferred())
@@ -41,41 +42,14 @@ func NewMongoDB(uri string, poolsize uint64) (*mongo.Client, error) {
 	return mongoClient, nil
 }
 
-type AgentStatus struct {
-	AgentID      string                            `bson:"agent_id"`
-	Addr         string                            `bson:"addr"`
-	Status       bool                              `bson:"status"`
-	CreateAt     int64                             `bson:"create_at"`
-	LastHBTime   int64                             `bson:"last_heartbeat_time"`
-	AgentDetail  map[string]interface{}            `bson:"agent_detail"`
-	PluginDetail map[string]map[string]interface{} `bson:"plugin_detail"`
-}
-
-// IsOnline is a wrapper to check if the status of agent by it's
-// create time and heartbeat time
-func (a AgentStatus) IsOnline() bool {
-	var baseTime int64
-	if a.CreateAt > a.LastHBTime {
-		baseTime = a.CreateAt
-	} else {
-		baseTime = a.LastHBTime
-	}
-	if !a.Status {
-		return false
-	}
-	if time.Now().Unix()-baseTime <= config.AgentHBSec {
-		return true
-	}
-	return false
-}
-
-func init() {
+func StartMongo() error {
 	var err error
 	MongoInst, err = NewMongoDB(config.MongoURI, 5)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	StatusC = MongoInst.Database(Database).Collection(config.MAgentStatusCollection)
 	PluginC = MongoInst.Database(Database).Collection(PluginCol)
 	AssetC = MongoInst.Database(Database).Collection(AssetCol)
+	return nil
 }

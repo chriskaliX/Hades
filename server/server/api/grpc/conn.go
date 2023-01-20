@@ -4,6 +4,7 @@ import (
 	"context"
 	"hboat/config"
 	ds "hboat/datasource"
+	"hboat/datasource/mongo"
 	"hboat/server/api/common"
 	"time"
 
@@ -52,7 +53,7 @@ type ConnStatRsp struct {
 
 func AgentStat(c *gin.Context) {
 	agentid := c.Query("agent_id")
-	var as ds.AgentStatus
+	var as mongo.AgentStatus
 	err := ds.StatusC.FindOne(context.Background(), bson.M{"agent_id": agentid}).Decode(&as)
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
@@ -112,7 +113,7 @@ func AgentBasic(c *gin.Context) {
 	defer cur.Close(context.Background())
 	resList := make([]AgentBasicResp, 0, 10)
 	for cur.Next(context.Background()) {
-		var as ds.AgentStatus
+		var as mongo.AgentStatus
 		if err := cur.Decode(&as); err != nil {
 			continue
 		}
