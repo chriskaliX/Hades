@@ -216,7 +216,7 @@ struct _sys_enter_prctl {
  * https://www.blackhat.com/docs/us-16/materials/us-16-Leibowitz-Horse-Pill-A-New-Type-Of-Linux-Rootkit.pdf
  */
 SEC("tracepoint/syscalls/sys_enter_prctl")
-int sys_enter_prctl(struct _sys_enter_prctl *ctx)
+int sys_enter_prctl(struct syscall_enter_args *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -229,7 +229,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     char *newname = NULL;
     unsigned long flag2;
 
-    bpf_probe_read(&option, sizeof(option), &ctx->option);
+    bpf_probe_read(&option, sizeof(option), &ctx->args[0]);
     if (option != PR_SET_NAME && option != PR_SET_MM)
         return 0;
     save_to_submit_buf(&data, &option, sizeof(int), 0);
@@ -239,7 +239,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
 
     switch (option) {
     case PR_SET_NAME:
-        bpf_probe_read_user_str(&newname, TASK_COMM_LEN, (char *)ctx->arg2);
+        bpf_probe_read_user_str(&newname, TASK_COMM_LEN, (char *)ctx->args[1]);
         save_str_to_buf(&data, &newname, 2);
         break;
     /*
@@ -248,7 +248,7 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
      * https://cloud.tencent.com/developer/article/1040079
      */
     case PR_SET_MM:
-        bpf_probe_read_user(&flag2, sizeof(flag2), &ctx->arg2);
+        bpf_probe_read_user(&flag2, sizeof(flag2), &ctx->args[1]);
         save_to_submit_buf(&data, &flag2, sizeof(unsigned long), 2);
         break;
     default:

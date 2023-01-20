@@ -307,7 +307,7 @@ struct syscall_enter_args {
 	unsigned long	   args[6];
 };
 
-struct _sys_exit {
+struct syscall_exit_args {
     unsigned long long unused;
     long syscall_nr;
     long ret;

@@ -53,7 +53,7 @@ int sys_enter_connect(struct syscall_enter_args *ctx)
 }
 
 SEC("tracepoint/syscalls/sys_exit_connect")
-int sys_exit_connect(struct _sys_exit *ctx)
+int sys_exit_connect(struct syscall_exit_args *ctx)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     net_ctx_t *net_ctx = bpf_map_lookup_elem(&connect_cache, &pid_tgid);
