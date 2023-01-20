@@ -1,9 +1,14 @@
 package event
 
 import (
+	"fmt"
 	"hades-ebpf/user/decoder"
+	"hades-ebpf/user/share"
+	"hades-ebpf/utils"
+	"time"
 
 	manager "github.com/ehids/ebpfmanager"
+	utilcache "k8s.io/apimachinery/pkg/util/cache"
 )
 
 // Socket connect should be enforced with a filter.
@@ -12,6 +17,8 @@ import (
 // the lru & map is easy in BPF. But for now, we just introduce
 // the map into userspace for filter usage.
 var _ decoder.Event = (*SysConnect)(nil)
+
+var connection_ttl_cache = utilcache.NewLRUExpireCacheWithClock(1024*8, utils.Clock)
 
 type SysConnect struct {
 	Family uint16 `json:"family"`
@@ -34,11 +41,20 @@ func (s *SysConnect) GetExe() string {
 	return s.Exe
 }
 
-func (s *SysConnect) DecodeEvent(decoder *decoder.EbpfDecoder) (err error) {
-	if s.Family, s.Sport, s.Dport, s.Sip, s.Dip, err = decoder.DecodeAddr(); err != nil {
+func (s *SysConnect) DecodeEvent(d *decoder.EbpfDecoder) (err error) {
+	if s.Family, s.Sport, s.Dport, s.Sip, s.Dip, err = d.DecodeAddr(); err != nil {
 		return
 	}
-	s.Exe, err = decoder.DecodeString()
+	key := fmt.Sprintf("%s%s%d", s.Sip, s.Dip, s.Dport)
+	// only works in not Debug
+	if !share.Debug {
+		if _, ok := connection_ttl_cache.Get(key); ok {
+			return decoder.ErrIgnore
+		} else {
+			connection_ttl_cache.Add(key, true, 30*time.Minute)
+		}
+	}
+	s.Exe, err = d.DecodeString()
 	return
 }
 
