@@ -464,18 +464,6 @@ int trigger_module_scan(struct pt_regs *ctx)
  * from tracee. filldir
  */
 
-static __always_inline __u64 hades_constants_stext() {
-    __u64 val = 0;
-    LOAD_CONSTANT("hades_stext", val);
-    return val;
-}
-
-static __always_inline __u64 hades_constants_etext() {
-    __u64 val = 0;
-    LOAD_CONSTANT("hades_etext", val);
-    return val;
-}
-
 SEC("kprobe/security_file_permission")
 int BPF_KPROBE(kprobe_security_file_permission)
 {

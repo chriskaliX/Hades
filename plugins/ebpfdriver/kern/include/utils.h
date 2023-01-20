@@ -53,13 +53,6 @@ static __always_inline int get_task_pgid(const struct task_struct *cur_task)
 // 在每次调 index 之前都需要 check 一下，所以看源码的时候很多地方会写：To satisfied the verifier...
 // TODO: 写一个文章记录一下这个...
 
-static __always_inline u64 hades_constants_pgid()
-{
-    u64 val = 0;
-    LOAD_CONSTANT("hades_pgid", val);
-    return val;
-}
-
 /* init_context */
 static __always_inline int init_context(context_t *context,
                                         struct task_struct *task)

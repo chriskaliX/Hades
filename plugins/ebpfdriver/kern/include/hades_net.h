@@ -18,14 +18,6 @@
 #include "bpf_tracing.h"
 #include "filter.h"
 
-struct _sys_enter_connect {
-    unsigned long long unused;
-    long syscall_nr;
-    int fd;
-    struct sockaddr *uservaddr;
-    int addr;
-};
-
 typedef struct net_ctx {
     int fd;
 	sa_family_t sa_family;
@@ -41,15 +33,15 @@ __attribute__((always_inline)) int delete_connect_cache(u64 id)
 
 // The pointer should by avaliable through the whole process. Just save the pointer
 SEC("tracepoint/syscalls/sys_enter_connect")
-int sys_enter_connect(struct _sys_enter_connect *ctx)
+int sys_enter_connect(struct syscall_enter_args *ctx)
 {
     net_ctx_t net_ctx = {};
     struct sockaddr* sa;
-    bpf_probe_read(&sa, sizeof(struct sockaddr),&ctx->uservaddr);
+    bpf_probe_read(&sa, sizeof(struct sockaddr),&ctx->args[1]);
     if (sa == NULL)
         return 0;
-    net_ctx.fd = ctx->fd;
-    net_ctx.addr = ctx->addr;
+    net_ctx.fd = ctx->args[0];
+    net_ctx.addr = ctx->args[2];
     u16 family;
     bpf_probe_read(&family, sizeof(u16),&sa->sa_family);
     net_ctx.sa_family = family;

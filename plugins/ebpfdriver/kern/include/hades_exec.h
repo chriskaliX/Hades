@@ -20,24 +20,6 @@
 #include "utils.h"
 #include "utils_buf.h"
 
-struct _sys_enter_execve {
-    unsigned long long unused;
-    long syscall_nr;
-    const char *filename;
-    const char *const *argv;
-    const char *const *envp;
-};
-
-struct _sys_enter_execveat {
-    unsigned long long unused;
-    long syscall_nr;
-    int fd;
-    const char *filename;
-    const char *const *argv;
-    const char *const *envp;
-    int flags;
-};
-
 /*
  * In tracee, they do not capture the args since the pointer...
  * Reference:
@@ -71,14 +53,14 @@ struct _sys_enter_execveat {
  */
 
 SEC("tracepoint/syscalls/sys_enter_execve")
-int sys_enter_execve(struct _sys_enter_execve *ctx)
+int sys_enter_execve(struct syscall_enter_args *ctx)
 {
     __u64 id = bpf_get_current_pid_tgid();
     struct syscall_buffer *buf = reset_syscall_buffer_cache(id);
     if (!buf)
         return 0;
-    save_args_into_buffer(buf, ctx->argv);
-    save_envp_into_buffer(buf, ctx->envp);
+    save_args_into_buffer(buf, (void *)ctx->args[1]);
+    save_envp_into_buffer(buf, (void *)ctx->args[2]);
     return 1;
 }
 
@@ -144,14 +126,14 @@ int sys_exit_execve(void *ctx)
  * In execveat, an empty argv or envp is always possible
  */
 SEC("tracepoint/syscalls/sys_enter_execveat")
-int sys_enter_execveat(struct _sys_enter_execveat *ctx)
+int sys_enter_execveat(struct syscall_enter_args *ctx)
 {
     __u64 id = bpf_get_current_pid_tgid();
     struct syscall_buffer *buf = reset_syscall_buffer_cache(id);
     if (!buf)
         return 0;
-    save_args_into_buffer(buf, ctx->argv);
-    save_envp_into_buffer(buf, ctx->envp);
+    save_args_into_buffer(buf, (void *)ctx->args[2]);
+    save_envp_into_buffer(buf, (void *)ctx->args[3]);
     return 1;
 }
 
@@ -275,20 +257,12 @@ int sys_enter_prctl(struct _sys_enter_prctl *ctx)
     return events_perf_submit(&data);
 }
 
-struct _sys_enter_ptrace {
-    unsigned long long unused;
-    long syscall_nr;
-    long request;
-    long pid;
-    unsigned long addr;
-    unsigned long data;
-};
 // @Reference:
 // https://www.giac.org/paper/gcih/467/tracing-ptrace-case-study-internal-root-compromise-incident-handling/105271
 // @Reference:
 // https://driverxdw.github.io/2020/07/06/Linux-ptrace-so%E5%BA%93%E6%B3%A8%E5%85%A5%E5%88%86%E6%9E%90/
 SEC("tracepoint/syscalls/sys_enter_ptrace")
-int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
+int sys_enter_ptrace(struct syscall_enter_args *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -297,15 +271,15 @@ int sys_enter_ptrace(struct _sys_enter_ptrace *ctx)
         return 0;
     data.context.type = SYS_ENTER_PTRACE;
     long request;
-    bpf_probe_read(&request, sizeof(request), &ctx->request);
+    bpf_probe_read(&request, sizeof(request), &ctx->args[0]);
     if (request != PTRACE_POKETEXT && request != PTRACE_POKEDATA)
         return 0;
 
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
     save_to_submit_buf(&data, &request, sizeof(long), 1);
-    save_to_submit_buf(&data, &ctx->pid, sizeof(long), 2);
-    save_to_submit_buf(&data, &ctx->addr, sizeof(unsigned long), 3);
+    save_to_submit_buf(&data, &ctx->args[1], sizeof(long), 2);
+    save_to_submit_buf(&data, &ctx->args[2], sizeof(unsigned long), 3);
     save_pid_tree_to_buf(&data, 12, 4);
     return events_perf_submit(&data);
 }
@@ -319,7 +293,7 @@ struct _sys_enter_memfd_create {
 
 // https://xeldax.top/article/linux_no_file_elf_mem_execute
 SEC("tracepoint/syscalls/sys_enter_memfd_create")
-int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
+int sys_enter_memfd_create(struct syscall_enter_args *ctx)
 {
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
@@ -329,7 +303,7 @@ int sys_enter_memfd_create(struct _sys_enter_memfd_create *ctx)
     data.context.type = SYS_ENTER_MEMFD_CREATE;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
-    save_str_to_buf(&data, (char *)ctx->uname, 1);
-    save_to_submit_buf(&data, &ctx->flags, sizeof(unsigned int), 2);
+    save_str_to_buf(&data, (char *)ctx->args[0], 1);
+    save_to_submit_buf(&data, &ctx->args[1], sizeof(unsigned int), 2);
     return events_perf_submit(&data);
 }
