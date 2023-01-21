@@ -1,10 +1,10 @@
 /*
 Copyright © 2022 chriskali
-
 */
 package cmd
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 
@@ -15,24 +15,29 @@ import (
 // restartCmd represents the restart command
 var restartCmd = &cobra.Command{
 	Use:   "restart",
-	Short: "A brief description of your command",
+	Short: "restart agent",
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
 			cmd := exec.Command("systemctl", "restart", serviceName)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cobra.CheckErr(cmd.Run())
-		} else if viper.GetString("service_type") == "sysvinit" {
+		case "sysvinit":
 			os.RemoveAll(crontabFile)
 			exec.Command("service", "cron", "restart").Run()
 			exec.Command("service", "crond", "restart").Run()
 			err := sysvinitStop()
 			cobra.CheckErr(err)
+
 			err = sysvinitStart()
 			cobra.CheckErr(os.WriteFile(crontabFile, []byte(crontabContent), 0600))
 			exec.Command("service", "cron", "restart").Run()
 			exec.Command("service", "crond", "restart").Run()
 			cobra.CheckErr(err)
+		default:
+			cobra.CheckErr(errors.New("service type:" + service_type))
 		}
 	},
 }

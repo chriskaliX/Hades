@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	cfgFile     = "/etc/hades/specified_env"
 	serviceName = "hades-agent"
+	cfgFile     = "/etc/hades/specified_env"
 	// systemd service file
 	serviceFile    = "/etc/hades/hades-agent.service"
 	agentWorkDir   = "/etc/hades/"
 	agentFile      = "/etc/hades/hades-agent"
 	agentPidFile   = "/var/run/hades-agent.pid"
-	cgroupPath     = "/hades-agent"
+	cgroupPath     = agentWorkDir + "cgroup/"
 	crontabContent = "* * * * * root /etc/hades/hadesctl check\n"
 	crontabFile    = "/etc/cron.d/hades-agent"
 )
@@ -36,7 +36,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, initConfig)
 }
 
 // initConfig reads in config file and ENV variables if set.

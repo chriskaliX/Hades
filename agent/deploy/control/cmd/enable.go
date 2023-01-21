@@ -17,14 +17,17 @@ import (
 // enableCmd represents the enable command
 var enableCmd = &cobra.Command{
 	Use:   "enable",
-	Short: "A brief description of your command",
+	Short: "enable agent",
+	Long:  `enable agent by systemd/sysvinit`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
 			cmd := exec.Command("systemctl", "enable", serviceFile)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cobra.CheckErr(cmd.Run())
-		} else if viper.GetString("service_type") == "sysvinit" {
+		case "sysvinit":
 			_, err := exec.LookPath("update-rc.d")
 			if err == nil {
 				res, err := exec.Command("update-rc.d", serviceName, "defaults").CombinedOutput()
@@ -42,6 +45,8 @@ var enableCmd = &cobra.Command{
 				return
 			}
 			cobra.CheckErr(errors.New("no available service management tool"))
+		default:
+			cobra.CheckErr(errors.New("service type:" + service_type))
 		}
 	},
 }

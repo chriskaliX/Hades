@@ -2,6 +2,7 @@ package log
 
 import (
 	"agent/proto"
+	"agent/transport"
 	"encoding/json"
 	"strconv"
 	"time"
@@ -41,11 +42,10 @@ func (w *GrpcWriter) Write(p []byte) (n int, err error) {
 			rec.Data.Fields[k] = strconv.Itoa(v)
 		}
 	}
-	// err = core.Transmission(rec, false)
-	// if err != nil {
-	// 	return
-	// }
-	// n = len(p)
+	if err = transport.DefaultTrans.Transmission(rec, false); err != nil {
+		return
+	}
+	n = len(p)
 	return
 }
 

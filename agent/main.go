@@ -61,7 +61,9 @@ func main() {
 		MaxAge:     10,   //days
 		Compress:   true, // disabled by default
 	})
-	core := zapcore.NewTee(zapcore.NewCore(grpcEncoder, grpcWriter, zap.ErrorLevel), zapcore.NewCore(fileEncoder, fileWriter, zap.InfoLevel))
+	core := zapcore.NewTee(
+		zapcore.NewCore(grpcEncoder, grpcWriter, zap.ErrorLevel),
+		zapcore.NewCore(fileEncoder, fileWriter, zap.InfoLevel))
 	logger := zap.New(core, zap.AddCaller())
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)

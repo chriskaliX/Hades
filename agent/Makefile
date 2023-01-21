@@ -1,5 +1,5 @@
 CMD_GO ?= go
-VERSION ?= v1.0.2
+VERSION ?= v1.1.0
 
 # colors
 INFO_COLOR = \033[34m[*]\033[0m

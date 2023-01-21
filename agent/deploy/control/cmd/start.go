@@ -5,12 +5,14 @@ Copyright © 2022 chriskali
 package cmd
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/cgroups"
+	"github.com/containerd/cgroups/v3/cgroup2"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -30,7 +32,10 @@ func V1() (systems []cgroups.Subsystem, err error) {
 	return
 }
 
+// sysvinit start with cgroup well setted
+// THIS IS UNDER FULL TEST
 func sysvinitStart() error {
+	// run the command
 	cmd := exec.Command(agentFile)
 	cmd.Dir = agentWorkDir
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -44,21 +49,66 @@ func sysvinitStart() error {
 	if err != nil {
 		return err
 	}
-	// Cpu 10%, Mem 300M
+	// if cgroup do not work as expected, quit the agent
+	// should cgroup2 being covered? MAY EVENT NOT IN SYSVINIT
+	// cgroup here
+	var cg2 bool
+	switch cgroups.Mode() {
+	case cgroups.Unavailable:
+		return errors.New("cgroup unavailiable")
+	case cgroups.Hybrid, cgroups.Unified:
+		// Hybrid: cgroup v1 and v2, let's use v2
+		// Unified: v2
+		cg2 = true
+	case cgroups.Legacy:
+		// cgroup v1
+		cg2 = false
+	}
+	// resource limitation
 	quota := int64(10000)
-	memLimit := int64(1024 * 1024 * 300)
-	cg, err := cgroups.New(V1,
-		cgroups.StaticPath(cgroupPath),
-		&specs.LinuxResources{
-			CPU: &specs.LinuxCPU{
-				Quota: &quota,
+	period := uint64(100000)
+	memory := int64(1024 * 1024 * 250)
+	if cg2 {
+		res := cgroup2.Resources{
+			CPU: &cgroup2.CPU{
+				Max: cgroup2.NewCPUMax(&quota, &period),
 			},
-			Memory: &specs.LinuxMemory{
-				Limit: &memLimit,
+			Memory: &cgroup2.Memory{
+				Max: &memory,
 			},
-		})
-	if err == nil {
-		return cg.AddProc(uint64(cmd.Process.Pid))
+		}
+		group := "/" + serviceName + ".slice"
+		// load before we start
+		if manager, err := cgroup2.Load(group, cgroup2.WithMountpoint(cgroupPath)); err == nil {
+			return manager.AddProc(uint64(cmd.Process.Pid))
+		}
+		// load failed, re-create the cgroup v2 by the manager
+		manager, err := cgroup2.NewManager(cgroupPath, group, &res)
+		if err != nil {
+			return err
+		}
+		return manager.AddProc(uint64(cmd.Process.Pid))
+	} else {
+		// pre check the cgroup
+		cg, err := cgroups.Load(V1, cgroups.StaticPath(cgroupPath))
+		if err == nil {
+			return cg.AddProc(uint64(cmd.Process.Pid))
+		}
+		// not exist, new a cgroup
+		// Cpu 10%, Mem 250M
+		cg, err = cgroups.New(V1,
+			cgroups.StaticPath(cgroupPath),
+			&specs.LinuxResources{
+				CPU: &specs.LinuxCPU{
+					Quota: &quota,
+				},
+				Memory: &specs.LinuxMemory{
+					Limit: &memory,
+				},
+			})
+		if err == nil {
+			return cg.AddProc(uint64(cmd.Process.Pid))
+		}
 	}
 	return err
 }
@@ -66,20 +116,19 @@ func sysvinitStart() error {
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "A brief description of your command",
+	Short: "start the agent",
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
 			cmd := exec.Command("systemctl", "start", serviceName)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
-			cobra.CheckErr(cmd.Run())
-			// sysvinit + crontab
-		} else if viper.GetString("service_type") == "sysvinit" {
-			err := sysvinitStart()
+		case "sysvinit":
+			cobra.CheckErr(sysvinitStart())
 			cobra.CheckErr(os.WriteFile(crontabFile, []byte(crontabContent), 0600))
 			exec.Command("service", "cron", "restart").Run()
 			exec.Command("service", "crond", "restart").Run()
-			cobra.CheckErr(err)
 		}
 	},
 }

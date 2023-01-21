@@ -20,12 +20,14 @@ var disableCmd = &cobra.Command{
 	Short: "disable agent",
 	Long:  `disable agent by systemd/sysvinit`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
 			cmd := exec.Command("systemctl", "disable", serviceName)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cobra.CheckErr(cmd.Run())
-		} else if viper.GetString("service_type") == "sysvinit" {
+		case "sysvinit":
 			// higher kernel version, update-rc.d used
 			if _, err := exec.LookPath("update-rc.d"); err == nil {
 				res, err := exec.Command("update-rc.d", "-f", serviceName, "remove").CombinedOutput()
@@ -43,6 +45,8 @@ var disableCmd = &cobra.Command{
 				return
 			}
 			cobra.CheckErr(errors.New("no available service management tool"))
+		default:
+			cobra.CheckErr(errors.New("service type:" + service_type))
 		}
 	},
 }

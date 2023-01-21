@@ -4,6 +4,7 @@ Copyright © 2022 chriskali
 package cmd
 
 import (
+	"errors"
 	"os/exec"
 
 	"github.com/spf13/cobra"
@@ -13,15 +14,23 @@ import (
 // reloadCmd represents the reload command
 var reloadCmd = &cobra.Command{
 	Use:   "service-reload",
-	Short: "A brief description of your command",
+	Short: "reload service",
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
-			// FIXME: https://github.com/systemd/systemd/issues/9467 (old version systemd bug)
-			// 看了一下问题主要出现在 reload 之后 watchdog 立马触发了，时间没有重置
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
+			// https://github.com/systemd/systemd/issues/9467
+			// In short: Watchdog timeout triggered right upon running
+			// systemctl daemon-reload
+			//
+			// The fix-up here, just remove the watchdogsec from .service
+			// which is already done.
 			exec.Command("systemctl", "daemon-reload").Run()
-		} else if viper.GetString("service_type") == "sysvinit" {
+		case "sysvinit":
 			exec.Command("service", "cron", "restart").Run()
 			exec.Command("service", "crond", "restart").Run()
+		default:
+			cobra.CheckErr(errors.New("service type:" + service_type))
 		}
 	},
 }

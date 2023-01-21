@@ -19,12 +19,14 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
 			cmd := exec.Command("systemctl", "status", serviceName)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cobra.CheckErr(cmd.Run())
-		} else if viper.GetString("service_type") == "sysvinit" {
+		case "sysvinit":
 			file, _ := lockfile.New(agentPidFile)
 			p, err := file.GetOwner()
 			if err != nil {
@@ -41,10 +43,6 @@ var statusCmd = &cobra.Command{
 					fmt.Println(pid)
 				}
 			}
-		} else if viper.GetString("service_type") == "" {
-			fmt.Println("service_type not set")
-		} else {
-			fmt.Println("unknown service_type: ", viper.GetString("service_type"))
 		}
 	},
 }

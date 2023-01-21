@@ -69,7 +69,7 @@ func getProcTreeWithCgroup(pid int) (res []int, err error) {
 		}
 	}
 	if len(res) == 0 {
-		err = errors.New("could not find procs")
+		err = errors.New("can not find procs")
 	}
 	return
 }
@@ -86,7 +86,7 @@ func sysvinitStop() error {
 		// cgroup mode
 		if err == nil {
 			getProcTree = getProcTreeWithCgroup
-		// 根据进程树获取
+			// 根据进程树获取
 		} else {
 			// procfs mode
 			pids, _ = getProcTreeWithProc(p.Pid)
@@ -122,14 +122,16 @@ func sysvinitStop() error {
 // stopCmd represents the stop command
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "A brief description of your command",
+	Short: "stop agent",
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("service_type") == "systemd" {
+		var service_type = viper.GetString("service_type")
+		switch service_type {
+		case "systemd":
 			cmd := exec.Command("systemctl", "stop", serviceName)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cobra.CheckErr(cmd.Run())
-		} else if viper.GetString("service_type") == "sysvinit" {
+		case "sysvinit":
 			os.RemoveAll(crontabFile)
 			exec.Command("service", "cron", "restart").Run()
 			exec.Command("service", "crond", "restart").Run()
