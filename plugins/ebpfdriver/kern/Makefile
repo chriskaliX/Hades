@@ -63,8 +63,8 @@ pre_show:
 # some helpers, defs and macros
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
-LIBBPF_SRC = ../../libbpf/src
-headers/libbpf.a: \
+LIBBPF_SRC = ../../libs/libbpf/src
+headers/libbpf/libbpf.a: \
 	$(LIBBPF_SRC) \
 	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
 
@@ -80,11 +80,10 @@ headers/libbpf.a: \
 		install install_uapi_headers
 	install -m 0640 ./headers/libbpf/bpf/*.h ./headers/
 
-
 # NOT CO-RE
 # KBUILD_NAME: https://github.com/iovisor/bpftrace/pull/1352
 hades_ebpf_driver.bpf.o: \
-	headers/libbpf.a \
+	headers/libbpf/libbpf.a \
 	$(HADES_SRC)
 
 	$(CMD_CLANG) -S \
@@ -102,6 +101,7 @@ hades_ebpf_driver.bpf.o: \
 		-I $(KERN_SRC_PATH)/include/uapi \
 		-I $(KERN_BLD_PATH)/include/generated \
 		-I $(KERN_BLD_PATH)/include/generated/uapi \
+		-I $(BPF_HEADERS)/libbpf \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
 		-Wunused \
@@ -143,12 +143,13 @@ hades_ebpf_driver.bpf.o: \
 bpf-core: hades_ebpf_driver.bpf.core.o
 hades_ebpf_driver.bpf.core.o: \
 	$(HADES_SRC) \
-	headers/libbpf.a
+	headers/libbpf/libbpf.a
 
 	$(CMD_CLANG) \
 		-D__TARGET_ARCH_$(linux_arch) \
 		-D__BPF_TRACING__ \
 		-DCORE \
+		-I $(BPF_HEADERS)/libbpf \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
 		-I ./coreheaders/ \

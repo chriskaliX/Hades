@@ -33,7 +33,7 @@ plugins/ncp/ncp
 
 # libbpf test
 plugins/ebpfdriver/kern/headers/*.h
-plugins/libs/libbpf
+plugins/ebpfdriver/kern/headers/libbpf
 
 # pprof
 *.pprof

@@ -1,3 +1,3 @@
-[submodule "libbpf"]
+[submodule "plugins/libs/libbpf"]
 	path = plugins/libs/libbpf
 	url = https://github.com/libbpf/libbpf.git
