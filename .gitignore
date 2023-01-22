@@ -32,8 +32,8 @@ plugins/collector/collector
 plugins/ncp/ncp
 
 # libbpf test
-plugins/ebpfdriver/kern/headers/libbpf
 plugins/ebpfdriver/kern/headers/*.h
+plugins/libs/libbpf
 
 # pprof
 *.pprof

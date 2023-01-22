@@ -63,7 +63,7 @@ pre_show:
 # some helpers, defs and macros
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
-LIBBPF_SRC = ./libbpf/src
+LIBBPF_SRC = ../../libbpf/src
 headers/libbpf.a: \
 	$(LIBBPF_SRC) \
 	$(wildcard $(LIBBPF_SRC)/*.[ch]) \

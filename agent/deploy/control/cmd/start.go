@@ -5,12 +5,14 @@ Copyright © 2022 chriskali
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/cgroups"
+	"github.com/containerd/cgroups/v3/cgroup1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,7 +33,8 @@ func V1() (systems []cgroups.Subsystem, err error) {
 }
 
 // sysvinit start with cgroup well setted
-// THIS IS UNDER FULL TEST
+// THIS IS UNDER TESTING
+// TESTS IS REQUIRED
 func sysvinitStart() error {
 	// run the command
 	cmd := exec.Command(agentFile)
@@ -51,11 +54,10 @@ func sysvinitStart() error {
 	// should cgroup2 being covered? MAY EVENT NOT IN SYSVINIT
 	// cgroup here
 	// cgroup v2 need kernel version over 5.8, PRETTY SURE no sysvinit available
-
 	// resource limitation
 	quota := int64(10000)
 	// period := uint64(100000)
-	memory := int64(1024 * 1024 * 250)
+	memoryBytes := int64(1024 * 1024 * 250)
 	// pre check the cgroup
 	cg, err := cgroups.Load(V1, cgroups.StaticPath(cgroupPath))
 	if err == nil {
@@ -70,7 +72,7 @@ func sysvinitStart() error {
 				Quota: &quota,
 			},
 			Memory: &specs.LinuxMemory{
-				Limit: &memory,
+				Limit: &memoryBytes,
 			},
 		})
 	if err == nil {
@@ -89,7 +91,43 @@ func sysvinitStart() error {
 	//     expect "mkdir -p ${root_dir}/cgroup/cpu"
 	//     expect "mount -t cgroup -o cpu cgroup ${root_dir}/cgroup/cpu"
 	// fi
-	return err
+	subsystems, err := cgroup1.Default()
+	if err != nil {
+		return err
+	}
+	var cpu, memory bool
+	for _, subsystem := range subsystems {
+		switch subsystem.Name() {
+		case "cpu":
+			os.MkdirAll(cgroupPath+"cpu", 0o700)
+			cmd := exec.Command("mount", "-t", "cgroup", "-o", "cpu", "cgroup", cgroupPath+"cpu")
+			cmd.Env = append(cmd.Env, "PATH:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin")
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				fmt.Println("cpu mounted")
+				cpu = true
+			} else {
+				fmt.Fprintf(os.Stderr, "cpu mount failed: %v, output: %v", err, out)
+				return err
+			}
+		case "memory":
+			os.MkdirAll(cgroupPath+"memory", 0o700)
+			cmd := exec.Command("mount", "-t", "cgroup", "-o", "memory", "cgroup", cgroupPath+"memory")
+			cmd.Env = append(cmd.Env, "PATH:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin")
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				fmt.Println("memory mounted")
+				memory = true
+			} else {
+				fmt.Fprintf(os.Stderr, "memory mount failed: %v, output: %v", err, out)
+				return err
+			}
+		}
+	}
+	if cpu && memory {
+		return nil
+	}
+	return fmt.Errorf("mount failed: cpu: %v, memory: %v", cpu, memory)
 }
 
 // startCmd represents the start command
