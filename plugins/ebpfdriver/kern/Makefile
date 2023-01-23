@@ -152,7 +152,7 @@ hades_ebpf_driver.bpf.core.o: \
 		-I $(BPF_HEADERS)/libbpf \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
-		-I ./coreheaders/ \
+		-I ../../libs/core/ \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \
