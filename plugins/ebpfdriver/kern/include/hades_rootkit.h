@@ -17,6 +17,7 @@
 #include <missing_definitions.h>
 #endif
 
+#include "constants.h"
 #include "define.h"
 #include "utils_buf.h"
 #include "utils.h"

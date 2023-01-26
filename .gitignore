@@ -30,10 +30,13 @@ cert/
 plugins/ebpfdriver/ebpfdriver
 plugins/collector/collector
 plugins/ncp/ncp
+plugins/edr/edr
 
 # libbpf test
 plugins/ebpfdriver/kern/headers/*.h
 plugins/ebpfdriver/kern/headers/libbpf
+plugins/edr/kern/headers/*.h
+plugins/edr/kern/headers/libbpf
 
 # pprof
 *.pprof

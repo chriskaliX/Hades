@@ -59,6 +59,7 @@ type Driver struct {
 
 // New a driver with pre-set map and options
 func NewDriver(s SDK.ISandbox) (*Driver, error) {
+	// For the safety here, use RSA and AES to encrypt and check the whole file
 	driverName, err := downloadBytecode()
 	if err != nil {
 		return nil, err

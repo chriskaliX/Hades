@@ -21,6 +21,7 @@ KERN_SRC_PATH := $(if $(KERN_HEADERS),$(KERN_HEADERS),$(if $(wildcard /lib/modul
 
 BPF_HEADERS := headers
 INCLUDE_PATH := include
+LIB_PATH := ../../libs
 HADES_SRC := src/hades.c
 
 # colors
@@ -63,7 +64,7 @@ pre_show:
 # some helpers, defs and macros
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
-LIBBPF_SRC = ../../libs/libbpf/src
+LIBBPF_SRC = $(LIB_PATH)/libbpf/src
 headers/libbpf/libbpf.a: \
 	$(LIBBPF_SRC) \
 	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
@@ -104,6 +105,7 @@ hades_ebpf_driver.bpf.o: \
 		-I $(BPF_HEADERS)/libbpf \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
+		-I $(LIB_PATH)/bpfheaders/ \
 		-Wunused \
 		-Wall \
 		-Wno-frame-address \
@@ -152,7 +154,8 @@ hades_ebpf_driver.bpf.core.o: \
 		-I $(BPF_HEADERS)/libbpf \
 		-I $(BPF_HEADERS) \
 		-I $(INCLUDE_PATH) \
-		-I ../../libs/core/ \
+		-I $(LIB_PATH)/core/ \
+		-I $(LIB_PATH)/bpfheaders/ \
 		-target bpf \
 		-O2 -g \
 		-march=bpf -mcpu=v2 \
