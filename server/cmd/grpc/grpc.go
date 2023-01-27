@@ -1,11 +1,12 @@
 package grpc
 
 import (
-	"fmt"
 	"hboat/cmd/root"
-	"hboat/datasource"
-	"hboat/grpc"
-	"hboat/server/api"
+	"hboat/pkg"
+	"hboat/pkg/api"
+	"hboat/pkg/config"
+	"hboat/pkg/datasource"
+	"hboat/pkg/grpc"
 
 	"github.com/spf13/cobra"
 )
@@ -33,9 +34,21 @@ func init() {
 // The main function of hboat
 func WebServer(command *cobra.Command, args []string) {
 	// init the datasources
-	if err := datasource.StartMongo(); err != nil {
-		fmt.Println(err.Error())
+	if err := datasource.NewMongoDB(config.MongoURI, 5); err != nil {
+		panic(err)
 	}
+	if err := datasource.NewRedisClient(
+		config.RedisAddrs,
+		config.RedisMasterName,
+		config.RedisPassword,
+		config.RedisMode); err != nil {
+		panic(err)
+	}
+	// init user admin
+	if err := pkg.UserInit(); err != nil {
+		panic(err)
+	}
+
 	// run grpc and web
 	go api.RunGrpcServer(wport)
 	grpc.RunWrapper(enableCA, addr, port)
