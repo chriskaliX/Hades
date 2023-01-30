@@ -5,6 +5,7 @@ import (
 	gApi "hboat/pkg/api/grpc"
 	"hboat/pkg/api/host"
 	"hboat/pkg/api/plugin"
+	"hboat/pkg/api/user"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -35,6 +36,12 @@ func RunGrpcServer(port int) {
 		AllowMethods: []string{"POST, GET, OPTIONS, PUT, DELETE,UPDATE"},
 		AllowHeaders: []string{"*"},
 	}))
+	// user related
+	userGroup := router.Group("/api/v1/user")
+	userGroup.POST("/login", user.Login)
+	userGroup.GET("/logout", user.Logout)
+	userGroup.GET("/current", user.CurrentUser)
+
 	rGroup := router.Group("/api/v1/grpc/")
 	// TODO: auth middleware
 	rGroup.POST("/command", gApi.SendCommand)

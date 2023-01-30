@@ -7,9 +7,12 @@ import (
 	"hboat/pkg/basic/redis"
 	"hboat/pkg/basic/utils"
 	"hboat/pkg/conf"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.uber.org/zap"
 )
 
 // request binding
@@ -37,7 +40,8 @@ func Login(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	common.Response(c, common.SuccessCode, nil)
+	// response with the token
+	common.Response(c, common.SuccessCode, bson.M{"token": sessionid})
 }
 
 func Logout(c *gin.Context) {
@@ -66,4 +70,30 @@ func Regist(c *gin.Context) {
 		return
 	}
 	common.Response(c, common.SuccessCode, nil)
+}
+
+type CurrentUserResp struct {
+	Name string `json:"name"`
+}
+
+func CurrentUser(c *gin.Context) {
+	token := c.GetHeader("token")
+	if token == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	s := redis.Inst.Get(context.Background(), token)
+	if s.Err() != nil {
+		zap.S().Error(s.Err())
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	username := s.Val()
+	if username == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	common.Response(c, common.SuccessCode, CurrentUserResp{
+		Name: username,
+	})
 }
