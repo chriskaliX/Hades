@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"hboat/pkg/config"
+	"hboat/pkg/conf"
 	"time"
 )
 
@@ -27,7 +27,7 @@ func (a AgentStatus) IsOnline() bool {
 	if !a.Status {
 		return false
 	}
-	if time.Now().Unix()-baseTime <= config.AgentHBSec {
+	if time.Now().Unix()-baseTime <= conf.AgentHBSec {
 		return true
 	}
 	return false

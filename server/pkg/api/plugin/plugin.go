@@ -4,7 +4,7 @@ package plugin
 import (
 	"context"
 	"hboat/pkg/api/common"
-	ds "hboat/pkg/datasource"
+	"hboat/pkg/basic/mongo"
 	"hboat/pkg/grpc/transfer/pool"
 	pb "hboat/pkg/grpc/transfer/proto"
 	"time"
@@ -29,7 +29,7 @@ func PluginInsert(c *gin.Context) {
 		return
 	}
 	// result
-	res := ds.PluginC.FindOne(
+	res := mongo.PluginC.FindOne(
 		context.Background(),
 		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
 	)
@@ -40,7 +40,7 @@ func PluginInsert(c *gin.Context) {
 	now := time.Now().Unix()
 	pConfig.CreateAt = now
 	pConfig.ModifyAt = now
-	if _, err := ds.PluginC.InsertOne(
+	if _, err := mongo.PluginC.InsertOne(
 		context.Background(),
 		pConfig,
 	); err != nil {
@@ -54,7 +54,7 @@ func PluginInsert(c *gin.Context) {
 func PluginSelect(c *gin.Context) {
 	name := c.GetString("name")
 	pversion := c.GetString("pversion")
-	res := ds.PluginC.FindOne(
+	res := mongo.PluginC.FindOne(
 		context.Background(),
 		bson.M{"name": name, "pversion": pversion},
 	)
@@ -73,7 +73,7 @@ func PluginSelect(c *gin.Context) {
 func PluginDel(c *gin.Context) {
 	name := c.Query("name")
 	pversion := c.Query("pversion")
-	_, err := ds.PluginC.DeleteOne(
+	_, err := mongo.PluginC.DeleteOne(
 		context.Background(),
 		bson.M{"name": name, "pversion": pversion},
 	)
@@ -91,7 +91,7 @@ func PluginUpdate(c *gin.Context) {
 		return
 	}
 	pConfig.ModifyAt = time.Now().Unix()
-	if _, err := ds.PluginC.UpdateOne(
+	if _, err := mongo.PluginC.UpdateOne(
 		context.Background(),
 		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
 		bson.M{"$set": bson.M{"urls": pConfig.Urls, "sha256": pConfig.Sha256}},
@@ -110,7 +110,7 @@ type PluginListResp struct {
 func PluginList(c *gin.Context) {
 	var plgResp PluginListResp
 	plgResp.List = make([]PluginConfig, 0)
-	cur, err := ds.PluginC.Find(
+	cur, err := mongo.PluginC.Find(
 		context.Background(),
 		bson.D{},
 	)
@@ -145,7 +145,7 @@ func SendPlugin(c *gin.Context) {
 		return
 	}
 	var plgConfig PluginConfig
-	err = ds.PluginC.FindOne(
+	err = mongo.PluginC.FindOne(
 		context.Background(),
 		bson.M{"name": pReq.Name, "pversion": pReq.Version}).Decode(&plgConfig)
 	if err != nil {

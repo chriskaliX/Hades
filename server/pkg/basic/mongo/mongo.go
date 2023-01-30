@@ -1,8 +1,8 @@
-package datasource
+package mongo
 
 import (
 	"context"
-	"hboat/pkg/config"
+	"hboat/pkg/conf"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -19,7 +19,7 @@ const (
 )
 
 // Client
-var MongoInst *mongo.Client
+var Inst *mongo.Client
 
 // Collection
 var StatusC *mongo.Collection
@@ -41,12 +41,12 @@ func NewMongoDB(uri string, poolsize uint64) error {
 	if err = mongoClient.Ping(ctx, nil); err != nil {
 		return err
 	}
-	MongoInst = mongoClient
+	Inst = mongoClient
 
-	StatusC = MongoInst.Database(Database).Collection(config.MAgentStatusCollection)
-	PluginC = MongoInst.Database(Database).Collection(PluginCol)
-	AssetC = MongoInst.Database(Database).Collection(AssetCol)
-	UserC = MongoInst.Database(Database).Collection(UserCol)
+	StatusC = Inst.Database(Database).Collection(conf.MAgentStatusCollection)
+	PluginC = Inst.Database(Database).Collection(PluginCol)
+	AssetC = Inst.Database(Database).Collection(AssetCol)
+	UserC = Inst.Database(Database).Collection(UserCol)
 	// pre check user admin and print the passwd
 	return nil
 }

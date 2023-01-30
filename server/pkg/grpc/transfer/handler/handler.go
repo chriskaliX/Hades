@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"hboat/pkg/basic/mongo"
 	"hboat/pkg/grpc/transfer/pool"
 	pb "hboat/pkg/grpc/transfer/proto"
-
-	ds "hboat/pkg/datasource"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -60,7 +59,7 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error
 	// TODO: use channel or just put in kafka
 	options := options.Update().SetUpsert(true)
 
-	_, err = ds.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
+	_, err = mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
 		bson.M{"$set": bson.M{
 			"addr":                addr,
 			"create_at":           conn.CreateAt,
@@ -152,7 +151,7 @@ func handleData(req *pb.RawData, conn *pool.Connection) {
 				}
 			}
 			conn.LastHBTime = time.Now().Unix()
-			ds.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
+			mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
 				bson.M{"$set": bson.M{"agent_detail": data, "last_heartbeat_time": conn.LastHBTime}})
 			conn.SetAgentDetail(data)
 		// plugin-heartbeat
@@ -174,7 +173,7 @@ func handleData(req *pb.RawData, conn *pool.Connection) {
 			// Added heartbeat_time with plugin
 			data["last_heartbeat_time"] = time.Now().Unix()
 			// Do not cover on this
-			ds.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
+			mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
 				bson.M{"$set": bson.M{"plugin_detail." + value.Body.Fields["name"]: data}})
 			conn.SetPluginDetail(value.Body.Fields["name"], data)
 		case dataType == 2001, dataType == 1001, dataType == 5001, dataType == 3004:
@@ -196,7 +195,7 @@ func handleData(req *pb.RawData, conn *pool.Connection) {
 			}
 			options := options.Update().SetUpsert(true)
 
-			if _, err = ds.AssetC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
+			if _, err = mongo.AssetC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
 				bson.M{"$set": bson.M{field: data}}, options); err != nil {
 				//log
 				return

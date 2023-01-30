@@ -3,7 +3,7 @@ package pool
 import (
 	"context"
 	"errors"
-	ds "hboat/pkg/datasource"
+	"hboat/pkg/basic/mongo"
 	pb "hboat/pkg/grpc/transfer/proto"
 	"sync"
 	"time"
@@ -56,7 +56,7 @@ func (g *GRPCPool) Delete(agentID string) {
 	g.connLock.Lock()
 	defer g.connLock.Unlock()
 	delete(g.connPool, agentID)
-	ds.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
+	mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
 		bson.M{"$set": bson.M{"status": false}})
 }
 

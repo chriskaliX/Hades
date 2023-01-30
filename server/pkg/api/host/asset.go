@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"hboat/pkg/api/common"
-	ds "hboat/pkg/datasource"
+	"hboat/pkg/basic/mongo"
 
 	"golang.org/x/exp/slices"
 
@@ -53,7 +53,7 @@ func AgentAsset(c *gin.Context) {
 		"$project": bson.D{
 			{Key: "count", Value: bson.M{"$size": "$" + assetReq.Type}},
 			{Key: "_id", Value: 0}}})
-	if countCur, err := ds.AssetC.Aggregate(
+	if countCur, err := mongo.AssetC.Aggregate(
 		context.TODO(),
 		countPipeline,
 	); err == nil {
@@ -87,7 +87,7 @@ func AgentAsset(c *gin.Context) {
 		Value: (pageReq.Page - 1) * pageReq.Size}},
 		bson.D{{Key: "$limit", Value: pageReq.Size}})
 	// get result
-	cur, err := ds.AssetC.Aggregate(
+	cur, err := mongo.AssetC.Aggregate(
 		context.TODO(),
 		pipeline,
 	)

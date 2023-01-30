@@ -3,9 +3,8 @@ package grpc
 import (
 	"context"
 	"hboat/pkg/api/common"
-	"hboat/pkg/config"
-	ds "hboat/pkg/datasource"
-	"hboat/pkg/datasource/mongo"
+	"hboat/pkg/basic/mongo"
+	"hboat/pkg/conf"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,14 +23,14 @@ type CountRsp struct {
 // An agent is online with 2 conditions. status is on, and heartbeat
 // available within 30 mins.
 func AgentCount(c *gin.Context) {
-	total, err := ds.StatusC.CountDocuments(context.Background(), bson.D{})
+	total, err := mongo.StatusC.CountDocuments(context.Background(), bson.D{})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
 	// within 5 mins, it's available
-	hbEndtime := time.Now().Unix() - config.AgentHBSec
-	online, err := ds.StatusC.CountDocuments(context.Background(), bson.M{
+	hbEndtime := time.Now().Unix() - conf.AgentHBSec
+	online, err := mongo.StatusC.CountDocuments(context.Background(), bson.M{
 		"status": true, "last_heartbeat_time": bson.M{"$gt": hbEndtime}})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
@@ -54,7 +53,7 @@ type ConnStatRsp struct {
 func AgentStat(c *gin.Context) {
 	agentid := c.Query("agent_id")
 	var as mongo.AgentStatus
-	err := ds.StatusC.FindOne(context.Background(), bson.M{"agent_id": agentid}).Decode(&as)
+	err := mongo.StatusC.FindOne(context.Background(), bson.M{"agent_id": agentid}).Decode(&as)
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
@@ -105,7 +104,7 @@ func AgentBasic(c *gin.Context) {
 	options.Skip = &skip
 	options.Limit = &pageSize
 	// find
-	cur, err := ds.StatusC.Find(context.Background(), bson.D{})
+	cur, err := mongo.StatusC.Find(context.Background(), bson.D{})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return

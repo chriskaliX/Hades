@@ -50,7 +50,14 @@ const (
 	UF_ROOTKIT_ID             WinClientNode = 212
 
 	// etw
+	UF_ETW_PROCESSINFO WinClientNode = 300
+	UF_ETW_THREADINFO  WinClientNode = 301
+	UF_ETW_IMAGEMOD    WinClientNode = 302
+	UF_ETW_NETWORK     WinClientNode = 303
+	UF_ETW_REGISTERTAB WinClientNode = 304
+	UF_ETW_FILEIO      WinClientNode = 305
 
+	// max end
 	NF_EXIT WinClientNode = 1000
 )
 
@@ -130,9 +137,22 @@ type KMonitorMod struct {
 	Win_SysMonitor_mod_sysimage string `json:"win_sysmonitor_mod_sysimage"`
 }
 type KMonitorRegtab struct {
-	Win_SysMonitor_regtab_pid     string `json:"win_sysmonitor_regtab_pid"`
-	Win_SysMonitor_regtab_tpid    string `json:"win_sysmonitor_regtab_tpid"`
-	Win_SysMonitor_regtab_opeares string `json:"win_sysmonitor_regtab_opeares"`
+	Win_SysMonitor_regtab_pid                 string `json:"win_sysmonitor_regtab_pid"`
+	Win_SysMonitor_regtab_tpid                string `json:"win_sysmonitor_regtab_tpid"`
+	Win_SysMonitor_regtab_opeares             string `json:"win_sysmonitor_regtab_opeares"`
+	win_sysmonitor_regtab_processPath         string `json:"win_sysmonitor_regtab_processPath"`
+	win_sysmonitor_regtab_rootobject          string `json:"win_sysmonitor_regtab_rootobject"`
+	win_sysmonitor_regtab_object              string `json:"win_sysmonitor_regtab_object"`
+	win_sysmonitor_regtab_type                string `json:"win_sysmonitor_regtab_type"`
+	win_sysmonitor_regtab_attributes          string `json:"win_sysmonitor_regtab_attributes"`
+	win_sysmonitor_regtab_desiredAccess       string `json:"win_sysmonitor_regtab_desiredAccess"`
+	win_sysmonitor_regtab_disposition         string `json:"win_sysmonitor_regtab_disposition"`
+	win_sysmonitor_regtab_grantedAccess       string `json:"win_sysmonitor_regtab_grantedAccess"`
+	win_sysmonitor_regtab_options             string `json:"win_sysmonitor_regtab_options"`
+	win_sysmonitor_regtab_wow64Flags          string `json:"win_sysmonitor_regtab_wow64Flags"`
+	win_sysmonitor_regtab_keyInformationClass string `json:"win_sysmonitor_regtab_keyInformationClass"`
+	win_sysmonitor_regtab_index               string `json:"win_sysmonitor_regtab_index"`
+	win_sysmonitor_regtab_completeName        string `json:"win_sysmonitor_regtab_completeName"`
 }
 type KMonitorFileInfo struct {
 	Win_SysMonitor_file_pid           string `json:"win_sysmonitor_file_pid"`
@@ -154,6 +174,12 @@ type KMonitorSession struct {
 	Win_SysMonitor_session_tpid      string `json:"win_sysmonitor_session_tpid"`
 	Win_SysMonitor_session_event     string `json:"win_sysmonitor_session_event"`
 	Win_SysMonitor_session_sessionid string `json:"win_sysmonitor_session_sessionid"`
+}
+type KMonitorInject struct {
+	win_Sysmonitor_inject_srcpid  string `json:"win_sysmonitor_inject_srcpid"`
+	win_Sysmonitor_inject_dstpid  string `json:"win_sysmonitor_inject_dstpid"`
+	win_Sysmonitor_inject_srcPath string `json:"win_sysmonitor_inject_srcPath"`
+	win_Sysmonitor_inject_dstPath string `json:"win_sysmonitor_inject_dstPath"`
 }
 type UProcessInfo struct {
 	Win_User_Process_Pid       string `json:"win_ser_process_pid"`
@@ -220,14 +246,18 @@ type UFileInfo struct {
 	Win_User_fileinfo_seFileModify         string `json:"win_user_fileinfo_seFileModify"`
 }
 type UEtwProcessinfo struct {
-	Win_Etw_processinfo_pid  string `json:"win_etw_processinfo_pid"`
-	Win_Etw_processinfo_Path string `json:"win_etw_processinfo_path"`
+	Win_Etw_processinfo_EventName string `json:"win_etw_processinfo_eventname"`
+	Win_Etw_processinfo_ParentId  string `json:"win_etw_processinfo_parentid"`
+	Win_Etw_processinfo_Status    string `json:"win_etw_processinfo_status"`
+	Win_Etw_processinfo_pid       string `json:"win_etw_processinfo_pid"`
+	Win_Etw_processinfo_Path      string `json:"win_etw_processinfo_path"`
 }
 type UEtwThreadinfo struct {
 	Win_Etw_threadinfo_pid            string `json:"win_etw_threadinfo_pid"`
 	Win_Etw_threadinfo_tid            string `json:"win_etw_threadinfo_tid"`
 	Win_Etw_threadinfo_Win32StartAddr string `json:"win_etw_threadinfo_win32startaddr"`
 	Win_Etw_threadinfo_ThreadFlags    string `json:"win_etw_threadinfo_flags"`
+	Win_Etw_threadinfo_EventName      string `json:"win_etw_threadinfo_eventname"`
 }
 type UEtwImageModinfo struct {
 	Win_Etw_imageinfo_ProcessId      string `json:"win_etw_imageinfo_processId"`
@@ -239,8 +269,18 @@ type UEtwImageModinfo struct {
 	Win_Etw_imageinfo_TimeDateStamp  string `json:"win_etw_imageinfo_timeDateStamp"`
 	Win_Etw_imageinfo_DefaultBase    string `json:"win_etw_imageinfo_defaultBase"`
 	Win_Etw_imageinfo_FileName       string `json:"win_etw_imageinfo_fileName"`
+	Win_Etw_imageinfo_EventName      string `json:"win_etw_imageinfo_eventname"`
 }
 type UEtwFileIoinfo struct {
+	Win_Etw_FileIo_EventName      string `json:"win_etw_fileio_eventname"`
+	Win_Etw_FileIo_FilePath       string `json:"win_etw_fileio_FilePath"`
+	Win_Etw_FileIo_FileName       string `json:"win_etw_fileio_FileName"`
+	Win_Etw_FileIo_Pid            string `json:"win_etw_fileio_Pid"`
+	Win_Etw_FileIo_Tid            string `json:"win_etw_fileio_Tid"`
+	Win_Etw_FileIo_FileAttributes string `json:"win_etw_fileio_FileAttributes"`
+	Win_Etw_FileIo_CreateOptions  string `json:"win_etw_fileio_CreateOptions"`
+	Win_Etw_FileIo_ShareAccess    string `json:"win_etw_fileio_ShareAccess"`
+	Win_Etw_FileIo_Offset         string `json:"win_etw_fileio_Offset"`
 }
 type UEtwResgiterTabinfo struct {
 	Win_Etw_regtab_InitialTime string `json:"win_etw_regtab_initialTime"`
@@ -248,6 +288,7 @@ type UEtwResgiterTabinfo struct {
 	Win_Etw_regtab_Index       string `json:"win_etw_regtab_index"`
 	Win_Etw_regtab_KeyHandle   string `json:"win_etw_regtab_keyHandle"`
 	Win_Etw_regtab_KeyName     string `json:"win_etw_regtab_keyName"`
+	Win_Etw_regtab_EventName   string `json:"win_etw_regtab_eventname"`
 }
 type UEtwNetWorkTabinfo struct {
 	Win_Etw_network_addressFamily   string `json:"win_network_addressfamily"`
@@ -259,25 +300,26 @@ type UEtwNetWorkTabinfo struct {
 	Win_Etw_network_processPath     string `json:"win_network_procespath"`
 	Win_Etw_network_processPathSize string `json:"win_network_processpathsize"`
 	Win_Etw_network_processId       string `json:"win_network_processid"`
+	Win_Etw_network_eventName       string `json:"win_network_eventname"`
 }
 
-// 2021-11-27 添加win客户端解析函数
-// 2022-4-4数据改版
+// 2021-11-27  v1.0 添加解析
+// 2022-4-4    v2.0 数据改版
+// 2022-9-x    v2.x 数据完善
 func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 	udata := hb["udata"]
 	// golang switch从上到下遍历去匹配 - 理论上效率和if else if 一致
-	switch dataType {
-	case 100:
+	if 100 == dataType {
 		var krootkitssdt KRootkitSsdt
 		err := json.Unmarshal([]byte(udata), &krootkitssdt)
 		if err != nil {
-			fmt.Printf("unarshar err=%v\n", err)
+			fmt.Printf("unarshar err=%v", err)
 			return
 		}
 		ssdt_id := krootkitssdt.Win_Rootkit_Ssdt_id
 		ssdt_offset := krootkitssdt.Win_Rootkit_Ssdt_offsetaddr
-		fmt.Printf("[ArkLog] sstd_id: %s - sstd_addr: %s\n", ssdt_id, ssdt_offset)
-	case 101:
+		fmt.Println("[ArkLog] sstd_id: %s - sstd_addr: %s", ssdt_id, ssdt_offset)
+	} else if 101 == dataType {
 		var krootkitidt KRootkitIdt
 		err := json.Unmarshal([]byte(udata), &krootkitidt)
 		if err != nil {
@@ -286,8 +328,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		}
 		idt_id := krootkitidt.Win_Rootkit_Idt_id
 		idt_offset := krootkitidt.Win_Rootkit_Idt_offsetaddr
-		fmt.Printf("[ArkLog] idt_id: %s - idt_addr: %s\n", idt_id, idt_offset)
-	case 103:
+		fmt.Println("[ArkLog] idt_id: %s - idt_addr: %s", idt_id, idt_offset)
+	} else if 103 == dataType {
 		var krootkitdpc KRootkitDpc
 		err := json.Unmarshal([]byte(udata), &krootkitdpc)
 		if err != nil {
@@ -298,8 +340,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		//dpctimeobj :=krootkitdpc.win_rootkit_dpc_timeobj
 		dpcrout := krootkitdpc.Win_Rootkit_Dpc_timeroutine
 		dpctime := krootkitdpc.Win_Rootkit_Dpc_periodtime
-		fmt.Printf("[ArkLog] dpcaddr: %s - dpc_time: %s - dpc_route: %s\n", dpc, dpctime, dpcrout)
-	case 108:
+		fmt.Println("[ArkLog] dpcaddr: %s - dpc_time: %s - dpc_route: %s", dpc, dpctime, dpcrout)
+	} else if 108 == dataType {
 		var krootkitfsd KRootkitFsd
 		err := json.Unmarshal([]byte(udata), &krootkitfsd)
 		if err != nil {
@@ -307,58 +349,56 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 			return
 		}
 		mod := krootkitfsd.Win_Rootkit_Fsd_fsdmod
-		if mod == "1" {
+		if "1" == mod {
 			id := krootkitfsd.Win_Rootkit_Fsd_fsdfastfat_id
 			mjaddr := krootkitfsd.Win_Rootkit_Fsd_fsdfastfat_mjaddr
-			fmt.Printf("[ArkLog] fastfatid: %s - fastfataddr: %s\n", id, mjaddr)
-		} else if mod == "2" {
+			fmt.Println("[ArkLog] fastfatid: %s - fastfataddr: %s", id, mjaddr)
+		} else if "2" == mod {
 			id := krootkitfsd.Win_Rootkit_Fsd_fsdntfs_id
 			mjaddr := krootkitfsd.Win_Rootkit_Fsd_fsdntfs_mjaddr
-			fmt.Printf("[ArkLog] ntfsid: %s - ntfsaddr: %s\n", id, mjaddr)
+			fmt.Println("[ArkLog] ntfsid: %s - ntfsaddr: %s", id, mjaddr)
 		}
-	case 109:
+	} else if 109 == dataType {
 		var krootkitmousekey kRootkitMouseKeyMod
 		err := json.Unmarshal([]byte(udata), &krootkitmousekey)
 		if err != nil {
-			fmt.Printf("unarshar err=%v\n", err)
+			fmt.Printf("unarshar err=%v", err)
 			return
 		}
 		mod := krootkitmousekey.Win_Rootkit_MouseKey_Mousekey_mod
-		switch mod {
-		case "1":
+		if "1" == mod {
 			id := krootkitmousekey.Win_Rootkit_MouseKey_Mouse_id
 			mjaddr := krootkitmousekey.Win_Rootkit_MouseKey_Mouse_mjaddr
-			fmt.Printf("[ArkLog] fastfatid: %s - fastfataddr: %s\n", id, mjaddr)
-		case "2":
+			fmt.Println("[ArkLog] fastfatid: %s - fastfataddr: %s", id, mjaddr)
+		} else if "2" == mod {
 			id := krootkitmousekey.Win_Rootkit_MouseKey_i8042_id
 			mjaddr := krootkitmousekey.Win_Rootkit_MouseKey_i8042_mjaddr
-			fmt.Printf("[ArkLog] ntfsid: %s - ntfsaddr: %s\n", id, mjaddr)
-		case "3":
+			fmt.Println("[ArkLog] ntfsid: %s - ntfsaddr: %s", id, mjaddr)
+		} else if "3" == mod {
 			id := krootkitmousekey.Win_Rootkit_MouseKey_kbd_id
 			mjaddr := krootkitmousekey.Win_Rootkit_MouseKey_kbd_mjaddr
-			fmt.Printf("[ArkLog] ntfsid: %s - ntfsaddr: %s\n", id, mjaddr)
+			fmt.Println("[ArkLog] ntfsid: %s - ntfsaddr: %s", id, mjaddr)
 		}
-	case 110:
+	} else if 110 == dataType {
 		var krootkitnet kRootkitNetWork
 		err := json.Unmarshal([]byte(udata), &krootkitnet)
 		if err != nil {
-			fmt.Printf("unarshar err=%v\n", err)
+			fmt.Printf("unarshar err=%v", err)
 			return
 		}
 		mod := krootkitnet.Win_Rootkit_Net_mod
-		switch mod {
-		case "1":
+		if "1" == mod {
 			pid := krootkitnet.Win_Rootkit_Net_tcp_pid
 			localaddrip := krootkitnet.Win_Rootkit_Net_tcp_localIp_port
 			remoteadrip := krootkitnet.Win_Rootkit_Net_tcp_remoteIp_port
 			sockStatus := krootkitnet.Win_Rootkit_Net_tcp_Status
-			fmt.Printf("[ArkLog] tcp_pid: %s - local:port %s - remote:port %s - status: %s\n", pid, localaddrip, remoteadrip, sockStatus)
-		case "2":
+			fmt.Println("[ArkLog] tcp_pid: %s - local:port %s - remote:port %s - status: %s", pid, localaddrip, remoteadrip, sockStatus)
+		} else if "2" == mod {
 			pid := krootkitnet.Win_Rootkit_Net_udp_pid
 			localaddrip := krootkitnet.Win_Rootkit_Net_udp_localIp_port
-			fmt.Printf("[ArkLog] udp_pid: %s - local:port %s\n", pid, localaddrip)
+			fmt.Println("[ArkLog] udp_pid: %s - local:port %s", pid, localaddrip)
 		}
-	case 111:
+	} else if 111 == dataType {
 		var kprocessinfo kRootkitProcessInfo
 		err := json.Unmarshal([]byte(udata), &kprocessinfo)
 		if err != nil {
@@ -367,8 +407,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		}
 		processpid := kprocessinfo.Win_Rootkit_Process_pid
 		processinfo := kprocessinfo.Win_Rootkit_Process_Info
-		fmt.Printf("pid: %s - processinfo %s\n", processpid, processinfo)
-	case 113:
+		fmt.Println("pid: %s - processinfo %s", processpid, processinfo)
+	} else if 113 == dataType {
 		var kprocessmod kRootkitProcessMod
 		err := json.Unmarshal([]byte(udata), &kprocessmod)
 		if err != nil {
@@ -381,8 +421,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		// process_modentrypoint := kprocessmod.Win_Rootkit_ProcessMod_EntryPoint
 		// process_moddllname := kprocessmod.Win_Rootkit_ProcessMod_BaseDllName
 		process_modfullname := kprocessmod.Win_Rootkit_ProcessMod_FullDllName
-		fmt.Printf("pid: %s - modpath %s\n", pid, process_modfullname)
-	case 115:
+		fmt.Println("pid: %s - modpath %s", pid, process_modfullname)
+	} else if 115 == dataType {
 		var ksysmod kRootkitSysMod
 		err := json.Unmarshal([]byte(udata), &ksysmod)
 		if err != nil {
@@ -391,8 +431,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		}
 		sysddlbase := ksysmod.Win_Rootkit_SysMod_DllBase
 		sys_modfullname := ksysmod.Win_Rootkit_SysMod_FullDllName
-		fmt.Printf("[ArkLog] sysbaseaddr: %s - syspath %s\n", sysddlbase, sys_modfullname)
-	case 150:
+		fmt.Println("[ArkLog] sysbaseaddr: %s - syspath %s", sysddlbase, sys_modfullname)
+	} else if 150 == dataType {
 		var kmonprocess KMonitorProcess
 		err := json.Unmarshal([]byte(udata), &kmonprocess)
 		if err != nil {
@@ -403,16 +443,16 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		sysmon_pro_pid := kmonprocess.Win_SysMonitor_process_pid
 		sysmon_pro_endpro := kmonprocess.Win_SysMonitor_process_endprocess
 		sysmon_pro_queryprocesspath := kmonprocess.Win_SysMonitor_process_queryprocesspath
-		if sysmon_pro_endpro == "1" {
+		if "1" == sysmon_pro_endpro {
 			// 启动进程
 			//sysmon_pro_processpath := kmonprocess.Win_SysMonitor_process_processpath
 			sysmon_pro_commandLine := kmonprocess.Win_SysMonitor_process_commandLine
-			fmt.Printf("[SysMonitor] Peocess Start - Parentpid: %s Pid: %s querypath %s cmdline %s\n", sysmon_pro_parentpid, sysmon_pro_pid, sysmon_pro_queryprocesspath, sysmon_pro_commandLine)
+			fmt.Println("[SysMonitor] Peocess Start - Parentpid: %s Pid: %s querypath %s cmdline %s", sysmon_pro_parentpid, sysmon_pro_pid, sysmon_pro_queryprocesspath, sysmon_pro_commandLine)
 			return
 		}
 		// 结束进程
-		fmt.Printf("[SysMonitor] Peocess End - Parentpid: %s Pid: %s querypath %s\n", sysmon_pro_parentpid, sysmon_pro_pid, sysmon_pro_queryprocesspath)
-	case 151:
+		fmt.Println("[SysMonitor] Peocess End - Parentpid: %s Pid: %s querypath %s", sysmon_pro_parentpid, sysmon_pro_pid, sysmon_pro_queryprocesspath)
+	} else if 151 == dataType {
 		var kmonthread KMonitorThread
 		err := json.Unmarshal([]byte(udata), &kmonthread)
 		if err != nil {
@@ -422,8 +462,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		sysmon_thr_pid := kmonthread.Win_SysMonitor_thread_pid
 		sysmon_thr_tpid := kmonthread.Win_SysMonitor_thread_id
 		sysmon_thr_status := kmonthread.Win_SysMonitor_thread_status
-		fmt.Printf("[SysMonitor] Thread:%s Tid:%s Status:%s\n", sysmon_thr_pid, sysmon_thr_tpid, sysmon_thr_status)
-	case 152:
+		fmt.Println("[SysMonitor] Thread:%d Tid:%d Status:%d ", sysmon_thr_pid, sysmon_thr_tpid, sysmon_thr_status)
+	} else if 152 == dataType {
 		var kmonmod KMonitorMod
 		err := json.Unmarshal([]byte(udata), &kmonmod)
 		if err != nil {
@@ -435,8 +475,8 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		sysmon_mod_size := kmonmod.Win_SysMonitor_mod_size
 		sysmon_mod_path := kmonmod.Win_SysMonitor_mod_path
 		sysmon_mod_sysimage := kmonmod.Win_SysMonitor_mod_sysimage
-		fmt.Printf("[SysMonitor] Image pid: %s base: %s size: %s path: %s, image:%s\n", sysmon_mod_pid, sysmon_mod_base, sysmon_mod_size, sysmon_mod_path, sysmon_mod_sysimage)
-	case 153:
+		fmt.Println("[SysMonitor] Image pid: %d base: %d size: %d path: %s", sysmon_mod_pid, sysmon_mod_base, sysmon_mod_size, sysmon_mod_path, sysmon_mod_sysimage)
+	} else if 153 == dataType {
 		var kmonreg KMonitorRegtab
 		err := json.Unmarshal([]byte(udata), &kmonreg)
 		if err != nil {
@@ -447,7 +487,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		sysmon_reg_tpid := kmonreg.Win_SysMonitor_regtab_tpid
 		sysmon_reg_opeare := kmonreg.Win_SysMonitor_regtab_opeares
 		fmt.Println("[SysMonitor] register", sysmon_reg_pid, sysmon_reg_tpid, sysmon_reg_opeare)
-	case 154:
+	} else if 154 == dataType {
 		var kmonfileobj KMonitorFileInfo
 		err := json.Unmarshal([]byte(udata), &kmonfileobj)
 		if err != nil {
@@ -468,7 +508,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		// sysmon_file_SharedDelete := hb["win_sysmonitor_file_SharedDelete"]
 		// sysmon_file_flag := hb["win_sysmonitor_file_flag"]
 		fmt.Println("[SysMonitor] file", sysmon_file_pid, sysmon_file_dosname, sysmon_file_name)
-	case 155:
+	} else if 155 == dataType {
 		var kmonsessionobj KMonitorSession
 		err := json.Unmarshal([]byte(udata), &kmonsessionobj)
 		if err != nil {
@@ -479,8 +519,20 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		// sysmon_session_tpid := hb["win_sysmonitor_session_tpid"]
 		sysmon_session_event := kmonsessionobj.Win_SysMonitor_session_event
 		sysmon_session_id := kmonsessionobj.Win_SysMonitor_session_sessionid
-		fmt.Printf("[SysMonitor] session pid:%s event:%s sessionid:%s\n", sysmon_session_pid, sysmon_session_event, sysmon_session_id)
-	case 200:
+		fmt.Println("[SysMonitor] session pid:%s event:%s sessionid:%s", sysmon_session_pid, sysmon_session_event, sysmon_session_id)
+	} else if 156 == dataType {
+		var kmoninjectobj KMonitorInject
+		err := json.Unmarshal([]byte(udata), &kmoninjectobj)
+		if err != nil {
+			fmt.Printf("unarshar err=%v", err)
+			return
+		}
+		sysmon_inject_srcPid := kmoninjectobj.win_Sysmonitor_inject_srcpid
+		sysmon_inject_srcPath := kmoninjectobj.win_Sysmonitor_inject_srcPath
+		sysmon_inject_dstPid := kmoninjectobj.win_Sysmonitor_inject_dstpid
+		sysmon_inject_dstPath := kmoninjectobj.win_Sysmonitor_inject_dstPath
+		fmt.Println("[SysMonitor] inject srPid:%s srcPath:%s dstPid:%s dstPath:%s", sysmon_inject_srcPid, sysmon_inject_srcPath, sysmon_inject_dstPid, sysmon_inject_dstPath)
+	} else if 200 == dataType {
 		var uprocessinfo UProcessInfo
 		err := json.Unmarshal([]byte(udata), &uprocessinfo)
 		if err != nil {
@@ -494,20 +546,20 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_process_path := uprocessinfo.Win_User_Process_Path
 		usermon_process_szexe := uprocessinfo.Win_User_Process_szExeFile
 		fmt.Println("[UserLog]: Processinfo ", usermon_process_pid, usermon_process_pribase, usermon_process_thrcout, usermon_process_parenid, usermon_process_path, usermon_process_szexe)
-	case 201:
-	case 202:
+	} else if 201 == dataType {
+	} else if 202 == dataType {
 		var uautorun UAutoRun
 		err := json.Unmarshal([]byte(udata), &uautorun)
 		if err != nil {
 			fmt.Printf("unarshar err=%v", err)
 			return
 		}
-		switch uautorun.Win_User_autorun_flag {
-		case "1":
+		usermon_autorun_flag := uautorun.Win_User_autorun_flag
+		if "1" == usermon_autorun_flag {
 			usermon_autorun_regname := uautorun.Win_User_autorun_regName
 			usermon_autorun_regkey := uautorun.Win_User_autorun_regKey
 			fmt.Println("[UserLog]: AutoRunReg ", usermon_autorun_regname, usermon_autorun_regkey)
-		case "2":
+		} else if "2" == usermon_autorun_flag {
 			usermon_autorun_tscname := uautorun.Win_User_autorun_tschname
 			usermon_autorun_tscstatus := uautorun.Win_User_autorun_tscState
 			usermon_autorun_tsclasttime := uautorun.Win_User_autorun_tscLastTime
@@ -515,26 +567,26 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 			usermon_autorun_tsccommand := uautorun.Win_User_autorun_tscCommand
 			fmt.Println("[UserLog]: AutoRunRegTsch ", usermon_autorun_tscname, usermon_autorun_tscstatus, usermon_autorun_tsclasttime, usermon_autorun_tscnexttime, usermon_autorun_tsccommand)
 		}
-	case 203:
+	} else if 203 == dataType {
 		var unet UNet
 		err := json.Unmarshal([]byte(udata), &unet)
 		if err != nil {
 			fmt.Printf("unarshar err=%v", err)
 			return
 		}
-		switch unet.Win_User_net_flag {
-		case "1":
+		usermon_net_flag := unet.Win_User_net_flag
+		if "1" == usermon_net_flag {
 			usermon_net_src := unet.Win_User_net_src
 			usermon_net_dst := unet.Win_User_net_dst
 			usermon_net_status := unet.Win_User_net_status
 			usermon_net_pid := unet.Win_User_net_pid
-			fmt.Printf("[UserLog]: NetworkTcp %s, %s, %s, %s\n", usermon_net_src, usermon_net_dst, usermon_net_status, usermon_net_pid)
-		case "2":
+			fmt.Println("[UserLog]: NetworkTcp ", usermon_net_src, usermon_net_dst, usermon_net_status, usermon_net_pid)
+		} else if "2" == usermon_net_flag {
 			usermon_net_src := unet.Win_User_net_src
 			usermon_net_pid := unet.Win_User_net_pid
 			fmt.Println("[UserLog]: NetworkUdp ", usermon_net_src, usermon_net_pid)
 		}
-	case 207:
+	} else if 207 == dataType {
 		var uaccount UAccount
 		err := json.Unmarshal([]byte(udata), &uaccount)
 		if err != nil {
@@ -546,22 +598,22 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_user_sid := uaccount.Win_User_sysuser_sid
 		usermon_user_flag := uaccount.Win_User_sysuser_flag
 		fmt.Println("[UserLog]: Account ", usermon_user_user, usermon_user_name, usermon_user_sid, usermon_user_flag)
-	case 208:
+	} else if 208 == dataType {
 		var usoftwareserver USoftwareServer
 		err := json.Unmarshal([]byte(udata), &usoftwareserver)
 		if err != nil {
 			fmt.Printf("unarshar err=%v", err)
 			return
 		}
-		switch usoftwareserver.Win_User_softwareserver_flag {
-		case "1":
+		usermon_softwareServer_flag := usoftwareserver.Win_User_softwareserver_flag
+		if "1" == usermon_softwareServer_flag {
 			usermon_software_Name := usoftwareserver.Win_User_server_lpsName
 			usermon_software_DName := usoftwareserver.Win_User_server_lpdName
 			usermon_software_Path := usoftwareserver.Win_User_server_lpPath
 			usermon_software_Descr := usoftwareserver.Win_User_server_lpDescr
 			usermon_software_status := usoftwareserver.Win_User_server_status
 			fmt.Println("[UserLog]: Software ", usermon_software_Name, usermon_software_DName, usermon_software_Path, usermon_software_Descr, usermon_software_status)
-		case "2":
+		} else if "2" == usermon_softwareServer_flag {
 			// usermon_server_Name := hb["win_user_software_lpsName"]
 			// usermon_server_Size := hb["win_user_software_Size"]
 			// usermon_server_Ver := hb["win_user_software_Ver"]
@@ -570,23 +622,23 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 			// usermon_server_data := hb["win_user_software_data"]
 			// usermon_server_venrel := hb["win_user_software_venrel"]
 		}
-	case 209:
+	} else if 209 == dataType {
 		var udriectinfo UDriectInfo
 		err := json.Unmarshal([]byte(udata), &udriectinfo)
 		if err != nil {
 			fmt.Printf("unarshar err=%v", err)
 			return
 		}
-		switch udriectinfo.Win_User_driectinfo_flag {
-		case "1":
+		usermon_driectinfo_flag := udriectinfo.Win_User_driectinfo_flag
+		if "1" == usermon_driectinfo_flag {
 			// usermon_driectinfo_filecout := hb["win_user_driectinfo_filecout"]
 			// usermon_driectinfo_size := hb["win_user_driectinfo_size"]
-		case "2":
+		} else if "2" == usermon_driectinfo_flag {
 			// hb["win_user_driectinfo_filename"]
 			// hb["win_user_driectinfo_filePath"]
 			// hb["win_user_driectinfo_fileSize"]
 		}
-	case 210:
+	} else if 210 == dataType {
 		var ufileinfo UFileInfo
 		err := json.Unmarshal([]byte(udata), &ufileinfo)
 		if err != nil {
@@ -601,7 +653,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		// hb["win_user_fileinfo_seFileAccess"]
 		// hb["win_user_fileinfo_seFileCreate"]
 		// hb["win_user_fileinfo_seFileModify"]
-	case 300:
+	} else if 300 == dataType {
 		var uetwprocessinfo UEtwProcessinfo
 		err := json.Unmarshal([]byte(udata), &uetwprocessinfo)
 		if err != nil {
@@ -611,7 +663,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_etw_process_pid := uetwprocessinfo.Win_Etw_processinfo_pid
 		usermon_etw_process_path := uetwprocessinfo.Win_Etw_processinfo_Path
 		fmt.Println("[EtwMonitor]: ProcessInfo: ", usermon_etw_process_pid, usermon_etw_process_path)
-	case 301:
+	} else if 301 == dataType {
 		var uetwthreadinfo UEtwThreadinfo
 		err := json.Unmarshal([]byte(udata), &uetwthreadinfo)
 		if err != nil {
@@ -621,7 +673,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_etw_thread_pid := uetwthreadinfo.Win_Etw_threadinfo_pid
 		usermon_etw_thread_tid := uetwthreadinfo.Win_Etw_threadinfo_tid
 		fmt.Println("[EtwMonitor]: ThreadInfo: ", usermon_etw_thread_pid, usermon_etw_thread_tid)
-	case 302:
+	} else if 302 == dataType {
 		var uetwimageinfo UEtwImageModinfo
 		err := json.Unmarshal([]byte(udata), &uetwimageinfo)
 		if err != nil {
@@ -632,7 +684,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_etw_image_Baseaddr := uetwimageinfo.Win_Etw_imageinfo_ImageBase
 		usermon_etw_image_FileName := uetwimageinfo.Win_Etw_imageinfo_FileName
 		fmt.Println("[EtwMonitor]: ImageInfo: ", usermon_etw_image_pid, usermon_etw_image_Baseaddr, usermon_etw_image_FileName)
-	case 303:
+	} else if 303 == dataType {
 		var uetwnetworkinfo UEtwNetWorkTabinfo
 		err := json.Unmarshal([]byte(udata), &uetwnetworkinfo)
 		if err != nil {
@@ -644,7 +696,7 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_etw_network_localaddrport := uetwnetworkinfo.Win_Etw_network_LocalAddr + ":" + uetwnetworkinfo.Win_Etw_network_toLocalPort
 		usermon_etw_network_Remoteport := uetwnetworkinfo.Win_Etw_network_RemoteAddr + ":" + uetwnetworkinfo.Win_Etw_network_toRemotePort
 		fmt.Println("[EtwMonitor]: NetworkInfo: ", usermon_etw_network_pid, usermon_etw_network_protocol, usermon_etw_network_localaddrport, usermon_etw_network_Remoteport)
-	case 304:
+	} else if 304 == dataType {
 		var uetwregistertab UEtwResgiterTabinfo
 		err := json.Unmarshal([]byte(udata), &uetwregistertab)
 		if err != nil {
@@ -654,10 +706,17 @@ func ParseWinDataDispatch(hb map[string]string, req *pb.RawData, dataType int) {
 		usermon_etw_regtab_KeyHandle := uetwregistertab.Win_Etw_regtab_KeyHandle
 		usermon_etw_regtab_KeyName := uetwregistertab.Win_Etw_regtab_KeyName
 		fmt.Println("[EtwMonitor]: RegisterTab: ", usermon_etw_regtab_KeyHandle, usermon_etw_regtab_KeyName)
-	case 401, 402, 403, 404:
-		// Etw mon enable
-		// Etw mon disable
-		// Kernel mon enable
-		// Kernel mon disable
+	} else if 401 == dataType { // Etw mon enable
+		fmt.Println(udata)
+	} else if 402 == dataType { // Etw mon disable
+		fmt.Println(udata)
+	} else if 403 == dataType { // Kernel mon enable
+		fmt.Println(udata)
+	} else if 404 == dataType { // Kernel mon disable
+		fmt.Println(udata)
+	} else if 405 == dataType {
+		fmt.Println(udata)
+	} else if 406 == dataType {
+		fmt.Println(udata)
 	}
 }

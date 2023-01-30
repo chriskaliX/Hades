@@ -1,4 +1,4 @@
-package datasource
+package redis
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-var RedisInst redis.UniversalClient
+var Inst redis.UniversalClient
 
 type RedisMode int
 
@@ -35,7 +35,7 @@ func NewRedisClient(addrs []string, masterName, password string, mode RedisMode)
 		if err != nil {
 			return err
 		}
-		RedisInst = client
+		Inst = client
 		return nil
 	// Cluster
 	case RedisModeCluster:
@@ -48,7 +48,7 @@ func NewRedisClient(addrs []string, masterName, password string, mode RedisMode)
 		if err != nil {
 			return err
 		}
-		RedisInst = client
+		Inst = client
 		return nil
 	case RedisModeSingle:
 		opts := &redis.Options{
@@ -60,7 +60,7 @@ func NewRedisClient(addrs []string, masterName, password string, mode RedisMode)
 		if err != nil {
 			return err
 		}
-		RedisInst = client
+		Inst = client
 		return nil
 	default:
 		return fmt.Errorf("redis mode %d is not valid", mode)

@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/rs/xid"
 )
 
 func init() {
@@ -17,4 +20,8 @@ func RandStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+func GenerateSession() string {
+	return fmt.Sprintf("session-%s-%s", xid.New(), xid.New())
 }

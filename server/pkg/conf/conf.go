@@ -1,4 +1,4 @@
-package config
+package conf
 
 // MongoDB related
 const MongoURI = "mongodb://localhost:27017"
@@ -16,3 +16,7 @@ const AgentHBSec = 300
 
 // User related
 const UserSessionLifetimeMin = 120
+
+// Token key
+const TokenKey = "token"
+const IsAuth = true
