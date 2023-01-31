@@ -55,6 +55,7 @@ func init() {
 		Memory = m.Total
 	}
 	bootTime, _ = host.BootTime()
+	arch, _ = host.KernelArch()
 
 	addMetric(&AgentMetric{})
 }
