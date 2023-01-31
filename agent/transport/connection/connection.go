@@ -53,12 +53,16 @@ var GrpcAddr string
 var InsecureTransport bool
 var InsecureTLS bool
 
-var DefaultConn = New()
+var defaultConn *Connection
 
-// Get the connection from gRPCConn
+// Get the connection from gRPC
 func GetConnection(ctx context.Context) (conn *grpc.ClientConn, err error) {
+	// init default connection within GetConnection
+	if defaultConn == nil {
+		defaultConn = New()
+	}
 	var ok bool
-	conn, ok = DefaultConn.Conn.Load().(*grpc.ClientConn)
+	conn, ok = defaultConn.Conn.Load().(*grpc.ClientConn)
 	if ok {
 		// Connection pre check
 		switch conn.GetState() {
@@ -70,10 +74,15 @@ func GetConnection(ctx context.Context) (conn *grpc.ClientConn, err error) {
 			return conn, nil
 		}
 	}
-	if err = connection.IRetry(ctx, DefaultConn); err != nil {
+	if err = connection.IRetry(ctx, defaultConn); err != nil {
 		return nil, err
 	}
-	return conn, nil
+	// reset the conn if retry success
+	conn, ok = defaultConn.Conn.Load().(*grpc.ClientConn)
+	if ok {
+		return conn, nil
+	}
+	return nil, errors.New("getconnection failed")
 }
 
 var _ connection.INetRetry = (*Connection)(nil)
@@ -91,6 +100,7 @@ func New() *Connection {
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithStatsHandler(&DefaultStatsHandler),
+			grpc.WithReturnConnectionError(),
 		},
 		Addr: GrpcAddr,
 	}

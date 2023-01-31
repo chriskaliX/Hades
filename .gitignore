@@ -46,6 +46,7 @@ plugins/edr/kern/headers/libbpf
 
 # test
 plugins/ebpfdriver/test/dist/*.txt
+machine-id
 
 # rust-demo
 target

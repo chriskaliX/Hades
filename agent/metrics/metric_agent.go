@@ -156,9 +156,8 @@ func (m *AgentMetric) Flush(now time.Time) {
 		}
 		daemon.SdNotify(false, "WATCHDOG=1")
 	}
-
 	fields := make(map[string]string, 28)
-	if err := mapstructure.Decode(m, fields); err == nil {
+	if err := mapstructure.Decode(m, &fields); err == nil {
 		rec := &proto.Record{
 			DataType:  config.DTPluginStatus,
 			Timestamp: now.Unix(),
@@ -167,5 +166,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 			},
 		}
 		transport.DefaultTrans.Transmission(rec, false)
+	} else {
+		zap.S().Error(err)
 	}
 }

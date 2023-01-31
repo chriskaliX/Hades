@@ -3,7 +3,7 @@
 # check https://nfpm.goreleaser.com/configuration for detailed usage
 #
 name: "hades-agent"
-arch: "amd64"
+arch: "arm64"
 platform: "linux"
 epoch: 3
 version: v1.1.0
