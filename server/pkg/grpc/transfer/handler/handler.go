@@ -150,6 +150,7 @@ func handleData(req *pb.RawData, conn *pool.Connection) {
 					data[k] = v
 				}
 			}
+			fmt.Println(data)
 			conn.LastHBTime = time.Now().Unix()
 			mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
 				bson.M{"$set": bson.M{"agent_detail": data, "last_heartbeat_time": conn.LastHBTime}})

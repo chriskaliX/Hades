@@ -71,7 +71,7 @@ func (m *PluginMetric) Flush(now time.Time) {
 		m.Grs = strconv.Itoa(runtime.NumGoroutine())
 
 		fields := make(map[string]string, 20)
-		if err := mapstructure.Decode(m, fields); err == nil {
+		if err := mapstructure.Decode(m, &fields); err == nil {
 			rec := &proto.Record{
 				DataType:  config.DTPluginStatus,
 				Timestamp: now.Unix(),

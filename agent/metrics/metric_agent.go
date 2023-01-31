@@ -156,10 +156,10 @@ func (m *AgentMetric) Flush(now time.Time) {
 		}
 		daemon.SdNotify(false, "WATCHDOG=1")
 	}
-	fields := make(map[string]string, 28)
+	fields := make(map[string]string, 32)
 	if err := mapstructure.Decode(m, &fields); err == nil {
 		rec := &proto.Record{
-			DataType:  config.DTPluginStatus,
+			DataType:  config.DTAgentStatus,
 			Timestamp: now.Unix(),
 			Data: &proto.Payload{
 				Fields: fields,
