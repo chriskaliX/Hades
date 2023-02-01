@@ -3,19 +3,18 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"hboat/pkg/basic/mongo"
+	"hboat/pkg/grpc/handler"
 	"hboat/pkg/grpc/transfer/pool"
 	pb "hboat/pkg/grpc/transfer/proto"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/peer"
 )
 
@@ -58,7 +57,6 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error
 	// Data update, also, update the address of the grpc for sendcommand
 	// TODO: use channel or just put in kafka
 	options := options.Update().SetUpsert(true)
-
 	_, err = mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
 		bson.M{"$set": bson.M{
 			"addr":                addr,
@@ -109,113 +107,16 @@ func recvData(stream pb.Transfer_TransferServer, conn *pool.Connection) {
 			if err != nil {
 				return
 			}
-			handleData(data, conn)
-		}
-	}
-}
-
-// handleData handles received data
-//
-// TODO: heartbeat to influxdb or ES
-// Handle processes
-func handleData(req *pb.RawData, conn *pool.Connection) {
-	intranet_ipv4 := strings.Join(req.IntranetIPv4, ",")
-	intranet_ipv6 := strings.Join(req.IntranetIPv6, ",")
-	extranet_ipv4 := strings.Join(req.ExtranetIPv4, ",")
-	extranet_ipv6 := strings.Join(req.ExtranetIPv6, ",")
-
-	for _, value := range req.GetData() {
-		dataType := value.DataType
-		switch {
-		// agent-heartbeat
-		case dataType == 1:
-			data := make(map[string]interface{}, 40)
-			data["intranet_ipv4"] = intranet_ipv4
-			data["intranet_ipv6"] = intranet_ipv6
-			data["extranet_ipv4"] = extranet_ipv4
-			data["extranet_ipv6"] = extranet_ipv6
-			data["product"] = req.Product
-			data["hostname"] = req.Hostname
-			data["version"] = req.Version
-			for k, v := range value.Body.Fields {
-				// skip special field, hard-code
-				if k == "platform_version" || k == "version" {
-					data[k] = v
+			for _, value := range data.GetData() {
+				dataType := value.DataType
+				eventHandler := handler.EventHandler[dataType]
+				err := eventHandler.Handle(value.Body.Fields, data, conn)
+				if err != nil {
+					zap.S().Error(err)
 					continue
 				}
-				fv, err := strconv.ParseFloat(v, 64)
-				if err == nil {
-					data[k] = fv
-				} else {
-					data[k] = v
-				}
+				// TODO: kafka upload here
 			}
-			fmt.Println(data)
-			conn.LastHBTime = time.Now().Unix()
-			mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
-				bson.M{"$set": bson.M{"agent_detail": data, "last_heartbeat_time": conn.LastHBTime}})
-			conn.SetAgentDetail(data)
-		// plugin-heartbeat
-		case dataType == 2:
-			data := make(map[string]interface{})
-			for k, v := range value.Body.Fields {
-				// skip special field, hard-code
-				if k == "pversion" {
-					data[k] = v
-					continue
-				}
-				fv, err := strconv.ParseFloat(v, 64)
-				if err == nil {
-					data[k] = fv
-				} else {
-					data[k] = v
-				}
-			}
-			// Added heartbeat_time with plugin
-			data["last_heartbeat_time"] = time.Now().Unix()
-			// Do not cover on this
-			mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
-				bson.M{"$set": bson.M{"plugin_detail." + value.Body.Fields["name"]: data}})
-			conn.SetPluginDetail(value.Body.Fields["name"], data)
-		case dataType == 2001, dataType == 1001, dataType == 5001, dataType == 3004:
-			var field string
-			switch dataType {
-			case 5001:
-				field = "sockets"
-			case 3004:
-				field = "users"
-			case 1001:
-				field = "processes"
-			case 2001:
-				field = "crons"
-			}
-			data := make([]map[string]interface{}, 0)
-			err := json.Unmarshal([]byte(value.Body.Fields["data"]), &data)
-			if err != nil {
-				return
-			}
-			options := options.Update().SetUpsert(true)
-
-			if _, err = mongo.AssetC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
-				bson.M{"$set": bson.M{field: data}}, options); err != nil {
-				//log
-				return
-			}
-		// For now, we only take care some basic record from linux and windows, like processes,
-		// sockets and so on, which should be collected by plugin collector. The others datas,
-		// just put it in kafka. Maybe, we'll update the agent, let the agent upload these to
-		// kafka directly
-		//
-		// TODO: kafka upload under dev
-
-		// windows
-		case dataType >= 100 && dataType <= 400:
-			for _, item := range req.Item {
-				// backport for windows for temp
-				ParseWinDataDispatch(item.Fields, req, int(dataType))
-			}
-		default:
-			// TODO
 		}
 	}
 }

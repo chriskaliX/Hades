@@ -2,7 +2,6 @@ package conf
 
 // MongoDB related
 const MongoURI = "mongodb://localhost:27017"
-const MAgentStatusCollection = "agentstatus"
 
 // redis related
 const RedisMode = 2 // single

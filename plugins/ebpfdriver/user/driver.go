@@ -31,6 +31,8 @@ import (
 	"github.com/shirou/gopsutil/host"
 )
 
+var bytecode []byte
+
 // config
 const configMap = "config_map"
 const confDenyBPF uint32 = 0
@@ -301,6 +303,9 @@ func (d *Driver) mapUpdate(name string, key uint32, value interface{}) error {
 	return bpfmap.Update(key, value, ebpf.UpdateAny)
 }
 
+// Here is the other thing, since CO-RE is really useful, we can still embed the
+// CO-RE bytecode into the driver binary, but we do check the BTF enabled option,
+// and download the bytecode to override the embeded bytecode.
 func downloadBytecode() (driverName string, err error) {
 	// TODO: load driver bytecode dynamiclly by downloading, make the
 	// sha256 of ebpfdriver userspace stay the same

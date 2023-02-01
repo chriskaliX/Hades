@@ -2,7 +2,6 @@ package mongo
 
 import (
 	"context"
-	"hboat/pkg/conf"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,7 +42,7 @@ func NewMongoDB(uri string, poolsize uint64) error {
 	}
 	Inst = mongoClient
 
-	StatusC = Inst.Database(Database).Collection(conf.MAgentStatusCollection)
+	StatusC = Inst.Database(Database).Collection(AgentStatusCol)
 	PluginC = Inst.Database(Database).Collection(PluginCol)
 	AssetC = Inst.Database(Database).Collection(AssetCol)
 	UserC = Inst.Database(Database).Collection(UserCol)
