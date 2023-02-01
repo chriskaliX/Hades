@@ -27,7 +27,7 @@ func (a AgentStatus) IsOnline() bool {
 	if !a.Status {
 		return false
 	}
-	if time.Now().Unix()-baseTime <= conf.AgentHBSec {
+	if time.Now().Unix()-baseTime <= int64(conf.Config.Backend.AgentHBOfflineSec) {
 		return true
 	}
 	return false

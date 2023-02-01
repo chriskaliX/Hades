@@ -35,7 +35,7 @@ func Login(c *gin.Context) {
 	}
 	// success, set the session
 	sessionid := utils.GenerateSession()
-	duration := conf.UserSessionLifetimeMin * time.Minute
+	duration := time.Duration(conf.Config.Backend.UserSessionLifetimeMin) * time.Minute
 	if err := redis.Inst.Set(context.Background(), sessionid, req.Username, duration).Err(); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
@@ -45,7 +45,7 @@ func Login(c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
-	token := c.GetHeader(conf.TokenKey)
+	token := c.GetHeader("token")
 	err := redis.Inst.Del(context.Background(), token).Err()
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())

@@ -29,7 +29,7 @@ func AgentCount(c *gin.Context) {
 		return
 	}
 	// within 5 mins, it's available
-	hbEndtime := time.Now().Unix() - conf.AgentHBSec
+	hbEndtime := time.Now().Unix() - conf.Config.Backend.AgentHBOfflineSec
 	online, err := mongo.StatusC.CountDocuments(context.Background(), bson.M{
 		"status": true, "last_heartbeat_time": bson.M{"$gt": hbEndtime}})
 	if err != nil {

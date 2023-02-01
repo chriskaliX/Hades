@@ -13,7 +13,7 @@ import (
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// auth 开关
-		if !conf.IsAuth {
+		if !conf.Config.Backend.Auth {
 			c.Next()
 			return
 		}

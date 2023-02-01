@@ -6,6 +6,7 @@ import (
 	"hboat/pkg/api/host"
 	"hboat/pkg/api/plugin"
 	"hboat/pkg/api/user"
+	"hboat/pkg/middleware"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -29,6 +30,13 @@ func CorsHandler() gin.HandlerFunc {
 	}
 }
 
+// regist the frontend
+// func routerFrontend(r *gin.Engine) {
+// 	staticHandler := func(ctx *gin.Context) {
+
+// 	}
+// }
+
 func RunGrpcServer(port int) {
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
@@ -36,6 +44,7 @@ func RunGrpcServer(port int) {
 		AllowMethods: []string{"POST, GET, OPTIONS, PUT, DELETE,UPDATE"},
 		AllowHeaders: []string{"*"},
 	}))
+	router.Use(middleware.Auth())
 	// user related
 	userGroup := router.Group("/api/v1/user")
 	userGroup.POST("/login", user.Login)

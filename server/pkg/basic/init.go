@@ -15,14 +15,14 @@ import (
 
 func Init() error {
 	// init the datasources
-	if err := mongo.NewMongoDB(conf.MongoURI, 5); err != nil {
+	if err := mongo.NewMongoDB(conf.Config.Mongo.URI, conf.Config.Mongo.PoolSize); err != nil {
 		return err
 	}
 	if err := redis.NewRedisClient(
-		conf.RedisAddrs,
-		conf.RedisMasterName,
-		conf.RedisPassword,
-		conf.RedisMode); err != nil {
+		conf.Config.Redis.Addrs,
+		conf.Config.Redis.MasterName,
+		conf.Config.Redis.Password,
+		redis.RedisMode(conf.Config.Redis.Mode)); err != nil {
 		return err
 	}
 	// init the admin
