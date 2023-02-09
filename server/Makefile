@@ -14,6 +14,10 @@ pre_show:
 	$(MAKE) clean -s --no-print-directory
 	@printf "$(INFO_COLOR) Start to build Cmd tool\n"
 
-.PHONY:clean
+.PHONY: clean
 clean:
 	rm -f hboat
+
+.PHONY: build
+build:
+	cd frontend && npm run build && cd ..

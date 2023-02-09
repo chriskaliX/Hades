@@ -8,7 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
+
+var whitelist = []string{
+	"/api/v1/user/login",
+}
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -17,7 +22,11 @@ func Auth() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		// TODO: whitelist should be added
+		// Whitelist for frontend
+		if slices.Contains(whitelist, c.Request.URL.Path) {
+			c.Next()
+			return
+		}
 
 		// start check
 		token := c.GetHeader("token")
