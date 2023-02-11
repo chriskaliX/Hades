@@ -74,8 +74,9 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 				continue
 			}
 			sockets[index].PID = pid
-			proc := process.Pool.Get()
-			proc.PID = pid
+			proc := &process.Process{
+				PID: pid,
+			}
 			if err = proc.GetStat(false); err == nil {
 				sockets[index].Comm = proc.Name
 			}

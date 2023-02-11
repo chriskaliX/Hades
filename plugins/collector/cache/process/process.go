@@ -3,7 +3,6 @@ package process
 import (
 	"bufio"
 	"bytes"
-	"collector/cache"
 	ns "collector/cache/namespace"
 	"collector/utils"
 	"errors"
@@ -50,27 +49,6 @@ type Process struct {
 	Rss        uint64  `json:"resmem,omitempty"`
 	Vsize      uint64  `json:"virmem,omitempty"`
 	Cpu        float64 `json:"cpu,omitempty"`
-}
-
-func (p *Process) reset() {
-	p.CgroupId = 0
-	p.Pns = 0
-	p.RootPns = cache.RootPns
-	p.PID = 0
-	p.TID = 0
-	p.PPID = 0
-	p.Name = ""
-	p.Argv = ""
-	p.Exe = ""
-	p.Hash = ""
-	p.UID = 0
-	p.Username = ""
-	p.Cwd = ""
-	p.Session = 0
-	p.Stdin = ""
-	p.Stdout = ""
-	p.PidTree = ""
-	p.NodeName = ""
 }
 
 // In promthues/procfs, it returns out that in every disros that they researched, USER_HZ

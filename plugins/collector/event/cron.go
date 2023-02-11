@@ -226,13 +226,13 @@ func (c *Crontab) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				}
 				if len(tmp) > 0 {
 					if data, err := sonic.Marshal(tmp); err == nil {
-						rawdata := make(map[string]string)
-						rawdata["data"] = string(data)
 						rec := &protocol.Record{
 							DataType:  2001,
 							Timestamp: time.Now().Unix(),
 							Data: &protocol.Payload{
-								Fields: rawdata,
+								Fields: map[string]string{
+									"data": string(data),
+								},
 							},
 						}
 						s.SendRecord(rec)

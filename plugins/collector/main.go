@@ -39,12 +39,11 @@ func main() {
 		},
 	}
 	// sandbox init
-	sandbox := SDK.NewSandbox()
-	if err := sandbox.Init(sconfig); err != nil {
-		return
-	}
+	sandbox := SDK.NewSandbox(sconfig)
 	em := eventmanager.New(sandbox)
+	// TODO: sync.Cond
 	// Add events
+	em.AddEvent(&event.Container{}, 5*time.Minute, eventmanager.Snapshot)
 	em.AddEvent(&event.Crontab{}, eventmanager.Start, eventmanager.None)
 	em.AddEvent(&event.Process{}, 15*time.Minute, eventmanager.Snapshot)
 	em.AddEvent(&event.Socket{}, 10*time.Minute, eventmanager.Snapshot)

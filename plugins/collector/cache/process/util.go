@@ -65,7 +65,7 @@ func GetPids(limit int) (pids []int, err error) {
 
 // get single process information by it's pid
 func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
-	proc = Pool.Get()
+	proc = &Process{}
 	proc.PID = pid
 	if err = proc.GetStatus(); err != nil {
 		return
