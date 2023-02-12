@@ -50,7 +50,7 @@ type Client struct {
 
 func NewClient() *Client {
 	return &Client{
-		m: make(map[string]Runtime),
+		m: make(map[string]Runtime, 0),
 	}
 }
 

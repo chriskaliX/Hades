@@ -109,7 +109,10 @@ func recvData(stream pb.Transfer_TransferServer, conn *pool.Connection) {
 			}
 			for _, value := range data.GetData() {
 				dataType := value.DataType
-				eventHandler := handler.EventHandler[dataType]
+				eventHandler, ok := handler.EventHandler[dataType]
+				if !ok {
+					continue
+				}
 				err := eventHandler.Handle(value.Body.Fields, data, conn)
 				if err != nil {
 					zap.S().Error(err)

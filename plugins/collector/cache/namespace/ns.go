@@ -17,7 +17,7 @@ import (
 const (
 	nsCacheSize       = 4096
 	nsLimiterBurst    = 100
-	nsLimiterInterval = 2 * time.Millisecond
+	nsLimiterInterval = 50 * time.Millisecond
 )
 
 const invalid = "-1"

@@ -4,6 +4,7 @@ agent/log/hades.log
 agent/log/hades*
 agent/agent-id
 agent/main
+agent/plugin/collector
 hades-agent
 
 # ignore dev 

@@ -51,7 +51,7 @@ func main() {
 	em.AddEvent(&event.SshConfig{}, 30*time.Minute, eventmanager.Snapshot)
 	em.AddEvent(&event.Sshd{}, 30*time.Minute, eventmanager.Snapshot)
 	em.AddEvent(&event.User{}, 10*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.User{}, 10*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.Yum{}, 10*time.Minute, eventmanager.Snapshot)
 
 	sandbox.Run(em.Run)
 }

@@ -85,6 +85,8 @@ func routerFrontend(r *gin.Engine) {
 }
 
 func RunGrpcServer(port int) {
+	// release mode
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	// frontend
 	routerFrontend(router)

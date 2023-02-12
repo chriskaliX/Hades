@@ -6,4 +6,4 @@ import (
 	"github.com/chriskaliX/SDK/clock"
 )
 
-var Clock = clock.New(100 * time.Microsecond)
+var Clock = clock.New(100 * time.Millisecond)
