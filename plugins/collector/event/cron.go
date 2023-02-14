@@ -47,17 +47,13 @@ type Crontab struct {
 	cronCache *lru.Cache
 }
 
-func (Crontab) DataType() int {
-	return CRON_DATATYPE
-}
+func (Crontab) DataType() int { return CRON_DATATYPE }
 
-func (n *Crontab) Flag() int {
-	return eventmanager.Realtime
-}
+func (n *Crontab) Flag() int { return eventmanager.Realtime }
 
-func (Crontab) Name() string {
-	return "cron"
-}
+func (Crontab) Name() string { return "cron" }
+
+func (Crontab) Immediately() bool { return false }
 
 // https://github.com/osquery/osquery/blob/d2be385d71f401c85872f00d479df8f499164c5a/tests/integration/tables/crontab.cpp
 // const std::string kSystemCron = "/etc/crontab";

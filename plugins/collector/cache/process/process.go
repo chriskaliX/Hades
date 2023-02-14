@@ -18,6 +18,7 @@ type Process struct {
 	Pns      int    `json:"pns"`
 	RootPns  int    `json:"root_pns"`
 	PID      int    `json:"pid"`
+	GID      int    `json:"gid"`
 	PGID     int    `json:"pgid"`
 	PgidArgv string `json:"pgid_argv,omitempty"`
 	TID      int    `json:"tid,omitempty"`

@@ -7,12 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
-	"github.com/jinzhu/copier"
 )
 
 const (
@@ -38,12 +38,15 @@ func (SshConfig) Name() string {
 
 func (n *SshConfig) Flag() int { return eventmanager.Periodic }
 
-func (s SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
+func (SshConfig) Immediately() bool { return false }
+
+func (s *SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	// get user configuration
 	configPath := s.sshConfigPath()
+	s.firstTime = true
 	configs := make([]sshConfig, 0, 20)
 	for uid, path := range configPath {
-		if config, err := s.getSshConfig(string(rune(uid)), path); err == nil {
+		if config, err := s.getSshConfig(strconv.Itoa(int(uid)), path); err == nil {
 			configs = append(configs, config...)
 		}
 	}
@@ -51,7 +54,6 @@ func (s SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	if config, err := s.getSshConfig("0", systemSshConfig); err == nil {
 		configs = append(configs, config...)
 	}
-
 	data, err := sonic.MarshalString(configs)
 	if err != nil {
 		return err
@@ -65,7 +67,6 @@ func (s SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 		},
 	}
 	sandbox.SendRecord(rec)
-
 	return nil
 }
 
@@ -80,10 +81,10 @@ func (SshConfig) sshConfigPath() (configs map[uint32]string) {
 }
 
 type sshConfig struct {
-	Uid      string
-	Block    string
-	Option   map[string]string
-	Filepath string
+	Uid      string            `json:"uid"`
+	Block    string            `json:"block"`
+	Option   map[string]string `json:"option"`
+	Filepath string            `json:"filepath"`
 }
 
 // Reference:
@@ -107,19 +108,15 @@ func (s *SshConfig) getSshConfig(uid string, path string) (configs []sshConfig, 
 		if len(text) == 0 || text[0] == '#' {
 			continue
 		}
+		// if matches the host or match fields, start record configuration
 		if strings.HasPrefix(text, "host ") || strings.HasPrefix(text, "match ") {
-			if !s.firstTime {
-				// DeepCopy
-				tmpConfig := sshConfig{}
-				if err := copier.Copy(&config, &tmpConfig); err == nil {
-					configs = append(configs, tmpConfig)
-				}
-				// init
-				config = sshConfig{
-					Option: make(map[string]string),
-				}
-			} else {
+			if s.firstTime {
 				s.firstTime = false
+			} else {
+				configs = append(configs, config)
+			}
+			config = sshConfig{
+				Option: make(map[string]string),
 			}
 			config.Block = text
 			config.Filepath = path

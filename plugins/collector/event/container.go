@@ -20,6 +20,8 @@ func (Container) Name() string { return "container" }
 
 func (Container) Flag() int { return eventmanager.Periodic }
 
+func (Container) Immediately() bool { return true }
+
 func (c *Container) Run(s SDK.ISandbox, sig chan struct{}) error {
 	containers, err := container.DefaultClient.Containers()
 	if err != nil {

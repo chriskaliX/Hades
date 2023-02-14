@@ -18,6 +18,7 @@ const (
 const (
 	Realtime = iota // Real time events like inotify or netlink
 	Periodic
+	Trigger
 )
 
 const (
@@ -30,7 +31,6 @@ type Mode int
 type Event struct {
 	event    IEvent
 	interval time.Duration
-	mode     int
 	done     chan struct{}
 	sig      chan struct{}
 	id       cron.EntryID
@@ -87,4 +87,5 @@ type IEvent interface {
 	DataType() int
 	Run(SDK.ISandbox, chan struct{}) error
 	Flag() int // return Realtime or Periodic
+	Immediately() bool
 }

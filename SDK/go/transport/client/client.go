@@ -55,11 +55,12 @@ func (c *Client) SendElkeid(rec *protocol.Record) (err error) {
 	return
 }
 
+// SendDebug auto unwrap data
 func (c *Client) SendDebug(rec *protocol.Record) (err error) {
 	if _, ok := rec.Data.Fields["data"]; ok {
-		fmt.Println(rec.Data.Fields["data"])
+		fmt.Println(rec.DataType, rec.Data.Fields["data"])
 	} else {
-		fmt.Println(rec.Data.Fields)
+		fmt.Println(rec.DataType, rec.Data.Fields)
 	}
 	return
 }

@@ -36,6 +36,7 @@ type ISandbox interface {
 	SetSendHook(client.SendHookFunction)
 	// TaskReceiver
 	RecvTask() *protocol.Task
+	Debug() bool
 }
 
 // Sandbox is the abstract behavior interfaces for every plugin

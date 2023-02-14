@@ -39,6 +39,8 @@ func (n *SSH) Flag() int {
 	return eventmanager.Realtime
 }
 
+func (SSH) Immediately() bool { return false }
+
 // Get and parse SSH log
 // 2022-03-22: for now, performance is under improved.
 func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
@@ -80,6 +82,8 @@ func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 		zap.S().Error(err)
 		return
 	}
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
 	// only for write now, evaluate
 	for {
 		select {
@@ -134,7 +138,7 @@ func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 					case 14:
 						switch fields[5] {
 						case "Failed", "Accepted":
-							sshlog["reason"] = fields[5]
+							sshlog["reason"] = strings.ToLower(fields[5])
 						}
 						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)
 						sshlog["username"] = fields[8]
@@ -153,7 +157,7 @@ func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 						}
 					// This is for the invalid user
 					case 16:
-						sshlog["reason"] = "Failed"
+						sshlog["reason"] = "failed"
 						sshlog["timestamp"] = strconv.FormatInt(timeNow.Unix(), 10)
 						sshlog["username"] = fields[10]
 						sshlog["ip"] = fields[12]
@@ -181,7 +185,8 @@ func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 			return
 		case <-sig:
 			return
-		case <-time.After(10 * time.Second):
+		case <-timer.C:
+			timer.Reset(10 * time.Second)
 		}
 	}
 }

@@ -67,6 +67,14 @@ func (c *docker) Containers(ctx context.Context) ([]Container, error) {
 	return cs, nil
 }
 
+// func (d *docker) ExecWithContext(ctx context.Context, containerId string, name string, args ...string) (string, error) {
+// 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	defer cli.Close()
+// }
+
 func init() {
 	registRuntime(&docker{})
 }

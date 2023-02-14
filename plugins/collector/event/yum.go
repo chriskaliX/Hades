@@ -3,6 +3,7 @@ package event
 import (
 	"bufio"
 	"collector/eventmanager"
+	"collector/utils"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -21,7 +22,7 @@ const (
 	yumConfig              = "/etc/yum.conf"
 	yumReposDir            = "/etc/yum.repos.d"
 	yumConfigFileExtension = ".repo"
-	YUM_DATATYPE           = 3003
+	YUM_DATATYPE           = 3006
 	YUM_FILELIMIT          = 100
 	YUM_RECORDLIMIT        = 1000
 )
@@ -30,19 +31,22 @@ var _ eventmanager.IEvent = (*Yum)(nil)
 
 type Yum struct{}
 
-func (Yum) DataType() int {
-	return YUM_DATATYPE
-}
+func (Yum) DataType() int { return YUM_DATATYPE }
 
-func (Yum) Name() string {
-	return "yum"
-}
+func (Yum) Name() string { return "yum" }
 
-func (n *Yum) Flag() int {
-	return eventmanager.Periodic
-}
+func (Yum) Flag() int { return eventmanager.Periodic }
+
+func (Yum) Immediately() bool { return false }
 
 func (y *Yum) Run(s SDK.ISandbox, sig chan struct{}) error {
+	// Platform pre-check
+	switch utils.Platform {
+	case "rhel", "fedora", "suse":
+	default:
+		return nil
+	}
+
 	result := make([]string, 0, 20)
 	files := y.getfiles(yumReposDir)
 	files = append(files, yumConfig)
@@ -80,7 +84,6 @@ Loop:
 		},
 	}
 	s.SendRecord(rec)
-
 	return nil
 }
 

@@ -69,7 +69,7 @@ func (c *cri) Containers(ctx context.Context) (cs []Container, err error) {
 				Endpoint:  endpoint,
 			}
 			// Only running, get pid & pns
-			if con.State == statusRunning {
+			if ContainerStatus(con.State) == statusRunning {
 				if resp, err := client.ContainerStatus(ctx, &runtimeapi.ContainerStatusRequest{ContainerId: container.Id, Verbose: true}); err == nil {
 					if pid := c.extraPid(resp.Info); pid != 0 {
 						con.PID = pid

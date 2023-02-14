@@ -10,9 +10,12 @@ import (
 
 var DefaultClient = NewClient()
 
+type ContainerStatus string
+
+const statusRunning ContainerStatus = "running"
+
 var (
 	timeOut       = 3 * time.Minute
-	statusRunning = "running"
 	ContainerId   = "container_id"
 	ContainerName = "container_name"
 )

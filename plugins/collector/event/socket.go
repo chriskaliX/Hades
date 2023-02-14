@@ -31,6 +31,8 @@ func (Socket) Name() string {
 
 func (n *Socket) Flag() int { return eventmanager.Periodic }
 
+func (Socket) Immediately() bool { return false }
+
 func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	var ok bool
 	result := make([]socket.Socket, 0, 128)

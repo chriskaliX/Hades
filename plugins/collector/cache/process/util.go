@@ -96,7 +96,9 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 		return
 	}
 	if proc.UID >= 0 {
-		proc.Username = user.Cache.GetUsername(uint32(proc.UID))
+		u := user.Cache.GetUser(uint32(proc.UID))
+		proc.Username = u.Username
+		proc.GID = int(u.GID)
 	}
 	if ppid, ok := PidCache.Get(pid); ok {
 		proc.PPID = ppid.(int)

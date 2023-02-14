@@ -20,8 +20,10 @@
 |cron - 异步|3001|
 |process|1001|
 |socket|5001|
-|sshconfig|3005|
-|ssh登陆日志|3003|
-|sshd配置|3002|
+|sshd_config|3002|
+|ssh_log|3003|
 |user|3004|
-|yum|3003|
+|ssh_config|3005|
+|yum|3006|
+|host_scan|3007|
+|apps|3008|

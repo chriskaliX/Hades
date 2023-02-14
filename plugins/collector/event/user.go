@@ -4,8 +4,7 @@ import (
 	"bufio"
 	cache "collector/cache/user"
 	"collector/eventmanager"
-	"encoding/binary"
-	"net"
+	"collector/utils/login"
 	"os"
 	"os/user"
 	"strconv"
@@ -20,43 +19,22 @@ const USER_DATATYPE = 3004
 
 var _ eventmanager.IEvent = (*User)(nil)
 
-type User struct{}
-
-type utmp struct {
-	Type   int16
-	_      [2]byte // alignment
-	Pid    int32
-	Device [32]byte
-	Id     [4]byte
-	User   [32]byte
-	Host   [256]byte
-	Exit   struct {
-		Termination int16
-		Exit        int16
-	}
-	Session int32
-	Time    struct {
-		Sec  int32
-		Usec int32
-	}
-	AddrV6   [16]byte
-	Reserved [20]byte // Reserved member
+// Contains the UtmpFile state, based on
+// https://github.com/elastic/beats/blob/237937085a5a7337ba06f1268cfc55cd4b869e31/x-pack/auditbeat/module/system/login/utmp.go
+type User struct {
+	f *login.UtmpFile
 }
 
-func (User) DataType() int {
-	return USER_DATATYPE
-}
+func (User) DataType() int { return USER_DATATYPE }
 
-func (User) Name() string {
-	return "user"
-}
+func (User) Name() string { return "user" }
 
-func (n *User) Flag() int {
-	return eventmanager.Periodic
-}
+func (User) Flag() int { return eventmanager.Periodic }
+
+func (User) Immediately() bool { return true }
 
 // get user and update the usercache
-func (User) Run(s SDK.ISandbox, sig chan struct{}) error {
+func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
 	result := make([]cache.User, 0, 20)
 	var userMap = make(map[string]cache.User, 20)
 	passwd, err := os.Open("/etc/passwd")
@@ -85,20 +63,17 @@ func (User) Run(s SDK.ISandbox, sig chan struct{}) error {
 		}
 		userMap[fields[0]] = u
 	}
-	// login thing
-	if wtmp, err := os.Open("/var/log/wtmp"); err == nil {
-		defer wtmp.Close()
-		for {
-			u := utmp{}
-			if e := binary.Read(wtmp, binary.LittleEndian, &u); e != nil {
-				break
-			}
-			username := strings.TrimRight(string(u.User[:]), "\x00")
-			ip := strings.TrimRight(string(u.Host[:]), "\x00")
-			user, ok := userMap[username]
+	// login status
+	if u.f == nil {
+		u.f = &login.UtmpFile{}
+	}
+	if records, err := u.f.GetRecord(); err == nil {
+		for _, record := range records {
+			user, ok := userMap[record.Username]
 			if ok {
-				user.LastLoginIP = net.ParseIP(ip)
-				user.LastLoginTime = uint64(u.Time.Sec)
+				user.LastLoginIP = record.IP
+				user.LastLoginTime = record.Time.Unix()
+				userMap[record.Username] = user
 			}
 		}
 	}

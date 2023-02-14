@@ -43,15 +43,16 @@ func main() {
 	em := eventmanager.New(sandbox)
 	// TODO: sync.Cond
 	// Add events
-	em.AddEvent(&event.Container{}, 5*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.Crontab{}, eventmanager.Start, eventmanager.None)
-	em.AddEvent(&event.Process{}, 15*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.Socket{}, 10*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.SSH{}, eventmanager.Start, eventmanager.None)
-	em.AddEvent(&event.SshConfig{}, 30*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.Sshd{}, 30*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.User{}, 10*time.Minute, eventmanager.Snapshot)
-	em.AddEvent(&event.Yum{}, 10*time.Minute, eventmanager.Snapshot)
+	em.AddEvent(&event.Container{}, 5*time.Minute)
+	em.AddEvent(&event.Crontab{}, eventmanager.Start)
+	em.AddEvent(&event.Process{}, 15*time.Minute)
+	em.AddEvent(&event.Socket{}, 10*time.Minute)
+	em.AddEvent(&event.SSH{}, eventmanager.Start)
+	em.AddEvent(&event.SshConfig{}, 30*time.Minute)
+	em.AddEvent(&event.Sshd{}, 30*time.Minute)
+	em.AddEvent(&event.User{}, 10*time.Minute)
+	em.AddEvent(&event.Yum{}, 10*time.Minute)
+	em.AddEvent(&event.Application{}, 15*time.Minute)
 
 	sandbox.Run(em.Run)
 }

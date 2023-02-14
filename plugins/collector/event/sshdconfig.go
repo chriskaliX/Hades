@@ -8,7 +8,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 )
@@ -34,8 +33,10 @@ func (n *Sshd) Flag() int {
 	return eventmanager.Periodic
 }
 
+func (Sshd) Immediately() bool { return false }
+
 func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
-	result := make(map[string]string, 4)
+	result := make(map[string]string, 6)
 	var scan *bufio.Scanner
 	file, err := os.Open(sshdConfig)
 	if err != nil {
@@ -46,6 +47,8 @@ func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
 	result["pubkey_authentication"] = "yes"
 	result["passwd_authentication"] = "no"
 	result["permit_emptypassword"] = "no"
+	result["permit_rootlogin"] = "no"
+	result["port"] = "22"
 	result["max_authtries"] = "-1" // In my vm, it is 6
 
 	scan = bufio.NewScanner(io.LimitReader(file, 1024*1024))
@@ -65,30 +68,26 @@ func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
 		if len(fields) == 2 {
 			switch strings.TrimSpace(fields[0]) {
 			case "PasswordAuthentication":
-				result["passwd_authentication"] = "passwd_authentication" + "=" + strings.TrimSpace(fields[1])
+				result["passwd_authentication"] = strings.TrimSpace(fields[1])
 			case "PubkeyAuthentication":
-				result["pubkey_authentication"] = "pubkey_authentication" + "=" + strings.TrimSpace(fields[1])
+				result["pubkey_authentication"] = strings.TrimSpace(fields[1])
 			case "PermitEmptyPasswords":
-				result["permit_emptypassword"] = "permit_emptypassword" + "=" + strings.TrimSpace(fields[1])
+				result["permit_emptypassword"] = strings.TrimSpace(fields[1])
 			case "MaxAuthTries":
-				result["max_auth_tries"] = "max_auth_tries" + "=" + strings.TrimSpace(fields[1])
+				result["max_auth_tries"] = strings.TrimSpace(fields[1])
+			case "PermitRootLogin":
+				result["permit_rootlogin"] = strings.TrimSpace(fields[1])
+			case "Port":
+				result["Port"] = strings.TrimSpace(fields[1])
 			}
 		}
-	}
-
-	data, err := sonic.MarshalString(result)
-	if err != nil {
-		return err
 	}
 	rec := &protocol.Record{
 		DataType: SSHD_DATATYPE,
 		Data: &protocol.Payload{
-			Fields: map[string]string{
-				"data": data,
-			},
+			Fields: result,
 		},
 	}
 	s.SendRecord(rec)
-
 	return nil
 }

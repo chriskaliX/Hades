@@ -32,12 +32,11 @@ func New(s *SDK.Sandbox) *EventManager {
 	}
 }
 
-func (e *EventManager) AddEvent(event IEvent, t time.Duration, m int) {
-	zap.S().Info(fmt.Sprintf("%s is added, %dm, %d", event.Name(), int(t.Minutes()), m))
+func (e *EventManager) AddEvent(event IEvent, t time.Duration) {
+	zap.S().Info(fmt.Sprintf("%s is added, %dm, %d", event.Name(), int(t.Minutes()), event.Flag()))
 	e.m[event.DataType()] = &Event{
 		event:    event,
 		interval: t,
-		mode:     m,
 		done:     make(chan struct{}, 1),
 		sig:      make(chan struct{}, 1),
 	}
@@ -46,16 +45,30 @@ func (e *EventManager) AddEvent(event IEvent, t time.Duration, m int) {
 
 func (e *EventManager) Run(s SDK.ISandbox) error {
 	zap.S().Info("eventmanager running")
+	// Run the immediately firstly
+	for _, event := range e.m {
+		if event.event.Immediately() {
+			zap.S().Infof("%s first run", event.event.Name())
+			event.Start(s)
+		}
+	}
+	// Start the goroutines
 	for _, event := range e.m {
 		switch event.event.Flag() {
 		case Realtime:
 			go event.Start(s)
-		default:
+		case Periodic:
 			go func(ev *Event) {
-				r := rand.Intn(600)
-				time.Sleep(time.Duration(r) * time.Second)
-				zap.S().Infof("%s first run", ev.event.Name())
-				ev.Start(s)
+				if !ev.event.Immediately() {
+					var rint = 600
+					if s.Debug() {
+						rint = 10
+					}
+					r := rand.Intn(rint)
+					time.Sleep(time.Duration(r) * time.Second)
+					zap.S().Infof("%s first run", ev.event.Name())
+					ev.Start(s)
+				}
 				id, _ := e.cron.AddFunc(
 					fmt.Sprintf("@every %dm", int(ev.interval.Minutes())),
 					func() { ev.Start(s) },
@@ -84,23 +97,46 @@ func (e *EventManager) taskResolve() {
 			zap.S().Error(fmt.Sprintf("%d is invalid", task.DataType))
 			continue
 		}
-		// All trigger by interval
-		interval, err := strconv.Atoi(task.Data)
-		if err != nil {
-			zap.S().Error(err)
-			continue
-		}
 
 		var data = &protocol.Record{
 			DataType:  5100,
 			Timestamp: time.Now().Unix(),
-			Data:      &protocol.Payload{},
+			Data: &protocol.Payload{
+				Fields: map[string]string{
+					"status": "successed",
+					"msg":    "",
+					"token":  task.Token,
+				},
+			},
 		}
 
-		if interval > 0 {
-			if event.event.Flag() == Realtime {
-				go event.Start(e.s)
-			} else {
+		switch event.event.Flag() {
+		case Trigger:
+			timer := time.NewTimer(3 * time.Second)
+			defer timer.Stop()
+			for {
+				select {
+				case <-event.done:
+					go event.Start(e.s)
+					goto Send
+				case <-timer.C:
+					serr := fmt.Sprintf("%s job is running", event.event.Name())
+					zap.S().Error(serr)
+					data.Data.Fields = map[string]string{
+						"status": "failed",
+						"msg":    serr,
+					}
+					goto Send
+				}
+			}
+		case Periodic:
+			// All trigger by interval
+			interval, err := strconv.Atoi(task.Data)
+			if err != nil {
+				zap.S().Error(err)
+				continue
+			}
+			if interval > 0 {
 				event.interval = time.Duration(interval) * time.Minute
 				e.cron.Remove(event.id)
 				id, _ := e.cron.AddFunc(
@@ -108,24 +144,37 @@ func (e *EventManager) taskResolve() {
 					func() { event.Start(e.s) },
 				)
 				event.id = id
+				goto Send
 			}
-		} else {
-			err := event.Stop(e.cron)
-			if err == nil {
-				data.Data.Fields = map[string]string{
-					"status": "successed",
-					"msg":    "",
-					"token":  task.Token,
-				}
-			} else {
-				zap.S().Error(fmt.Sprintf("%s stop fail", event.event.Name()))
+			if err := event.Stop(e.cron); err != nil {
+				serr := fmt.Sprintf("%s stop fail", event.event.Name())
+				zap.S().Error(serr)
 				data.Data.Fields = map[string]string{
 					"status": "failed",
-					"msg":    "stop failed",
-					"token":  task.Token,
+					"msg":    serr,
+				}
+			}
+		case Realtime:
+			// All trigger by interval
+			interval, err := strconv.Atoi(task.Data)
+			if err != nil {
+				zap.S().Error(err)
+				continue
+			}
+			if interval > 0 {
+				go event.Start(e.s)
+				goto Send
+			}
+			if err := event.Stop(e.cron); err != nil {
+				serr := fmt.Sprintf("%s stop fail", event.event.Name())
+				zap.S().Error(serr)
+				data.Data.Fields = map[string]string{
+					"status": "failed",
+					"msg":    serr,
 				}
 			}
 		}
+	Send:
 		e.s.SendRecord(data)
 	}
 }

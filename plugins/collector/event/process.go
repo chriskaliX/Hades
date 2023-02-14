@@ -14,7 +14,7 @@ import (
 // modify this according to Elkeid
 const (
 	maxProcess             = 1500
-	ProcessIntervalMillSec = 40
+	ProcessIntervalMillSec = 50
 	PROCESS_DATATYPE       = 1001
 )
 
@@ -33,6 +33,8 @@ func (Process) Name() string {
 func (n *Process) Flag() int {
 	return eventmanager.Periodic
 }
+
+func (Process) Immediately() bool { return false }
 
 func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
 	processes, err := p.getProcess()
