@@ -19,6 +19,7 @@ require (
 	github.com/bytedance/sonic v1.4.0
 	github.com/docker/docker v23.0.0+incompatible
 	github.com/go-ping/ping v1.1.0
+	github.com/shirou/gopsutil/v3 v3.20.10
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	google.golang.org/grpc v1.51.0-dev
 	k8s.io/apimachinery v0.25.2
@@ -28,6 +29,7 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
+	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20211019084208-fb5309c8db06 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
@@ -54,7 +56,9 @@ require (
 
 require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/godbus/dbus/v5 v5.1.0
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect

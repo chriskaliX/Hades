@@ -3,6 +3,7 @@ package process
 import (
 	"bufio"
 	"bytes"
+	"collector/cache"
 	ns "collector/cache/namespace"
 	"collector/utils"
 	"errors"
@@ -205,6 +206,13 @@ func (p *Process) GetStat(simple bool) (err error) {
 	p.Cpu = (float64((p.Utime + p.Stime + iotime)) / float64(sysTime)) * float64(nproc)
 	p.Cpu, _ = strconv.ParseFloat(fmt.Sprintf("%.6f", p.Cpu), 64)
 	return
+}
+
+func (p *Process) IsContainer() bool {
+	if p.Pns == 0 {
+		return false
+	}
+	return p.Pns != cache.RootPns
 }
 
 func init() {

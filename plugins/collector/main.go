@@ -52,7 +52,10 @@ func main() {
 	em.AddEvent(&event.Sshd{}, 30*time.Minute)
 	em.AddEvent(&event.User{}, 10*time.Minute)
 	em.AddEvent(&event.Yum{}, 10*time.Minute)
+	em.AddEvent(&event.Kmod{}, 30*time.Minute)
+	em.AddEvent(&event.Disk{}, 6*time.Hour)
 	em.AddEvent(&event.Application{}, 15*time.Minute)
+	em.AddEvent(&event.SystemdUnit{}, 6*time.Hour)
 
 	sandbox.Run(em.Run)
 }

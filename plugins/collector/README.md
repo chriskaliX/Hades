@@ -27,3 +27,5 @@
 |yum|3006|
 |host_scan|3007|
 |apps|3008|
+|kmod|3009|
+|disk|3010|
