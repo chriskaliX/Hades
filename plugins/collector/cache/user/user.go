@@ -13,17 +13,23 @@ import (
 
 const userCacheSize = 2048
 
+// TODO: better format maybe?
 type User struct {
-	Username      string `json:"username"`
-	Password      string `json:"password"`
-	UID           uint32 `json:"uid"`
-	GID           uint32 `json:"gid"`
-	GroupName     string `json:"group_name"`
-	Info          string `json:"info"`
-	HomeDir       string `json:"home_dir"`
-	Shell         string `json:"shell"`
-	LastLoginTime int64  `json:"last_login_time"`
-	LastLoginIP   net.IP `json:"last_login_ip"`
+	Username                 string `json:"username"`
+	Password                 string `json:"password"`
+	PasswordUpdateTime       string `json:"password_update_time"`
+	PasswordChangeInterval   string `json:"password_change_interval"`
+	PasswordValidity         string `json:"password_validity"`
+	PasswordWarnBeforeExpire string `json:"password_warn_before_expire"`
+	PasswordGracePeriod      string `json:"password_grace_period"`
+	UID                      uint32 `json:"uid"`
+	GID                      uint32 `json:"gid"`
+	GroupName                string `json:"group_name"`
+	Info                     string `json:"info"`
+	HomeDir                  string `json:"home_dir"`
+	Shell                    string `json:"shell"`
+	LastLoginTime            int64  `json:"last_login_time"`
+	LastLoginIP              net.IP `json:"last_login_ip"`
 }
 
 var Cache = &UserCache{

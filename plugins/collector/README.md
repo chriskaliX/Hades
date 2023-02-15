@@ -2,12 +2,11 @@
 
 ## 快速启动
 
-1. `make debug` 启动测试环境
-2. ./collector 运行插件, 看到输出数据
+1. `make` 编译 golang 代码
+2. `./collector --debug` 运行插件, 看到输出数据
 
 ## TODOList
 
-- [ ] sshd 日志问题
 - [ ] fd 获取 jar，以及对应 fatjar 问题
 
 ## Data Type对照表
@@ -29,3 +28,7 @@
 |apps|3008|
 |kmod|3009|
 |disk|3010|
+|systemd_unit|3011|
+|net_interface|3012|
+|iptables|3013|
+|bpf_prog|3014|

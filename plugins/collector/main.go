@@ -31,7 +31,7 @@ func main() {
 		Name:  "collector",
 		LogConfig: &logger.Config{
 			Path:        "collector.log",
-			MaxSize:     10,
+			MaxSize:     1,
 			MaxBackups:  10,
 			Compress:    true,
 			FileLevel:   zapcore.InfoLevel,
@@ -55,7 +55,10 @@ func main() {
 	em.AddEvent(&event.Kmod{}, 30*time.Minute)
 	em.AddEvent(&event.Disk{}, 6*time.Hour)
 	em.AddEvent(&event.Application{}, 15*time.Minute)
+	em.AddEvent(&event.NetInterface{}, 6*time.Hour)
 	em.AddEvent(&event.SystemdUnit{}, 6*time.Hour)
+	em.AddEvent(&event.Iptables{}, 24*time.Hour)
+	em.AddEvent(&event.BPFProg{}, 6*time.Hour)
 
 	sandbox.Run(em.Run)
 }

@@ -57,7 +57,8 @@ func (sys *SystemdUnit) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	}
 
 	for _, u := range units {
-		if !strings.HasSuffix(u.Name, ".service") {
+		// For now, only get the service
+		if !sys.isService(u.Name) {
 			continue
 		}
 		data := make(map[string]string, 10)
@@ -73,4 +74,8 @@ func (sys *SystemdUnit) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		})
 	}
 	return
+}
+
+func (SystemdUnit) isService(name string) bool {
+	return strings.HasSuffix(name, ".service")
 }

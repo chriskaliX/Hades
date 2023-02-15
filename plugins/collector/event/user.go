@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
@@ -35,8 +36,39 @@ func (User) Immediately() bool { return true }
 
 // get user and update the usercache
 func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
-	result := make([]cache.User, 0, 20)
-	var userMap = make(map[string]cache.User, 20)
+	result := make([]cache.User, 0)
+	var userMap = make(map[string]cache.User, 0)
+	if err := u.etcPasswd(userMap); err != nil {
+		return err
+	}
+	if err := u.loginStatus(userMap); err != nil {
+		return err
+	}
+	if err := u.etcShadow(userMap); err != nil {
+		return err
+	}
+	// append all
+	for _, user := range userMap {
+		result = append(result, user)
+		cache.Cache.Update(user)
+	}
+	data, err := sonic.MarshalString(result)
+	if err != nil {
+		return err
+	}
+	rec := &protocol.Record{
+		DataType: SSHCONFIG_DATATYPE,
+		Data: &protocol.Payload{
+			Fields: map[string]string{
+				"data": data,
+			},
+		},
+	}
+	s.SendRecord(rec)
+	return nil
+}
+
+func (u *User) etcPasswd(userMap map[string]cache.User) error {
 	passwd, err := os.Open("/etc/passwd")
 	if err != nil {
 		return err
@@ -63,6 +95,46 @@ func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
 		}
 		userMap[fields[0]] = u
 	}
+	return nil
+}
+
+const TIME_LAYOUT = "2006-01-02 15:04:05"
+
+func (u *User) etcShadow(userMap map[string]cache.User) error {
+	t, _ := time.Parse(TIME_LAYOUT, "1970-01-01 00:00:00")
+	// /etc/shadow fields
+	shadow, err := os.Open("/etc/shadow")
+	if err != nil {
+		return err
+	}
+	defer shadow.Close()
+	shadowScanner := bufio.NewScanner(shadow)
+	for shadowScanner.Scan() {
+		line := shadowScanner.Text()
+		fields := strings.Split(line, ":")
+		if len(fields) < 7 {
+			continue
+		}
+		user, ok := userMap[fields[0]]
+		if !ok {
+			continue
+		}
+		user.Password = fields[1]
+		if updateTime, err := strconv.Atoi(fields[2]); err == nil {
+			user.PasswordUpdateTime = t.AddDate(0, 0, updateTime).Format(TIME_LAYOUT)
+		}
+		user.PasswordChangeInterval = fields[3]
+		if validDays, err := strconv.Atoi(fields[4]); err == nil {
+			user.PasswordValidity = t.AddDate(0, 0, validDays).Format(TIME_LAYOUT)
+		}
+		user.PasswordWarnBeforeExpire = fields[5]
+		user.PasswordGracePeriod = fields[6]
+		userMap[user.Username] = user
+	}
+	return nil
+}
+
+func (u *User) loginStatus(userMap map[string]cache.User) error {
 	// login status
 	if u.f == nil {
 		u.f = &login.UtmpFile{}
@@ -77,23 +149,5 @@ func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
 			}
 		}
 	}
-	// append all
-	for _, user := range userMap {
-		result = append(result, user)
-		cache.Cache.Update(user)
-	}
-	data, err := sonic.MarshalString(result)
-	if err != nil {
-		return err
-	}
-	rec := &protocol.Record{
-		DataType: SSHCONFIG_DATATYPE,
-		Data: &protocol.Payload{
-			Fields: map[string]string{
-				"data": data,
-			},
-		},
-	}
-	s.SendRecord(rec)
 	return nil
 }

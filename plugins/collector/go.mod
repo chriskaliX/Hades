@@ -17,8 +17,11 @@ require github.com/vishvananda/netlink v1.2.0-beta
 
 require (
 	github.com/bytedance/sonic v1.4.0
+	github.com/cilium/ebpf v0.10.0
+	github.com/coreos/go-iptables v0.6.0
 	github.com/docker/docker v23.0.0+incompatible
 	github.com/go-ping/ping v1.1.0
+	github.com/hashicorp/go-version v1.6.0
 	github.com/shirou/gopsutil/v3 v3.20.10
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	google.golang.org/grpc v1.51.0-dev
