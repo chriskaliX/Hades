@@ -21,7 +21,6 @@ require (
 	github.com/coreos/go-iptables v0.6.0
 	github.com/docker/docker v23.0.0+incompatible
 	github.com/go-ping/ping v1.1.0
-	github.com/hashicorp/go-version v1.6.0
 	github.com/shirou/gopsutil/v3 v3.20.10
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	google.golang.org/grpc v1.51.0-dev
@@ -69,5 +68,6 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
+	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )

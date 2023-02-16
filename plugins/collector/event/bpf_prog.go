@@ -13,11 +13,11 @@ import (
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/cilium/ebpf"
-	version "github.com/hashicorp/go-version"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 var bpfInterval = 50 * time.Millisecond
-var bpfMinKV, _ = version.NewVersion("4.13.0")
+var bpfMinKV, _ = version.ParseGeneric("4.13.0")
 
 type BPFProg struct {
 	version *version.Version
@@ -33,7 +33,7 @@ func (BPFProg) Immediately() bool { return false }
 
 func (b *BPFProg) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	if b.version == nil {
-		b.version, err = version.NewVersion(utils.KernelVersion)
+		b.version, err = version.ParseGeneric(utils.KernelVersion)
 		if err != nil {
 			return
 		}

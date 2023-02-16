@@ -4,32 +4,35 @@ import (
 	"collector/cache/user"
 	"collector/utils"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/chriskaliX/SDK/utils/hash"
 )
 
 var HashCache = hash.NewWithClock(utils.Clock)
 
-func GetFds(pid int) ([]string, error) {
-	fds, err := os.ReadDir("/proc/" + strconv.Itoa(int(pid)) + "/fd")
+func GetFds(pid int) (result []string, err error) {
+	var f *os.File
+	f, err = os.Open(filepath.Join("/proc", strconv.Itoa(pid), "fd"))
 	if err != nil {
-		return nil, err
+		return
 	}
-	files := make([]string, 0, 4)
-	for index, fd := range fds {
-		// In some peticular situation, count of fd over 100k, limit for this
-		if index > 100 {
-			break
-		}
-		file, err := os.Readlink("/proc/" + strconv.Itoa(int(pid)) + "/fd/" + fd.Name())
+	defer f.Close()
+	var names []string
+	names, err = f.Readdirnames(1024)
+	if err != nil {
+		return
+	}
+	for _, name := range names {
+		res, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "fd", name))
 		if err != nil {
-			// skip error(better use for sockets)
 			continue
 		}
-		files = append(files, file)
+		result = append(result, strings.TrimSpace(res))
 	}
-	return files, nil
+	return
 }
 
 func getFd(pid int, index int) (string, error) {

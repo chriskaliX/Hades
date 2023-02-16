@@ -2,6 +2,7 @@ package event
 
 import (
 	"collector/cache/process"
+	scache "collector/cache/socket"
 	"collector/eventmanager"
 	"collector/socket"
 	"strconv"
@@ -14,24 +15,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// use inode key as primary key
-const SOCKET_DATATYPE = 5001
-
 var _ eventmanager.IEvent = (*Socket)(nil)
 
 type Socket struct{}
 
-func (Socket) DataType() int {
-	return SOCKET_DATATYPE
-}
+func (Socket) DataType() int { return 5001 }
 
-func (Socket) Name() string {
-	return "socket"
-}
+func (Socket) Name() string { return "socket" }
 
 func (n *Socket) Flag() int { return eventmanager.Periodic }
 
-func (Socket) Immediately() bool { return false }
+func (Socket) Immediately() bool { return true }
 
 func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	var ok bool
@@ -56,7 +50,6 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	for _, pid := range pids {
 		var fds []string
 		var index int
-		// Logical bug here,
 		if fds, err = process.GetFds(pid); err != nil {
 			time.Sleep(20 * time.Millisecond)
 			continue
@@ -86,6 +79,7 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 				sockets[index].Cmdline = proc.Argv
 			}
 			socket := sockets[index]
+			scache.Put(uint32(inode), socket)
 			result = append(result, socket)
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -94,14 +88,13 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	rec := &protocol.Record{
-		DataType: 2001,
+	sandbox.SendRecord(&protocol.Record{
+		DataType: int32(s.DataType()),
 		Data: &protocol.Payload{
 			Fields: map[string]string{
 				"data": data,
 			},
 		},
-	}
-	sandbox.SendRecord(rec)
+	})
 	return nil
 }

@@ -13,14 +13,15 @@ import (
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 
 	// force including the applications
-	_ "collector/event/apps/language"
-	_ "collector/event/apps/midware"
+	_ "collector/event/apps/software"
+	_ "collector/event/apps/web"
 )
 
 type Application struct {
-	Apps map[string]apps.IApplication
+	Apps []apps.IApplication
 	once sync.Once
 }
 
@@ -35,9 +36,7 @@ func (Application) Immediately() bool { return false }
 // Run over the application recognition plugins
 func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	// inject mapping into application
-	a.once.Do(func() {
-		a.Apps = apps.Apps
-	})
+	a.once.Do(func() { a.Apps = apps.Apps })
 	var pids []int
 	var maxProcess = 3000
 	pids, err = process.GetPids(maxProcess)
@@ -49,17 +48,20 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		if err != nil {
 			continue
 		}
-		time.Sleep(ProcessIntervalMillSec)
+		time.Sleep(2 * ProcessIntervalMillSec * time.Millisecond)
 		// Actual run function for applications, the applications package is differed by its name
-		for k, v := range a.Apps {
+		for _, v := range a.Apps {
 			// Skip if did not match the application
 			if matched := v.Match(proc); !matched {
 				continue
 			}
 			// Run with the proc, and get information of what we need
-			data, err := v.Run(proc)
+			m, err := v.Run(proc)
 			if err != nil {
 				continue
+			}
+			if m == nil {
+				m = make(map[string]string)
 			}
 			var container_id, container_name string
 			if proc.Pns != 0 {
@@ -70,31 +72,34 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			}
 			// If success, get the container-related fields, the IApplication will not
 			// collect this in it's Run function
-			// Send record
+			maps.Copy(m, map[string]string{
+				"name":           v.Name(),
+				"type":           v.Type(),
+				"pid":            strconv.Itoa(proc.PID),
+				"pns":            strconv.Itoa(proc.Pns),
+				"exe":            proc.Exe,
+				"cwd":            proc.Cwd,
+				"version":        v.Version(),
+				"cmdline":        proc.Argv,
+				"pod_name":       proc.PodName,
+				"container_id":   container_id,
+				"container_name": container_name,
+				"uid":            strconv.Itoa(int(proc.UID)),
+				"gid":            strconv.Itoa(int(proc.GID)),
+				"user":           proc.Username,
+				"start_time":     strconv.Itoa(int(proc.StartTime)),
+				"listen_addrs":   apps.ProcListenAddrs(proc),
+			})
+
 			s.SendRecord(&protocol.Record{
 				DataType:  int32(a.DataType()),
 				Timestamp: time.Now().Unix(),
 				Data: &protocol.Payload{
-					Fields: map[string]string{
-						"info":           data, // details or the configuration of all
-						"name":           v.Name(),
-						"type":           v.Type(),
-						"pid":            strconv.Itoa(proc.PID),
-						"pns":            strconv.Itoa(proc.Pns),
-						"cwd":            proc.Cwd,
-						"version":        v.Version(),
-						"cmdline":        proc.Argv,
-						"pod_name":       proc.PodName,
-						"container_id":   container_id,
-						"container_name": container_name,
-						"uid":            strconv.Itoa(int(proc.UID)),
-						"gid":            strconv.Itoa(int(proc.GID)),
-						"user":           proc.Username,
-						"start_time":     strconv.Itoa(int(proc.StartTime)),
-					},
+					Fields: m,
 				},
 			})
-			zap.S().Infof("application collect %s is finished", k)
+
+			zap.S().Infof("application collect %s is finished", v.Name())
 			goto Next
 		}
 	Next:

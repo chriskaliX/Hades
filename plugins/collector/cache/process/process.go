@@ -101,6 +101,10 @@ func (p *Process) GetCmdline() (err error) {
 	return
 }
 
+func (p *Process) Fds() (result []string, err error) {
+	return GetFds(p.PID)
+}
+
 // The one and only real function of get cmdline, cache will be filled automatically
 func getCmdline(pid int) (cmdline string, err error) {
 	var res []byte
