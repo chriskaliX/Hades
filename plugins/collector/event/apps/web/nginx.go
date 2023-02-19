@@ -22,7 +22,7 @@ func (n Nginx) Version() string { return n.version }
 func (Nginx) Match(p *process.Process) bool {
 	// As default, nginx runs with master_process
 	// ignore the other processes, and report the worker process if we need
-	return p.Name == "nginx"
+	return p.Name == "nginx" && strings.Contains(p.Argv, "master")
 }
 
 func (n *Nginx) Run(p *process.Process) (m map[string]string, err error) {

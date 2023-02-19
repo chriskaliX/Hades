@@ -36,24 +36,52 @@ func Regist(app IApplication) {
 
 // TODO: container
 func Execute(p *process.Process, args ...string) (result string, err error) {
+	return ExecuteWithName(p, p.Exe, args...)
+}
+
+func ExecuteWithName(p *process.Process, name string, args ...string) (result string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	// TODO: Safely get the version information from Exec? privileged escalation and evasion may encounter.
-	// IS PARSING ELF POSSIBLE?
-	// TODO: EXEUTE WITHIN CONTAINER? CAN WE READ FROM ELF?
-	cmd := exec.CommandContext(ctx, p.Exe, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uint32(p.UID),
-			Gid: uint32(p.GID),
-		},
+	// TODO: Safely get the version information from Exec? privileged escalation and evasion may encounter
+	if p.IsContainer() {
+		// In container, we need to execute inside the container, all containers implementation (docker & cri)
+		// should support the Exec arguments
+
+		// cmd := exec.CommandContext(ctx, filepath.Join("/proc", strconv.Itoa(p.PID), "root", name), args...)
+		// cmd.SysProcAttr = &syscall.SysProcAttr{
+		// 	Setpgid:                    true,
+		// 	GidMappingsEnableSetgroups: true,
+		// 	Credential:                 &syscall.Credential{Uid: uint32(p.UID), Gid: uint32(p.GID)},
+		// 	Cloneflags:                 syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		// 	UidMappings:                []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getuid(), Size: 1}},
+		// 	GidMappings:                []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getgid(), Size: 1}},
+		// }
+		// cmd.Env = os.Environ()
+		// cmd.Dir = filepath.Join("/proc", strconv.Itoa(p.PID), "root", p.Cwd)
+		// var vbytes []byte
+		// vbytes, err = cmd.CombinedOutput()
+		// if err != nil {
+		// 	return result, err
+		// }
+		// result = string(vbytes)
+
+		// Using clients to execute inside the container
+	} else {
+		cmd := exec.CommandContext(ctx, name, args...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Credential: &syscall.Credential{
+				Uid: uint32(p.UID),
+				Gid: uint32(p.GID),
+			},
+		}
+		cmd.Dir = p.Cwd
+		var vbytes []byte
+		vbytes, err = cmd.CombinedOutput()
+		if err != nil {
+			return result, err
+		}
+		result = string(vbytes)
 	}
-	cmd.Dir = p.Cwd
-	vbytes, err := cmd.CombinedOutput()
-	if err != nil {
-		return result, err
-	}
-	result = string(vbytes)
 	return
 }
 

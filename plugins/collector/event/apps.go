@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	// force including the applications
+	_ "collector/event/apps/database"
 	_ "collector/event/apps/software"
 	_ "collector/event/apps/web"
 )
@@ -76,6 +77,8 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				"name":           v.Name(),
 				"type":           v.Type(),
 				"pid":            strconv.Itoa(proc.PID),
+				"tid":            strconv.Itoa(proc.TID),
+				"pgid":           strconv.Itoa(proc.PGID),
 				"pns":            strconv.Itoa(proc.Pns),
 				"exe":            proc.Exe,
 				"cwd":            proc.Cwd,
