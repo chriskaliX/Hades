@@ -1,9 +1,11 @@
 package container
 
 import (
+	"bytes"
 	"collector/cache/process"
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/url"
 	"strconv"
@@ -13,10 +15,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
-type cri struct{}
+type cri struct {
+	c  runtimeapi.RuntimeServiceClient
+	cc *grpc.ClientConn
+}
 
 var _ Runtime = (*cri)(nil)
 
@@ -42,11 +47,9 @@ func (c *cri) Runtime() string { return "cri" }
 
 func (c *cri) Containers(ctx context.Context) (cs []Container, err error) {
 	endpoints := DetectCRISocket(isExistingSocket)
-
 	if len(endpoints) == 0 {
 		return
 	}
-
 	for _, endpoint := range endpoints {
 		client, conn, err := c.getClient(endpoint)
 		if err != nil {
@@ -86,6 +89,51 @@ func (c *cri) Containers(ctx context.Context) (cs []Container, err error) {
 		conn.Close()
 	}
 	return
+}
+
+// From Elkeid
+func (c *cri) ExecWithContext(ctx context.Context, containerID string, name string, arg ...string) (result []byte, err error) {
+	if c.c == nil {
+		endpoints := DetectCRISocket(isExistingSocket)
+		if len(endpoints) == 0 {
+			return
+		}
+		for _, endpoint := range endpoints {
+			client, conn, err := c.getClient(endpoint)
+			if err != nil {
+				continue
+			}
+			c.c = client
+			c.cc = conn
+			break
+		}
+		if c.c == nil {
+			return nil, errors.New("init cri client failed")
+		}
+	}
+
+	var timeout int64
+	if ddl, ok := ctx.Deadline(); ok {
+		d := time.Until(ddl).Seconds()
+		if d > 0 {
+			timeout = int64(d)
+		}
+	}
+	cmd := make([]string, len(arg)+1)
+	cmd[0] = name
+	copy(cmd[1:], arg)
+	resp, err := c.c.ExecSync(ctx, &runtimeapi.ExecSyncRequest{
+		ContainerId: containerID,
+		Timeout:     timeout,
+		Cmd:         cmd,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if resp.ExitCode != 0 {
+		return nil, errors.New(string(resp.Stderr))
+	}
+	return bytes.Join([][]byte{resp.Stdout, resp.Stderr}, []byte{'\n'}), nil
 }
 
 // extra information like PID, there are 2 ways to get this

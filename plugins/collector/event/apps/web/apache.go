@@ -4,6 +4,7 @@ import (
 	"collector/cache/process"
 	"collector/event/apps"
 	"regexp"
+	"strings"
 )
 
 type Apache2 struct {
@@ -20,6 +21,16 @@ func (a Apache2) Version() string { return a.version }
 func (Apache2) Match(p *process.Process) bool { return p.Name == "apache2" }
 
 func (a *Apache2) Run(p *process.Process) (m map[string]string, err error) {
+	if a.rp == nil {
+		a.rp = regexp.MustCompile(`Apache2\/(\d+\.)+\d+`)
+	}
+	result, err := apps.Execute(p, "-v")
+	str := a.rp.FindString(result)
+	if str == "" {
+		err = apps.ErrVersionNotFound
+		return
+	}
+	a.version = strings.TrimPrefix(str, "Apache2/")
 	return
 }
 

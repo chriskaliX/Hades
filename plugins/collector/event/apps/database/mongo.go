@@ -3,6 +3,7 @@ package database
 import (
 	"collector/cache/process"
 	"collector/event/apps"
+	"strings"
 )
 
 type MongoDB struct {
@@ -22,7 +23,7 @@ func (m *MongoDB) Run(p *process.Process) (mapping map[string]string, err error)
 	if err != nil {
 		return nil, err
 	}
-	m.version = result
+	m.version = strings.TrimPrefix(strings.Split(result, "\n")[0], "db version v")
 	return
 }
 

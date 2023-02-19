@@ -4,7 +4,9 @@ package apps
 import (
 	"collector/cache/process"
 	"collector/cache/socket"
+	"collector/container"
 	"context"
+	"errors"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -13,6 +15,10 @@ import (
 )
 
 var Apps = make([]IApplication, 0)
+
+var (
+	ErrVersionNotFound = errors.New("version not found")
+)
 
 // Just for temporary
 type IApplication interface {
@@ -66,6 +72,7 @@ func ExecuteWithName(p *process.Process, name string, args ...string) (result st
 		// result = string(vbytes)
 
 		// Using clients to execute inside the container
+		return container.DefaultClient.Exec(uint32(p.Pns), name, args...)
 	} else {
 		cmd := exec.CommandContext(ctx, name, args...)
 		cmd.SysProcAttr = &syscall.SysProcAttr{

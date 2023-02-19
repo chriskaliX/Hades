@@ -3,6 +3,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"collector/cache/container"
@@ -14,11 +15,7 @@ type ContainerStatus string
 
 const statusRunning ContainerStatus = "running"
 
-var (
-	timeOut       = 3 * time.Minute
-	ContainerId   = "container_id"
-	ContainerName = "container_name"
-)
+var timeOut = 3 * time.Minute
 
 // The container struct fields for all SDK
 type Container struct {
@@ -44,6 +41,7 @@ type Container struct {
 type Runtime interface {
 	Runtime() string
 	Containers(ctx context.Context) ([]Container, error)
+	ExecWithContext(ctx context.Context, containerID string, name string, arg ...string) ([]byte, error)
 }
 
 // The real client for searching
@@ -73,14 +71,35 @@ func (c *Client) Containers() ([]Container, error) {
 			cs[index].Runtime = client.Runtime()
 			if value.Pns > 0 {
 				container.Cache.Add(value.Pns, map[string]string{
-					ContainerId:   value.ImageID,
-					ContainerName: value.ImageName,
+					container.ContainerId:      value.ID,
+					container.ContainerName:    value.ImageName,
+					container.ContainerRuntime: client.Runtime(),
 				})
 			}
 		}
 		containers = append(containers, cs...)
 	}
 	return containers, nil
+}
+
+func (c *Client) Exec(pns uint32, name string, args ...string) (result string, err error) {
+	info, ok := container.ContainerInfo(pns)
+	if !ok {
+		err = errors.New("get info error")
+		return
+	}
+	id := info[container.ContainerId]
+	runtime := info[container.ContainerRuntime]
+	r := c.m[runtime]
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	var resByte []byte
+	resByte, err = r.ExecWithContext(ctx, id, name, args...)
+	if err != nil {
+		return
+	}
+	result = string(resByte)
+	return
 }
 
 func registRuntime(r Runtime) {

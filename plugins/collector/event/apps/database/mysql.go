@@ -3,7 +3,6 @@ package database
 import (
 	"collector/cache/process"
 	"collector/event/apps"
-	"errors"
 	"regexp"
 	"strings"
 )
@@ -31,7 +30,7 @@ func (m *Mysql) Run(p *process.Process) (mapping map[string]string, err error) {
 	}
 	str := m.r.FindString(result)
 	if str == "" {
-		err = errors.New("version not found")
+		err = apps.ErrVersionNotFound
 		return
 	}
 	m.version = strings.TrimPrefix(str, "Ver ")

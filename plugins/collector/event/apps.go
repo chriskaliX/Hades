@@ -3,7 +3,6 @@ package event
 import (
 	"collector/cache/container"
 	"collector/cache/process"
-	c "collector/container"
 	"collector/event/apps"
 	"collector/eventmanager"
 	"strconv"
@@ -67,8 +66,8 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			var container_id, container_name string
 			if proc.Pns != 0 {
 				if containerInfo, ok := container.ContainerInfo(uint32(proc.Pns)); ok {
-					container_id = containerInfo[c.ContainerId]
-					container_name = containerInfo[c.ContainerName]
+					container_id = containerInfo[container.ContainerId]
+					container_name = containerInfo[container.ContainerName]
 				}
 			}
 			// If success, get the container-related fields, the IApplication will not

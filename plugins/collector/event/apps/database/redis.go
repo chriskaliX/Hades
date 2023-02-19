@@ -3,7 +3,6 @@ package database
 import (
 	"collector/cache/process"
 	"collector/event/apps"
-	"errors"
 	"path/filepath"
 	"strings"
 )
@@ -33,7 +32,7 @@ func (r *Redis) Run(p *process.Process) (m map[string]string, err error) {
 			return m, nil
 		}
 	}
-	return nil, errors.New("version not found")
+	return nil, apps.ErrVersionNotFound
 }
 
 func init() {

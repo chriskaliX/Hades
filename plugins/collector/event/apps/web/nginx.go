@@ -3,7 +3,6 @@ package web
 import (
 	"collector/cache/process"
 	"collector/event/apps"
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -32,7 +31,7 @@ func (n *Nginx) Run(p *process.Process) (m map[string]string, err error) {
 	}
 	str := n.rp.FindString(result)
 	if str == "" {
-		err = fmt.Errorf("version not found, %s", result)
+		err = apps.ErrVersionNotFound
 		return
 	}
 	n.version = strings.TrimPrefix(str, "nginx/")
