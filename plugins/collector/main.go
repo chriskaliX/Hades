@@ -46,22 +46,26 @@ func main() {
 
 	var sockAndAppInterval = 15 * time.Minute
 	// socket and application must get the same interval since application needs the socket informations
+	em.AddEvent(&event.Crontab{}, eventmanager.Start)
+	em.AddEvent(&event.SSH{}, eventmanager.Start)
+
 	em.AddEvent(&event.Socket{}, sockAndAppInterval)
 	em.AddEvent(&event.Application{}, sockAndAppInterval)
+
 	em.AddEvent(&event.Container{}, 5*time.Minute)
-	em.AddEvent(&event.Crontab{}, eventmanager.Start)
-	em.AddEvent(&event.Process{}, 15*time.Minute)
-	em.AddEvent(&event.SSH{}, eventmanager.Start)
-	em.AddEvent(&event.SshConfig{}, 6*time.Hour)
-	em.AddEvent(&event.Sshd{}, 6*time.Hour)
 	em.AddEvent(&event.User{}, 10*time.Minute)
 	em.AddEvent(&event.Yum{}, 10*time.Minute)
-	em.AddEvent(&event.Kmod{}, 30*time.Minute)
+	em.AddEvent(&event.Process{}, 15*time.Minute)
+
+	em.AddEvent(&event.Kmod{}, 6*time.Minute)
+	em.AddEvent(&event.SshConfig{}, 6*time.Hour)
+	em.AddEvent(&event.Sshd{}, 6*time.Hour)
 	em.AddEvent(&event.Disk{}, 6*time.Hour)
 	em.AddEvent(&event.NetInterface{}, 6*time.Hour)
 	em.AddEvent(&event.SystemdUnit{}, 6*time.Hour)
-	em.AddEvent(&event.Iptables{}, 24*time.Hour)
 	em.AddEvent(&event.BPFProg{}, 6*time.Hour)
+
+	em.AddEvent(&event.Iptables{}, 24*time.Hour)
 
 	sandbox.Run(em.Run)
 }

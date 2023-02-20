@@ -18,6 +18,7 @@ var Apps = make([]IApplication, 0)
 
 var (
 	ErrVersionNotFound = errors.New("version not found")
+	ErrIgnore          = errors.New("ignore")
 )
 
 // Just for temporary
@@ -34,9 +35,9 @@ type IApplication interface {
 func Regist(app IApplication) {
 	switch app.Type() {
 	case "software":
-		Apps = append([]IApplication{app}, Apps...)
-	default:
 		Apps = append(Apps, app)
+	default:
+		Apps = append([]IApplication{app}, Apps...)
 	}
 }
 

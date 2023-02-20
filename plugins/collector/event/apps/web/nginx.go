@@ -8,8 +8,9 @@ import (
 )
 
 type Nginx struct {
-	version string
-	rp      *regexp.Regexp
+	version    string
+	reg        *regexp.Regexp
+	regTengine *regexp.Regexp
 }
 
 func (Nginx) Name() string { return "nginx" }
@@ -24,14 +25,20 @@ func (Nginx) Match(p *process.Process) bool {
 	return p.Name == "nginx" && strings.Contains(p.Argv, "master")
 }
 
+// Tengine matches too
 func (n *Nginx) Run(p *process.Process) (m map[string]string, err error) {
 	result, err := apps.Execute(p, "-v")
-	if n.rp == nil {
-		n.rp = regexp.MustCompile(`nginx\/(\d+\.)+\d+`)
+	if n.reg == nil {
+		n.reg = regexp.MustCompile(`nginx\/(\d+\.)+\d+`)
+		n.regTengine = regexp.MustCompile(`Tengine\/(\d+\.)+\d+`)
 	}
-	str := n.rp.FindString(result)
+	str := n.reg.FindString(result)
 	if str == "" {
 		err = apps.ErrVersionNotFound
+		return
+	}
+	if s := n.regTengine.FindString(result); s != "" {
+		err = apps.ErrIgnore
 		return
 	}
 	n.version = strings.TrimPrefix(str, "nginx/")
