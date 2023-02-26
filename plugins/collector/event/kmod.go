@@ -39,7 +39,7 @@ func (k Kmod) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 						"name":     fields[0],
 						"size":     fields[1],
 						"refcount": fields[2],
-						"used_by":  fields[3],
+						"used_by":  strings.TrimRight(fields[3], ","),
 						"state":    fields[4],
 						"addr":     fields[5],
 					},

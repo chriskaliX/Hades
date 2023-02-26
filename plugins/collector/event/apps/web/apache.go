@@ -9,7 +9,7 @@ import (
 
 type Apache2 struct {
 	version string
-	rp      *regexp.Regexp
+	reg     *regexp.Regexp
 }
 
 func (Apache2) Name() string { return "apache2" }
@@ -21,11 +21,11 @@ func (a Apache2) Version() string { return a.version }
 func (Apache2) Match(p *process.Process) bool { return p.Name == "apache2" }
 
 func (a *Apache2) Run(p *process.Process) (m map[string]string, err error) {
-	if a.rp == nil {
-		a.rp = regexp.MustCompile(`Apache2\/(\d+\.)+\d+`)
+	if a.reg == nil {
+		a.reg = regexp.MustCompile(`Apache2\/(\d+\.)+\d+`)
 	}
 	result, err := apps.Execute(p, "-v")
-	str := a.rp.FindString(result)
+	str := a.reg.FindString(result)
 	if str == "" {
 		err = apps.ErrVersionNotFound
 		return

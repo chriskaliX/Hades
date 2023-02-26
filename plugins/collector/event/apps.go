@@ -15,10 +15,14 @@ import (
 	"golang.org/x/exp/maps"
 
 	// force including the applications
+	_ "collector/event/apps/bigdata"
 	_ "collector/event/apps/database"
+	_ "collector/event/apps/service"
 	_ "collector/event/apps/software"
 	_ "collector/event/apps/web"
 )
+
+const appsMaxProcess = 3000
 
 type Application struct {
 	Apps []apps.IApplication
@@ -38,8 +42,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	// inject mapping into application
 	a.once.Do(func() { a.Apps = apps.Apps })
 	var pids []int
-	var maxProcess = 3000
-	pids, err = process.GetPids(maxProcess)
+	pids, err = process.GetPids(appsMaxProcess)
 	if err != nil {
 		return
 	}
@@ -72,6 +75,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			}
 			// If success, get the container-related fields, the IApplication will not
 			// collect this in it's Run function
+			// pay attention to the uts
 			maps.Copy(m, map[string]string{
 				"name":           v.Name(),
 				"type":           v.Type(),
@@ -88,7 +92,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				"container_name": container_name,
 				"uid":            strconv.Itoa(int(proc.UID)),
 				"gid":            strconv.Itoa(int(proc.GID)),
-				"user":           proc.Username,
+				"username":       proc.Username,
 				"start_time":     strconv.Itoa(int(proc.StartTime)),
 				"listen_addrs":   apps.ProcListenAddrs(proc),
 			})
