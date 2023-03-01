@@ -27,6 +27,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/shirou/gopsutil/host"
 )
@@ -92,6 +93,17 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			{Name: configMap},
 		},
 	}
+
+	// if isEnableRingbuf() {
+	// 	driver.Manager.PerfMaps = append(driver.Manager.PerfMaps, &manager.PerfMap{
+	// 		Map: manager.Map{Name: "exec_events_ringbuf"},
+	// 		PerfMapOptions: manager.PerfMapOptions{
+	// 			PerfRingBufferSize: 256 * os.Getpagesize(),
+	// 			DataHandler:        driver.dataHandler,
+	// 			LostHandler:        driver.lostHandler,
+	// 		},
+	// 	})
+	// }
 
 	if !conf.Debug {
 		driver.Manager.Maps = append(driver.Manager.Maps, &manager.Map{Name: "pid_filter", Contents: []ebpf.MapKV{{
@@ -395,4 +407,13 @@ func save(dst string, r io.Reader) (err error) {
 		return err
 	}
 	return
+}
+
+func isEnableRingbuf() bool {
+	var ringBufMinKV, _ = version.ParseGeneric("5.8.0")
+	version, err := version.ParseGeneric(utils.KernelVersion)
+	if err != nil {
+		return false
+	}
+	return !version.LessThan(ringBufMinKV)
 }

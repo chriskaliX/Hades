@@ -154,9 +154,10 @@ typedef struct network_connection_v6 {
     __u32 scope_id;
 } net_conn_v6_t;
 
-/* filters */
+/* configs */
 BPF_HASH(config_map, __u32, __u64, 512);
 
+/* filters */
 BPF_HASH(pid_filter, __u32, __u32, 512);
 BPF_HASH(uid_filter, __u32, __u32, 512);
 BPF_HASH(cgroup_id_filter, __u64, __u32, 512);
@@ -164,14 +165,19 @@ BPF_HASH(pns_filter, __u32, __u32, 512);
 BPF_ARRAY(path_filter, string_t, 3);
 /*internal maps (caches) */
 
-/*
- * pid to pid_parent
- * May be decaptured in future
- */
 /* perf_output for events */
 BPF_PERF_OUTPUT(exec_events, 1024);
 BPF_PERF_OUTPUT(file_events, 1024);
 BPF_PERF_OUTPUT(net_events, 1024);
+/* optimize the performance with ringbuf */
+#ifdef ENABLE_RINGBUF
+#define BPF_RINGBUF_OUTPUT(_name, _key_type, _value_type, _max_entries)   \
+    BPF_MAP(_name, BPF_MAP_TYPE_RINGBUF, _key_type, _value_type, _max_entries)
+BPF_RINGBUF_OUTPUT(exec_events_ringbuf, 1024);
+BPF_RINGBUF_OUTPUT(file_events_ringbuf, 1024);
+BPF_RINGBUF_OUTPUT(net_events_ringbuf, 1024);
+#endif
+
 BPF_PERCPU_ARRAY(bufs, buf_t, 3);
 BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
 
@@ -182,9 +188,7 @@ BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
 #endif
 
 #ifdef CORE
-
 #define ARCH_HAS_SYSCALL_WRAPPER 1000U
-
 #else
 
 #ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
@@ -198,9 +202,7 @@ BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
 // In bpf_probe_read we do not exceed the 512 bytes BPF stack limit.
 // But in bpf_core_read we hit the limit in a pretty weird way.
 #ifndef CORE
-
 #define GET_FIELD_ADDR(field) &field
-
 #define READ_KERN(ptr)                                                         \
     ({                                                                         \
         typeof(ptr) _val;                                                      \
@@ -208,7 +210,6 @@ BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
         bpf_probe_read((void *)&_val, sizeof(_val), &ptr);                     \
         _val;                                                                  \
     })
-
 #define READ_USER(ptr)                                                         \
     ({                                                                         \
         typeof(ptr) _val;                                                      \
@@ -216,11 +217,8 @@ BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
         bpf_probe_read_user((void *)&_val, sizeof(_val), &ptr);                \
         _val;                                                                  \
     })
-
 #else // CORE
-
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
-
 #define READ_KERN(ptr)                                                         \
     ({                                                                         \
         typeof(ptr) _val;                                                      \
@@ -228,7 +226,6 @@ BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
         bpf_core_read((void *)&_val, sizeof(_val), &ptr);                      \
         _val;                                                                  \
     })
-
 #define READ_USER(ptr)                                                         \
     ({                                                                         \
         typeof(ptr) _val;                                                      \

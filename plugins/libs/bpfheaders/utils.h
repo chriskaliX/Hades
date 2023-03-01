@@ -879,12 +879,20 @@ static __always_inline int init_event_data(event_data_t *data, void *ctx)
 
 static __always_inline int events_perf_submit(event_data_t *data)
 {
+#ifdef ENABLE_RINGBUF
+    bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t),
+                   &data->context);
+    int size = data->buf_off & (MAX_PERCPU_BUFSIZE - 1);
+    void *output_data = data->submit_p->buf;
+    return bpf_ringbuf_output(&exec_events_ringbuf, output_data, size, BPF_F_CURRENT_CPU);
+#else
     bpf_probe_read(&(data->submit_p->buf[0]), sizeof(context_t),
                    &data->context);
     int size = data->buf_off & (MAX_PERCPU_BUFSIZE - 1);
     void *output_data = data->submit_p->buf;
     return bpf_perf_event_output(data->ctx, &exec_events, BPF_F_CURRENT_CPU,
                                  output_data, size);
+#endif
 }
 
 #endif //__UTILS_BUF_H
