@@ -30,12 +30,14 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 - [eBPF Driver](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
-- HoneyPot
+- HoneyPot (gopacket-based)
 - Monitor
 - Scanner
 - Logger
 
 ## Capability
+
+------
 
 ### eBPF Driver
 
@@ -43,6 +45,8 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 For [details](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver) of these hooks.
 
+<details><summary> eBPF driver hook details </summary>
+<p>
 
 | Hook                                       | Status & Description                  | ID   |
 | :----------------------------------------- | :------------------------------------ | :--- |
@@ -68,23 +72,44 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver) 
 | uprobe/trigger_module_scan                 | ON                                    | 1203 |
 | kprobe/security_bpf                        | ON                                    | 1204 |
 
+</p></details>
+
+------
+
 ### Collector
 
-> S stands for sync(real-time), P stands for periodicity.
+> S stands for sync(real-time), P stands for periodicity, C stands for configuration-based
+
+<details><summary> collector event details </summary>
+<p>
 
 |   Event   | Type |
 | :-------: | :--: |
+|    apps   |  P   |
+| container |  P   |
 |  crontab  |  P   |
+|    disk   |  P   |
+|host detect|  C   |
+|  iptable  |  P   |
+|    kmod   |  P   |
+| interface |  P   |
 | processes |  P   |
 |  socket   |  P   |
 | sshconfig |  P   |
 | ssh login |  S   |
+|  systemd  |  P   |
 |   user    |  P   |
 |    yum    |  P   |
+
+</p></details>
+
+------
 
 ### NCP
 
 > Netlink CN_PROC
+
+___
 
 ## Contact
 
