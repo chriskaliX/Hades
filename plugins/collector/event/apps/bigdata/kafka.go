@@ -3,13 +3,15 @@ package bigdata
 import (
 	"collector/cache/process"
 	"collector/event/apps"
+	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 type Kafka struct {
-	version string
-	reg     *regexp.Regexp
-	regDir  *regexp.Regexp
+	version    string
+	reg        *regexp.Regexp
+	regVersion *regexp.Regexp
 }
 
 func (Kafka) Name() string { return "kafka" }
@@ -23,7 +25,7 @@ func (k *Kafka) Match(p *process.Process) bool {
 		return false
 	}
 	if k.reg == nil {
-		k.reg = regexp.MustCompile(` kafka.Kafka`)
+		k.reg = regexp.MustCompile(` kafka.Kafka( )`)
 	}
 	if s := k.reg.FindString(p.Argv); s == "" {
 		return false
@@ -31,8 +33,21 @@ func (k *Kafka) Match(p *process.Process) bool {
 	return true
 }
 
-// may not accurate
+// Check the version by the jar name, is there any better way to do this?
 func (k *Kafka) Run(p *process.Process) (m map[string]string, err error) {
+	if k.regVersion == nil {
+		k.regVersion = regexp.MustCompile(`kafka_(\d+\.)+(\d+)-(\d+\.)+(\d+)\.jar`)
+	}
+	if fds, err := process.GetFds(p.PID); err == nil {
+		for _, fd := range fds {
+			if filepath.Ext(fd) != ".jar" {
+				continue
+			}
+			if s := k.regVersion.FindString(filepath.Base(fd)); s != "" {
+				k.version = strings.Split(strings.TrimLeft(s, "kafka_"), "-")[0]
+			}
+		}
+	}
 	return
 }
 

@@ -106,10 +106,17 @@ func GetProcessInfo(pid int, simple bool) (proc *Process, err error) {
 	if ppid, ok := PidCache.Get(pid); ok {
 		proc.PPID = ppid.(int)
 	}
+	// ppid argv
 	if argv, ok := ArgvCache.Get(proc.PPID); ok {
 		proc.PpidArgv = argv.(string)
 	} else {
 		proc.PpidArgv, _ = getCmdline(proc.PPID)
+	}
+	// pgid argv
+	if argv, ok := ArgvCache.Get(proc.PGID); ok {
+		proc.PgidArgv = argv.(string)
+	} else {
+		proc.PgidArgv, _ = getCmdline(proc.PGID)
 	}
 
 	return proc, nil

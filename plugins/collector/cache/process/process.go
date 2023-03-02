@@ -59,7 +59,7 @@ type Process struct {
 // https://github.com/mneverov/CPUStat
 // the author claims that it is safe to hardcode this to 100
 const userHz = 100
-const maxCmdline = 2048
+const maxCmdline = 8 * 1024 // Large since java cmdline is loooog
 
 // internal system related variables
 var bootTime = uint64(0)
