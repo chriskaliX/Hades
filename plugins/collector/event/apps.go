@@ -16,6 +16,7 @@ import (
 
 	// force including the applications
 	_ "collector/event/apps/bigdata"
+	_ "collector/event/apps/container"
 	_ "collector/event/apps/database"
 	_ "collector/event/apps/service"
 	_ "collector/event/apps/software"
@@ -40,7 +41,10 @@ func (Application) Immediately() bool { return false }
 // Run over the application recognition plugins
 func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	// inject mapping into application
-	a.once.Do(func() { a.Apps = apps.Apps })
+	a.once.Do(func() {
+		a.Apps = apps.Apps
+		zap.S().Infof("app count: %d", len(a.Apps))
+	})
 	var pids []int
 	pids, err = process.GetPids(appsMaxProcess)
 	if err != nil {
@@ -104,8 +108,6 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 					Fields: m,
 				},
 			})
-
-			zap.S().Infof("application collect %s is finished", v.Name())
 			goto Next
 		}
 	Next:

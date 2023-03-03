@@ -34,7 +34,7 @@ func (p *Prometheus) Run(proc *process.Process) (mapping map[string]string, err 
 		err = apps.ErrVersionNotFound
 		return
 	}
-	p.version = strings.TrimLeft(str, "prometheus, version ")
+	p.version = strings.TrimPrefix(str, "prometheus, version ")
 	return
 }
 

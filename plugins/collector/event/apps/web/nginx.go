@@ -51,6 +51,4 @@ func (n *Nginx) Run(p *process.Process) (m map[string]string, err error) {
 	return
 }
 
-func init() {
-	apps.Regist(&Nginx{})
-}
+func init() { apps.Regist(&Nginx{}) }
