@@ -66,6 +66,7 @@ func main() {
 	em.AddEvent(&event.BPFProg{}, 6*time.Hour)
 
 	em.AddEvent(&event.Iptables{}, 24*time.Hour)
+	em.AddEvent(&event.Libraries{}, 24*time.Hour)
 
 	sandbox.Run(em.Run)
 }

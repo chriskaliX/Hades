@@ -32,3 +32,5 @@
 |net_interface|3012|
 |iptables|3013|
 |bpf_prog|3014|
+|jar file|3015|
+|dpkg file|3016|
