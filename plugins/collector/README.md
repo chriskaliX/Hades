@@ -9,26 +9,25 @@
 
 > 未标识异步则代表定时查询
 
-|名称|Data Type|
-|:-|:-|
-|cron|2001|
-|cron - 异步|3001|
-|process|1001|
-|socket|5001|
-|sshd_config|3002|
-|ssh_log|3003|
-|user|3004|
-|ssh_config|3005|
-|yum|3006|
-|host_scan|3007|
-|apps|3008|
-|kmod|3009|
-|disk|3010|
-|systemd_unit|3011|
-|net_interface|3012|
-|iptables|3013|
-|bpf_prog|3014|
-|jar file|3015|
-|dpkg|3016|
-|rpm|3017|
-|container|3018|
+|   Event   | Type |  ID  |
+| :-------: | :--: |  :-: |
+| processes |  P   | 1001 |
+|  crontab  |  P   | 2001 |
+|sshdconfig |  P   | 3002 |
+| ssh login |  S   | 3003 |
+|   user    |  P   | 3004 |
+| sshconfig |  P   | 3005 |
+|    yum    |  P   | 3006 |
+|host detect|  C   | 3007 |
+|    apps   |  P   | 3008 |
+|    kmod   |  P   | 3009 |
+|    disk   |  P   | 3010 |
+|  systemd  |  P   | 3011 |
+| interface |  P   | 3012 |
+|  iptable  |  P   | 3013 |
+|bpf_program|  P   | 3014 |
+|    jar    |  P   | 3015 |
+|   dpkg    |  P   | 3016 |
+|    rpm    |  P   | 3017 |
+| container |  P   | 3018 |
+|  socket   |  P   | 5001 |
