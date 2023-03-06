@@ -85,7 +85,6 @@ For [details](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver) 
 
 |   Event   | Type |  ID  |
 | :-------: | :--: |  :-: |
-
 | processes |  P   | 1001 |
 |  crontab  |  P   | 2001 |
 |sshdconfig |  P   | 3002 |
