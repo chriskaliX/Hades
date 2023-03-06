@@ -59,20 +59,20 @@ func (b *readBuffer) Next(n int) []byte {
 
 // what we define
 type Socket struct {
-	DPort     uint16 `json:"dport"`
-	SPort     uint16 `json:"sport"`
-	DIP       net.IP `json:"dip"`
-	SIP       net.IP `json:"sip"`
-	Interface uint32 `json:"interface"`
-	Family    uint8  `json:"family"`
-	State     uint8  `json:"state"`
-	UID       uint32 `json:"uid"`
-	Username  string `json:"username"`
-	Inode     uint32 `json:"inode"`
-	PID       int    `json:"pid"`
-	Cmdline   string `json:"cmdline"`
-	Comm      string `json:"comm"`
-	Type      uint8  `json:"type"`
+	DPort     string `json:"dport" mapstructure:"dport"`
+	SPort     string `json:"sport" mapstructure:"sport"`
+	DIP       string `json:"dip" mapstructure:"dip"`
+	SIP       string `json:"sip" mapstructure:"sip"`
+	Interface string `json:"interface" mapstructure:"interface"`
+	Family    string `json:"family" mapstructure:"family"`
+	State     string `json:"state" mapstructure:"state"`
+	UID       string `json:"uid" mapstructure:"uid"`
+	Username  string `json:"username" mapstructure:"username"`
+	Inode     string `json:"inode" mapstructure:"inode"`
+	PID       string `json:"pid" mapstructure:"pid"`
+	Cmdline   string `json:"cmdline" mapstructure:"cmdline"`
+	Comm      string `json:"comm" mapstructure:"comm"`
+	Type      string `json:"type" mapstructure:"type"`
 }
 
 type socketRequest struct {
@@ -179,18 +179,18 @@ loop:
 				continue
 			}
 			socket := Socket{
-				SIP:       sockInfo.ID.Source,
-				DIP:       sockInfo.ID.Destination,
-				SPort:     sockInfo.ID.SourcePort,
-				DPort:     sockInfo.ID.DestinationPort,
-				UID:       sockInfo.UID,
-				Interface: sockInfo.ID.Interface,
-				Family:    sockInfo.Family,
-				State:     sockInfo.State,
-				Inode:     sockInfo.INode,
-				Type:      protocol,
+				SIP:       sockInfo.ID.Source.String(),
+				DIP:       sockInfo.ID.Destination.String(),
+				SPort:     strconv.Itoa(int(sockInfo.ID.SourcePort)),
+				DPort:     strconv.Itoa(int(sockInfo.ID.DestinationPort)),
+				UID:       strconv.FormatUint(uint64(sockInfo.UID), 10),
+				Interface: strconv.FormatUint(uint64(sockInfo.ID.Interface), 10),
+				Family:    strconv.FormatUint(uint64(sockInfo.Family), 10),
+				State:     strconv.FormatUint(uint64(sockInfo.State), 10),
+				Inode:     strconv.FormatUint(uint64(sockInfo.INode), 10),
+				Type:      strconv.FormatUint(uint64(protocol), 10),
 			}
-			socket.Username = user.Cache.GetUser(socket.UID).Username
+			socket.Username = user.Cache.GetUser(sockInfo.UID).Username
 			sockets = append(sockets, socket)
 		}
 	}
@@ -245,7 +245,10 @@ func parseProcNet(family, protocol uint8, path string) (sockets []Socket, err er
 				header[8+index] = field
 			}
 		} else {
-			socket := Socket{Family: family, Type: protocol}
+			socket := Socket{
+				Family: strconv.FormatUint(uint64(family), 10),
+				Type:   strconv.FormatUint(uint64(protocol), 10),
+			}
 			droped := false
 			for index, key := range strings.Fields(r.Text()) {
 				switch header[index] {
@@ -255,36 +258,40 @@ func parseProcNet(family, protocol uint8, path string) (sockets []Socket, err er
 						droped = true
 						break
 					}
-					socket.SIP, err = parseIP(fields[0])
+					var sip net.IP
+					sip, err = parseIP(fields[0])
 					if err != nil {
 						droped = true
 						break
 					}
+					socket.SIP = sip.String()
 					var port uint64
 					port, err = strconv.ParseUint(fields[1], 16, 64)
 					if err != nil {
 						droped = true
 						break
 					}
-					socket.SPort = uint16(port)
+					socket.SPort = strconv.Itoa(int(port))
 				case "rem_address":
 					fields := strings.Split(key, ":")
 					if len(fields) != 2 {
 						droped = true
 						break
 					}
-					socket.DIP, err = parseIP(fields[0])
+					var dip net.IP
+					dip, err = parseIP(fields[0])
 					if err != nil {
 						droped = true
 						break
 					}
+					socket.DIP = dip.String()
 					var port uint64
 					port, err = strconv.ParseUint(fields[1], 16, 64)
 					if err != nil {
 						droped = true
 						break
 					}
-					socket.DPort = uint16(port)
+					socket.DPort = strconv.Itoa(int(port))
 				case "st":
 					st, err := strconv.ParseUint(key, 16, 64)
 					if err != nil {
@@ -307,24 +314,24 @@ func parseProcNet(family, protocol uint8, path string) (sockets []Socket, err er
 						droped = true
 						break
 					}
-					socket.State = uint8(st)
+					socket.State = strconv.FormatUint(st, 10)
 				case "uid":
 					uid, err := strconv.ParseUint(key, 0, 64)
 					if err != nil {
 						continue
 					}
-					socket.UID = uint32(uid)
+					socket.UID = strconv.FormatUint(uid, 10)
 					socket.Username = user.Cache.GetUser(uint32(uid)).Username
 				case "inode":
 					inode, err := strconv.ParseUint(key, 0, 64)
 					if err != nil {
 						continue
 					}
-					socket.Inode = uint32(inode)
+					socket.Inode = strconv.FormatUint(uint64(inode), 10)
 				default:
 				}
 			}
-			if !droped && len(socket.DIP) != 0 && len(socket.SIP) != 0 && socket.State != 0 {
+			if !droped && len(socket.DIP) != 0 && len(socket.SIP) != 0 && socket.State != "0" {
 				sockets = append(sockets, socket)
 			}
 		}
@@ -351,9 +358,9 @@ func FromProc() (sockets []Socket, err error) {
 	if err == nil {
 		sockets = append(sockets, udp6Socks...)
 	}
-	inodeMap := make(map[uint32]int)
+	inodeMap := make(map[string]int)
 	for index, socket := range sockets {
-		if socket.Inode != 0 {
+		if socket.Inode != "0" {
 			inodeMap[socket.Inode] = index
 		}
 	}

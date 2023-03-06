@@ -41,7 +41,7 @@ func (b *BPFProg) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	if b.version.LessThan(bpfMinKV) {
 		return nil
 	}
-
+	hash := utils.Hash()
 	// Pre-check kernel version
 	last := ebpf.ProgramID(0)
 	for {
@@ -72,8 +72,7 @@ func (b *BPFProg) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		if prog.IsPinned() {
 			pinned = "true"
 		}
-		// TODO: maps is ignored, should maps be reported too?
-		s.SendRecord(&protocol.Record{
+		rec := &protocol.Record{
 			DataType:  int32(b.DataType()),
 			Timestamp: utils.Clock.Now().Unix(),
 			Data: &protocol.Payload{
@@ -86,9 +85,11 @@ func (b *BPFProg) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 					"run_count": strconv.FormatUint(runCount, 10),
 					"run_time":  strconv.FormatFloat(runTime.Seconds(), 'f', 2, 64),
 					"pinned":    pinned,
+					"seq":       hash,
 				},
 			},
-		})
+		}
+		s.SendRecord(rec)
 	}
 	return
 }

@@ -57,7 +57,7 @@ func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
 		return err
 	}
 	rec := &protocol.Record{
-		DataType: SSHCONFIG_DATATYPE,
+		DataType: int32(u.DataType()),
 		Data: &protocol.Payload{
 			Fields: map[string]string{
 				"data": data,

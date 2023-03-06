@@ -1,9 +1,10 @@
-package event
+package systems
 
 import (
 	"collector/eventmanager"
 	"collector/utils"
 	"strings"
+	"time"
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
@@ -37,6 +38,7 @@ func (SystemdUnit) Flag() int { return eventmanager.Periodic }
 func (SystemdUnit) Immediately() bool { return false }
 
 func (sys *SystemdUnit) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	hash := utils.Hash()
 	sys.conn, err = dbus.SystemBusPrivate()
 	if err != nil {
 		return err
@@ -61,10 +63,11 @@ func (sys *SystemdUnit) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		if !sys.isService(u.Name) {
 			continue
 		}
-		data := make(map[string]string, 10)
+		data := make(map[string]string, 11)
 		if err = mapstructure.Decode(u, &data); err != nil {
 			continue
 		}
+		data["seq"] = hash
 		s.SendRecord(&protocol.Record{
 			DataType:  int32(sys.DataType()),
 			Timestamp: utils.Clock.Now().Unix(),
@@ -79,3 +82,5 @@ func (sys *SystemdUnit) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 func (SystemdUnit) isService(name string) bool {
 	return strings.HasSuffix(name, ".service")
 }
+
+func init() { addEvent(&SystemdUnit{}, 24*time.Hour) }

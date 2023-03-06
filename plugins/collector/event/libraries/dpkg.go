@@ -3,6 +3,7 @@ package libraries
 
 import (
 	"bufio"
+	"collector/utils"
 	"io"
 	"os"
 	"strings"
@@ -29,6 +30,7 @@ type Dpkg struct {
 func (Dpkg) DataType() int { return 3016 }
 
 func (d *Dpkg) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
+	hash := utils.Hash()
 	for _, dpkgFile := range dpkgFiles {
 		f, err := os.Open(dpkgFile)
 		if err != nil {
@@ -85,6 +87,7 @@ func (d *Dpkg) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 				},
 			}
 			mapstructure.Decode(d, &rec.Data.Fields)
+			rec.Data.Fields["seq"] = hash
 			// Maybe way too many, make the channel chunk
 			sandbox.SendRecord(rec)
 			d.reset()

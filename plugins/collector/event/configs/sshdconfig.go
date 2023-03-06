@@ -1,8 +1,9 @@
-package event
+package configs
 
 import (
 	"bufio"
 	"collector/eventmanager"
+	"collector/utils"
 	"io"
 	"os"
 	"strings"
@@ -36,7 +37,8 @@ func (n *Sshd) Flag() int {
 func (Sshd) Immediately() bool { return false }
 
 func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
-	result := make(map[string]string, 6)
+	hash := utils.Hash()
+	result := make(map[string]string, 7)
 	var scan *bufio.Scanner
 	file, err := os.Open(sshdConfig)
 	if err != nil {
@@ -88,6 +90,9 @@ func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
 			Fields: result,
 		},
 	}
+	rec.Data.Fields["seq"] = hash
 	s.SendRecord(rec)
 	return nil
 }
+
+func init() { addEvent(&Sshd{}) }

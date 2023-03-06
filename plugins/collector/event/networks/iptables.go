@@ -1,4 +1,4 @@
-package event
+package networks
 
 import (
 	"collector/eventmanager"
@@ -34,16 +34,19 @@ func (Iptables) Flag() int { return eventmanager.Periodic }
 func (Iptables) Immediately() bool { return false }
 
 func (i Iptables) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	hash := utils.Hash()
 	for _, name := range tableList {
 		if records, err := i.listTable(name); err == nil {
 			for _, record := range records {
-				s.SendRecord(&protocol.Record{
+				rec := &protocol.Record{
 					DataType:  int32(i.DataType()),
 					Timestamp: utils.Clock.Now().Unix(),
 					Data: &protocol.Payload{
 						Fields: record,
 					},
-				})
+				}
+				rec.Data.Fields["seq"] = hash
+				s.SendRecord(rec)
 			}
 		}
 	}
@@ -113,3 +116,5 @@ func (Iptables) listTable(name string) (m []map[string]string, err error) {
 	}
 	return
 }
+
+func init() { addEvent(&Iptables{}, 24 * time.Hour) }

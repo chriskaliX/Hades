@@ -105,8 +105,8 @@ func ProcListenAddrs(proc *process.Process) string {
 			if err != nil {
 				continue
 			}
-			if soc, ok := socket.Get(uint32(inode)); ok && soc.State == 10 {
-				addrs = append(addrs, soc.SIP.String()+":"+strconv.Itoa(int(soc.SPort)))
+			if soc, ok := socket.Get(uint32(inode)); ok && soc.State == "10" {
+				addrs = append(addrs, soc.SIP+":"+soc.SPort)
 			}
 		}
 	}

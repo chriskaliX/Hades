@@ -2,7 +2,7 @@
 // AND DO REMEMBER THAT THIS MAY CAUSE THE eBPFdriver plugin report all
 // METHODS: ARP / PING etc. VERY SLOW
 // THIS SHOULD BE CONTROLLED BY THE SERVER
-package event
+package systems
 
 import (
 	"collector/eventmanager"
@@ -24,7 +24,7 @@ type HostScanner struct {
 
 func (HostScanner) DataType() int { return 3007 }
 
-func (n *HostScanner) Flag() int { return eventmanager.Trigger }
+func (HostScanner) Flag() int { return eventmanager.Trigger }
 
 func (HostScanner) Name() string { return "host_scanner" }
 
@@ -112,3 +112,6 @@ func (h HostScanner) iter(ip net.IP) {
 		}
 	}
 }
+
+// THIS SHOULD NEVER RUN
+func init() { addEvent(&HostScanner{}, 24*time.Hour) }

@@ -1,9 +1,10 @@
-package event
+package configs
 
 import (
 	"bufio"
 	"collector/cache/user"
 	"collector/eventmanager"
+	"collector/utils"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
+	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -28,19 +30,16 @@ type SshConfig struct {
 	firstTime bool
 }
 
-func (SshConfig) DataType() int {
-	return SSHCONFIG_DATATYPE
-}
+func (SshConfig) DataType() int { return SSHCONFIG_DATATYPE }
 
-func (SshConfig) Name() string {
-	return "sshconfig"
-}
+func (SshConfig) Name() string { return "sshconfig" }
 
 func (n *SshConfig) Flag() int { return eventmanager.Periodic }
 
 func (SshConfig) Immediately() bool { return false }
 
 func (s *SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
+	hash := utils.Hash()
 	// get user configuration
 	configPath := s.sshConfigPath()
 	s.firstTime = true
@@ -54,19 +53,18 @@ func (s *SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	if config, err := s.getSshConfig("0", systemSshConfig); err == nil {
 		configs = append(configs, config...)
 	}
-	data, err := sonic.MarshalString(configs)
-	if err != nil {
-		return err
-	}
-	rec := &protocol.Record{
-		DataType: SSHCONFIG_DATATYPE,
-		Data: &protocol.Payload{
-			Fields: map[string]string{
-				"data": data,
+
+	for _, config := range configs {
+		rec := &protocol.Record{
+			DataType: int32(s.DataType()),
+			Data: &protocol.Payload{
+				Fields: make(map[string]string, 5),
 			},
-		},
+		}
+		mapstructure.Decode(&config, &rec.Data.Fields)
+		rec.Data.Fields["seq"] = hash
+		sandbox.SendRecord(rec)
 	}
-	sandbox.SendRecord(rec)
 	return nil
 }
 
@@ -81,10 +79,11 @@ func (SshConfig) sshConfigPath() (configs map[uint32]string) {
 }
 
 type sshConfig struct {
-	Uid      string            `json:"uid"`
-	Block    string            `json:"block"`
-	Option   map[string]string `json:"option"`
-	Filepath string            `json:"filepath"`
+	Uid      string `json:"uid" mapstructure:"uid"`
+	Block    string `json:"block" mapstructure:"block"`
+	Option   string `mapstructure:"option"`
+	Filepath string `json:"filepath" mapstructure:"filepath"`
+	option   map[string]string
 }
 
 // Reference:
@@ -94,7 +93,7 @@ func (s *SshConfig) getSshConfig(uid string, path string) (configs []sshConfig, 
 		file   *os.File
 		scan   *bufio.Scanner
 		config = sshConfig{
-			Option: make(map[string]string),
+			option: make(map[string]string),
 		}
 	)
 	if file, err = os.Open(path); err != nil {
@@ -116,7 +115,7 @@ func (s *SshConfig) getSshConfig(uid string, path string) (configs []sshConfig, 
 				configs = append(configs, config)
 			}
 			config = sshConfig{
-				Option: make(map[string]string),
+				option: make(map[string]string),
 			}
 			config.Block = text
 			config.Filepath = path
@@ -126,14 +125,17 @@ func (s *SshConfig) getSshConfig(uid string, path string) (configs []sshConfig, 
 			spaceIndex := strings.Index(text, " ")
 			equalIndex := strings.Index(text, "=")
 			if spaceIndex == -1 && equalIndex == -1 {
-				config.Option[text] = ""
+				config.option[text] = ""
 			} else if spaceIndex == -1 {
-				config.Option[text[:equalIndex]] = text[equalIndex+1:]
+				config.option[text[:equalIndex]] = text[equalIndex+1:]
 			} else {
-				config.Option[text[:spaceIndex]] = text[spaceIndex+1:]
+				config.option[text[:spaceIndex]] = text[spaceIndex+1:]
 			}
 		}
 	}
+	config.Option, _ = sonic.MarshalString(config.option)
 	configs = append(configs, config)
 	return
 }
+
+func init() { addEvent(&SshConfig{}) }

@@ -1,7 +1,8 @@
-package event
+package systems
 
 import (
 	"collector/eventmanager"
+	"collector/utils"
 	"net"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ func (n NetInterface) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	if err != nil {
 		return
 	}
+	hash := utils.Hash()
 	for _, nif := range interfaces {
 		if addrs, err := nif.Addrs(); err == nil {
 			var addrList []string
@@ -44,6 +46,7 @@ func (n NetInterface) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 						"addrs":         strings.Join(addrList, ","),
 						"index":         strconv.Itoa(nif.Index),
 						"mtu":           strconv.Itoa(nif.MTU),
+						"seq":           hash,
 					},
 				},
 			})
@@ -51,3 +54,5 @@ func (n NetInterface) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	}
 	return
 }
+
+func init() { addEvent(&NetInterface{}, 24*time.Hour) }

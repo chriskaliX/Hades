@@ -1,17 +1,18 @@
-package event
+package networks
 
 import (
 	"collector/cache/process"
 	scache "collector/cache/socket"
 	"collector/eventmanager"
 	"collector/socket"
+	"collector/utils"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
+	"github.com/mitchellh/mapstructure"
 	"go.uber.org/zap"
 )
 
@@ -29,16 +30,16 @@ func (Socket) Immediately() bool { return true }
 
 func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	var ok bool
-	result := make([]socket.Socket, 0, 128)
+	hash := utils.Hash()
 	sockets, err := socket.FromNetlink()
 	if err != nil {
 		zap.S().Warn("get socket from netlink failed:", err)
 		zap.S().Info("try getting socket from proc...")
 		sockets, _ = socket.FromProc()
 	}
-	inodeMap := make(map[uint32]int)
+	inodeMap := make(map[string]int)
 	for index, socket := range sockets {
-		if socket.Inode != 0 {
+		if socket.Inode != "0" {
 			inodeMap[socket.Inode] = index
 		}
 	}
@@ -64,11 +65,11 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 			if err != nil {
 				continue
 			}
-			index, ok = inodeMap[uint32(inode)]
+			index, ok = inodeMap[strconv.FormatUint(uint64(inode), 10)]
 			if !ok {
 				continue
 			}
-			sockets[index].PID = pid
+			sockets[index].PID = strconv.Itoa(pid)
 			proc := &process.Process{
 				PID: pid,
 			}
@@ -80,21 +81,19 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 			}
 			socket := sockets[index]
 			scache.Put(uint32(inode), socket)
-			result = append(result, socket)
+			rec := &protocol.Record{
+				DataType: int32(s.DataType()),
+				Data: &protocol.Payload{
+					Fields: make(map[string]string, 15),
+				},
+			}
+			mapstructure.Decode(&socket, &rec.Data.Fields)
+			rec.Data.Fields["seq"] = hash
+			sandbox.SendRecord(rec)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	data, err := sonic.MarshalString(result)
-	if err != nil {
-		return err
-	}
-	sandbox.SendRecord(&protocol.Record{
-		DataType: int32(s.DataType()),
-		Data: &protocol.Payload{
-			Fields: map[string]string{
-				"data": data,
-			},
-		},
-	})
 	return nil
 }
+
+func init() { addEvent(&Socket{}, 15*time.Minute) }

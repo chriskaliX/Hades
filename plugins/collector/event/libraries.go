@@ -2,16 +2,13 @@ package event
 
 import (
 	"collector/eventmanager"
-	"regexp"
 
 	"github.com/chriskaliX/SDK"
 
 	ls "collector/event/libraries"
 )
 
-type Libraries struct {
-	regVersion *regexp.Regexp
-}
+type Libraries struct{}
 
 func (Libraries) DataType() int { return 9999 }
 

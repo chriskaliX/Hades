@@ -14,7 +14,7 @@ var _ eventmanager.IEvent = (*Container)(nil)
 
 type Container struct{}
 
-func (Container) DataType() int { return 1003 }
+func (Container) DataType() int { return 3018 }
 
 func (Container) Name() string { return "container" }
 

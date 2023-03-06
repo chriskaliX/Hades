@@ -22,7 +22,6 @@ import (
 const (
 	yumReposDir            = "/etc/yum.repos.d"
 	yumConfigFileExtension = ".repo"
-	YUM_DATATYPE           = 3006
 	YUM_FILELIMIT          = 100
 	YUM_RECORDLIMIT        = 1000
 )
@@ -36,7 +35,7 @@ type Yum struct {
 	Mirrorlist string `mapstructure:"mirrorlist"`
 }
 
-func (Yum) DataType() int { return YUM_DATATYPE }
+func (Yum) DataType() int { return 3006 }
 
 func (Yum) Name() string { return "yum" }
 
@@ -47,15 +46,8 @@ func (y *Yum) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	default:
 		return nil
 	}
-
+	hash := utils.Hash()
 	files := y.getfiles(yumReposDir)
-
-	rec := &protocol.Record{
-		DataType: YUM_DATATYPE,
-		Data: &protocol.Payload{
-			Fields: map[string]string{},
-		},
-	}
 
 	for _, file := range files {
 		f, err := os.Open(file)
@@ -104,7 +96,14 @@ func (y *Yum) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 					y.GpgKey = fields[1]
 				}
 			}
+			rec := &protocol.Record{
+				DataType: int32(y.DataType()),
+				Data: &protocol.Payload{
+					Fields: make(map[string]string, 7),
+				},
+			}
 			mapstructure.Decode(y, &rec.Data.Fields)
+			rec.Data.Fields["seq"] = hash
 			sandbox.SendRecord(rec)
 			y.reset()
 			time.Sleep(30 * time.Millisecond)

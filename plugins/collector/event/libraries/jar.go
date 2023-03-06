@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"collector/cache/container"
 	"collector/cache/process"
+	"collector/utils"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -31,6 +32,7 @@ func (Jar) DataType() int { return 3015 }
 func (Jar) Name() string { return "jar" }
 
 func (j *Jar) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	hash := utils.Hash()
 	var pids []int
 	pids, err = process.GetPids(jarMaxProcess)
 	if err != nil {
@@ -96,6 +98,7 @@ func (j *Jar) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 						j.Path = fd
 						mapstructure.Decode(j, &m)
 						maps.Copy(rec.Data.Fields, m)
+						rec.Data.Fields["seq"] = hash
 						time.Sleep(50 * time.Millisecond)
 						s.SendRecord(rec)
 					case version == "" && f.Name == "META-INF/MANIFEST.MF":
@@ -118,6 +121,7 @@ func (j *Jar) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				mapstructure.Decode(j, &m)
 				maps.Copy(rec.Data.Fields, m)
 				// cmdline may too long
+				rec.Data.Fields["seq"] = hash
 				time.Sleep(60 * time.Millisecond)
 				s.SendRecord(rec)
 			}
@@ -141,8 +145,8 @@ func (j *Jar) parseJarName(jar string) (name, version string) {
 	}
 }
 
-var zeroJar = &Jar{}
-
-func (j *Jar) reset() { *j = *zeroJar }
+func (j *Jar) reset() {
+	j.JarName, j.Version, j.Path = "", "", ""
+}
 
 func init() { addEvent(&Jar{}) }

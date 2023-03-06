@@ -33,4 +33,6 @@
 |iptables|3013|
 |bpf_prog|3014|
 |jar file|3015|
-|dpkg file|3016|
+|dpkg|3016|
+|rpm|3017|
+|container|3018|

@@ -1,4 +1,4 @@
-package event
+package systems
 
 import (
 	"collector/eventmanager"
@@ -27,7 +27,6 @@ func (d Disk) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		return err
 	}
 	for _, partition := range partitions {
-		// TODO: should we ignore squashfs, /dev/loop? not necessary for now
 		usage, err := disk.Usage(partition.Mountpoint)
 		if err != nil {
 			continue
@@ -54,3 +53,5 @@ func (d Disk) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	}
 	return
 }
+
+func init() { addEvent(&Disk{}, 24*time.Hour) }

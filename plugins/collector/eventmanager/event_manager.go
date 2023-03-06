@@ -75,6 +75,8 @@ func (e *EventManager) Run(s SDK.ISandbox) error {
 				)
 				ev.id = id
 			}(event)
+		case Trigger:
+			// just ignore this
 		}
 	}
 	go e.taskResolve()

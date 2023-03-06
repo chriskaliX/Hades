@@ -5,6 +5,7 @@ import (
 	"collector/cache/process"
 	"collector/event/apps"
 	"collector/eventmanager"
+	"collector/utils"
 	"strconv"
 	"sync"
 	"time"
@@ -40,6 +41,7 @@ func (Application) Immediately() bool { return false }
 
 // Run over the application recognition plugins
 func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	hash := utils.Hash()
 	// inject mapping into application
 	a.once.Do(func() {
 		a.Apps = apps.Apps
@@ -100,14 +102,15 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				"start_time":     strconv.Itoa(int(proc.StartTime)),
 				"listen_addrs":   apps.ProcListenAddrs(proc),
 			})
-
-			s.SendRecord(&protocol.Record{
+			rec := &protocol.Record{
 				DataType:  int32(a.DataType()),
 				Timestamp: time.Now().Unix(),
 				Data: &protocol.Payload{
 					Fields: m,
 				},
-			})
+			}
+			rec.Data.Fields["seq"] = hash
+			s.SendRecord(rec)
 			goto Next
 		}
 	Next:
