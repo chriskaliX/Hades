@@ -5,10 +5,6 @@
 1. `make` 编译 golang 代码
 2. `./collector --debug` 运行插件, 看到输出数据
 
-## TODOList
-
-- [ ] fd 获取 jar，以及对应 fatjar 问题
-
 ## Data Type对照表
 
 > 未标识异步则代表定时查询
