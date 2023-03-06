@@ -54,7 +54,6 @@ func main() {
 
 	em.AddEvent(&event.Container{}, 5*time.Minute)
 	em.AddEvent(&event.User{}, 10*time.Minute)
-	em.AddEvent(&event.Yum{}, 10*time.Minute)
 	em.AddEvent(&event.Process{}, 15*time.Minute)
 
 	em.AddEvent(&event.Kmod{}, 6*time.Minute)

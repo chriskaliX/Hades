@@ -52,7 +52,6 @@ func (d *Dpkg) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 			}
 			return 0, nil, nil
 		})
-		d.reset()
 		for s.Scan() {
 			lines := strings.Split(s.Text(), "\n")
 			for _, line := range lines {
@@ -88,14 +87,15 @@ func (d *Dpkg) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 			mapstructure.Decode(d, &rec.Data.Fields)
 			// Maybe way too many, make the channel chunk
 			sandbox.SendRecord(rec)
+			d.reset()
 			time.Sleep(30 * time.Millisecond)
 		}
 	}
 	return
 }
 
-var emptyDpkg = &Dpkg{}
+var zeroDpkg = &Dpkg{}
 
-func (d *Dpkg) reset() { d = emptyDpkg }
+func (d *Dpkg) reset() { *d = *zeroDpkg }
 
 func init() { addEvent(&Dpkg{}) }

@@ -141,8 +141,8 @@ func (j *Jar) parseJarName(jar string) (name, version string) {
 	}
 }
 
-func (j *Jar) reset() {
-	j.JarName, j.Version, j.Path = "", "", ""
-}
+var zeroJar = &Jar{}
+
+func (j *Jar) reset() { *j = *zeroJar }
 
 func init() { addEvent(&Jar{}) }
