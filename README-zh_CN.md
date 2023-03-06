@@ -76,7 +76,7 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 ### Collector
 
-> S 代表异步采集，P 代表周期采集
+> S 代表异步采集，P 代表周期采集，C 代表触发采集
 
 <details><summary> collector 插件 hook 详情 </summary>
 <p>
