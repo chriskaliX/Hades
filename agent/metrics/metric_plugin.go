@@ -69,6 +69,7 @@ func (m *PluginMetric) Flush(now time.Time) {
 		m.RxSpeed = strconv.FormatFloat(RxSpeed, 'f', 8, 64)
 		m.TxSpeed = strconv.FormatFloat(TxSpeed, 'f', 8, 64)
 		m.Grs = strconv.Itoa(runtime.NumGoroutine())
+		m.Pid = strconv.FormatInt(int64(plg.Pid()), 10)
 
 		fields := make(map[string]string, 20)
 		if err := mapstructure.Decode(m, &fields); err == nil {

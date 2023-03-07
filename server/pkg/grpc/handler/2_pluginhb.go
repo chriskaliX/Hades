@@ -42,6 +42,4 @@ func (p *PluginHeartbeat) Handle(m map[string]string, req *pb.RawData, conn *poo
 	return err
 }
 
-func init() {
-	RegistEvent(&PluginHeartbeat{})
-}
+func init() { RegistEvent(&PluginHeartbeat{}) }

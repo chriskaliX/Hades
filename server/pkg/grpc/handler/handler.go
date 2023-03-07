@@ -92,11 +92,11 @@ func (w *Worker) Run() {
 				w.cache[dt] = make(map[string]string)
 			}
 			// seq check
-			if seq, ok := w.cache[dt][agentid]; ok && package_seq != seq {
+			if w.cache[dt][agentid] != package_seq {
 				// seq is not the same, clear the same seq
 				_, err := mongo.AssetC.DeleteMany(
 					context.Background(),
-					bson.M{"agent_id": agentid, "package_seq": bson.M{"$ne": seq}},
+					bson.M{"agent_id": agentid, "package_seq": bson.M{"$ne": package_seq.(string)}},
 				)
 				if err != nil {
 					zap.S().Error(err)
