@@ -89,6 +89,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				"tid":            strconv.Itoa(proc.TID),
 				"pgid":           strconv.Itoa(proc.PGID),
 				"pns":            strconv.Itoa(proc.Pns),
+				"root_pns":       strconv.Itoa(proc.RootPns),
 				"exe":            proc.Exe,
 				"cwd":            proc.Cwd,
 				"version":        v.Version(),
@@ -99,7 +100,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				"uid":            strconv.Itoa(int(proc.UID)),
 				"gid":            strconv.Itoa(int(proc.GID)),
 				"username":       proc.Username,
-				"start_time":     strconv.Itoa(int(proc.StartTime)),
+				"start_time":     strconv.FormatUint(proc.StartTime, 10),
 				"listen_addrs":   apps.ProcListenAddrs(proc),
 			})
 			rec := &protocol.Record{

@@ -42,13 +42,14 @@ func main() {
 	sandbox := SDK.NewSandbox(sconfig)
 	em := eventmanager.New(sandbox)
 
-	em.AddEvent(&event.Crontab{}, eventmanager.Start)
 	em.AddEvent(&event.SSH{}, eventmanager.Start)
+	em.AddEvent(&event.CronWatcher{}, eventmanager.Start)
 
 	em.AddEvent(&event.Container{}, 5*time.Minute)
 	em.AddEvent(&event.User{}, 10*time.Minute)
 	em.AddEvent(&event.Process{}, 15*time.Minute)
 
+	em.AddEvent(&event.Crontab{}, 24*time.Hour)
 	// system configuration
 	em.AddEvent(&event.Configs{}, 6*time.Hour)
 	// system-related

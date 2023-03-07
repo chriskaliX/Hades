@@ -1,37 +1,33 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
-	"hboat/pkg/basic/mongo"
 	"hboat/pkg/grpc/transfer/pool"
 	pb "hboat/pkg/grpc/transfer/proto"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"strconv"
 )
 
-type Crons struct{}
+type Cron struct{}
 
-var _ Event = (*Crons)(nil)
+var _ Event = (*Cron)(nil)
 
-func (c *Crons) ID() int32 { return 2001 }
+func (c *Cron) ID() int32 { return 2001 }
 
-func (c *Crons) Name() string { return "crons" }
+func (c *Cron) Name() string { return "crons" }
 
-func (c *Crons) Handle(m map[string]string, req *pb.RawData, conn *pool.Connection) error {
-	// extract from "data"
-	data := make([]map[string]interface{}, 0)
-	err := json.Unmarshal([]byte(m["data"]), &data)
-	if err != nil {
-		return err
+func (c *Cron) Handle(m map[string]string, req *pb.RawData, conn *pool.Connection) error {
+	mapper := make(map[string]interface{})
+	// handle the data
+	for k, v := range m {
+		switch k {
+		case "minute", "hour", "day_of_month", "month", "day_of_week":
+			i, _ := strconv.ParseUint(v, 10, 32)
+			mapper[k] = i
+		default:
+			mapper[k] = v
+		}
 	}
-	options := options.Update().SetUpsert(true)
-	_, err = mongo.AssetC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
-		bson.M{"$set": bson.M{c.Name(): data}}, options)
-	return err
+	DefaultWorker.Add(c.ID(), req.AgentID, mapper)
+	return nil
 }
 
-func init() {
-	RegistEvent(&Crons{})
-}
+func init() { RegistEvent(&Cron{}) }

@@ -62,9 +62,6 @@ func (c *docker) Containers(ctx context.Context) ([]Container, error) {
 		if err != nil {
 			goto Next
 		}
-		if !json.State.Running {
-			goto Next
-		}
 		if json.State.Pid == 0 {
 			goto Next
 		}

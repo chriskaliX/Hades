@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hboat/pkg/api/common"
 	"hboat/pkg/basic/mongo"
+	"hboat/pkg/grpc/handler"
 
 	"golang.org/x/exp/slices"
 
@@ -44,9 +45,14 @@ func AgentAsset(c *gin.Context) {
 		common.Response(c, common.ErrorCode, fmt.Sprintf("type %s is not supported", assetReq.Type))
 		return
 	}
+	dt, ok := handler.EventNameCache[assetReq.Type]
+	if !ok {
+		common.Response(c, common.ErrorCode, fmt.Sprintf("type %s is not registed", assetReq.Type))
+		return
+	}
 	// pipeline
 	pipeline := bson.A{
-		bson.M{"$match": bson.M{"agent_id": assetReq.AgentID}},
+		bson.M{"$match": bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()}},
 	}
 	// get count
 	countPipeline := append(pipeline, bson.M{
@@ -69,8 +75,8 @@ func AgentAsset(c *gin.Context) {
 	}
 
 	pipeline = append(pipeline, bson.M{"$project": bson.D{
-		{Key: assetReq.Type, Value: 1}, {Key: "_id", Value: 0},
-	}}, bson.M{"$unwind": "$" + assetReq.Type})
+		{Key: "_id", Value: 0}, {Key: "package_seq", Value: 0},
+	}})
 
 	if pageReq.OrderKey != "" {
 		pipeline = append(pipeline, bson.M{
@@ -108,7 +114,7 @@ func AgentAsset(c *gin.Context) {
 	}
 
 	for _, v := range raw {
-		resp.Assets = append(resp.Assets, v[assetReq.Type])
+		resp.Assets = append(resp.Assets, v)
 	}
 
 	common.Response(c, common.SuccessCode, resp)

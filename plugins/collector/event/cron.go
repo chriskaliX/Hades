@@ -3,6 +3,7 @@ package event
 import (
 	"bufio"
 	"collector/eventmanager"
+	"collector/utils"
 	"crypto/md5"
 	"errors"
 	"io"
@@ -12,12 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
-	"github.com/fsnotify/fsnotify"
 	lru "github.com/hashicorp/golang-lru"
-	"go.uber.org/zap"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -33,14 +32,14 @@ const CRON_DATATYPE = 2001
 var _ eventmanager.IEvent = (*Crontab)(nil)
 
 type Cron struct {
-	Minute     string `json:"minute"`
-	Hour       string `json:"hour"`
-	DayOfMonth string `json:"day_of_month"`
-	Month      string `json:"month"`
-	DayOfWeek  string `json:"day_of_week"`
-	User       string `json:"user"`
-	Command    string `json:"command"`
-	Path       string `json:"path"`
+	Minute     string `mapstructure:"minute"`
+	Hour       string `mapstructure:"hour"`
+	DayOfMonth string `mapstructure:"day_of_month"`
+	Month      string `mapstructure:"month"`
+	DayOfWeek  string `mapstructure:"day_of_week"`
+	User       string `mapstructure:"user"`
+	Command    string `mapstructure:"command"`
+	Path       string `mapstructure:"path"`
 }
 
 type Crontab struct {
@@ -49,7 +48,9 @@ type Crontab struct {
 
 func (Crontab) DataType() int { return CRON_DATATYPE }
 
-func (n *Crontab) Flag() int { return eventmanager.Realtime }
+func (Crontab) DataTypeSync() int { return 3001 }
+
+func (n *Crontab) Flag() int { return eventmanager.Periodic }
 
 func (Crontab) Name() string { return "cron" }
 
@@ -154,88 +155,24 @@ func (c *Crontab) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	if c.cronCache == nil {
 		c.cronCache, _ = lru.New(240)
 	}
+	hash := utils.Hash()
 	// get crons if it start
 	if crons, err := c.GetCron(); err == nil {
 		for _, cron := range crons {
 			c.cronCache.Add(md5.Sum([]byte(cron.Command)), true)
 		}
-		if data, err := sonic.MarshalString(crons); err == nil {
-			rawdata := make(map[string]string)
-			rawdata["data"] = data
+		for _, cron := range crons {
 			rec := &protocol.Record{
-				DataType:  2001,
+				DataType:  int32(c.DataType()),
 				Timestamp: time.Now().Unix(),
 				Data: &protocol.Payload{
-					Fields: rawdata,
+					Fields: make(map[string]string, 9),
 				},
 			}
+			mapstructure.Decode(&cron, &rec.Data.Fields)
+			rec.Data.Fields["package_seq"] = hash
 			s.SendRecord(rec)
 		}
 	}
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	defer watcher.Close()
-	for _, path := range CronSearchDirs {
-		if err = watcher.Add(path); err != nil {
-			continue
-		}
-	}
-	watcher.Add("/etc/crontab")
-
-	timer := time.NewTicker(3 * time.Second)
-	defer timer.Stop()
-
-	for {
-		timer.Reset(3 * time.Second)
-		select {
-		case <-s.Context().Done():
-			return
-		case <-sig:
-			return
-		case <-timer.C:
-			continue
-		case event := <-watcher.Events:
-			if event.Op != fsnotify.Create && event.Op != fsnotify.Write && event.Op != fsnotify.Chmod {
-				continue
-			}
-			fs, err := os.Stat(event.Name)
-			if err != nil {
-				zap.S().Error(err)
-			}
-			if !fs.Mode().IsRegular() {
-				continue
-			}
-			f, err := os.Open(event.Name)
-			flag := strings.HasPrefix(event.Name, "/var/spool/cron")
-			if crons := c.parse(flag, event.Name, f); err == nil {
-				tmp := crons[:0]
-				for _, cron := range crons {
-					sum := md5.Sum([]byte(cron.Command))
-					flag, _ := c.cronCache.ContainsOrAdd(sum, true)
-					if !flag {
-						tmp = append(tmp, cron)
-					}
-				}
-				if len(tmp) > 0 {
-					if data, err := sonic.Marshal(tmp); err == nil {
-						rec := &protocol.Record{
-							DataType:  2001,
-							Timestamp: time.Now().Unix(),
-							Data: &protocol.Payload{
-								Fields: map[string]string{
-									"data": string(data),
-								},
-							},
-						}
-						s.SendRecord(rec)
-					}
-				}
-			}
-			f.Close()
-		}
-	}
+	return nil
 }
