@@ -4,6 +4,7 @@ import (
 	"bufio"
 	cache "collector/cache/user"
 	"collector/eventmanager"
+	"collector/utils"
 	"collector/utils/login"
 	"os"
 	"os/user"
@@ -11,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
+	"github.com/mitchellh/mapstructure"
 )
 
 const USER_DATATYPE = 3004
@@ -36,7 +37,6 @@ func (User) Immediately() bool { return true }
 
 // get user and update the usercache
 func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
-	result := make([]cache.User, 0)
 	var userMap = make(map[string]cache.User, 0)
 	if err := u.etcPasswd(userMap); err != nil {
 		return err
@@ -47,24 +47,21 @@ func (u *User) Run(s SDK.ISandbox, sig chan struct{}) error {
 	if err := u.etcShadow(userMap); err != nil {
 		return err
 	}
+	hash := utils.Hash()
 	// append all
 	for _, user := range userMap {
-		result = append(result, user)
 		cache.Cache.Update(user)
-	}
-	data, err := sonic.MarshalString(result)
-	if err != nil {
-		return err
-	}
-	rec := &protocol.Record{
-		DataType: int32(u.DataType()),
-		Data: &protocol.Payload{
-			Fields: map[string]string{
-				"data": data,
+		rec := &protocol.Record{
+			DataType: int32(u.DataType()),
+			Data: &protocol.Payload{
+				Fields: make(map[string]string, 16),
 			},
-		},
+		}
+		mapstructure.Decode(&user, &rec.Data.Fields)
+		rec.Data.Fields["package_seq"] = hash
+		s.SendRecord(rec)
+		time.Sleep(20 * time.Millisecond)
 	}
-	s.SendRecord(rec)
 	return nil
 }
 
@@ -86,10 +83,10 @@ func (u *User) etcPasswd(userMap map[string]cache.User) error {
 			HomeDir:  fields[5],
 			Shell:    fields[6],
 		}
-		uid, _ := strconv.ParseUint(fields[2], 10, 32)
-		gid, _ := strconv.ParseUint(fields[3], 10, 32)
-		u.UID = uint32(uid)
-		u.GID = uint32(gid)
+		uid, _ := strconv.ParseInt(fields[2], 10, 32)
+		gid, _ := strconv.ParseInt(fields[3], 10, 32)
+		u.UID = strconv.FormatInt(uid, 10)
+		u.GID = strconv.FormatInt(gid, 10)
 		if group, err := user.LookupGroupId(fields[3]); err == nil {
 			u.GroupName = group.Name
 		}
@@ -143,8 +140,8 @@ func (u *User) loginStatus(userMap map[string]cache.User) error {
 		for _, record := range records {
 			user, ok := userMap[record.Username]
 			if ok {
-				user.LastLoginIP = record.IP
-				user.LastLoginTime = record.Time.Unix()
+				user.LastLoginIP = record.IP.String()
+				user.LastLoginTime = strconv.FormatInt(int64(record.Time.Unix()), 10)
 				userMap[record.Username] = user
 			}
 		}

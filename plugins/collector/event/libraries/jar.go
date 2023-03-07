@@ -98,7 +98,7 @@ func (j *Jar) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 						j.Path = fd
 						mapstructure.Decode(j, &m)
 						maps.Copy(rec.Data.Fields, m)
-						rec.Data.Fields["seq"] = hash
+						rec.Data.Fields["package_seq"] = hash
 						time.Sleep(50 * time.Millisecond)
 						s.SendRecord(rec)
 					case version == "" && f.Name == "META-INF/MANIFEST.MF":
@@ -121,7 +121,7 @@ func (j *Jar) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				mapstructure.Decode(j, &m)
 				maps.Copy(rec.Data.Fields, m)
 				// cmdline may too long
-				rec.Data.Fields["seq"] = hash
+				rec.Data.Fields["package_seq"] = hash
 				time.Sleep(60 * time.Millisecond)
 				s.SendRecord(rec)
 			}

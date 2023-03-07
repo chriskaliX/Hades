@@ -45,7 +45,7 @@ func (i Iptables) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 						Fields: record,
 					},
 				}
-				rec.Data.Fields["seq"] = hash
+				rec.Data.Fields["package_seq"] = hash
 				s.SendRecord(rec)
 			}
 		}
@@ -117,4 +117,4 @@ func (Iptables) listTable(name string) (m []map[string]string, err error) {
 	return
 }
 
-func init() { addEvent(&Iptables{}, 24 * time.Hour) }
+func init() { addEvent(&Iptables{}, 24*time.Hour) }

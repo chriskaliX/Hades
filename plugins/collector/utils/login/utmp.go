@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"net"
 	"os"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -92,8 +93,9 @@ func (u *UtmpFile) GetRecord() (records []LoginRecord, err error) {
 		}
 		switch utmp.UtType {
 		case USER_PROCESS:
+			uid, _ := strconv.ParseInt(user.Cache.GetUserFromName(utmp.UtUser).UID, 10, 64)
 			records = append(records, LoginRecord{
-				UID:      int(user.Cache.GetUserFromName(utmp.UtUser).UID),
+				UID:      int(uid),
 				IP:       newIP(utmp.UtAddrV6),
 				Hostname: utmp.UtHost,
 				Username: utmp.UtUser,

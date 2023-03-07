@@ -90,7 +90,7 @@ func (Sshd) Run(s SDK.ISandbox, sig chan struct{}) error {
 			Fields: result,
 		},
 	}
-	rec.Data.Fields["seq"] = hash
+	rec.Data.Fields["package_seq"] = hash
 	s.SendRecord(rec)
 	return nil
 }

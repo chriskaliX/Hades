@@ -5,9 +5,9 @@ import (
 	"collector/eventmanager"
 	"collector/utils"
 
-	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
+	"github.com/mitchellh/mapstructure"
 )
 
 var _ eventmanager.IEvent = (*Container)(nil)
@@ -23,26 +23,22 @@ func (Container) Flag() int { return eventmanager.Periodic }
 func (Container) Immediately() bool { return true }
 
 func (c *Container) Run(s SDK.ISandbox, sig chan struct{}) error {
+	hash := utils.Hash()
 	containers, err := container.DefaultClient.Containers()
 	if err != nil {
 		return err
 	}
 	for _, container := range containers {
-		res, err := sonic.MarshalString(container)
-		if err != nil {
-			continue
-		}
-		s.SendRecord(&protocol.Record{
+		rec := &protocol.Record{
 			DataType:  int32(c.DataType()),
 			Timestamp: utils.Clock.Now().Unix(),
 			Data: &protocol.Payload{
-				Fields: map[string]string{
-					// TODO: unwrap the data
-					"data": res,
-				},
+				Fields: make(map[string]string, 13),
 			},
-		})
+		}
+		mapstructure.Decode(&container, &rec.Data.Fields)
+		rec.Data.Fields["package_seq"] = hash
+		s.SendRecord(rec)
 	}
-
 	return nil
 }

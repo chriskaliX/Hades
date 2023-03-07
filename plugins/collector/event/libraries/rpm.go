@@ -59,7 +59,7 @@ func (r *Rpm) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				},
 			}
 			mapstructure.Decode(r, &rec.Data.Fields)
-			rec.Data.Fields["seq"] = hash
+			rec.Data.Fields["package_seq"] = hash
 			s.SendRecord(rec)
 			r.reset()
 			time.Sleep(50 * time.Millisecond)

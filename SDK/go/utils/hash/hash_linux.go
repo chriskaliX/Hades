@@ -59,10 +59,6 @@ func (h *HashCache) getHash(path string, f *fileHash) string {
 		f.hash = config.FieldInvalid
 		return f.hash
 	}
-	if stat.Size > maxFileSize {
-		f.hash = config.FieldOversize
-		return f.hash
-	}
 	if f.check(stat) {
 		f.hash = h.genHash(path, stat.Size)
 		f.update(stat)

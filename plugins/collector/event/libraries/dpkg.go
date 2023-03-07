@@ -87,7 +87,7 @@ func (d *Dpkg) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 				},
 			}
 			mapstructure.Decode(d, &rec.Data.Fields)
-			rec.Data.Fields["seq"] = hash
+			rec.Data.Fields["package_seq"] = hash
 			// Maybe way too many, make the channel chunk
 			sandbox.SendRecord(rec)
 			d.reset()

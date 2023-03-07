@@ -48,16 +48,15 @@ func main() {
 	em.AddEvent(&event.Container{}, 5*time.Minute)
 	em.AddEvent(&event.User{}, 10*time.Minute)
 	em.AddEvent(&event.Process{}, 15*time.Minute)
-	em.AddEvent(&event.Kmod{}, 6*time.Hour)
-	em.AddEvent(&event.Configs{}, 6*time.Hour)
-	em.AddEvent(&event.BPFProg{}, 6*time.Hour)
 
+	// system configuration
+	em.AddEvent(&event.Configs{}, 6*time.Hour)
 	// system-related
 	event.RegistSystem(em)
 	// networks
 	event.RegistNetwork(em)
 	// applications
-	em.AddEvent(&event.Application{}, 15*time.Minute)
+	em.AddEvent(&event.Application{}, 24*time.Hour)
 	// libraries (jar / dpkg / rpm / yum)
 	em.AddEvent(&event.Libraries{}, 24*time.Hour)
 

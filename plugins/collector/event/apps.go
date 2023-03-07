@@ -109,7 +109,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 					Fields: m,
 				},
 			}
-			rec.Data.Fields["seq"] = hash
+			rec.Data.Fields["package_seq"] = hash
 			s.SendRecord(rec)
 			goto Next
 		}

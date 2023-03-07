@@ -5,15 +5,17 @@ import (
 	"collector/cache/process"
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-const dockerLimit = 10000
+const dockerLimit = 2048
 
 type docker struct {
 	c *client.Client
@@ -39,15 +41,20 @@ func (c *docker) Containers(ctx context.Context) ([]Container, error) {
 	var cs = make([]Container, 0)
 	var p process.Process
 	for _, container := range containers {
+		var name string
+		if len(container.Names) > 0 {
+			name = container.Names[0]
+		}
+		label, _ := sonic.MarshalString(container.Labels)
 		c := Container{
 			ID:        container.ID,
-			Names:     container.Names,
+			Names:     name,
 			ImageID:   strings.TrimPrefix(container.ImageID, "sha256:"),
 			ImageName: container.Image,
-			Created:   container.Created,
+			Created:   strconv.FormatInt(container.Created, 10),
 			State:     container.State,
 			Status:    container.Status,
-			Labels:    container.Labels,
+			Labels:    label,
 		}
 		time.Sleep(50 * time.Millisecond)
 		// Inspect into the container
@@ -58,13 +65,13 @@ func (c *docker) Containers(ctx context.Context) ([]Container, error) {
 		if !json.State.Running {
 			goto Next
 		}
-		c.PID = uint32(json.State.Pid)
-		if c.PID == 0 {
+		if json.State.Pid == 0 {
 			goto Next
 		}
-		p = process.Process{PID: int(c.PID)}
+		c.PID = strconv.FormatInt(int64(json.State.Pid), 10)
+		p = process.Process{PID: int(json.State.Pid)}
 		if err := p.GetNs(); err == nil {
-			c.Pns = uint32(p.Pns)
+			c.Pns = strconv.FormatInt(int64(p.Pns), 10)
 		}
 		cs = append(cs, c)
 	Next:

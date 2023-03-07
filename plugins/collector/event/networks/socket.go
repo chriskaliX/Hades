@@ -88,7 +88,7 @@ func (s *Socket) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 				},
 			}
 			mapstructure.Decode(&socket, &rec.Data.Fields)
-			rec.Data.Fields["seq"] = hash
+			rec.Data.Fields["package_seq"] = hash
 			sandbox.SendRecord(rec)
 		}
 		time.Sleep(100 * time.Millisecond)

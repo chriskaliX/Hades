@@ -46,7 +46,7 @@ func (n NetInterface) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 						"addrs":         strings.Join(addrList, ","),
 						"index":         strconv.Itoa(nif.Index),
 						"mtu":           strconv.Itoa(nif.MTU),
-						"seq":           hash,
+						"package_seq":   hash,
 					},
 				},
 			})

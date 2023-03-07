@@ -67,7 +67,7 @@ func (sys *SystemdUnit) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		if err = mapstructure.Decode(u, &data); err != nil {
 			continue
 		}
-		data["seq"] = hash
+		data["package_seq"] = hash
 		s.SendRecord(&protocol.Record{
 			DataType:  int32(sys.DataType()),
 			Timestamp: utils.Clock.Now().Unix(),

@@ -4,6 +4,7 @@ package container
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"collector/cache/container"
@@ -20,21 +21,21 @@ var timeOut = 3 * time.Minute
 // The container struct fields for all SDK
 type Container struct {
 	// IDENTIFIER for containers
-	PID uint32 `json:"pid"`
-	Pns uint32 `json:"pns"`
+	PID string `mapstructure:"pid"`
+	Pns string `mapstructure:"pns"`
 	// Container related fields
-	ID        string            `json:"id"`
-	Names     []string          `json:"names"`
-	ImageName string            `json:"image_name"`
-	ImageID   string            `json:"image_id"`
-	Created   int64             `json:"created"`
-	State     string            `json:"state"`
-	Status    string            `json:"status"`
-	Labels    map[string]string `json:"labels"`
+	ID        string `mapstructure:"id"`
+	Names     string `mapstructure:"names"`
+	ImageName string `mapstructure:"image_name"`
+	ImageID   string `mapstructure:"image_id"`
+	Created   string `mapstructure:"created"`
+	State     string `mapstructure:"state"`
+	Status    string `mapstructure:"status"`
+	Labels    string `mapstructure:"labels"`
 	// Fields to differ the runtime
-	Runtime string `json:"runtime"`
+	Runtime string `mapstructure:"runtime"`
 	// Additional fields for different CRI
-	Endpoint string `json:"endpoint"` // Endpoint for CRI
+	Endpoint string `mapstructure:"endpoint"` // Endpoint for CRI
 }
 
 // Runtime points out the functions that all runtime SDK should follow
@@ -69,7 +70,7 @@ func (c *Client) Containers() ([]Container, error) {
 		// Fill up the runtime fields & add pns to cache
 		for index, value := range cs {
 			cs[index].Runtime = client.Runtime()
-			if value.Pns > 0 {
+			if pns, err := strconv.ParseInt(value.Pns, 10, 64); err == nil && pns > 0 {
 				container.Cache.Add(value.Pns, map[string]string{
 					container.ContainerId:      value.ID,
 					container.ContainerName:    value.ImageName,

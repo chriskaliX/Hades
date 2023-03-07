@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
@@ -45,7 +44,7 @@ func (s *SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 	s.firstTime = true
 	configs := make([]sshConfig, 0, 20)
 	for uid, path := range configPath {
-		if config, err := s.getSshConfig(strconv.Itoa(int(uid)), path); err == nil {
+		if config, err := s.getSshConfig(uid, path); err == nil {
 			configs = append(configs, config...)
 		}
 	}
@@ -62,15 +61,15 @@ func (s *SshConfig) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 			},
 		}
 		mapstructure.Decode(&config, &rec.Data.Fields)
-		rec.Data.Fields["seq"] = hash
+		rec.Data.Fields["package_seq"] = hash
 		sandbox.SendRecord(rec)
 	}
 	return nil
 }
 
 // Depend on usercache, execute after GetUser
-func (SshConfig) sshConfigPath() (configs map[uint32]string) {
-	configs = make(map[uint32]string)
+func (SshConfig) sshConfigPath() (configs map[string]string) {
+	configs = make(map[string]string)
 	users := user.Cache.GetUsers()
 	for _, user := range users {
 		configs[user.UID] = filepath.Join(user.HomeDir, userSshConfig)

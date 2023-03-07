@@ -9,7 +9,6 @@ const (
 	FieldInvalid  = "-1"
 	FieldError    = "-2"
 	FieldOverrate = "-3"
-	FieldOversize = "-4"
 )
 
 // DataType

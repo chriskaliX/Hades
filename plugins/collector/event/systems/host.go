@@ -6,12 +6,12 @@ package systems
 
 import (
 	"collector/eventmanager"
+	"collector/utils"
 	"math/rand"
 	"net"
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/go-ping/ping"
 
 	"github.com/chriskaliX/SDK"
@@ -31,6 +31,7 @@ func (HostScanner) Name() string { return "host_scanner" }
 func (HostScanner) Immediately() bool { return false }
 
 func (h *HostScanner) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
+	hash := utils.Hash()
 	h.Addrs = h.Addrs[:0]
 	var availableAddrs []string
 	interfaces, err := net.Interfaces()
@@ -69,8 +70,8 @@ func (h *HostScanner) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			}
 		}
 		// scan the network with ping (or ARP? configurable)
-		// every scanner, only /24 is supported, so randomly 256
-		if len(availableAddrs) > 256 {
+		// every scanner, only /24 is supported, so randomly 512
+		if len(availableAddrs) > 512 {
 			rand.Shuffle(len(availableAddrs), func(i, j int) { availableAddrs[i], availableAddrs[j] = availableAddrs[j], availableAddrs[i] })
 		}
 		for _, addr := range availableAddrs {
@@ -83,23 +84,20 @@ func (h *HostScanner) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			pinger.SetPrivileged(false)
 			pinger.Run()
 			if pinger.Statistics().PacketsRecv > 0 {
-				h.Addrs = append(h.Addrs, addr)
+				rec := &protocol.Record{
+					DataType:  int32(h.DataType()),
+					Timestamp: time.Now().Unix(),
+					Data: &protocol.Payload{
+						Fields: map[string]string{
+							"addr":        addr,
+							"package_seq": hash,
+						},
+					},
+				}
+				s.SendRecord(rec)
 			}
 			time.Sleep(400 * time.Millisecond)
 		}
-		data, err := sonic.MarshalString(h.Addrs)
-		if err != nil {
-			return err
-		}
-		return s.SendRecord(&protocol.Record{
-			DataType:  int32(h.DataType()),
-			Timestamp: time.Now().Unix(),
-			Data: &protocol.Payload{
-				Fields: map[string]string{
-					"data": data,
-				},
-			},
-		})
 	}
 	return
 }

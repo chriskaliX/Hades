@@ -103,7 +103,7 @@ func (y *Yum) Run(sandbox SDK.ISandbox, sig chan struct{}) error {
 				},
 			}
 			mapstructure.Decode(y, &rec.Data.Fields)
-			rec.Data.Fields["seq"] = hash
+			rec.Data.Fields["package_seq"] = hash
 			sandbox.SendRecord(rec)
 			y.reset()
 			time.Sleep(30 * time.Millisecond)

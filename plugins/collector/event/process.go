@@ -3,9 +3,10 @@ package event
 import (
 	"collector/cache/process"
 	"collector/eventmanager"
+	"collector/utils"
+	"strconv"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
@@ -42,20 +43,55 @@ func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
 		zap.S().Error("getprocess, err:", err)
 		return err
 	}
-	data, err := sonic.MarshalString(processes)
-	if err != nil {
-		return err
-	}
-	rec := &protocol.Record{
-		DataType:  1001,
-		Timestamp: time.Now().Unix(),
-		Data: &protocol.Payload{
-			Fields: map[string]string{
-				"data": data,
+	hash := utils.Hash()
+	for _, process := range processes {
+		rec := &protocol.Record{
+			DataType:  1001,
+			Timestamp: time.Now().Unix(),
+			Data: &protocol.Payload{
+				Fields: map[string]string{
+					"cgroup_id":   strconv.FormatInt(int64(process.CgroupId), 10),
+					"pns":         strconv.FormatInt(int64(process.Pns), 10),
+					"root_pns":    strconv.FormatInt(int64(process.RootPns), 10),
+					"pid":         strconv.FormatInt(int64(process.PID), 10),
+					"gid":         strconv.FormatInt(int64(process.GID), 10),
+					"pgid":        strconv.FormatInt(int64(process.PGID), 10),
+					"pgid_argv":   process.PgidArgv,
+					"tid":         strconv.FormatInt(int64(process.TID), 10),
+					"session_id":  strconv.FormatInt(int64(process.Session), 10),
+					"ppid":        strconv.FormatInt(int64(process.PPID), 10),
+					"ppid_argv":   process.PpidArgv,
+					"name":        process.Name,
+					"argv":        process.Argv,
+					"exe":         process.Exe,
+					"exe_hash":    process.Hash,
+					"uid":         strconv.FormatInt(int64(process.UID), 10),
+					"username":    process.Username,
+					"cwd":         process.Cwd,
+					"stdin":       process.Stdin,
+					"stdout":      process.Stdout,
+					"pid_tree":    process.PidTree,
+					"pod_name":    process.PodName,
+					"nodename":    process.NodeName,
+					"tty":         strconv.FormatInt(int64(process.TTY), 10),
+					"ttyname":     process.TTYName,
+					"starttime":   strconv.FormatUint(process.StartTime, 10),
+					"remote_addr": process.RemoteAddr,
+					"remote_port": process.RemotePort,
+					"local_addr":  process.LocalAddr,
+					"local_port":  process.LocalPort,
+					"utime":       strconv.FormatUint(process.Utime, 10),
+					"stime":       strconv.FormatUint(process.Stime, 10),
+					"rss":         strconv.FormatUint(process.Rss, 10),
+					"vsize":       strconv.FormatUint(process.Vsize, 10),
+					"cpu":         strconv.FormatFloat(process.Cpu, 'f', 6, 64),
+					"package_seq": hash,
+				},
 			},
-		},
+		}
+		s.SendRecord(rec)
+		time.Sleep(20 * time.Millisecond)
 	}
-	s.SendRecord(rec)
 	return nil
 }
 

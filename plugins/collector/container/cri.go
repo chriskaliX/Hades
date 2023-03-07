@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -61,24 +62,25 @@ func (c *cri) Containers(ctx context.Context) (cs []Container, err error) {
 			continue
 		}
 		for _, container := range resp.Containers {
+			label, _ := sonic.MarshalString(container.Labels)
 			con := Container{
 				ID:        container.GetId(),
-				Names:     []string{container.GetMetadata().GetName()},
+				Names:     container.GetMetadata().GetName(),
 				ImageID:   strings.TrimPrefix(container.GetImageRef(), "sha256:"),
 				ImageName: strings.TrimPrefix(container.GetImage().GetImage(), "sha256:"),
 				State:     strings.ToLower(strings.TrimPrefix(container.GetState().String(), "CONTAINER_")),
-				Created:   container.CreatedAt / 1000000000,
-				Labels:    container.Labels,
+				Created:   strconv.FormatInt(container.CreatedAt/1000000000, 10),
+				Labels:    label,
 				Endpoint:  endpoint,
 			}
 			// Only running, get pid & pns
 			if ContainerStatus(con.State) == statusRunning {
 				if resp, err := client.ContainerStatus(ctx, &runtimeapi.ContainerStatusRequest{ContainerId: container.Id, Verbose: true}); err == nil {
 					if pid := c.extraPid(resp.Info); pid != 0 {
-						con.PID = pid
+						con.PID = strconv.FormatUint(uint64(pid), 10)
 						proc := process.Process{PID: int(pid)}
 						if err := proc.GetNs(); err == nil {
-							con.Pns = uint32(proc.Pns)
+							con.Pns = strconv.FormatInt(int64(proc.Pns), 10)
 						}
 					}
 					// TODO: REAL IMAGE_NAME? WHY?
