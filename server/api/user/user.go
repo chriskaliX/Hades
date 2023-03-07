@@ -1,0 +1,99 @@
+package user
+
+import (
+	"context"
+	"hboat/api/common"
+	"hboat/pkg/basic/mongo"
+	"hboat/pkg/basic/redis"
+	"hboat/pkg/basic/utils"
+	"hboat/pkg/conf"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.uber.org/zap"
+)
+
+// request binding
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func Login(c *gin.Context) {
+	// get username
+	var req LoginRequest
+	if err := c.BindJSON(&req); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	// only get username and password
+	if err := mongo.CheckPassword(req.Username, req.Password); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	// success, set the session
+	sessionid := utils.GenerateSession()
+	duration := time.Duration(conf.Config.Backend.UserSessionLifetimeMin) * time.Minute
+	if err := redis.Inst.Set(context.Background(), sessionid, req.Username, duration).Err(); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	// response with the token
+	common.Response(c, common.SuccessCode, bson.M{"token": sessionid})
+}
+
+func Logout(c *gin.Context) {
+	token := c.GetHeader("token")
+	err := redis.Inst.Del(context.Background(), token).Err()
+	if err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	common.Response(c, common.SuccessCode, nil)
+}
+
+func Regist(c *gin.Context) {
+	// get username
+	var user mongo.User
+	if err := c.BindJSON(&user); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	// admin can not be set by regist
+	if user.Role == mongo.RoleAdmin {
+		user.Role = mongo.RoleReadWrite
+	}
+	if err := mongo.CreateUser(user.Username, user.Password, user.Role); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	common.Response(c, common.SuccessCode, nil)
+}
+
+type CurrentUserResp struct {
+	Name string `json:"name"`
+}
+
+func CurrentUser(c *gin.Context) {
+	token := c.GetHeader("token")
+	if token == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	s := redis.Inst.Get(context.Background(), token)
+	if s.Err() != nil {
+		zap.S().Error(s.Err())
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	username := s.Val()
+	if username == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	common.Response(c, common.SuccessCode, CurrentUserResp{
+		Name: username,
+	})
+}

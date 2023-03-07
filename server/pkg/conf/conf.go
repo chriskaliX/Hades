@@ -28,8 +28,14 @@ type Conf struct {
 	} `yaml:"backend"`
 }
 
+func (c Conf) Print() {
+	mongo := fmt.Sprintf("[mongo] URI: %s, poolsize: %d", c.Mongo.URI, c.Mongo.PoolSize)
+	redis := fmt.Sprintf("[redis] Addrs %v", c.Redis.Addrs)
+	fmt.Println(mongo, redis)
+}
+
 func initConfig() error {
-	file, err := os.Open("conf.yaml")
+	file, err := os.Open("config/conf.yaml")
 	if err != nil {
 		return err
 	}
@@ -45,5 +51,5 @@ func init() {
 	if err := initConfig(); err != nil {
 		panic(err)
 	}
-	fmt.Println(Config)
+	Config.Print()
 }

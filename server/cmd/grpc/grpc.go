@@ -1,10 +1,10 @@
 package grpc
 
 import (
+	"hboat/api"
 	"hboat/cmd/root"
-	"hboat/pkg/api"
+	"hboat/grpc"
 	"hboat/pkg/basic"
-	"hboat/pkg/grpc"
 
 	"github.com/spf13/cobra"
 )
