@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	Database       = "hades"
-	AgentStatusCol = "agentstatus"
-	PluginCol      = "plugin"
-	AssetCol       = "asset"
-	UserCol        = "user"
+	Database  = "hades"
+	AgentCol  = "agent"
+	PluginCol = "plugin"
+	AssetCol  = "asset"
+	UserCol   = "user"
 )
 
 // Client
@@ -42,7 +42,7 @@ func NewMongoDB(uri string, poolsize uint64) error {
 	}
 	Inst = mongoClient
 
-	StatusC = Inst.Database(Database).Collection(AgentStatusCol)
+	StatusC = Inst.Database(Database).Collection(AgentCol)
 	PluginC = Inst.Database(Database).Collection(PluginCol)
 	AssetC = Inst.Database(Database).Collection(AssetCol)
 	UserC = Inst.Database(Database).Collection(UserCol)

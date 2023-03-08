@@ -84,17 +84,25 @@ func NewSandbox(sconfig *SandboxConfig) *Sandbox {
 }
 
 // Run a main function, just a wrapper
-func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
+func (s *Sandbox) Run(wrapper func(ISandbox) error) (err error) {
 	defer s.Logger.Info(fmt.Sprintf("%s is exited", s.name))
 	s.Logger.Info(fmt.Sprintf("%s run is called", s.name))
-	if err = mfunc(s); err != nil {
-		zap.S().Error("sandbox main func failed, %s", err.Error())
-		return err
-	}
+
+	// wrap the main function in a goroutine
+	go func() {
+		if err = wrapper(s); err != nil {
+			zap.S().Error("sandbox main func failed, %s", err.Error())
+			s.Shutdown()
+		}
+	}()
+
 	s.Logger.Info(fmt.Sprintf("%s is running", s.name))
 	// os.Interrupt for command line
 	signal.Notify(s.sigs, syscall.SIGTERM, syscall.SIGTERM, os.Interrupt)
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
 	for {
+		timer.Reset(time.Second)
 		select {
 		case sig := <-s.sigs:
 			s.Logger.Info(fmt.Sprintf("signal %s received, %s will exit after 3 seconds", sig.String(), s.Name()))
@@ -107,26 +115,21 @@ func (s *Sandbox) Run(mfunc func(ISandbox) error) (err error) {
 			s.Logger.Info(fmt.Sprintf("cancel received, %s will exit after 1 seconds", s.Name()))
 			<-time.After(1 * time.Second)
 			return nil
-		default:
-			time.Sleep(time.Second)
+		case <-timer.C:
 		}
 	}
 }
 
 func (s *Sandbox) Shutdown() {
-	s.Logger.Info(fmt.Sprintf("%s calls shutdown", s.Name()))
+	s.Logger.Info("sandbox shutdown is called")
 	s.cancel()
 	s.Clock.Close()
 	<-time.After(1 * time.Second)
 }
 
-func (s *Sandbox) Name() string {
-	return s.name
-}
+func (s *Sandbox) Name() string { return s.name }
 
-func (s *Sandbox) Debug() bool {
-	return s.debug
-}
+func (s *Sandbox) Debug() bool { return s.debug }
 
 // Is this too strict, this also works in windows, since pgid is
 func (s *Sandbox) SendRecord(rec *protocol.Record) (err error) {
@@ -147,9 +150,7 @@ func (s *Sandbox) Context() context.Context {
 	return s.ctx
 }
 
-func (s *Sandbox) Cancel() {
-	s.cancel()
-}
+func (s *Sandbox) Cancel() { s.cancel() }
 
 func (s *Sandbox) SetSendHook(hook client.SendHookFunction) {
 	s.Client.SetSendHook(hook)
@@ -192,6 +193,7 @@ func (s *Sandbox) recvTask() {
 	if s.debug {
 		return
 	}
+Loop:
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -199,9 +201,9 @@ func (s *Sandbox) recvTask() {
 		default:
 			task, err := s.Client.ReceiveTask()
 			if err != nil {
-				s.Logger.Error(err.Error())
-				time.Sleep(5 * time.Second)
-				continue
+				s.Logger.Error("recvTask failed: " + err.Error())
+				s.Shutdown()
+				break Loop
 			}
 			// Hook the shutdown here
 			if task.DataType == config.TaskShutdown {

@@ -33,7 +33,7 @@ func New(s *SDK.Sandbox) *EventManager {
 }
 
 func (e *EventManager) AddEvent(event IEvent, t time.Duration) {
-	zap.S().Info(fmt.Sprintf("%s is added, %dm, %d", event.Name(), int(t.Minutes()), event.Flag()))
+	zap.S().Info(fmt.Sprintf("%s is added, duration: %dm, flag: %d", event.Name(), int(t.Minutes()), event.Flag()))
 	e.m[event.DataType()] = &Event{
 		event:    event,
 		interval: t,

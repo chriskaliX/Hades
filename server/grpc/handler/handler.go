@@ -94,9 +94,10 @@ func (w *Worker) Run() {
 			// seq check
 			if w.cache[dt][agentid] != package_seq {
 				// seq is not the same, clear the same seq
+				// In Hades, the data_type is also needed
 				_, err := mongo.AssetC.DeleteMany(
 					context.Background(),
-					bson.M{"agent_id": agentid, "package_seq": bson.M{"$ne": package_seq.(string)}},
+					bson.M{"agent_id": agentid, "data_type": dt, "package_seq": bson.M{"$ne": package_seq.(string)}},
 				)
 				if err != nil {
 					zap.S().Error(err)
