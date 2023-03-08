@@ -7,6 +7,7 @@ import (
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
 	"hboat/pkg/basic/mongo"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +41,20 @@ func PluginInsert(c *gin.Context) {
 	now := time.Now().Unix()
 	pConfig.CreateAt = now
 	pConfig.ModifyAt = now
+	// check for all the urls
+	if len(pConfig.Urls) == 0 {
+		common.Response(c, common.ErrorCode, "url is needed")
+	}
+	for _, u := range pConfig.Urls {
+		uri, err := url.Parse(u)
+		if err != nil {
+			common.Response(c, common.ErrorCode, err.Error())
+		}
+		if uri.Scheme != "http" && uri.Scheme != "https" {
+			continue
+		}
+	}
+
 	if _, err := mongo.PluginC.InsertOne(
 		context.Background(),
 		pConfig,

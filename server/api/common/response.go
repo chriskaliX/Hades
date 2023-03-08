@@ -21,7 +21,7 @@ func Response(c *gin.Context, code StatusCode, message interface{}) {
 			http.StatusOK, gin.H{
 				"code":    code,
 				"data":    message,
-				"message": "",
+				"message": "success",
 			},
 		)
 	default:

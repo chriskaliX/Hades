@@ -72,13 +72,13 @@ func (g *GRPCPool) SendCommand(agentID string, command *pb.Command) (err error) 
 	if err != nil {
 		return err
 	}
-
+	// generate command
 	comm := &Command{
 		Command: command,
 		Error:   nil,
 		Ready:   make(chan bool, 1),
 	}
-
+	// send the command to the connection
 	select {
 	case conn.CommandChan <- comm:
 	case <-time.After(2 * time.Second):
