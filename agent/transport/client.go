@@ -62,7 +62,7 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 	defer wg.Done()
 	defer zap.S().Info("send handler is exited")
 	defer c.CloseSend()
-	zap.S().Info("send handler is running")
+	zap.S().Info("send handler starts")
 	ticker := time.NewTicker(time.Millisecond * 100)
 	defer ticker.Stop()
 	for {
@@ -78,7 +78,7 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfer_TransferClient) {
 	defer wg.Done()
 	defer zap.S().Info("handle receive is exited")
-	zap.S().Info("handle receive is running")
+	zap.S().Info("handle receive starts")
 	for {
 		select {
 		case <-ctx.Done():

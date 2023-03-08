@@ -27,7 +27,7 @@ var (
 
 const size = 8186 // remain 6 space for importance, always available
 
-var DefaultTrans = New()
+var DefaultTrans = NewTransfer()
 
 type Transfer struct {
 	mu         sync.Mutex
@@ -38,7 +38,7 @@ type Transfer struct {
 	updateTime time.Time
 }
 
-func New() *Transfer {
+func NewTransfer() *Transfer {
 	return &Transfer{
 		buf:        [8192]*proto.Record{},
 		updateTime: time.Now(),
@@ -171,8 +171,8 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 			zap.S().Info("agent shutdown is called")
 			agent.Cancel()
 			return
-		case config.TaskRestart:
 		case config.TaskSetenv:
+		case config.TaskRestart:
 		default:
 			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
 			return ErrAgentDataType

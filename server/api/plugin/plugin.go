@@ -30,11 +30,9 @@ func PluginInsert(c *gin.Context) {
 		return
 	}
 	// result
-	res := mongo.PluginC.FindOne(
-		context.Background(),
+	if res := mongo.PluginC.FindOne(context.Background(),
 		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
-	)
-	if res.Err() == nil {
+	); res.Err() == nil {
 		common.Response(c, common.ErrorCode, "plugin already exists")
 		return
 	}
@@ -54,7 +52,7 @@ func PluginInsert(c *gin.Context) {
 			continue
 		}
 	}
-
+	// check done, insert the plugin into db
 	if _, err := mongo.PluginC.InsertOne(
 		context.Background(),
 		pConfig,

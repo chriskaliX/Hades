@@ -44,7 +44,7 @@ func (h *PluginMetric) Init() bool {
 }
 
 func (m *PluginMetric) Flush(now time.Time) {
-	plgs := plugin.DefaultManager.GetAll()
+	plgs := plugin.PluginManager.GetAll()
 	for _, plg := range plgs {
 		if plg.IsExited() {
 			continue

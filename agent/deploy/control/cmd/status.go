@@ -17,7 +17,7 @@ import (
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "A brief description of your command",
+	Short: "show agent status",
 	Run: func(cmd *cobra.Command, args []string) {
 		var service_type = viper.GetString("service_type")
 		switch service_type {

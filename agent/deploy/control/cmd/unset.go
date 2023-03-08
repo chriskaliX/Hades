@@ -30,7 +30,7 @@ func unset(key string) error {
 // unsetCmd represents the unset command
 var unsetCmd = &cobra.Command{
 	Use:   "unset",
-	Short: "A brief description of your command",
+	Short: "unset env",
 	Run: func(cmd *cobra.Command, args []string) {
 		if cmd.Flags().NFlag() == 0 {
 			cobra.CheckErr(cmd.Help())

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"path/filepath"
 
 	"github.com/google/uuid"
 	"golang.org/x/exp/slices"
@@ -17,6 +18,8 @@ const (
 	HADES_LOGHOME    = "/var/log/hades/"
 	HADES_MACHINE_ID = HADES_HOME + "machine-id"
 )
+
+var Controller = filepath.Join(HADES_HOME, "hadesctl")
 
 var hardwarePlaceholders = []string{
 	"00000000-0000-0000-0000-000000000000",

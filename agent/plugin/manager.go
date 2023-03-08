@@ -16,15 +16,19 @@ import (
 	"github.com/chriskaliX/SDK/transport/server"
 )
 
-var DefaultManager = &Manager{
-	plugins: &sync.Map{},
-	syncCh:  make(chan map[string]*proto.Config, 1),
-}
+var PluginManager = NewManager()
 
 // move to struct, dependency injection
 type Manager struct {
 	plugins *sync.Map
 	syncCh  chan map[string]*proto.Config
+}
+
+func NewManager() *Manager {
+	return &Manager{
+		plugins: &sync.Map{},
+		syncCh:  make(chan map[string]*proto.Config, 1),
+	}
 }
 
 // Get plugin's server side interface
@@ -60,7 +64,7 @@ func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 	}
 	plg, err := server.NewServer(ctx, agent.Workdir, &cfg)
 	if err != nil {
-		agent.SetAbnormal(fmt.Sprintf("plugin % starts failed: %s", cfg.Name, err))
+		agent.SetAbnormal(fmt.Sprintf("plugin %s starts failed: %s", cfg.Name, err))
 		return
 	}
 	plg.Wg().Add(3)

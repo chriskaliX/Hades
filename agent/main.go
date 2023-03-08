@@ -40,7 +40,7 @@ func init() {
 
 func main() {
 	// Before deploying, change the GrpcAddr value if you need to, compare with the original one
-	flag.StringVar(&connection.GrpcAddr, "url", "127.0.0.1:8000", "set grpc addr")
+	flag.StringVar(&connection.GrpcAddr, "url", "grpc.hades.store:8000", "set grpc addr")
 	flag.BoolVar(&connection.InsecureTransport, "insecure", true, "grpc with insecure")
 	flag.BoolVar(&connection.InsecureTLS, "insecure-tls", true, "grpc tls insecure")
 	flag.Parse()

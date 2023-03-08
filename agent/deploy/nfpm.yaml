@@ -3,7 +3,7 @@
 # check https://nfpm.goreleaser.com/configuration for detailed usage
 #
 name: "hades-agent"
-arch: "arm64"
+arch: "amd64"
 platform: "linux"
 epoch: 3
 version: v1.1.0
@@ -48,6 +48,3 @@ scripts:
   preinstall: ./scripts/preinstall.sh
   postremove: ./scripts/postremove.sh
   postinstall: ./scripts/postinstall.sh
-# overrides:
-# don't understand for -tx thing
-# 字节在 1.7.0.1 把下面删除了，虽然我当时就没看懂这里是干嘛的...
