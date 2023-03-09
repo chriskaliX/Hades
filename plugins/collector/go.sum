@@ -12,6 +12,10 @@ github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 h1:qSGYFH7+jGhD
 github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311/go.mod h1:b583jCggY9gE99b6G5LEC39OIiVsWj+R97kbl5odCEk=
 github.com/chriskaliX/go-rpmdb v0.0.0-20230306071544-c202bf4f8074 h1:pecAyi+yhALeqsBmNF+bqCi1i9Uj82mN9h/xLOOYsgo=
 github.com/chriskaliX/go-rpmdb v0.0.0-20230306071544-c202bf4f8074/go.mod h1:5UFgsjqLz9TliyzWTzmBMfdWZIyLwQwpXJWpTzTTx+0=
+github.com/chriskaliX/go-rpmdb v0.0.0-20230308103036-29426a18d3cc h1:v1mfj93RfshkWeOeMakEd2T5YJe4aJnUDXCtqV8zfsY=
+github.com/chriskaliX/go-rpmdb v0.0.0-20230308103036-29426a18d3cc/go.mod h1:5UFgsjqLz9TliyzWTzmBMfdWZIyLwQwpXJWpTzTTx+0=
+github.com/chriskaliX/go-rpmdb v0.0.0-20230308104232-2166658237c8 h1:IZ26ycSv1BmBXj10NOpC1ikqKYf+KT6GW60Cd5D5UjA=
+github.com/chriskaliX/go-rpmdb v0.0.0-20230308104232-2166658237c8/go.mod h1:5UFgsjqLz9TliyzWTzmBMfdWZIyLwQwpXJWpTzTTx+0=
 github.com/cilium/ebpf v0.10.0 h1:nk5HPMeoBXtOzbkZBWym+ZWq1GIiHUsBFXxwewXAHLQ=
 github.com/cilium/ebpf v0.10.0/go.mod h1:DPiVdY/kT534dgc9ERmvP8mWA+9gvwgKfRvk4nNWnoE=
 github.com/coreos/go-iptables v0.6.0 h1:is9qnZMPYjLd8LYqmm/qlE+wwEgJIkTYdhV3rfZo4jk=

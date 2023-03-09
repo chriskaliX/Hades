@@ -2,6 +2,8 @@ module collector
 
 go 1.18
 
+// require github.com/chriskaliX/go-rpmdb v1.0.0
+
 replace github.com/chriskaliX/SDK => ../../SDK/go
 
 require (
@@ -17,7 +19,7 @@ require github.com/vishvananda/netlink v1.2.1-beta.2
 
 require (
 	github.com/bytedance/sonic v1.8.3
-	github.com/chriskaliX/go-rpmdb v0.0.0-20230306071544-c202bf4f8074
+	github.com/chriskaliX/go-rpmdb v0.0.0-20230308104232-2166658237c8
 	github.com/cilium/ebpf v0.10.0
 	github.com/coreos/go-iptables v0.6.0
 	github.com/docker/docker v23.0.1+incompatible

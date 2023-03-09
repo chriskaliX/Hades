@@ -185,9 +185,7 @@ func (s *Sandbox) Lockfile() error {
 	return nil
 }
 
-func (s *Sandbox) RecvTask() *protocol.Task {
-	return <-s.taskCh
-}
+func (s *Sandbox) RecvTask() *protocol.Task { return <-s.taskCh }
 
 func (s *Sandbox) recvTask() {
 	if s.debug {

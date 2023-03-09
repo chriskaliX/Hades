@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/chriskaliX/SDK/transport/protocol"
-	"github.com/chriskaliX/SDK/utils"
+	util "github.com/chriskaliX/SDK/utils"
 	"go.uber.org/zap"
 )
 
