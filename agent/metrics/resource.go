@@ -19,12 +19,7 @@ type ioState struct {
 	WriteBytes uint64
 }
 
-func getProcResource(pid int) (
-	cpu float64,
-	rss uint64,
-	readSpeed, writeSpeed float64,
-	fds int32,
-	startAt int64, err error) {
+func getProcResource(pid int) (cpu float64, rss uint64, readSpeed, writeSpeed float64, fds int32, startAt int64, err error) {
 	var p *process.Process
 	p, err = process.NewProcess(int32(pid))
 	if err != nil {

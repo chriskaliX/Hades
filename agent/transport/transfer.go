@@ -165,6 +165,7 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 		return
 	}
 	switch cmd.Task.ObjectName {
+	// control the agent
 	case agent.Product:
 		switch cmd.Task.DataType {
 		case config.TaskShutdown:
@@ -177,6 +178,7 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
 			return ErrAgentDataType
 		}
+	// send to plugin channel
 	default:
 		PluginTaskChan <- cmd.Task
 	}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/chriskaliX/SDK/config"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"go.uber.org/zap"
 )
@@ -51,6 +52,12 @@ func init() {
 			case task := <-transport.PluginTaskChan:
 				// In future, shutdown, update, restart will be in here
 				if plg, ok := PluginManager.Get(task.GetObjectName()); ok {
+					switch task.DataType {
+					case config.TaskShutdown:
+						zap.S().Infof("task shutdown plugin %s", plg.Name())
+						PluginManager.UnRegister(plg.Name())
+						return
+					}
 					if err := plg.SendTask((protocol.Task)(*task)); err != nil {
 						zap.S().Error("send task to plugin: ", err)
 					}

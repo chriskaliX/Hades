@@ -81,12 +81,12 @@ type AgentMetric struct {
 	WriteSpeed  string `mapstructure:"write_speed"`
 	TxSpeed     string `mapstructure:"tx_speed"`
 	RxSpeed     string `mapstructure:"rx_speed"`
-	FdCnt       string `mapstructure:"fd_cnt"`
+	Nfd         string `mapstructure:"nfd"`
 	StartAt     string `mapstructure:"start_at"`
 	TxTps       string `mapstructure:"tx_tps"`
 	RxTps       string `mapstructure:"rx_tps"`
 	Du          string `mapstructure:"du"`
-	Grs         string `mapstructure:"grs"`
+	Ngr         string `mapstructure:"ngr"`
 	Nproc       string `mapstructure:"nproc"`
 	State       string `mapstructure:"state"`
 	StateDetail string `mapstructure:"state_detail"`
@@ -121,24 +121,25 @@ func (m *AgentMetric) Flush(now time.Time) {
 
 	pid := os.Getpid()
 	m.Pid = strconv.Itoa(pid)
-	if cpu, rss, rs, ws, fdCnt, startAt, err := getProcResource(pid); err == nil {
+	if cpu, rss, rs, ws, fds, startAt, err := getProcResource(pid); err == nil {
 		m.Cpu = strconv.FormatFloat(cpu, 'f', 8, 64)
 		m.ReadSpeed = strconv.FormatFloat(rs, 'f', 8, 64)
 		m.WriteSpeed = strconv.FormatFloat(ws, 'f', 8, 64)
 		m.Rss = strconv.FormatUint(rss, 10)
-		m.FdCnt = strconv.FormatInt(int64(fdCnt), 10)
+		m.Nfd = strconv.FormatInt(int64(fds), 10)
 		m.StartAt = strconv.FormatInt(startAt, 10)
 	} else {
 		zap.S().Error(err)
 	}
+
 	s := connection.DefaultStatsHandler.GetStats(now)
 	m.RxSpeed = strconv.FormatFloat(s.RxSpeed, 'f', 8, 64)
 	m.TxSpeed = strconv.FormatFloat(s.TxSpeed, 'f', 8, 64)
 	txTPS, rxTPX := transport.DefaultTrans.GetState(now)
 	m.TxTps = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	m.RxTps = strconv.FormatFloat(rxTPX, 'f', 8, 64)
-	m.Du = strconv.FormatUint(getDirSize(agent.Workdir, "plugin"), 10)
-	m.Grs = strconv.Itoa(runtime.NumGoroutine())
+	m.Du = strconv.FormatUint(getDirSize(agent.Workdir, "plugin"), 10) // get only from plugin
+	m.Ngr = strconv.Itoa(runtime.NumGoroutine())
 	m.Nproc = strconv.Itoa(runtime.NumCPU())
 	m.State, m.StateDetail = agent.State()
 

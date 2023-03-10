@@ -18,7 +18,7 @@ func (w *GrpcWriter) Write(p []byte) (n int, err error) {
 			Fields: map[string]string{},
 		},
 	}
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 	err = json.Unmarshal(p, &fields)
 	if err != nil {
 		return

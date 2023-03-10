@@ -35,6 +35,16 @@ func (p *PluginHeartbeat) Handle(m map[string]string, req *pb.RawData, conn *poo
 			data[k] = v
 		}
 	}
+
+	// No plugin is available, clear the plugin_detail
+	if len(m) == 0 {
+		_, err := mongo.StatusC.UpdateOne(
+			context.Background(),
+			bson.M{"agent_id": req.AgentID},
+			bson.M{"$set": bson.M{"plugin_detail": map[string]string{}}})
+		return err
+	}
+
 	// Added heartbeat_time with plugin
 	data["last_heartbeat_time"] = time.Now().Unix()
 	_, err := mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},

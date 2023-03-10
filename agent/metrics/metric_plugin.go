@@ -4,7 +4,6 @@ import (
 	"agent/plugin"
 	"agent/proto"
 	"agent/transport"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -25,14 +24,13 @@ type PluginMetric struct {
 	Rss        string `mapstructure:"rss"`
 	ReadSpeed  string `mapstructure:"read_speed"`
 	WriteSpeed string `mapstructure:"write_speed"`
-	FdCnt      string `mapstructure:"fd_cnt"`
+	Nfd        string `mapstructure:"nfd"`
 	StartAt    string `mapstructure:"start_at"`
 	TxTps      string `mapstructure:"tx_tps"`
 	RxTps      string `mapstructure:"rx_tps"`
 	TxSpeed    string `mapstructure:"tx_speed"`
 	RxSpeed    string `mapstructure:"rx_speed"`
 	Du         string `mapstructure:"du"`
-	Grs        string `mapstructure:"grs"`
 }
 
 func (m *PluginMetric) Name() string {
@@ -45,18 +43,30 @@ func (h *PluginMetric) Init() bool {
 
 func (m *PluginMetric) Flush(now time.Time) {
 	plgs := plugin.PluginManager.GetAll()
+	// send an empty packet if there is no plugin
+	if len(plgs) == 0 {
+		rec := &proto.Record{
+			DataType:  config.DTPluginStatus,
+			Timestamp: now.Unix(),
+			Data: &proto.Payload{
+				Fields: map[string]string{},
+			},
+		}
+		transport.DefaultTrans.Transmission(rec, false)
+		return
+	}
 	for _, plg := range plgs {
 		if plg.IsExited() {
 			continue
 		}
 		m.PName = plg.Name()
 		m.PVersion = plg.Version()
-		if cpu, rss, rs, ws, fdCnt, startAt, err := getProcResource(plg.Pid()); err == nil {
+		if cpu, rss, rs, ws, fds, startAt, err := getProcResource(plg.Pid()); err == nil {
 			m.Cpu = strconv.FormatFloat(cpu, 'f', 8, 64)
 			m.ReadSpeed = strconv.FormatFloat(rs, 'f', 8, 64)
 			m.WriteSpeed = strconv.FormatFloat(ws, 'f', 8, 64)
 			m.Rss = strconv.FormatUint(rss, 10)
-			m.FdCnt = strconv.FormatInt(int64(fdCnt), 10)
+			m.Nfd = strconv.FormatInt(int64(fds), 10)
 			m.StartAt = strconv.FormatInt(startAt, 10)
 		} else {
 			zap.S().Error(err)
@@ -68,7 +78,6 @@ func (m *PluginMetric) Flush(now time.Time) {
 		m.TxTps = strconv.FormatFloat(TxTPS, 'f', 8, 64)
 		m.RxSpeed = strconv.FormatFloat(RxSpeed, 'f', 8, 64)
 		m.TxSpeed = strconv.FormatFloat(TxSpeed, 'f', 8, 64)
-		m.Grs = strconv.Itoa(runtime.NumGoroutine())
 		m.Pid = strconv.FormatInt(int64(plg.Pid()), 10)
 
 		fields := make(map[string]string, 20)

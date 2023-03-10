@@ -14,6 +14,7 @@ import (
 
 	SDK "github.com/chriskaliX/SDK/transport"
 	"github.com/chriskaliX/SDK/transport/server"
+	"go.uber.org/zap"
 )
 
 var PluginManager = NewManager()
@@ -57,6 +58,7 @@ func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 		if plg.Version() == cfg.Version {
 			return nil
 		}
+		zap.S().Infof("start to shutdown plugin %s, version %s", plg.Name(), plg.Version())
 		plg.Shutdown()
 	}
 	if cfg.Signature == "" {
