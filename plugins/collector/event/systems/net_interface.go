@@ -18,7 +18,7 @@ func (NetInterface) DataType() int { return 3012 }
 
 func (NetInterface) Name() string { return "net_interface" }
 
-func (NetInterface) Flag() int { return eventmanager.Periodic }
+func (NetInterface) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (NetInterface) Immediately() bool { return false }
 

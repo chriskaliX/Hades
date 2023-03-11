@@ -24,7 +24,7 @@ func (Socket) DataType() int { return 5001 }
 
 func (Socket) Name() string { return "socket" }
 
-func (n *Socket) Flag() int { return eventmanager.Periodic }
+func (n *Socket) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Socket) Immediately() bool { return true }
 

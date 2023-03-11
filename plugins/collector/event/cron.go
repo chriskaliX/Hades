@@ -50,7 +50,7 @@ func (Crontab) DataType() int { return CRON_DATATYPE }
 
 func (Crontab) DataTypeSync() int { return 3001 }
 
-func (n *Crontab) Flag() int { return eventmanager.Periodic }
+func (n *Crontab) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Crontab) Name() string { return "cron" }
 

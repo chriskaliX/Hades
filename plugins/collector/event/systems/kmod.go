@@ -18,7 +18,7 @@ func (Kmod) DataType() int { return 3009 }
 
 func (Kmod) Name() string { return "kmod" }
 
-func (Kmod) Flag() int { return eventmanager.Periodic }
+func (Kmod) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Kmod) Immediately() bool { return false }
 

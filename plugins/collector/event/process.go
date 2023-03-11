@@ -31,7 +31,7 @@ func (Process) Name() string {
 	return "process"
 }
 
-func (n *Process) Flag() int {
+func (n *Process) Flag() eventmanager.EventMode {
 	return eventmanager.Periodic
 }
 

@@ -33,7 +33,7 @@ type Application struct {
 
 func (Application) DataType() int { return 3008 }
 
-func (Application) Flag() int { return eventmanager.Periodic }
+func (Application) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Application) Name() string { return "application" }
 

@@ -33,7 +33,7 @@ func (SshConfig) DataType() int { return SSHCONFIG_DATATYPE }
 
 func (SshConfig) Name() string { return "sshconfig" }
 
-func (n *SshConfig) Flag() int { return eventmanager.Periodic }
+func (n *SshConfig) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (SshConfig) Immediately() bool { return false }
 

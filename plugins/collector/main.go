@@ -27,7 +27,7 @@ func init() {
 
 // setGCPercentForSlowStart sets GC percent with a small value at startup
 // to avoid high RSS (caused by data catch-up) to trigger OOM-kill.
-// alibaba ilogtail
+// from: alibaba ilogtail
 func setGCPercentForSlowStart() {
 	gcPercent := 20
 	defaultGCPercent := debug.SetGCPercent(gcPercent)
@@ -61,8 +61,8 @@ func main() {
 	sandbox := SDK.NewSandbox(sconfig)
 	em := eventmanager.New(sandbox)
 
-	em.AddEvent(&event.SSH{}, eventmanager.Start)
-	em.AddEvent(&event.CronWatcher{}, eventmanager.Start)
+	em.AddEvent(&event.SSH{}, eventmanager.EmptyDuration)
+	em.AddEvent(&event.CronWatcher{}, eventmanager.EmptyDuration)
 
 	em.AddEvent(&event.Container{}, 5*time.Minute)
 	em.AddEvent(&event.User{}, 10*time.Minute)
@@ -84,5 +84,5 @@ func main() {
 	// 	http.ListenAndServe("0.0.0.0:6060", nil)
 	// }()
 
-	sandbox.Run(em.Run)
+	sandbox.Run(em.Schedule)
 }

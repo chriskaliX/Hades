@@ -145,14 +145,14 @@ func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
 		configs[config.Name] = config
 	}
 	if config, ok := configs[agent.Product]; ok && config.Version != agent.Version {
-		zap.S().Infof("agent will update:current version %v -> expected version %v", agent.Version, config.Version)
+		zap.S().Infof("agent will update from version %v to version %v", agent.Version, config.Version)
 		if err = agent.Update(*config); err == nil {
 			zap.S().Info("agent update successfully")
 			agent.Cancel()
 			return
 		}
 		zap.S().Error("agent update failed:", err)
-		agent.SetAbnormal(fmt.Sprintf("agent update failed: %s", err))
+		agent.SetAbnormal(fmt.Sprintf("agent update failed: %s", err.Error()))
 	}
 	delete(configs, agent.Product)
 	PluginConfigChan <- configs
@@ -175,7 +175,7 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 		case config.TaskSetenv:
 		case config.TaskRestart:
 		default:
-			zap.S().Error("resolveTask Agent DataType not supported: ", cmd.Task.DataType)
+			zap.S().Errorf("agent datatype not supported: %d", cmd.Task.DataType)
 			return ErrAgentDataType
 		}
 	// send to plugin channel

@@ -35,7 +35,7 @@ func (SSH) Name() string {
 	return "ssh"
 }
 
-func (n *SSH) Flag() int {
+func (n *SSH) Flag() eventmanager.EventMode {
 	return eventmanager.Realtime
 }
 

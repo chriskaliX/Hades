@@ -16,7 +16,7 @@ func (Disk) DataType() int { return 3010 }
 
 func (Disk) Name() string { return "disk" }
 
-func (Disk) Flag() int { return eventmanager.Periodic }
+func (Disk) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Disk) Immediately() bool { return false }
 

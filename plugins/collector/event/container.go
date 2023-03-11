@@ -18,7 +18,7 @@ func (Container) DataType() int { return 3018 }
 
 func (Container) Name() string { return "container" }
 
-func (Container) Flag() int { return eventmanager.Periodic }
+func (Container) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Container) Immediately() bool { return true }
 

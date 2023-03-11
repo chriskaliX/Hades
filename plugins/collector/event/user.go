@@ -31,7 +31,7 @@ func (User) DataType() int { return USER_DATATYPE }
 
 func (User) Name() string { return "user" }
 
-func (User) Flag() int { return eventmanager.Periodic }
+func (User) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (User) Immediately() bool { return true }
 

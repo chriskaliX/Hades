@@ -29,7 +29,7 @@ func (Iptables) DataType() int { return 3013 }
 
 func (Iptables) Name() string { return "iptables" }
 
-func (Iptables) Flag() int { return eventmanager.Periodic }
+func (Iptables) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Iptables) Immediately() bool { return false }
 

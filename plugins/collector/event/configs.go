@@ -14,7 +14,7 @@ func (Configs) DataType() int { return 9998 }
 
 func (Configs) Name() string { return "configs" }
 
-func (Configs) Flag() int { return eventmanager.Periodic }
+func (Configs) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Configs) Immediately() bool { return false }
 

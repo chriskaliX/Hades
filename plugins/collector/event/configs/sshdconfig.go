@@ -30,7 +30,7 @@ func (Sshd) Name() string {
 	return "sshdconfig"
 }
 
-func (n *Sshd) Flag() int {
+func (n *Sshd) Flag() eventmanager.EventMode {
 	return eventmanager.Periodic
 }
 

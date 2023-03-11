@@ -24,7 +24,7 @@ type HostScanner struct {
 
 func (HostScanner) DataType() int { return 3007 }
 
-func (HostScanner) Flag() int { return eventmanager.Trigger }
+func (HostScanner) Flag() eventmanager.EventMode { return eventmanager.Trigger }
 
 func (HostScanner) Name() string { return "host_scanner" }
 

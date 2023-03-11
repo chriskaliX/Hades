@@ -33,7 +33,7 @@ func (SystemdUnit) DataType() int { return 3011 }
 
 func (SystemdUnit) Name() string { return "systemd_unit" }
 
-func (SystemdUnit) Flag() int { return eventmanager.Periodic }
+func (SystemdUnit) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (SystemdUnit) Immediately() bool { return false }
 

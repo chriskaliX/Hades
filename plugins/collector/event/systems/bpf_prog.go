@@ -27,7 +27,7 @@ func (BPFProg) DataType() int { return 3014 }
 
 func (BPFProg) Name() string { return "bpf_prog" }
 
-func (BPFProg) Flag() int { return eventmanager.Periodic }
+func (BPFProg) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (BPFProg) Immediately() bool { return false }
 

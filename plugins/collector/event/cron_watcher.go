@@ -22,7 +22,7 @@ type CronWatcher struct {
 
 func (CronWatcher) DataType() int { return 3001 }
 
-func (CronWatcher) Flag() int { return eventmanager.Realtime }
+func (CronWatcher) Flag() eventmanager.EventMode { return eventmanager.Realtime }
 
 func (CronWatcher) Name() string { return "cron_watcher" }
 

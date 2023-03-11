@@ -14,7 +14,7 @@ func (Libraries) DataType() int { return 9999 }
 
 func (Libraries) Name() string { return "libraries" }
 
-func (Libraries) Flag() int { return eventmanager.Periodic }
+func (Libraries) Flag() eventmanager.EventMode { return eventmanager.Periodic }
 
 func (Libraries) Immediately() bool { return false }
 
