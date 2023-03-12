@@ -21,6 +21,7 @@ func init() {
 		n = 4
 	}
 	runtime.GOMAXPROCS(n)
+	SDK.RuntimeOpt()
 }
 
 func main() {
