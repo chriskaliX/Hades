@@ -117,6 +117,10 @@ func (t *Transfer) Receive(client proto.Transfer_TransferClient) (err error) {
 	if err != nil {
 		return
 	}
+	// precheck cmd
+	if cmd == nil {
+		return
+	}
 	zap.S().Info("command received")
 	atomic.AddUint64(&t.rxCnt, 1)
 	// resolve task & config
@@ -137,7 +141,7 @@ func (t *Transfer) GetState(now time.Time) (txTPS, rxTPS float64) {
 }
 
 func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
-	if cmd == nil || cmd.Configs == nil {
+	if cmd.Configs == nil {
 		return
 	}
 	configs := map[string]*proto.Config{}
@@ -160,8 +164,7 @@ func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
 }
 
 func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
-	// resolve task by it's name
-	if cmd == nil || cmd.Task == nil {
+	if cmd.Task == nil {
 		return
 	}
 	switch cmd.Task.ObjectName {
@@ -175,7 +178,7 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 		case config.TaskSetenv:
 		case config.TaskRestart:
 		default:
-			zap.S().Errorf("agent datatype not supported: %d", cmd.Task.DataType)
+			zap.S().Errorf("agent datatype %d is not supported", cmd.Task.DataType)
 			return ErrAgentDataType
 		}
 	// send to plugin channel

@@ -59,6 +59,7 @@ func (e *EventManager) Schedule(s SDK.ISandbox) error {
 			go event.Start(s)
 		case Periodic:
 			go func(ev *Event) {
+				// immediately already run
 				if !ev.event.Immediately() {
 					time.Sleep(e.random(s.Debug()))
 					zap.S().Infof("%s first run", ev.event.Name())
@@ -83,8 +84,9 @@ func (e *EventManager) random(debug bool) time.Duration {
 	var rint int
 	if debug {
 		rint = rand.Intn(10)
+	} else {
+		rint = rand.Intn(600)
 	}
-	rint = rand.Intn(600)
 	return time.Duration(rint) * time.Second
 }
 

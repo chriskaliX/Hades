@@ -2,9 +2,10 @@ module collector
 
 go 1.18
 
-// require github.com/chriskaliX/go-rpmdb v1.0.0
-
-replace github.com/chriskaliX/SDK => ../../SDK/go
+replace (
+	github.com/chriskaliX/SDK => ../../SDK/go
+	github.com/chriskaliX/go-rpmdb => /root/go-rpmdb
+)
 
 require (
 	github.com/chriskaliX/SDK v1.0.0
@@ -19,7 +20,7 @@ require github.com/vishvananda/netlink v1.2.1-beta.2
 
 require (
 	github.com/bytedance/sonic v1.8.3
-	github.com/chriskaliX/go-rpmdb v0.0.0-20230308104232-2166658237c8
+	// github.com/chriskaliX/go-rpmdb v0.0.0-20230309154934-82d56ebe85bd
 	github.com/cilium/ebpf v0.10.0
 	github.com/coreos/go-iptables v0.6.0
 	github.com/docker/docker v23.0.1+incompatible
@@ -56,7 +57,6 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/genproto v0.0.0-20230303212802-e74f57abe488 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
