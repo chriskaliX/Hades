@@ -1,4 +1,4 @@
 .VSCode/
 .vscode/
 hboat
-frontend/
+frontend/*

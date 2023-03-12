@@ -50,30 +50,14 @@ func AgentAsset(c *gin.Context) {
 		common.Response(c, common.ErrorCode, fmt.Sprintf("type %s is not registed", assetReq.Type))
 		return
 	}
+	if count, err := mongo.AssetC.CountDocuments(context.TODO(), bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()}); err == nil {
+		resp.Total = int32(count)
+	}
+
 	// pipeline
 	pipeline := bson.A{
 		bson.M{"$match": bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()}},
 	}
-	// get count
-	countPipeline := append(pipeline, bson.M{
-		"$project": bson.D{
-			{Key: "count", Value: bson.M{"$size": "$" + assetReq.Type}},
-			{Key: "_id", Value: 0}}})
-	if countCur, err := mongo.AssetC.Aggregate(
-		context.TODO(),
-		countPipeline,
-	); err == nil {
-		defer countCur.Close(context.Background())
-		var count []map[string]interface{}
-		if err = countCur.All(context.Background(), &count); err != nil {
-			common.Response(c, common.ErrorCode, err)
-			return
-		}
-		if len(count) > 0 {
-			resp.Total = count[0]["count"].(int32)
-		}
-	}
-
 	pipeline = append(pipeline, bson.M{"$project": bson.D{
 		{Key: "_id", Value: 0}, {Key: "package_seq", Value: 0},
 	}})
