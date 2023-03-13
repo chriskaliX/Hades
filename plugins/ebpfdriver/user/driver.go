@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"time"
 
+	utilEbpf "hades-ebpf/utils/ebpf"
+
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/cilium/ebpf"
@@ -29,9 +31,12 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/version"
 
+	_ "embed"
+
 	"github.com/shirou/gopsutil/host"
 )
 
+//go:embed hades_ebpf_driver.o
 var bytecode []byte
 
 // config
@@ -62,16 +67,21 @@ type Driver struct {
 
 // New a driver with pre-set map and options
 func NewDriver(s SDK.ISandbox) (*Driver, error) {
-	// For the safety here, use RSA and AES to encrypt and check the whole file
-	driverName, err := downloadBytecode()
-	if err != nil {
-		return nil, err
+	// By default, using build-in core bytecode
+	if ok, err := utilEbpf.IsEnableBTF(); err == nil && ok {
+		zap.S().Info("BTF enabled, using hardcode bytecode")
+	} else {
+		// For the safety here, use RSA and AES to encrypt and check the whole file
+		driverName, err := downloadBytecode()
+		if err != nil {
+			return nil, err
+		}
+		bytecode, err := ioutil.ReadFile(driverName)
+		if err != nil {
+			return nil, err
+		}
+		zap.S().Infof("%s load success, length: %d", driverName, len(bytecode))
 	}
-	_bytecode, err := ioutil.ReadFile(driverName)
-	if err != nil {
-		return nil, err
-	}
-	zap.S().Infof("%s load success, length: %d", driverName, len(_bytecode))
 
 	driver := &Driver{Sandbox: s}
 	// init ebpfmanager with maps and perf_events
@@ -130,8 +140,8 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		pgid = uint64(_pgid)
 	}
 
-	if err = driver.Manager.InitWithOptions(
-		bytes.NewReader(_bytecode),
+	if err := driver.Manager.InitWithOptions(
+		bytes.NewReader(bytecode),
 		manager.Options{
 			DefaultKProbeMaxActive: 512,
 			VerifierOptions: ebpf.CollectionOptions{

@@ -40,6 +40,7 @@ func appRun(s SDK.ISandbox) (err error) {
 func main() {
 	// inject into sandbox
 	cmd.RootCmd.Run = (func(_ *cobra.Command, _ []string) {
+		SDK.RuntimeOpt()
 		sconfig := &SDK.SandboxConfig{
 			Debug: conf.Debug,
 			Name:  "ebpfdriver",
