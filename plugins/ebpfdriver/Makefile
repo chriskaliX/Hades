@@ -15,5 +15,5 @@ core:
 	mv $(EBPF_SOURCE_CO-RE_PATH) $(EBPF_TARGET_PATH)
 	go build -ldflags "-X 'hades-ebpf/conf.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
 testing:
-	cp $(EBPF_TARGET_PATH) test/$(EBPF_TARGET_PATH)
+	cp $(EBPF_TARGET_PATH) test/hades_ebpf_driver.o
 	go test -v -exec sudo ./...

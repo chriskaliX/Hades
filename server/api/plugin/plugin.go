@@ -185,7 +185,7 @@ func SendPlugin(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	for name, detail := range conn.PluginDetail {
+	for name, detail := range conn.GetPluginsList() {
 		if name == plgConfig.Name {
 			continue
 		}

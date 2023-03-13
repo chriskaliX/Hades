@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	pb "hboat/grpc/transfer/proto"
+
+	"golang.org/x/exp/maps"
 )
 
 // Connection describe grpc_connection instance by recording
@@ -56,7 +58,13 @@ func (c *Connection) SetPluginDetail(name string, detail map[string]interface{})
 	c.PluginDetail[name] = detail
 }
 
-func (c *Connection) DelPluginDetail(name string, detail map[string]interface{}) {}
+func (c *Connection) DelPluginDetail(name string, detail map[string]interface{}) {
+	c.pluginLock.Lock()
+	defer c.pluginLock.Unlock()
+	if c.PluginDetail != nil {
+		delete(detail, name)
+	}
+}
 
 func (c *Connection) GetPluginDetail(name string) map[string]interface{} {
 	c.pluginLock.RLock()
@@ -71,12 +79,10 @@ func (c *Connection) GetPluginDetail(name string) map[string]interface{} {
 	return plgDetail
 }
 
-func (c *Connection) GetPluginsList() []map[string]interface{} {
+func (c *Connection) GetPluginsList() (m map[string]map[string]interface{}) {
 	c.pluginLock.Lock()
 	defer c.pluginLock.Unlock()
-	res := make([]map[string]interface{}, 0, len(c.PluginDetail))
-	for k := range c.PluginDetail {
-		res = append(res, c.PluginDetail[k])
-	}
-	return res
+	m = make(map[string]map[string]interface{})
+	maps.Copy(m, c.PluginDetail)
+	return
 }
