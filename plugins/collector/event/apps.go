@@ -43,10 +43,7 @@ func (Application) Immediately() bool { return false }
 func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	hash := utils.Hash()
 	// inject mapping into application
-	a.once.Do(func() {
-		a.Apps = apps.Apps
-		zap.S().Infof("app count: %d", len(a.Apps))
-	})
+	a.once.Do(func() { a.Apps = apps.Apps })
 	var pids []int
 	pids, err = process.GetPids(appsMaxProcess)
 	if err != nil {
@@ -67,6 +64,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			// Run with the proc, and get information of what we need
 			m, err := v.Run(proc)
 			if err != nil {
+				zap.S().Error(err)
 				continue
 			}
 			if m == nil {
@@ -103,6 +101,14 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 				"start_time":     strconv.FormatUint(proc.StartTime, 10),
 				"listen_addrs":   apps.ProcListenAddrs(proc),
 			})
+
+			// software, only listen_addr not empty
+			if v.Type() == "software" {
+				if v, ok := m["listen_addrs"]; !ok || v == "" {
+					goto Next
+				}
+			}
+
 			rec := &protocol.Record{
 				DataType:  int32(a.DataType()),
 				Timestamp: time.Now().Unix(),

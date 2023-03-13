@@ -14,7 +14,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-var typeAllowList = []string{"users", "sockets", "processes", "crons"}
+var typeAllowList = []string{
+	"users", "sockets", "processes", "crons", "apps", "kmods",
+}
 
 type AgentAssetResp struct {
 	Total  int32         `json:"total"`

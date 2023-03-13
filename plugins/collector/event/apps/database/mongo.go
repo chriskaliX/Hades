@@ -27,6 +27,4 @@ func (m *MongoDB) Run(p *process.Process) (mapping map[string]string, err error)
 	return
 }
 
-func init() {
-	apps.Regist(&MongoDB{})
-}
+func init() { apps.Regist(&MongoDB{}) }

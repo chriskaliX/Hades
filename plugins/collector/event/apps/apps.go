@@ -41,7 +41,6 @@ func Regist(app IApplication) {
 	}
 }
 
-// TODO: container
 func Execute(p *process.Process, args ...string) (result string, err error) {
 	return ExecuteWithName(p, p.Exe, args...)
 }

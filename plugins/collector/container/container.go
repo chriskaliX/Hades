@@ -71,7 +71,7 @@ func (c *Client) Containers() ([]Container, error) {
 		for index, value := range cs {
 			cs[index].Runtime = client.Runtime()
 			if pns, err := strconv.ParseInt(value.Pns, 10, 64); err == nil && pns > 0 {
-				container.Cache.Add(value.Pns, map[string]string{
+				container.Cache.Add(uint32(pns), map[string]string{
 					container.ContainerId:      value.ID,
 					container.ContainerName:    value.ImageName,
 					container.ContainerRuntime: client.Runtime(),
