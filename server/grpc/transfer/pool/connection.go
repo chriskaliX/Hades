@@ -56,7 +56,6 @@ func (c *Connection) SetPluginDetail(name string, detail map[string]interface{})
 	c.PluginDetail[name] = detail
 }
 
-// TODO
 func (c *Connection) DelPluginDetail(name string, detail map[string]interface{}) {}
 
 func (c *Connection) GetPluginDetail(name string) map[string]interface{} {

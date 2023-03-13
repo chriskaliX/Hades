@@ -35,7 +35,7 @@ func CheckSignature(dst string, sign string) error {
 		err = errors.New("signature doesn't match")
 		return err
 	}
-	f.Chmod(0o0700)
+	f.Chmod(0o0701)
 	return nil
 }
 
@@ -45,11 +45,6 @@ func CheckSignature(dst string, sign string) error {
 // file into the memory is always needed. This is the reason why a 100M
 // memory is always needed
 func Download(ctx context.Context, dst string, sha256sum string, urls []string, suffix string) (err error) {
-	var checksum []byte
-	// check wheater this already exist
-	if checksum, err = hex.DecodeString(sha256sum); err != nil {
-		return
-	}
 	hasher := sha256.New()
 	if err = CheckSignature(dst, sha256sum); err == nil {
 		return
@@ -98,7 +93,7 @@ func Download(ctx context.Context, dst string, sha256sum string, urls []string, 
 			continue
 		}
 		if c := hex.EncodeToString(hasher.Sum(nil)); c != sha256sum {
-			err = fmt.Errorf("checksum doesn't match: %s vs %s", checksum, sha256sum)
+			err = fmt.Errorf("checksum doesn't match: %s vs %s", c, sha256sum)
 			zap.S().Error(err)
 		} else {
 			break

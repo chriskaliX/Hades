@@ -49,6 +49,7 @@ func (p *PluginHeartbeat) Handle(m map[string]string, req *pb.RawData, conn *poo
 	data["last_heartbeat_time"] = time.Now().Unix()
 	_, err := mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
 		bson.M{"$set": bson.M{"plugin_detail." + m["name"]: data}})
+	conn.SetPluginDetail(data["name"].(string), data)
 	return err
 }
 
