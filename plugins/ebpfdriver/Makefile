@@ -2,7 +2,7 @@ EBPF_BUILD := +$(MAKE) -C kern
 EBPF_CO-RE_FLAG := core
 EBPF_SOURCE_PATH = kern/hades_ebpf_driver.bpf.o
 EBPF_SOURCE_CO-RE_PATH = kern/hades_ebpf_driver.bpf.core.o
-EBPF_TARGET_PATH = hades_ebpf_driver.o
+EBPF_TARGET_PATH = user/hades_ebpf_driver.o
 GO_TARGET_PATH := -o ebpfdriver
 VERSION := v1.1.0
 
