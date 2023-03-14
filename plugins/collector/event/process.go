@@ -1,6 +1,7 @@
 package event
 
 import (
+	"collector/cache"
 	"collector/cache/process"
 	"collector/eventmanager"
 	"collector/utils"
@@ -52,7 +53,7 @@ func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
 				Fields: map[string]string{
 					"cgroup_id":   strconv.FormatInt(int64(process.CgroupId), 10),
 					"pns":         strconv.FormatInt(int64(process.Pns), 10),
-					"root_pns":    strconv.FormatInt(int64(process.RootPns), 10),
+					"root_pns":    strconv.FormatInt(int64(cache.RootPns), 10),
 					"pid":         strconv.FormatInt(int64(process.PID), 10),
 					"gid":         strconv.FormatInt(int64(process.GID), 10),
 					"pgid":        strconv.FormatInt(int64(process.PGID), 10),

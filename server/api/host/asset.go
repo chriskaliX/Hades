@@ -14,8 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-const typeAllowlist = [8]string{
-	"users", "sockets", "processes", "crons", "apps", "kmods", "iptables", "net_interfaces",
+var typeAllowlist = []string{
+	"users", "sockets", "processes", "crons", "apps", "kmods", "iptables", "net_interfaces", "containers",
 }
 
 type AgentAssetResp struct {
