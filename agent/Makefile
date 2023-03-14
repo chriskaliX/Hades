@@ -14,4 +14,4 @@ pre_show:
 
 .PHONY: build_agent
 build_agent:
-	$(CMD_GO) build -ldflags "-X agent/agent.Version=$(VERSION)" -o hades-agent
+	CGO_ENABLED=0 $(CMD_GO) build -ldflags "-X agent/agent.Version=$(VERSION)" -o hades-agent

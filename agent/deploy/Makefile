@@ -40,7 +40,7 @@ build_hades_agent:
 .PHONY: build_hadesctl
 build_hadesctl:
 	@printf "$(INFO_COLOR) start to build hadesctl\n"
-	cd control/ && go build . && cd ..
+	cd control/ && CGO_ENABLED=0 go build . && cd ..
 	mv control/hadesctl hadesctl
 	@printf "$(SUCC_COLOR) hadesctl build success\n"
 

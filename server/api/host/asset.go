@@ -14,8 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-var typeAllowList = []string{
-	"users", "sockets", "processes", "crons", "apps", "kmods",
+const typeAllowlist = [8]string{
+	"users", "sockets", "processes", "crons", "apps", "kmods", "iptables", "net_interfaces",
 }
 
 type AgentAssetResp struct {
@@ -43,7 +43,7 @@ func AgentAsset(c *gin.Context) {
 		return
 	}
 	// type check
-	if !slices.Contains(typeAllowList, assetReq.Type) {
+	if !slices.Contains(typeAllowlist, assetReq.Type) {
 		common.Response(c, common.ErrorCode, fmt.Sprintf("type %s is not supported", assetReq.Type))
 		return
 	}

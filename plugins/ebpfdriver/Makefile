@@ -9,11 +9,11 @@ VERSION := v1.1.0
 no-core:
 	$(EBPF_BUILD)
 	mv $(EBPF_SOURCE_PATH) $(EBPF_TARGET_PATH)
-	go build -ldflags "-X 'hades-ebpf/conf.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
+	CGO_ENABLED=0 go build -ldflags "-X 'hades-ebpf/conf.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
 core:
 	$(EBPF_BUILD) $(EBPF_CO-RE_FLAG)
 	mv $(EBPF_SOURCE_CO-RE_PATH) $(EBPF_TARGET_PATH)
-	go build -ldflags "-X 'hades-ebpf/conf.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
+	CGO_ENABLED=0 go build -ldflags "-X 'hades-ebpf/conf.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
 testing:
 	cp $(EBPF_TARGET_PATH) test/hades_ebpf_driver.o
-	go test -v -exec sudo ./...
+	CGO_ENABLED=0 go test -v -exec sudo ./...
