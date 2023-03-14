@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
 	"strconv"
@@ -23,10 +22,10 @@ func (c *Container) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 		case "pid", "pns":
 			i, _ := strconv.ParseUint(v, 10, 32)
 			mapper[k] = i
-		case "labels":
-			value := make(map[string]interface{})
-			json.Unmarshal([]byte(v), &value)
-			mapper[k] = value
+		// case "labels":
+		// 	value := make(map[string]interface{})
+		// 	json.Unmarshal([]byte(v), &value)
+		// 	mapper[k] = value
 		default:
 			mapper[k] = v
 		}

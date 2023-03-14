@@ -26,7 +26,7 @@ func (c *Process) Handle(m map[string]string, req *pb.RawData, conn *pool.Connec
 			i, _ := strconv.ParseUint(v, 10, 64)
 			mapper[k] = i
 		case "cpu":
-			i, _ := strconv.ParseFloat(v, 10)
+			i, _ := strconv.ParseFloat(v, 64)
 			mapper[k] = i
 		default:
 			mapper[k] = v

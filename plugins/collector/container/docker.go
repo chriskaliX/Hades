@@ -57,21 +57,17 @@ func (c *docker) Containers(ctx context.Context) ([]Container, error) {
 			Labels:    label,
 		}
 		time.Sleep(50 * time.Millisecond)
-		// Inspect into the container
-		json, err := cli.ContainerInspect(ctx, container.ID)
-		if err != nil {
-			goto Next
-		}
-		if json.State.Pid == 0 {
-			goto Next
-		}
-		c.PID = strconv.FormatInt(int64(json.State.Pid), 10)
-		p = process.Process{PID: int(json.State.Pid)}
-		if err := p.GetNs(); err == nil {
-			c.Pns = strconv.FormatInt(int64(p.Pns), 10)
+		// inspect into the container
+		if json, err := cli.ContainerInspect(ctx, container.ID); err == nil {
+			if json.State.Pid == 0 {
+				c.PID = strconv.FormatInt(int64(json.State.Pid), 10)
+				p = process.Process{PID: int(json.State.Pid)}
+				if err := p.GetNs(); err == nil {
+					c.Pns = strconv.FormatInt(int64(p.Pns), 10)
+				}
+			}
 		}
 		cs = append(cs, c)
-	Next:
 	}
 	return cs, nil
 }

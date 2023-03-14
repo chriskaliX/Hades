@@ -4,7 +4,6 @@ import (
 	"collector/event"
 	"collector/eventmanager"
 	"flag"
-	_ "net/http/pprof"
 	"runtime"
 	"time"
 
