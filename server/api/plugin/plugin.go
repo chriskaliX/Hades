@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/chriskaliX/SDK/config"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -147,6 +148,7 @@ type PluginRequest struct {
 	AgentID string `json:"agent_id"`
 	Name    string `json:"name"`
 	Version string `json:"pversion"`
+	Action  string `json:"action"`
 }
 
 // For now, only single instance is considered
@@ -157,8 +159,17 @@ func SendPlugin(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
+	switch pReq.Action {
+	case "insert":
+		actionInsert(c, pReq)
+	case "delete":
+		actionDelete(c, pReq)
+	}
+}
+
+func actionInsert(c *gin.Context, pReq PluginRequest) {
 	var plgConfig PluginConfig
-	err = mongo.PluginC.FindOne(
+	err := mongo.PluginC.FindOne(
 		context.Background(),
 		bson.M{"name": pReq.Name, "pversion": pReq.Version}).Decode(&plgConfig)
 	if err != nil {
@@ -199,9 +210,21 @@ func SendPlugin(c *gin.Context) {
 			SHA256:  plgConfig.Sha256,
 		})
 	}
-
 	err = pool.GlobalGRPCPool.SendCommand(pReq.AgentID, &command)
 	if err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	common.Response(c, common.SuccessCode, nil)
+}
+
+func actionDelete(c *gin.Context, pReq PluginRequest) {
+	if err := pool.GlobalGRPCPool.SendCommand(pReq.AgentID, &pb.Command{
+		Task: &pb.PluginTask{
+			DataType: config.TaskShutdown,
+			Name:     pReq.Name,
+		},
+	}); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}

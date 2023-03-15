@@ -2,8 +2,11 @@ module hboat
 
 go 1.18
 
+replace github.com/chriskaliX/SDK => ../SDK/go
+
 require (
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/chriskaliX/SDK v1.0.0
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
 	github.com/rs/xid v1.4.0
