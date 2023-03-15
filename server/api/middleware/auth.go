@@ -7,9 +7,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
+
+const nilErrRedis = "redis: nil"
 
 var whitelist = []string{
 	"/api/v1/user/login",
@@ -35,8 +36,7 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 		s := redis.Inst.Get(context.Background(), token)
-		if s.Err() != nil {
-			zap.S().Error(s.Err())
+		if s.Err() != nil && s.Err().Error() != nilErrRedis {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}

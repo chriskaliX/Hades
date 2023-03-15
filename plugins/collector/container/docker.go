@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-const dockerLimit = 2048
+const dockerLimit = 3000
 
 type docker struct {
 	c *client.Client
@@ -43,7 +43,7 @@ func (c *docker) Containers(ctx context.Context) ([]Container, error) {
 	for _, container := range containers {
 		var name string
 		if len(container.Names) > 0 {
-			// docker may starts with prefix /
+			// docker may starts with prefix "/"
 			name = strings.TrimPrefix(container.Names[0], "/")
 		}
 		label, _ := sonic.MarshalString(container.Labels)
