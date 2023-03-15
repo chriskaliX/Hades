@@ -71,6 +71,8 @@ func routerFrontend(r *gin.Engine) {
 		case "ttf":
 			ctx.Header("Content-Type", "font/ttf")
 		}
+		// add cache-control to speed up
+		ctx.Header("Cache-Control", "public, max-age=31536000")
 		ctx.Header("Content-Description", "File Transfer")
 		ctx.Header("Content-Transfer-Encoding", "binary")
 		ctx.Header("Content-Disposition", "attachment; filename="+fileName)
