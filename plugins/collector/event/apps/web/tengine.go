@@ -19,7 +19,8 @@ func (Tengine) Type() string { return "web" }
 
 func (t Tengine) Version() string { return t.version }
 
-func (Tengine) Match(p *process.Process) bool { return p.Name == "nginx" }
+// pay attention to the name, maybe nginx
+func (Tengine) Match(p *process.Process) bool { return p.Name == "tegine" }
 
 func (t *Tengine) Run(p *process.Process) (m map[string]string, err error) {
 	m = make(map[string]string)

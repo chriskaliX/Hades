@@ -64,7 +64,7 @@ func (a *Application) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			// Run with the proc, and get information of what we need
 			m, err := v.Run(proc)
 			if err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("name: %s, datatype: %s, err: %s", v.Name(), v.Type(), err.Error())
 				continue
 			}
 			if m == nil {
