@@ -121,14 +121,6 @@ out:
 	return
 }
 
-func (n *Ncp) Run(s SDK.ISandbox) (err error) {
-	go n.Start(s)
-	for range s.Done() {
-		return
-	}
-	return
-}
-
 func (n *Ncp) Stop() (err error) {
 	n.close <- struct{}{}
 	if n.sock != nil {

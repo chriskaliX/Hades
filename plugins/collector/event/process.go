@@ -51,7 +51,6 @@ func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
 			Timestamp: time.Now().Unix(),
 			Data: &protocol.Payload{
 				Fields: map[string]string{
-					"cgroup_id":   strconv.FormatInt(int64(process.CgroupId), 10),
 					"pns":         strconv.FormatInt(int64(process.Pns), 10),
 					"root_pns":    strconv.FormatInt(int64(cache.RootPns), 10),
 					"pid":         strconv.FormatInt(int64(process.PID), 10),
@@ -76,7 +75,7 @@ func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
 					"nodename":    process.NodeName,
 					"tty":         strconv.FormatInt(int64(process.TTY), 10),
 					"ttyname":     process.TTYName,
-					"starttime":   strconv.FormatUint(process.StartTime, 10),
+					"start_time":  strconv.FormatUint(process.StartTime, 10),
 					"remote_addr": process.RemoteAddr,
 					"remote_port": process.RemotePort,
 					"local_addr":  process.LocalAddr,

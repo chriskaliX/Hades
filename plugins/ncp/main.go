@@ -70,5 +70,5 @@ func main() {
 		}
 	}()
 
-	sandbox.Run(ncp.Run)
+	sandbox.Run(ncp.Start)
 }

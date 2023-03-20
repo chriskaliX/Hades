@@ -15,7 +15,6 @@ import (
 )
 
 type Process struct {
-	CgroupId int    `json:"cgroupid,omitempty"`
 	Pns      int    `json:"pns"`
 	RootPns  int    `json:"root_pns"`
 	PID      int    `json:"pid"`
@@ -41,7 +40,7 @@ type Process struct {
 
 	TTY        int     `json:"tty,omitempty"`
 	TTYName    string  `json:"ttyname,omitempty"`
-	StartTime  uint64  `json:"starttime,omitempty"`
+	StartTime  uint64  `json:"start_time,omitempty"`
 	RemoteAddr string  `json:"remoteaddr,omitempty"`
 	RemotePort string  `json:"remoteport,omitempty"`
 	LocalAddr  string  `json:"localaddr,omitempty"`
@@ -107,18 +106,22 @@ func (p *Process) Fds() (result []string, err error) {
 
 // The one and only real function of get cmdline, cache will be filled automatically
 func getCmdline(pid int) (cmdline string, err error) {
-	var res []byte
-	if res, err = os.ReadFile("/proc/" + strconv.Itoa(pid) + "/cmdline"); err != nil {
-		return
-	}
-	if len(res) == 0 {
-		return
-	}
-	res = bytes.ReplaceAll(res, []byte{0}, []byte{' '})
-	res = bytes.TrimSpace(res)
-	cmdline = string(res)
-	if len(cmdline) > maxCmdline {
-		cmdline = cmdline[:maxCmdline]
+	if pid == 1<<32-1 {
+		cmdline = "-1"
+	} else {
+		var res []byte
+		if res, err = os.ReadFile("/proc/" + strconv.Itoa(pid) + "/cmdline"); err != nil {
+			return
+		}
+		if len(res) == 0 {
+			return
+		}
+		res = bytes.ReplaceAll(res, []byte{0}, []byte{' '})
+		res = bytes.TrimSpace(res)
+		cmdline = string(res)
+		if len(cmdline) > maxCmdline {
+			cmdline = cmdline[:maxCmdline]
+		}
 	}
 	ArgvCache.Add(pid, cmdline)
 	return
@@ -154,17 +157,6 @@ func (p *Process) GetNs() error {
 	return nil
 }
 
-func (p *Process) GetCgroup() (err error) {
-	cgroupId, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/cgroup", p.PID))
-	if err != nil {
-		return err
-	}
-	if len(cgroupId) >= 9 {
-		p.CgroupId, _ = strconv.Atoi(cgroupId[8 : len(cgroupId)-1])
-	}
-	return nil
-}
-
 func (p *Process) GetEnv() {
 	p.PodName, p.NodeName = ns.Cache.Get(uint32(p.PID), uint32(p.Pns))
 }
@@ -184,7 +176,7 @@ func (p *Process) GetStat(simple bool) (err error) {
 		p.Name = string(fields[1][1 : len(fields[1])-1])
 	}
 	p.PPID, _ = strconv.Atoi(fields[3])
-	p.PGID, _ = strconv.Atoi(fields[3])
+	p.PGID, _ = strconv.Atoi(fields[7])
 	p.Session, _ = strconv.Atoi(fields[5])
 	p.TTY, _ = strconv.Atoi(fields[6])
 	if simple {

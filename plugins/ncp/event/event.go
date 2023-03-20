@@ -46,8 +46,7 @@ type Event struct {
 	SSHConnection string `json:"ssh_connection"`
 	LdPreload     string `json:"ld_preload"`
 	LdLibrary     string `json:"ld_library"`
-	StartTime     uint64 `json:"starttime"`
-	CgroupID      uint64 `json:"cgroupid"`
+	StartTime     uint64 `json:"start_time"`
 	Pns           uint32 `json:"pns"`
 	RootPns       uint32 `json:"root_pns"`
 	Pid           uint32 `json:"pid"`
@@ -120,7 +119,7 @@ func (e *Event) Reset() {
 	e.Comm, e.Cwd = defaultValue, defaultValue
 	e.Stdin, e.Stdout, e.Argv = defaultValue, defaultValue, defaultValue
 	e.SSHConnection, e.LdPreload, e.LdLibrary = defaultValue, defaultValue, defaultValue
-	e.StartTime, e.CgroupID, e.Pns, e.Pid, e.Tid, e.Uid, e.Gid = 0, 0, 0, 0, 0, -1, -1
+	e.StartTime, e.Pns, e.Pid, e.Tid, e.Uid, e.Gid = 0, 0, 0, 0, -1, -1
 	e.Ppid, e.Pgid, e.SessionID, e.TTY = 0, 0, 0, 0
 	e.Comm, e.PComm, e.ExeHash, e.Username = defaultValue, defaultValue, defaultValue, defaultValue
 	e.Exe, e.PpidArgv, e.PgidArgv, e.PodName = defaultValue, defaultValue, defaultValue, defaultValue
@@ -164,7 +163,9 @@ func (e *Event) getStat() (err error) {
 	var field int
 	field, _ = strconv.Atoi(fields[3])
 	e.Ppid = uint32(field)
-	field, _ = strconv.Atoi(fields[4])
+	// fields[4] is pgrp: The process group ID of the process.
+	// fields[7] is The ID of the foreground process group of the controlling terminal of the process.
+	field, _ = strconv.Atoi(fields[7])
 	e.Pgid = uint32(field)
 	field, _ = strconv.Atoi(fields[5])
 	e.SessionID = uint32(field)
@@ -311,6 +312,10 @@ func (e *Event) getPidTree() {
 }
 
 func getArgv(pid uint32) (argv string, err error) {
+	if pid == 1<<32-1 {
+		argv = "-1"
+		return
+	}
 	if value, ok := argvCache.Get(pid); ok {
 		argv = value.(string)
 	}
