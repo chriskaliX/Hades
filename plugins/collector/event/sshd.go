@@ -181,7 +181,7 @@ func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 		case err = <-watcher.Errors:
 			zap.S().Error(err)
 			return
-		case <-sandbox.Context().Done():
+		case <-sandbox.Done():
 			return
 		case <-sig:
 			return

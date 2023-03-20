@@ -161,7 +161,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		return nil, err
 	}
 
-	driver.context, driver.cancel = context.WithCancel(s.Context())
+	driver.context, driver.cancel = context.WithCancel(context.Background())
 	return driver, nil
 }
 

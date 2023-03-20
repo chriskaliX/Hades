@@ -24,10 +24,10 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				if cfg.Name == agent.Product {
 					continue
 				}
-				if err := PluginManager.Load(ctx, *cfg); err != nil {
+				if err := PluginManager.Load(ctx, *cfg); err != nil && err != ErrIngore {
 					zap.S().Error(err)
 				} else {
-					zap.S().Infof("plugin %s is loaded", cfg.Name)
+					zap.S().Infof("plugin %s is loaded successfully", cfg.Name)
 				}
 			}
 			// 移除插件

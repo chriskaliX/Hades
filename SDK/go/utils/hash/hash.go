@@ -12,7 +12,6 @@ import (
 
 const (
 	freq          = 60
-	maxFileSize   = 10485760
 	hashCacheSize = 4096
 	burst         = 32
 )

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -73,21 +72,23 @@ func (n *NsCache) Get(pid uint32, pns uint32) (podname string, nodename string) 
 	}
 	envList := bytes.Split(_byte, []byte{0})
 	for _, env := range envList {
-		_env := strings.Split(string(env), "=")
+		_env := bytes.Split(env, []byte{'='})
 		if len(_env) != 2 {
 			continue
 		}
+		key := string(_env[0])
+		value := string(_env[1])
 		// TODO: check this out, just try to get from env which is not reliable
-		if _env[0] == "HOSTNAME" {
+		if key == "HOSTNAME" {
 			duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
-			n.namecache.Add(pns, _env[1], duration)
-			nodename = _env[1]
+			n.namecache.Add(pns, value, duration)
+			nodename = value
 		}
-		if _env[0] == "MY_POD_NAME" || _env[0] == "POD_NAME" {
+		if key == "MY_POD_NAME" || key == "POD_NAME" {
 			// get it right, save to cache and return
 			duration := time.Hour + time.Duration(rand.Intn(600))*time.Second
-			n.cache.Add(pns, _env[1], duration)
-			podname = _env[1]
+			n.cache.Add(pns, value, duration)
+			podname = value
 		}
 	}
 	// missed, no pod_name is got. save invalid for a minite

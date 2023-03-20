@@ -193,22 +193,24 @@ func (e *Event) getEnviron() (err error) {
 		e.PodName = value.(string)
 	}
 	envs := bytes.Split(source, []byte{0})
-	for env := range envs {
-		_env := strings.Split(fmt.Sprint(env), "=")
+	for _, env := range envs {
+		_env := bytes.Split(env, []byte{'='})
 		if len(_env) != 2 {
 			continue
 		}
-		if len(e.SSHConnection) <= 2 && _env[0] == "SSH_CONNECTION" {
-			e.SSHConnection = _env[1]
-		} else if len(e.LdPreload) <= 2 && _env[0] == "LD_PRELOAD" {
-			e.LdPreload = _env[1]
-		} else if len(e.PodName) <= 2 && (_env[0] == "POD_NAME" || _env[0] == "MY_POD_NAME") {
-			e.PodName = _env[1]
+		key := string(_env[0])
+		value := string(_env[1])
+		if len(e.SSHConnection) <= 2 && key == "SSH_CONNECTION" {
+			e.SSHConnection = value
+		} else if len(e.LdPreload) <= 2 && key == "LD_PRELOAD" {
+			e.LdPreload = value
+		} else if len(e.PodName) <= 2 && (key == "POD_NAME" || key == "MY_POD_NAME") {
+			e.PodName = value
 			if e.Pns != 0 {
 				nsCache.Add(e.Pns, e.PodName)
 			}
-		} else if _env[0] == "LD_LIBRARY" {
-			e.LdLibrary = _env[1]
+		} else if key == "LD_LIBRARY" {
+			e.LdLibrary = value
 		}
 	}
 	return

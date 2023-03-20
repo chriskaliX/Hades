@@ -123,7 +123,7 @@ out:
 
 func (n *Ncp) Run(s SDK.ISandbox) (err error) {
 	go n.Start(s)
-	for range s.Context().Done() {
+	for range s.Done() {
 		return
 	}
 	return

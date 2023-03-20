@@ -29,7 +29,7 @@ type ISandbox interface {
 	Shutdown()
 	// Sandbox attributes and context
 	Name() string
-	Context() context.Context
+	Done() <-chan struct{}
 	Cancel()
 	// Client related
 	SendRecord(*protocol.Record) error
@@ -146,8 +146,8 @@ func (s *Sandbox) SendRecord(rec *protocol.Record) (err error) {
 	return
 }
 
-func (s *Sandbox) Context() context.Context {
-	return s.ctx
+func (s *Sandbox) Done() <-chan struct{} {
+	return s.ctx.Done()
 }
 
 func (s *Sandbox) Cancel() { s.cancel() }

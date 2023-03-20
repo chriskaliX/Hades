@@ -35,7 +35,7 @@ func main() {
 	go func() {
 		for {
 			select {
-			case <-sandbox.Context().Done():
+			case <-sandbox.Done():
 			default:
 				task := sandbox.RecvTask()
 				switch task.DataType {

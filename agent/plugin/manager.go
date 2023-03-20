@@ -18,6 +18,7 @@ import (
 )
 
 var PluginManager = NewManager()
+var ErrIngore = errors.New("ignore")
 
 // move to struct, dependency injection
 type Manager struct {
@@ -56,7 +57,8 @@ func (m *Manager) GetAll() (plgs []SDK.IServer) {
 func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 	if plg, ok := m.Get(cfg.Name); ok && !plg.IsExited() {
 		if plg.Version() == cfg.Version {
-			return nil
+			// ignore this if already started
+			return ErrIngore
 		}
 		zap.S().Infof("start to shutdown plugin %s, version %s", plg.Name(), plg.Version())
 		plg.Shutdown()

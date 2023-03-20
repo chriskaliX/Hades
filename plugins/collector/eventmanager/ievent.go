@@ -29,7 +29,7 @@ type Event struct {
 
 func (e *Event) Start(s SDK.ISandbox) (err error) {
 	select {
-	case <-s.Context().Done():
+	case <-s.Done():
 		return
 	case <-e.done:
 		err = e.event.Run(s, e.sig)

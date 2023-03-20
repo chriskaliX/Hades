@@ -52,7 +52,7 @@ func (c *CronWatcher) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 	for {
 		timer.Reset(3 * time.Second)
 		select {
-		case <-s.Context().Done():
+		case <-s.Done():
 			return
 		case <-sig:
 			return
