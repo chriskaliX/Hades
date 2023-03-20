@@ -14,6 +14,12 @@ Hades is a Host-based Intrusion Detection System based on eBPF and netlink(cn_pr
 
 Declaration: This project is based on [Tracee](https://github.com/aquasecurity/tracee) and [Elkeid](https://github.com/bytedance/Elkeid). Thanks for these awesome open-source projects.
 
+## Overview
+
+> This is a demo backend for now, still under dev
+
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-platform.png"/>
+
 ## Architecture
 
 > Agent part is mainly based on [Elkeid](https://github.com/bytedance/Elkeid) version 1.7.

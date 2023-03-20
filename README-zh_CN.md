@@ -12,6 +12,12 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 申明：本项目借鉴了 [Tracee](https://github.com/aquasecurity/tracee) 以及 [Elkeid](https://github.com/bytedance/Elkeid) 中的代码以及思路等
 
+## 概览
+
+> 现在仍是一个demo后台，后续会持续迭代
+
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-platform.png"/>
+
 ## 架构
 
 > 注: Agent 部分基本参照 Elkeid 1.7 部分重构
