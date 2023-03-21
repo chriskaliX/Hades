@@ -99,15 +99,14 @@ func (e *Event) GetInfo() (err error) {
 	if err = e.getUserName(); err != nil {
 		return
 	}
-	if e.PgidArgv, err = getArgv(e.Pgid); err != nil {
-		return
-	}
 	if e.PComm, err = getComm(e.Ppid); err != nil {
 		return
 	}
 	if e.PpidArgv, err = getArgv(e.Ppid); err != nil {
 		return
 	}
+	// ignore the error of pgid
+	e.PgidArgv, _ = getArgv(e.Pgid)
 	e.Stdin, _ = e.getFd(0)
 	e.Stdout, _ = e.getFd(1)
 	e.getPidTree()
@@ -163,9 +162,7 @@ func (e *Event) getStat() (err error) {
 	var field int
 	field, _ = strconv.Atoi(fields[3])
 	e.Ppid = uint32(field)
-	// fields[4] is pgrp: The process group ID of the process.
-	// fields[7] is The ID of the foreground process group of the controlling terminal of the process.
-	field, _ = strconv.Atoi(fields[7])
+	field, _ = strconv.Atoi(fields[4])
 	e.Pgid = uint32(field)
 	field, _ = strconv.Atoi(fields[5])
 	e.SessionID = uint32(field)
