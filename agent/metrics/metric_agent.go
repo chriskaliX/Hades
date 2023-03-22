@@ -129,7 +129,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 		m.Nfd = strconv.FormatInt(int64(fds), 10)
 		m.StartAt = strconv.FormatInt(startAt, 10)
 	} else {
-		zap.S().Error(err)
+		zap.S().Errorf("agent getProcResource failed: %s", err.Error())
 	}
 
 	s := connection.DefaultStatsHandler.GetStats(now)

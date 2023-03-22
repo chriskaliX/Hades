@@ -27,6 +27,7 @@ func addMetric(m IMetric) {
 // exported Startup function
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
+	defer zap.S().Info("metrics deamon exits")
 	zap.S().Info("metrics daemon starts")
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()

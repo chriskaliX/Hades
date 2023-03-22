@@ -155,7 +155,7 @@ func (t *Transfer) resolveConfig(cmd *proto.Command) (err error) {
 			agent.Cancel()
 			return
 		}
-		zap.S().Error("agent update failed:", err)
+		zap.S().Errorf("agent update failed: %s", err.Error())
 		agent.SetAbnormal(fmt.Sprintf("agent update failed: %s", err.Error()))
 	}
 	delete(configs, agent.Product)

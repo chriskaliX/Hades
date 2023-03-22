@@ -13,6 +13,9 @@ import (
 
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
+	defer zap.S().Info("plugin deamon exits")
+	zap.S().Info("plugin deamon starts")
+	go dispatch(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -25,7 +28,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 					continue
 				}
 				if err := PluginManager.Load(ctx, *cfg); err != nil && err != ErrIngore {
-					zap.S().Error(err)
+					zap.S().Errorf("plugin %s load failed: %s", cfg.Name, err.Error())
 				} else {
 					zap.S().Infof("plugin %s is loaded successfully", cfg.Name)
 				}
@@ -36,7 +39,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 					continue
 				}
 				if err := PluginManager.UnRegister(plg.Name()); err != nil {
-					zap.S().Error(err)
+					zap.S().Errorf("plugin %s remove failed: %s", plg.Name(), err.Error())
 				} else {
 					zap.S().Infof("plugin %s is removed", plg.Name())
 				}
@@ -45,31 +48,31 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func init() {
-	// The goroutine should not exit
-	go func() {
-		for {
-			select {
-			case task := <-transport.PluginTaskChan:
-				// In future, shutdown, update, restart will be in here
-				if plg, ok := PluginManager.Get(task.GetObjectName()); ok {
-					switch task.DataType {
-					case config.TaskShutdown:
-						zap.S().Infof("task shutdown plugin %s", plg.Name())
-						PluginManager.UnRegister(plg.Name())
-						continue
-					}
-					if err := plg.SendTask((protocol.Task)(*task)); err != nil {
-						zap.S().Error("send task to plugin: ", err)
-					}
-				} else {
-					zap.S().Error("can't find plugin: ", task.GetObjectName())
+// dispatch both task & config channel
+func dispatch(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case task := <-transport.PluginTaskChan:
+			// In future, shutdown, update, restart will be in here
+			if plg, ok := PluginManager.Get(task.GetObjectName()); ok {
+				switch task.DataType {
+				case config.TaskShutdown:
+					zap.S().Infof("task shutdown plugin %s", plg.Name())
+					PluginManager.UnRegister(plg.Name())
+					continue
 				}
-			case cfgs := <-transport.PluginConfigChan:
-				if err := PluginManager.Sync(cfgs); err != nil {
-					zap.S().Error("config sync failed: ", err)
+				if err := plg.SendTask((protocol.Task)(*task)); err != nil {
+					zap.S().Error("send task to plugin: ", err)
 				}
+			} else {
+				zap.S().Error("can't find plugin: ", task.GetObjectName())
+			}
+		case cfgs := <-transport.PluginConfigChan:
+			if err := PluginManager.Sync(cfgs); err != nil {
+				zap.S().Error("config sync failed: ", err)
 			}
 		}
-	}()
+	}
 }

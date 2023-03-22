@@ -109,7 +109,7 @@ func (s *Server) Shutdown() {
 		// in this case, DO NOT send kill imediately
 		process, err := os.FindProcess(s.cmd.Process.Pid)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("can't find process: %s", err.Error())
 			return
 		}
 		process.Kill()

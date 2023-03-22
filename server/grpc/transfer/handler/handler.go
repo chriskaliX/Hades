@@ -115,7 +115,7 @@ func recvData(stream pb.Transfer_TransferServer, conn *pool.Connection) {
 				}
 				err := eventHandler.Handle(value.Body.Fields, data, conn)
 				if err != nil {
-					zap.S().Error(err)
+					zap.S().Errorf("event_handle", "agentid:%s, err:%s", data.AgentID, err.Error())
 					continue
 				}
 				// TODO: kafka upload here

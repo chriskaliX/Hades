@@ -41,7 +41,7 @@ func (Process) Immediately() bool { return false }
 func (p Process) Run(s SDK.ISandbox, sig chan struct{}) error {
 	processes, err := p.getProcess()
 	if err != nil {
-		zap.S().Error("getprocess, err:", err)
+		zap.S().Errorf("getprocess failed: %s", err.Error())
 		return err
 	}
 	hash := utils.Hash()

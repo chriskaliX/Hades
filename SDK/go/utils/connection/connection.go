@@ -60,7 +60,7 @@ func IRetry(ctx context.Context, netRetry INetRetry) (err error) {
 					delay = maxDelay
 				}
 				retries = retries + 1
-				zap.S().Info(fmt.Sprintf("Trying %s after %d seconds, retries:%d, error:%v", netRetry.String(), delay, retries, e))
+				zap.S().Warnf("trying %s after %d seconds, retries:%d, error:%v", netRetry.String(), delay, retries, e)
 				time.Sleep(time.Second * time.Duration(delay))
 			} else {
 				zap.S().Info(fmt.Sprintf("%s connection is established.", netRetry.String()))

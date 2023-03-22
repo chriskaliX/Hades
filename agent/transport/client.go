@@ -17,6 +17,7 @@ import (
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	var client proto.Transfer_TransferClient
 	defer wg.Done()
+	defer zap.S().Info("grpc transport stops")
 	zap.S().Info("grpc transport starts")
 	// Wait group for this goroutine
 	subWg := &sync.WaitGroup{}
@@ -36,7 +37,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 			subCtx, cancel := context.WithCancel(ctx)
 			if client, err = proto.NewTransferClient(conn).
 				Transfer(subCtx, grpc.UseCompressor("snappy")); err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("grpc transfer failed: %s", err.Error())
 				cancel()
 				time.Sleep(5 * time.Second)
 				continue
@@ -82,11 +83,10 @@ func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfe
 	for {
 		select {
 		case <-ctx.Done():
-			zap.S().Error("handle receive exit since ctx.Done")
 			return
 		default:
 			if err := DefaultTrans.Receive(client); err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("handle receive failed: %s", err.Error())
 				return
 			}
 		}

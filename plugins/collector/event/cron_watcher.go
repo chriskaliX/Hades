@@ -64,7 +64,7 @@ func (c *CronWatcher) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 			}
 			fs, err := os.Stat(event.Name)
 			if err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("stat file %s failed: %s", event.Name, err.Error())
 			}
 			if !fs.Mode().IsRegular() {
 				continue

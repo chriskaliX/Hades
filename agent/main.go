@@ -71,7 +71,7 @@ func main() {
 	if os.Getenv("service_type") == "sysvinit" {
 		l, _ := lockfile.New("/var/run/hades-agent.pid")
 		if err := l.TryLock(); err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("lockfile failed: %s", err.Error())
 			return
 		}
 	}

@@ -101,7 +101,7 @@ func (e *EventManager) taskResolve() {
 		// look up events by data type
 		event, ok := e.m[int(task.DataType)]
 		if !ok {
-			zap.S().Error(fmt.Sprintf("%d is invalid", task.DataType))
+			zap.S().Errorf("%d is invalid", task.DataType)
 			continue
 		}
 
@@ -140,7 +140,7 @@ func (e *EventManager) taskResolve() {
 			// All trigger by interval
 			interval, err := strconv.Atoi(task.Data)
 			if err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("parse interval failed: %s", err.Error())
 				continue
 			}
 			if interval > 0 {
@@ -165,7 +165,7 @@ func (e *EventManager) taskResolve() {
 			// All trigger by interval
 			interval, err := strconv.Atoi(task.Data)
 			if err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("parse interval failed: %s", err.Error())
 				continue
 			}
 			if interval > 0 {

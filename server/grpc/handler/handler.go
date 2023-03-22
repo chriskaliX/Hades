@@ -100,7 +100,7 @@ func (w *Worker) Run() {
 					bson.M{"agent_id": agentid, "data_type": dt, "package_seq": bson.M{"$ne": package_seq.(string)}},
 				)
 				if err != nil {
-					zap.S().Error(err)
+					zap.S().Errorf("handler_worker_deletemany", "%s", err.Error())
 				}
 				// update the seq
 				w.cache[dt][agentid] = package_seq.(string)

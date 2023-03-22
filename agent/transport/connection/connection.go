@@ -184,7 +184,7 @@ func (g *Connection) loadTLSConfig(host string) *tls.Config {
 			}
 			_, err := certs[0].Verify(opts)
 			if err != nil {
-				zap.S().Errorln(err)
+				zap.S().Error(err)
 			}
 			return err
 		},

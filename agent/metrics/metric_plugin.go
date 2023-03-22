@@ -69,7 +69,7 @@ func (m *PluginMetric) Flush(now time.Time) {
 			m.Nfd = strconv.FormatInt(int64(fds), 10)
 			m.StartAt = strconv.FormatInt(startAt, 10)
 		} else {
-			zap.S().Error(err)
+			zap.S().Errorf("plugin %s getProcResource failed: %s", plg.Name(), err.Error())
 		}
 
 		m.Du = strconv.FormatUint(getDirSize(plg.GetWorkingDirectory(), ""), 10)

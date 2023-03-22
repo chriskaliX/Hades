@@ -12,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.uber.org/zap"
 )
 
 // request binding
@@ -84,8 +83,7 @@ func CurrentUser(c *gin.Context) {
 	}
 	s := redis.Inst.Get(context.Background(), token)
 	if s.Err() != nil {
-		zap.S().Error(s.Err())
-		c.AbortWithStatus(http.StatusInternalServerError)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	username := s.Val()
