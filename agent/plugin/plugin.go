@@ -46,6 +46,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 func init() {
+	// The goroutine should not exit
 	go func() {
 		for {
 			select {
@@ -56,7 +57,7 @@ func init() {
 					case config.TaskShutdown:
 						zap.S().Infof("task shutdown plugin %s", plg.Name())
 						PluginManager.UnRegister(plg.Name())
-						return
+						continue
 					}
 					if err := plg.SendTask((protocol.Task)(*task)); err != nil {
 						zap.S().Error("send task to plugin: ", err)
