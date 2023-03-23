@@ -1,21 +1,20 @@
 module hadesctl
 
-go 1.17
+go 1.18
 
 require (
+	github.com/containerd/cgroups/v3 v3.0.0-20230109201929-ed5fd67b28be
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.11.0
 )
 
 require (
-	github.com/cilium/ebpf v0.10.0 // indirect
-	github.com/containerd/cgroups/v3 v3.0.0-20230109201929-ed5fd67b28be // indirect
+	github.com/frankban/quicktest v1.14.4 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/lufia/plan9stats v0.0.0-20220326011226-f1430873d8db // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20220216144756-c35f1ee13d7c // indirect
-	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.5.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect

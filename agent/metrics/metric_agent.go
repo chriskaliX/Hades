@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/chriskaliX/SDK/config"
-	"github.com/coreos/go-systemd/daemon"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
@@ -156,7 +155,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 			m.Load5 = strconv.FormatFloat(avg.Load5, 'f', 2, 64)
 			m.Load15 = strconv.FormatFloat(avg.Load15, 'f', 2, 64)
 		}
-		daemon.SdNotify(false, "WATCHDOG=1")
+		// daemon.SdNotify(false, "WATCHDOG=1")
 	}
 	rec := &proto.Record{
 		DataType:  config.DTAgentStatus,

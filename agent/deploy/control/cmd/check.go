@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 chriskali
-
 */
 package cmd
 

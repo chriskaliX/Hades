@@ -17,12 +17,9 @@ import (
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	var client proto.Transfer_TransferClient
 	defer wg.Done()
-	defer zap.S().Info("grpc transport stops")
+	defer zap.S().Info("grpc deamon exits")
 	zap.S().Info("grpc transport starts")
-	// Wait group for this goroutine
 	subWg := &sync.WaitGroup{}
-	defer subWg.Wait()
-	// start the loop of connecting
 	for {
 		select {
 		case <-ctx.Done():
@@ -39,7 +36,6 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				Transfer(subCtx, grpc.UseCompressor("snappy")); err != nil {
 				zap.S().Errorf("grpc transfer failed: %s", err.Error())
 				cancel()
-				time.Sleep(5 * time.Second)
 				continue
 			}
 			// client start successfully, start the goroutines and wait
@@ -49,11 +45,9 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				handleReceive(subCtx, subWg, client)
 				cancel()
 			}()
-			// stuck here
 			subWg.Wait()
 			cancel()
-			zap.S().Info("transfer has been canceled, wait next try to transfer for 5 seconds")
-			time.Sleep(5 * time.Second)
+			zap.S().Info("transfer has been canceled, start to reconnect")
 		}
 	}
 }

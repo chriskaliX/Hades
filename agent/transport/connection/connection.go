@@ -36,6 +36,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -48,44 +49,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Grpc address
 var GrpcAddr string
 var InsecureTransport bool
 var InsecureTLS bool
-
-var defaultConn *Connection
-
-// Get the connection from gRPC
-func GetConnection(ctx context.Context) (conn *grpc.ClientConn, err error) {
-	// init default connection within GetConnection
-	if defaultConn == nil {
-		defaultConn = New()
-	}
-	var ok bool
-	conn, ok = defaultConn.Conn.Load().(*grpc.ClientConn)
-	if ok {
-		// Connection pre check
-		switch conn.GetState() {
-		case connectivity.Idle:
-			// connect
-		case connectivity.Connecting, connectivity.TransientFailure:
-			conn.Close()
-		case connectivity.Ready:
-			return conn, nil
-		}
-	}
-	if err = connection.IRetry(ctx, defaultConn); err != nil {
-		return nil, err
-	}
-	// reset the conn if retry success
-	conn, ok = defaultConn.Conn.Load().(*grpc.ClientConn)
-	if ok {
-		return conn, nil
-	}
-	return nil, errors.New("getconnection failed")
-}
-
-var _ connection.INetRetry = (*Connection)(nil)
 
 type Connection struct {
 	Addr    string
@@ -93,6 +59,8 @@ type Connection struct {
 	Conn    atomic.Value
 	NetMode atomic.Value
 }
+
+var _ connection.INetRetry = (*Connection)(nil)
 
 func New() *Connection {
 	conn := &Connection{
@@ -116,22 +84,45 @@ func New() *Connection {
 	return conn
 }
 
-// INetRetry Impls
+var once sync.Once
+var conn *Connection
+
+func GetConnection(ctx context.Context) (c *grpc.ClientConn, err error) {
+	once.Do(func() { conn = New() })
+	// check connection state
+	c, ok := conn.Conn.Load().(*grpc.ClientConn)
+	if ok {
+		switch c.GetState() {
+		case connectivity.Idle:
+			// connect
+		case connectivity.Connecting, connectivity.TransientFailure:
+			c.Close()
+		case connectivity.Ready:
+			return c, nil
+		}
+	}
+	// using SDK IRetry to wrapper the connection.
+	if err = connection.IRetry(ctx, conn, connection.Config{
+		BeforeDelay: time.Duration(rand.Intn(10)) * time.Second,
+		Multiplier:  3,
+		MaxRetry:    connection.Inifity, // Networking problem maybe, keep the agent always trying
+		MaxDelaySec: 120,
+	}); err != nil {
+		return nil, err
+	}
+	// reset the conn if retry success
+	c, ok = conn.Conn.Load().(*grpc.ClientConn)
+	if ok {
+		return c, nil
+	}
+	return nil, errors.New("getconnection failed")
+}
+
 func (c *Connection) String() string { return "grpc" }
 
-func (c *Connection) GetMaxDelay() uint { return 120 }
-
-// Retry forever, in case server shutdown or networking fluctuation
-// makes all agent shutdown
-func (c *Connection) GetMaxRetry() uint { return 0 }
-
-func (c *Connection) GetInterval() uint { return 3 }
-
-func (c *Connection) GetHashMod() uint { return uint(rand.Intn(10)) }
-
 // TODO: A look-aside LB is needed, for now, only server-side, dns
-func (c *Connection) Connect() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (c *Connection) Connect(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, c.Addr, c.Options...)
 	if err != nil {
