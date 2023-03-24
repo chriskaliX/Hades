@@ -23,13 +23,11 @@ var ErrIngore = errors.New("ignore")
 // move to struct, dependency injection
 type Manager struct {
 	plugins *sync.Map
-	syncCh  chan map[string]*proto.Config
 }
 
 func NewManager() *Manager {
 	return &Manager{
 		plugins: &sync.Map{},
-		syncCh:  make(chan map[string]*proto.Config, 1),
 	}
 }
 
@@ -68,31 +66,24 @@ func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 	}
 	plg, err := server.NewServer(ctx, agent.Workdir, &cfg)
 	if err != nil {
-		agent.SetAbnormal(fmt.Sprintf("plugin %s starts failed: %s", cfg.Name, err))
+		errStr := fmt.Sprintf("plugin %s starts failed: %s", cfg.Name, err)
+		zap.S().Error(errStr)
+		agent.SetAbnormal(errStr)
 		return
 	}
 	plg.Wg().Add(3)
 	go plg.Wait()
-	go plg.Receive(pool.SDKGet, transport.DefaultTrans)
+	go plg.Receive(pool.SDKGet, transport.Trans)
 	go plg.Task()
-	m.Register(plg.Name(), plg)
+	m.regist(plg.Name(), plg)
 	return nil
 }
 
-func (m *Manager) Sync(cfgs map[string]*proto.Config) (err error) {
-	select {
-	case m.syncCh <- cfgs:
-	default:
-		err = errors.New("plugins are syncing or context has been cancled")
-	}
-	return
-}
-
-func (m *Manager) Register(name string, plg SDK.IServer) {
+func (m *Manager) regist(name string, plg SDK.IServer) {
 	m.plugins.Store(name, plg)
 }
 
-func (m *Manager) UnRegister(name string) (err error) {
+func (m *Manager) unRegist(name string) (err error) {
 	plg, ok := m.Get(name)
 	if !ok {
 		err = fmt.Errorf("%s is not available", name)
@@ -107,7 +98,7 @@ func (m *Manager) UnRegister(name string) (err error) {
 	return
 }
 
-func (m *Manager) UnregisterAll() {
+func (m *Manager) unRegistAll() {
 	subWg := &sync.WaitGroup{}
 	m.plugins.Range(func(_, value any) bool {
 		subWg.Add(1)

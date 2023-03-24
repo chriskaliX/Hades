@@ -8,13 +8,11 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-const _size = 24 // default
-
 var recordPool = sync.Pool{
 	New: func() interface{} {
 		return &proto.Record{
 			Data: &proto.Payload{
-				Fields: make(map[string]string, _size),
+				Fields: make(map[string]string, 24),
 			},
 		}
 	},

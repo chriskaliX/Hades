@@ -2,7 +2,6 @@ package agent
 
 import "sync/atomic"
 
-// Host related information
 var (
 	Hostname    atomic.Value
 	PrivateIPv4 atomic.Value

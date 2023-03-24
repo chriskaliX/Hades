@@ -52,7 +52,7 @@ func (m *PluginMetric) Flush(now time.Time) {
 				Fields: map[string]string{},
 			},
 		}
-		transport.DefaultTrans.Transmission(rec, false)
+		transport.Trans.Transmission(rec, false)
 		return
 	}
 	for _, plg := range plgs {
@@ -89,7 +89,7 @@ func (m *PluginMetric) Flush(now time.Time) {
 					Fields: fields,
 				},
 			}
-			transport.DefaultTrans.Transmission(rec, false)
+			transport.Trans.Transmission(rec, false)
 		}
 	}
 }

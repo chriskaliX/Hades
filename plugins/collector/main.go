@@ -5,6 +5,7 @@ import (
 	"collector/eventmanager"
 	"flag"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	_ "net/http/pprof"
@@ -19,6 +20,8 @@ func init() {
 	if n > 4 {
 		n = 4
 	}
+	// set memorylimit to 50M
+	debug.SetMemoryLimit(50 * 1024 * 1024)
 	runtime.GOMAXPROCS(n)
 	SDK.RuntimeOpt()
 }

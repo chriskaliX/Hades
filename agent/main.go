@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"syscall"
@@ -34,6 +35,8 @@ func init() {
 	if numcpu > MAX_PROCS {
 		numcpu = MAX_PROCS
 	}
+	// set memorylimit to 30M
+	debug.SetMemoryLimit(30 * 1024 * 1024)
 	runtime.GOMAXPROCS(numcpu)
 	rand.Seed(time.Now().UnixNano())
 }

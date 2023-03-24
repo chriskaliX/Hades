@@ -65,7 +65,9 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			DefaultTrans.Send(c)
+			if err := Trans.Send(c); err != nil {
+				zap.S().Errorf("handle send failed: %s", err.Error())
+			}
 		}
 	}
 }
@@ -79,7 +81,7 @@ func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfe
 		case <-ctx.Done():
 			return
 		default:
-			if err := DefaultTrans.Receive(client); err != nil {
+			if err := Trans.Receive(client); err != nil {
 				zap.S().Errorf("handle receive failed: %s", err.Error())
 				return
 			}

@@ -134,7 +134,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 	s := connection.DefaultStatsHandler.GetStats(now)
 	m.RxSpeed = strconv.FormatFloat(s.RxSpeed, 'f', 8, 64)
 	m.TxSpeed = strconv.FormatFloat(s.TxSpeed, 'f', 8, 64)
-	txTPS, rxTPX := transport.DefaultTrans.GetState(now)
+	txTPS, rxTPX := transport.Trans.GetState(now)
 	m.TxTps = strconv.FormatFloat(txTPS, 'f', 8, 64)
 	m.RxTps = strconv.FormatFloat(rxTPX, 'f', 8, 64)
 	m.Du = strconv.FormatUint(getDirSize(agent.Workdir, "plugin"), 10) // get only from plugin
@@ -165,5 +165,5 @@ func (m *AgentMetric) Flush(now time.Time) {
 		},
 	}
 	mapstructure.Decode(m, &rec.Data.Fields)
-	transport.DefaultTrans.Transmission(rec, false)
+	transport.Trans.Transmission(rec, false)
 }

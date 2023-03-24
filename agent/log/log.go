@@ -42,7 +42,7 @@ func (w *GrpcWriter) Write(p []byte) (n int, err error) {
 			rec.Data.Fields[k] = strconv.Itoa(v)
 		}
 	}
-	if err = transport.DefaultTrans.Transmission(rec, false); err != nil {
+	if err = transport.Trans.Transmission(rec, false); err != nil {
 		return
 	}
 	n = len(p)
