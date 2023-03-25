@@ -25,7 +25,7 @@ func IRetry(ctx context.Context, netRetry INetRetry, config Config) (err error) 
 		return
 	case <-ticker.C:
 	}
-	zap.S().Infof("iretry %s start connection after %d secs", netRetry.String(), config.BeforeDelay.Seconds())
+	zap.S().Infof("iretry %s start connection after %d secs", netRetry.String(), int(config.BeforeDelay.Seconds()))
 	for {
 		select {
 		case <-ctx.Done():

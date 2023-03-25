@@ -18,7 +18,7 @@ func RuntimeOpt() {
 // to avoid high RSS (caused by data catch-up) to trigger OOM-kill.
 // from: alibaba ilogtail
 func setGCPercentForSlowStart() {
-	gcPercent := 20
+	gcPercent := 40
 	defaultGCPercent := debug.SetGCPercent(gcPercent)
 	zap.S().Infof("set startup GC percent from %v to %v", defaultGCPercent, gcPercent)
 	resumeSeconds := 5 * 60

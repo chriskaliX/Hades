@@ -18,7 +18,6 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-ctx.Done():
-			PluginManager.unRegistAll()
 			return
 		// Task 处理
 		case task := <-transport.PluginTaskChan:
@@ -39,7 +38,7 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				if cfg.Name == agent.Product {
 					continue
 				}
-				if err := PluginManager.Load(ctx, *cfg); err != nil && err != ErrIngore {
+				if err := PluginManager.Load(ctx, *cfg); err != nil && err != ErrIgnore {
 					zap.S().Errorf("plugin %s load failed: %s", cfg.Name, err.Error())
 				} else {
 					zap.S().Infof("plugin %s is loaded successfully", cfg.Name)

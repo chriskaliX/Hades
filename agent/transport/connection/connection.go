@@ -115,12 +115,11 @@ func GetConnection(ctx context.Context) (c *grpc.ClientConn, err error) {
 	if ok {
 		return c, nil
 	}
-	return nil, errors.New("getconnection failed")
+	return nil, errors.New("get connection failed")
 }
 
 func (c *Connection) String() string { return "grpc" }
 
-// TODO: A look-aside LB is needed, for now, only server-side, dns
 func (c *Connection) Connect(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
