@@ -4,71 +4,71 @@ option go_package = "proto";
 package grpc;
 
 message PackagedData {
-    repeated Record records = 1;
-    repeated Payload payloads = 2; // backport
-    string agent_id = 3;
-    repeated string intranet_ipv4 = 4;
-    repeated string extranet_ipv4 = 5;
-    repeated string intranet_ipv6 = 6;
-    repeated string extranet_ipv6 = 7;
-    string hostname = 8;
-    string version = 9;
-    string product = 10;
+  repeated Record records = 1;
+  repeated Payload payloads = 2; // backport
+  string agent_id = 3;
+  repeated string intranet_ipv4 = 4;
+  repeated string extranet_ipv4 = 5;
+  repeated string intranet_ipv6 = 6;
+  repeated string extranet_ipv6 = 7;
+  string hostname = 8;
+  string version = 9;
+  string product = 10;
+}
+
+message EncodedRecord {
+  int32 data_type = 1;
+  int64 timestamp = 2;
+  bytes data = 3;
+}
+
+message Record {
+  int32 data_type = 1;
+  int64 timestamp = 2;
+  Payload data = 3;
+}
+
+message Payload { map<string, string> fields = 1; }
+
+message Command {
+  Task task = 2;
+  repeated Config configs = 3;
+}
+
+message Task {
+  int32 data_type = 1;
+  string object_name = 2;
+  string data = 3;
+  string token = 4;
+}
+
+message Config {
+  string name = 1;
+  string type = 2;
+  string version = 3;
+  string sha256 = 4;
+  string signature = 5;
+  repeated string download_urls = 6;
+  string detail = 7;
+}
+
+service Transfer {
+  rpc Transfer(stream PackagedData) returns (stream Command) {}
+}
+
+message FileUploadRequest {
+  string token = 1;
+  bytes data = 2;
+}
+
+message FileUploadResponse {
+  enum StatusCode {
+    SUCCESS = 0;
+    FAILED = 1;
   }
+  StatusCode status = 1;
+}
   
-  message EncodedRecord {
-    int32 data_type = 1;
-    int64 timestamp = 2;
-    bytes data = 3;
-  }
-  
-  message Record {
-    int32 data_type = 1;
-    int64 timestamp = 2;
-    Payload data = 3;
-  }
-  
-  message Payload { map<string, string> fields = 1; }
-  
-  message Command {
-    Task task = 2;
-    repeated Config configs = 3;
-  }
-  
-  message Task {
-    int32 data_type = 1;
-    string object_name = 2;
-    string data = 3;
-    string token = 4;
-  }
-  
-  message Config {
-    string name = 1;
-    string type = 2;
-    string version = 3;
-    string sha256 = 4;
-    string signature = 5;
-    repeated string download_urls = 6;
-    string detail = 7;
-  }
-  
-  service Transfer {
-    rpc Transfer(stream PackagedData) returns (stream Command) {}
-  }
-  
-  message FileUploadRequest {
-    string token = 1;
-    bytes data = 2;
-  }
-  
-  message FileUploadResponse {
-    enum StatusCode {
-      SUCCESS = 0;
-      FAILED = 1;
-    }
-    StatusCode status = 1;
-  }
-  
-  service FileExt {
-    rpc Upload(stream FileUploadRequest) returns (FileUploadResponse);
-  }
+service FileExt {
+  rpc Upload(stream FileUploadRequest) returns (FileUploadResponse);
+}

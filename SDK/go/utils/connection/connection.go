@@ -45,7 +45,7 @@ func IRetry(ctx context.Context, netRetry INetRetry, config Config) (err error) 
 				if delay >= config.MaxDelaySec {
 					delay = config.MaxDelaySec
 				}
-				retries = retries + 1
+				retries++
 				zap.S().Warnf("trying %s after %d seconds, retries:%d, error:%v", netRetry.String(), delay, retries, e)
 				ticker.Reset(time.Second * time.Duration(delay))
 				select {

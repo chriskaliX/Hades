@@ -10,10 +10,6 @@ import (
 
 const max = 5
 
-func init() {
-	addMetric(&HostMetric{})
-}
-
 type HostMetric struct{}
 
 func (h *HostMetric) Name() string {
@@ -76,4 +72,8 @@ func (h *HostMetric) Flush(time.Time) {
 	agent.PublicIPv4.Store(publicIPv4)
 	agent.PrivateIPv6.Store(privateIPv6)
 	agent.PublicIPv6.Store(publicIPv6)
+}
+
+func init() {
+	addMetric(&HostMetric{})
 }

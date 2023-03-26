@@ -29,7 +29,7 @@ var (
 	cpuLogicalNum   int
 	cpuMhz          string
 	cpuName         string
-	Memory          uint64
+	memory          uint64
 
 	bootTime uint64
 )
@@ -51,7 +51,7 @@ func init() {
 	cpuMhz = strconv.FormatFloat(mhz/1000, 'f', 1, 64)
 
 	if m, err := mem.VirtualMemory(); err == nil {
-		Memory = m.Total
+		memory = m.Total
 	}
 	bootTime, _ = host.BootTime()
 	arch, _ = host.KernelArch()
@@ -115,7 +115,7 @@ func (m *AgentMetric) Flush(now time.Time) {
 	m.CpuLogicalNum = strconv.Itoa(cpuLogicalNum)
 	m.CpuMhz = cpuMhz
 	m.CpuName = cpuName
-	m.TotalMemory = strconv.FormatUint(Memory, 10)
+	m.TotalMemory = strconv.FormatUint(memory, 10)
 	m.BootTime = strconv.FormatUint(bootTime, 10)
 
 	pid := os.Getpid()
@@ -155,8 +155,8 @@ func (m *AgentMetric) Flush(now time.Time) {
 			m.Load5 = strconv.FormatFloat(avg.Load5, 'f', 2, 64)
 			m.Load15 = strconv.FormatFloat(avg.Load15, 'f', 2, 64)
 		}
-		// daemon.SdNotify(false, "WATCHDOG=1")
 	}
+
 	rec := &proto.Record{
 		DataType:  config.DTAgentStatus,
 		Timestamp: now.Unix(),
