@@ -48,6 +48,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions: write-all
+    uses: actions/checkout@v2
     steps:
     - name: create release
       id: create_release
@@ -66,7 +67,6 @@ jobs:
       with:
         path: /tmp/hades-agent
     - name: release
-      uses: actions/checkout@v2
       run: |
         for asset in /tmp/hades-agent/; do
           hub release create ${asset}
