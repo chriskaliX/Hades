@@ -25,7 +25,7 @@ jobs:
 
       - name: build version
         run: |
-          export TAG = ${{ github.ref }}
+          export TAG=${{github.ref}}
           export BUILD_VERSION=$(echo $TAG | sed 's/refs\/tags\/agent-//')
           echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
       
