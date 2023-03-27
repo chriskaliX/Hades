@@ -48,8 +48,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions: write-all
-    uses: actions/checkout@v2
     steps:
+    - uses: actions/checkout@v2
     - name: create release
       id: create_release
       uses: actions/create-release@v1
