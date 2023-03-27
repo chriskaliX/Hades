@@ -1,0 +1,73 @@
+name: Hades-collector
+
+on:
+  push:
+    tags:
+    - collector-v*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      
+      - name: go env
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.19'
+      
+      - name: auth
+        run: |
+          gh auth login --with-token <<<'${{ secrets.GITHUB_TOKEN }}'
+      
+      - name: build
+        run: |
+          cd plugins/collector
+          make
+          cd ../..
+
+      - name: upload
+        uses: actions/upload-artifact@v3
+        with:
+          path: plugins/collector/collector
+          name: collector
+      
+  release:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: create release
+      id: create_release
+      uses: actions/create-release@v1
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # draft for testing! 
+        draft: true
+        prerelease: false
+        release_name: Release ${{github.ref}}
+        tag_name: ${{github.ref}}
+    - name: version env
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+    - uses: actions/download-artifact@v3
+      with:
+        path: /tmp/collector
+    - name: package
+      working-directory: /tmp/collector/collector
+      run: |
+        sha256sum collector >> checksum.txt
+        tar zcvf /tmp/collector.tgz collector checksum.txt
+    - name: upload
+      id: upload
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        asset_content_type: application/tar+gzip
+        asset_name: ${{ env.RELEASE_VERSION }}.tgz
+        asset_path: /tmp/collector.tgz
+        upload_url: ${{steps.create_release.outputs.upload_url}}
+    needs:
+    - build

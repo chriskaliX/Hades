@@ -165,6 +165,7 @@ func (t *Transfer) resolveTask(cmd *proto.Command) (err error) {
 		// crontab is used in sysvinit to keep the agent always available
 		case config.TaskShutdown, config.TaskRestart:
 			zap.S().Info("agent shutdown is called")
+			TaskSuccess(cmd.Task.Token, "agent shutdown is called")
 			agent.Cancel()
 			return
 		case config.TaskSetenv:

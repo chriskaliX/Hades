@@ -1,0 +1,76 @@
+name: Hades-agent
+
+on:
+  push:
+    tags:
+    - agent-v*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      
+      - name: go env
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.20'
+      
+      - name: make env
+        run: |
+          sudo apt-get install make
+        shell: bash
+
+      - name: build version
+        run:
+          TAG = ${{ github.ref }}
+          BUILD_VERSION=$(echo TAG | sed 's/agent-//')
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+      
+      - name: auth
+        run: |
+          gh auth login --with-token <<<'${{ secrets.GITHUB_TOKEN }}'
+      
+      - name: build
+        run: |
+          cd agent/deploy
+          BUILD_VERSION=${{ env.BUILD_VERSION }} sh build.sh
+          cd ../..
+
+      - name: upload
+        uses: actions/upload-artifact@v3
+        with:
+          path: /tmp/hades-agent-*
+          name: hades-agent
+      
+  release:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+    - name: create release
+      id: create_release
+      uses: actions/create-release@v1
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # draft for testing! 
+        draft: true
+        prerelease: false
+        release_name: Release ${{github.ref}}
+        tag_name: ${{github.ref}}
+    - name: version env
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+    - uses: actions/download-artifact@v3
+      with:
+        path: /tmp/hades-agent
+    - name: release
+      uses: actions/checkout@v2
+      run: |
+        for asset in /tmp/hades-agent/; do
+          hub release create ${asset}
+          echo ${asset}
+        done
+    needs:
+    - build

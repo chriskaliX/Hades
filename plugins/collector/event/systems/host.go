@@ -74,29 +74,35 @@ func (h *HostScanner) Run(s SDK.ISandbox, sig chan struct{}) (err error) {
 		if len(availableAddrs) > 512 {
 			rand.Shuffle(len(availableAddrs), func(i, j int) { availableAddrs[i], availableAddrs[j] = availableAddrs[j], availableAddrs[i] })
 		}
+	scan:
 		for _, addr := range availableAddrs {
-			pinger, err := ping.NewPinger(addr)
-			if err != nil {
-				continue
-			}
-			pinger.Count = 2
-			pinger.Timeout = time.Duration(3 * time.Second)
-			pinger.SetPrivileged(false)
-			pinger.Run()
-			if pinger.Statistics().PacketsRecv > 0 {
-				rec := &protocol.Record{
-					DataType:  int32(h.DataType()),
-					Timestamp: time.Now().Unix(),
-					Data: &protocol.Payload{
-						Fields: map[string]string{
-							"addr":        addr,
-							"package_seq": hash,
-						},
-					},
+			select {
+			case <-sig:
+				break scan
+			default:
+				pinger, err := ping.NewPinger(addr)
+				if err != nil {
+					continue
 				}
-				s.SendRecord(rec)
+				pinger.Count = 2
+				pinger.Timeout = time.Duration(3 * time.Second)
+				pinger.SetPrivileged(false)
+				pinger.Run()
+				if pinger.Statistics().PacketsRecv > 0 {
+					rec := &protocol.Record{
+						DataType:  int32(h.DataType()),
+						Timestamp: time.Now().Unix(),
+						Data: &protocol.Payload{
+							Fields: map[string]string{
+								"addr":        addr,
+								"package_seq": hash,
+							},
+						},
+					}
+					s.SendRecord(rec)
+				}
+				time.Sleep(400 * time.Millisecond)
 			}
-			time.Sleep(400 * time.Millisecond)
 		}
 	}
 	return

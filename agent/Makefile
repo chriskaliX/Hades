@@ -1,5 +1,4 @@
 CMD_GO ?= go
-VERSION ?= v1.1.2
 
 # colors
 INFO_COLOR = \033[34m[*]\033[0m
@@ -10,8 +9,8 @@ all: pre_show build_agent
 
 .PHONY: pre_show
 pre_show:
-	@printf "$(INFO_COLOR) start to build hades-agent, version: $(VERSION)\n"
+	@printf "$(INFO_COLOR) start to build hades-agent, version: $(BUILD_VERSION)\n"
 
 .PHONY: build_agent
 build_agent:
-	CGO_ENABLED=0 $(CMD_GO) build -ldflags "-X agent/agent.Version=$(VERSION)" -o hades-agent
+	CGO_ENABLED=0 $(CMD_GO) build -ldflags "-X agent/agent.Version=$(BUILD_VERSION)" -o hades-agent
