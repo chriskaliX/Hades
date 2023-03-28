@@ -70,7 +70,7 @@ jobs:
       run: |
         set -x
         assets=()
-        for asset in /tmp/hades-agent/; do
+        for asset in /tmp/hades-agent/*; do
           assets+=("-a" "$asset")
           echo ${asset}
         done
