@@ -79,6 +79,4 @@ func (s *SysConnect) GetMaps() []*manager.Map { return nil }
 
 func (SysConnect) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
-func init() {
-	decoder.RegistEvent(&SysConnect{})
-}
+func init() { decoder.RegistEvent(&SysConnect{}) }
