@@ -117,7 +117,7 @@ func (SSH) Run(sandbox SDK.ISandbox, sig chan struct{}) (err error) {
 					// 3. Invalid user - Failed Login
 					// enhanced with the port scanner
 					fields := strings.Fields(s.Text())
-					if len(fields) < 6 {
+					if len(fields) <= 6 {
 						continue
 					}
 					timeNow, err := time.Parse(time.Stamp, strings.Join(fields[:3], " "))
