@@ -91,7 +91,7 @@ func (s *Sandbox) Run(wrapper func(ISandbox) error) (err error) {
 	// wrap the main function in a goroutine
 	go func() {
 		if err = wrapper(s); err != nil {
-			zap.S().Error("sandbox main func failed, %s", err.Error())
+			zap.S().Errorf("sandbox main func failed, %s", err.Error())
 			s.Shutdown()
 		}
 	}()
