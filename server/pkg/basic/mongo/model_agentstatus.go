@@ -13,6 +13,7 @@ type AgentStatus struct {
 	LastHBTime   int64                             `bson:"last_heartbeat_time"`
 	AgentDetail  map[string]interface{}            `bson:"agent_detail"`
 	PluginDetail map[string]map[string]interface{} `bson:"plugin_detail"`
+	Tags         []string                          `bson:"tags"`
 }
 
 // IsOnline is a wrapper to check if the status of agent by it's

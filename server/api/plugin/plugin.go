@@ -3,6 +3,7 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"hboat/api/common"
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
@@ -62,6 +63,7 @@ func PluginInsert(c *gin.Context) {
 		return
 	}
 
+	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s is added", pConfig.Name, pConfig.Pversion))
 	common.Response(c, common.SuccessCode, nil)
 }
 
@@ -95,6 +97,7 @@ func PluginDel(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
+	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s is deleted", name, pversion))
 	common.Response(c, common.SuccessCode, nil)
 }
 
@@ -113,6 +116,7 @@ func PluginUpdate(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 	}
 
+	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s is updated", pConfig.Name, pConfig.Pversion))
 	common.Response(c, common.SuccessCode, nil)
 }
 

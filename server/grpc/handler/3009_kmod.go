@@ -8,7 +8,7 @@ import (
 
 type Kmod struct{}
 
-var _ Event = (*Container)(nil)
+var _ Event = (*Kmod)(nil)
 
 func (c *Kmod) ID() int32 { return 3009 }
 

@@ -123,6 +123,12 @@ func RunGrpcServer(port int) {
 		aGroup := apiv1Router.Group("/asset")
 		aGroup.GET("/get", host.AgentAsset)
 	}
+	{
+		apiv1Router.Any("/tag", host.TagAction)
+	}
+	{
+		apiv1Router.GET("/home", HomePage)
+	}
 
 	router.Use(Cors())
 	router.Run(fmt.Sprintf(":%d", port))

@@ -48,6 +48,7 @@ func AgentCount(c *gin.Context) {
 type ConnStatRsp struct {
 	AgentInfo   map[string]interface{}   `json:"agent_info"`
 	PluginsInfo []map[string]interface{} `json:"plugins_info"`
+	Tags        []string                 `json:"tags"`
 }
 
 func AgentStat(c *gin.Context) {
@@ -81,6 +82,7 @@ func AgentStat(c *gin.Context) {
 	res := ConnStatRsp{
 		AgentInfo:   agentInfo,
 		PluginsInfo: pluginList,
+		Tags:        as.Tags,
 	}
 
 	common.Response(c, common.SuccessCode, res)

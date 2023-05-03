@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"hboat/api/common"
 	"hboat/pkg/basic/mongo"
 	"hboat/pkg/basic/redis"
@@ -39,6 +40,7 @@ func Login(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
+	common.LogRecord(c, fmt.Sprintf("user %s login successfully", req.Username))
 	// response with the token
 	common.Response(c, common.SuccessCode, bson.M{"token": sessionid})
 }

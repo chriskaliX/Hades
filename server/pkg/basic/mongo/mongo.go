@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	Database  = "hades"
-	AgentCol  = "agent"
-	PluginCol = "plugin"
-	AssetCol  = "asset"
-	UserCol   = "user"
+	dbName    = "hades"
+	agentCol  = "agent"
+	pluginCol = "plugin"
+	assetCol  = "asset"
+	userCol   = "user"
+	recordCol = "log_record"
 )
 
 // Client
@@ -25,6 +26,7 @@ var StatusC *mongo.Collection
 var PluginC *mongo.Collection
 var AssetC *mongo.Collection
 var UserC *mongo.Collection
+var RecordC *mongo.Collection
 
 func NewMongoDB(uri string, poolsize uint64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -42,10 +44,11 @@ func NewMongoDB(uri string, poolsize uint64) error {
 	}
 	Inst = mongoClient
 
-	StatusC = Inst.Database(Database).Collection(AgentCol)
-	PluginC = Inst.Database(Database).Collection(PluginCol)
-	AssetC = Inst.Database(Database).Collection(AssetCol)
-	UserC = Inst.Database(Database).Collection(UserCol)
+	StatusC = Inst.Database(dbName).Collection(agentCol)
+	PluginC = Inst.Database(dbName).Collection(pluginCol)
+	AssetC = Inst.Database(dbName).Collection(assetCol)
+	UserC = Inst.Database(dbName).Collection(userCol)
+	RecordC = Inst.Database(dbName).Collection(recordCol)
 	// pre check user admin and print the passwd
 	return nil
 }

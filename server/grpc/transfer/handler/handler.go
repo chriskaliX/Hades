@@ -58,13 +58,14 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error
 	// TODO: use channel or just put in kafka
 	options := options.Update().SetUpsert(true)
 	_, err = mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
-		bson.M{"$set": bson.M{
-			"addr":                addr,
-			"create_at":           conn.CreateAt,
-			"agent_detail":        bson.M{"hostname": data.Hostname},
-			"last_heartbeat_time": conn.CreateAt,
-			"status":              true,
-		}}, options)
+		bson.M{
+			"$set": bson.M{
+				"addr":                  addr,
+				"create_at":             conn.CreateAt,
+				"agent_detail.hostname": data.Hostname,
+				"last_heartbeat_time":   conn.CreateAt,
+				"status":                true,
+			}}, options)
 
 	defer pool.GlobalGRPCPool.Delete(agentID)
 	go recvData(stream, &conn)
