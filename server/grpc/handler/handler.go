@@ -3,6 +3,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
 	"hboat/pkg/basic/mongo"
@@ -35,10 +36,11 @@ func RegistEvent(e Event) {
 // 2. Batch write the data into mongo
 //
 // The data structure in mongodb should be like this
-// {
-//	"agentid": "xxx",
-//	"<name>": "", // should be a set instead of array
-// }
+//
+//	{
+//		"agentid": "xxx",
+//		"<name>": "", // should be a set instead of array
+//	}
 //
 // Another thing is that: what if the result should be empty? For example, socket. What if there
 // is no socket in the machine, how should we know and clear this? Fix: send an empty packet with
@@ -78,6 +80,7 @@ func (w *Worker) Run() {
 	defer ticker.Stop()
 	// For select, let the ticker work
 	for {
+	Loop:
 		select {
 		case event := <-w.queue:
 			// get needed data
@@ -95,15 +98,24 @@ func (w *Worker) Run() {
 			if w.cache[dt][agentid] != package_seq {
 				// seq is not the same, clear the same seq
 				// In Hades, the data_type is also needed
+				var package_seq_str string
+				switch v := package_seq.(type) {
+				case float64:
+					package_seq_str = fmt.Sprintf("%d", int(v))
+				case string:
+					package_seq_str = v
+				default:
+					goto Loop
+				}
 				_, err := mongo.AssetC.DeleteMany(
 					context.Background(),
-					bson.M{"agent_id": agentid, "data_type": dt, "package_seq": bson.M{"$ne": package_seq.(string)}},
+					bson.M{"agent_id": agentid, "data_type": dt, "package_seq": bson.M{"$ne": package_seq_str}},
 				)
 				if err != nil {
 					zap.S().Errorf("handler_worker_deletemany", "%s", err.Error())
 				}
 				// update the seq
-				w.cache[dt][agentid] = package_seq.(string)
+				w.cache[dt][agentid] = package_seq_str
 			}
 			// insert
 			event["update_time"] = time.Now().Unix() // TODO: to clock, performance
