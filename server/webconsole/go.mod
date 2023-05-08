@@ -2,7 +2,7 @@ module hboat
 
 go 1.18
 
-replace github.com/chriskaliX/SDK => ../SDK/go
+replace github.com/chriskaliX/SDK => ../../SDK/go
 
 require (
 	github.com/chriskaliX/SDK v1.0.0
