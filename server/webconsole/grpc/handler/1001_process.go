@@ -22,7 +22,7 @@ func (c *Process) Handle(m map[string]string, req *pb.RawData, conn *pool.Connec
 		case "pid", "root_pns", "pns", "gid", "pgid", "tid", "session_id", "ppid", "tty":
 			i, _ := strconv.ParseUint(v, 10, 32)
 			mapper[k] = i
-		case "starttime", "utime", "stime", "rss", "vsize":
+		case "starttime", "utime", "stime", "rss", "vsize", "start_time":
 			i, _ := strconv.ParseUint(v, 10, 64)
 			mapper[k] = i
 		case "cpu":
