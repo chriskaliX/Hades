@@ -2,7 +2,6 @@
 package host
 
 import (
-	"context"
 	"fmt"
 	"hboat/api/common"
 	"hboat/grpc/handler"
@@ -19,8 +18,8 @@ var typeAllowlist = []string{
 }
 
 type AgentAssetResp struct {
-	Total  int32         `json:"total"`
-	Assets []interface{} `json:"assets"`
+	Total  int32                    `json:"total"`
+	Assets []map[string]interface{} `json:"assets"`
 }
 
 type agentAssetReq struct {
@@ -29,7 +28,6 @@ type agentAssetReq struct {
 }
 
 func AgentAsset(c *gin.Context) {
-	resp := AgentAssetResp{}
 	// page request binding
 	pageReq := common.PageReq{}
 	if err := c.Bind(&pageReq); err != nil {
@@ -52,56 +50,14 @@ func AgentAsset(c *gin.Context) {
 		common.Response(c, common.ErrorCode, fmt.Sprintf("type %s is not registed", assetReq.Type))
 		return
 	}
-	if count, err := mongo.AssetC.CountDocuments(context.TODO(), bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()}); err == nil {
-		resp.Total = int32(count)
-	}
 
-	// pipeline
-	pipeline := bson.A{
-		bson.M{"$match": bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()}},
-	}
-	pipeline = append(pipeline, bson.M{"$project": bson.D{
-		{Key: "_id", Value: 0}, {Key: "package_seq", Value: 0},
-	}})
-
-	if pageReq.OrderKey != "" {
-		pipeline = append(pipeline, bson.M{
-			"$sort": bson.D{
-				{
-					Key:   assetReq.Type + "." + pageReq.OrderKey,
-					Value: pageReq.OrderValue,
-				},
-			},
-		})
-	}
-
-	pipeline = append(pipeline, bson.D{{Key: "$skip",
-		Value: (pageReq.Page - 1) * pageReq.Size}},
-		bson.D{{Key: "$limit", Value: pageReq.Size}})
-	// get result
-	cur, err := mongo.AssetC.Aggregate(
-		context.TODO(),
-		pipeline,
-	)
+	respCommon, err := common.DBPageSearch(mongo.AssetC, &pageReq, bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
-		return
 	}
-	defer cur.Close(context.Background())
-	// parse into []interface{}
-	raw := make([]map[string]interface{}, 0)
-	if err = cur.All(context.TODO(), &raw); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
-		return
+	resp := AgentAssetResp{
+		Total:  int32(respCommon.Total),
+		Assets: respCommon.Items,
 	}
-
-	if len(raw) == 0 {
-		return
-	}
-
-	for _, v := range raw {
-		resp.Assets = append(resp.Assets, v)
-	}
-
 	common.Response(c, common.SuccessCode, resp)
 }
