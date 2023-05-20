@@ -47,7 +47,7 @@ func (h *Heartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 		}
 	}
 	conn.LastHBTime = time.Now().Unix()
-	if _, err := mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
+	if _, err := mongo.MongoProxyImpl.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": req.AgentID},
 		bson.M{"$set": bson.M{"agent_detail": data, "last_heartbeat_time": conn.LastHBTime}}); err != nil {
 		return err
 	}

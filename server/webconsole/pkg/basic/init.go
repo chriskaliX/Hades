@@ -1,39 +1,53 @@
 package basic
 
 import (
-	"context"
-	"fmt"
 	"hboat/pkg/basic/mongo"
 	"hboat/pkg/basic/redis"
-	"hboat/pkg/basic/utils"
 	"hboat/pkg/conf"
+	"strconv"
+	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
-	mongodb "go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-func Init() error {
+// Initialization of the whole package program
+func Initialization() error {
+	initLog()
 	// init the datasources
-	if err := mongo.NewMongoDB(conf.Config.Mongo.URI, conf.Config.Mongo.PoolSize); err != nil {
+	if err := mongo.MongoProxyImpl.Init(conf.Config.Mongo.URI, conf.Config.Mongo.PoolSize); err != nil {
 		return err
 	}
-	if err := redis.NewRedisClient(
+	if err := redis.RedisProxyImpl.Init(
 		conf.Config.Redis.Addrs,
 		conf.Config.Redis.MasterName,
 		conf.Config.Redis.Password,
 		redis.RedisMode(conf.Config.Redis.Mode)); err != nil {
 		return err
 	}
-	// init the admin
-	res := mongo.UserC.FindOne(context.Background(), bson.M{"username": "admin"})
-	if res.Err() == mongodb.ErrNoDocuments {
-		passwd := utils.RandStringRunes(6)
-		err := mongo.CreateUser("admin", passwd, 0)
-		if err != nil {
-			return err
-		}
-		fmt.Println(passwd)
-	}
 	return nil
+}
+
+func initLog() {
+	config := zap.NewProductionEncoderConfig()
+	config.CallerKey = "source"
+	config.TimeKey = "timestamp"
+	config.EncodeTime = func(t time.Time, z zapcore.PrimitiveArrayEncoder) {
+		z.AppendString(strconv.FormatInt(t.Unix(), 10))
+	}
+	fileEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+	fileWriter := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   "hboat.log",
+		MaxSize:    1,
+		MaxBackups: 10,
+		MaxAge:     10,   // days
+		Compress:   true, // disabled by default
+	})
+	core := zapcore.NewTee(
+		zapcore.NewCore(fileEncoder, fileWriter, zap.InfoLevel))
+	logger := zap.New(core, zap.AddCaller())
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
 }

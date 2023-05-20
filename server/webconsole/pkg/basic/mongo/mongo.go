@@ -2,8 +2,11 @@ package mongo
 
 import (
 	"context"
+	"fmt"
+	"hboat/pkg/basic/utils"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -18,17 +21,19 @@ const (
 	recordCol = "log_record"
 )
 
-// Client
-var Inst *mongo.Client
+var MongoProxyImpl = &MongoProxy{}
 
-// Collection
-var StatusC *mongo.Collection
-var PluginC *mongo.Collection
-var AssetC *mongo.Collection
-var UserC *mongo.Collection
-var RecordC *mongo.Collection
+type MongoProxy struct {
+	client *mongo.Client
+	// Collection
+	StatusC *mongo.Collection
+	PluginC *mongo.Collection
+	AssetC  *mongo.Collection
+	UserC   *mongo.Collection
+	RecordC *mongo.Collection
+}
 
-func NewMongoDB(uri string, poolsize uint64) error {
+func (m *MongoProxy) Init(uri string, poolsize uint64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var opt options.ClientOptions
@@ -42,13 +47,23 @@ func NewMongoDB(uri string, poolsize uint64) error {
 	if err = mongoClient.Ping(ctx, nil); err != nil {
 		return err
 	}
-	Inst = mongoClient
-
-	StatusC = Inst.Database(dbName).Collection(agentCol)
-	PluginC = Inst.Database(dbName).Collection(pluginCol)
-	AssetC = Inst.Database(dbName).Collection(assetCol)
-	UserC = Inst.Database(dbName).Collection(userCol)
-	RecordC = Inst.Database(dbName).Collection(recordCol)
-	// pre check user admin and print the passwd
+	m.client = mongoClient
+	m.StatusC = m.client.Database(dbName).Collection(agentCol)
+	m.PluginC = m.client.Database(dbName).Collection(pluginCol)
+	m.AssetC = m.client.Database(dbName).Collection(assetCol)
+	m.UserC = m.client.Database(dbName).Collection(userCol)
+	m.RecordC = m.client.Database(dbName).Collection(recordCol)
+	// backend admin user init
+	res := m.UserC.FindOne(context.Background(), bson.M{"username": "admin"})
+	if res.Err() == mongo.ErrNoDocuments {
+		passwd := utils.RandStringRunes(6)
+		err := CreateUser("admin", passwd, 0)
+		if err != nil {
+			return err
+		}
+		fmt.Println(passwd)
+	}
 	return nil
 }
+
+func (m *MongoProxy) Client() *mongo.Client { return m.client }

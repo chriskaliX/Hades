@@ -51,7 +51,7 @@ func AgentAsset(c *gin.Context) {
 		return
 	}
 
-	respCommon, err := common.DBPageSearch(mongo.AssetC, &pageReq, bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()})
+	respCommon, err := common.DBPageSearch(mongo.MongoProxyImpl.AssetC, &pageReq, bson.M{"agent_id": assetReq.AgentID, "data_type": dt.ID()})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 	}

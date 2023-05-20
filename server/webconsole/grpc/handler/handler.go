@@ -107,7 +107,7 @@ func (w *Worker) Run() {
 				default:
 					goto Loop
 				}
-				_, err := mongo.AssetC.DeleteMany(
+				_, err := mongo.MongoProxyImpl.AssetC.DeleteMany(
 					context.Background(),
 					bson.M{"agent_id": agentid, "data_type": dt, "package_seq": bson.M{"$ne": package_seq_str}},
 				)
@@ -125,7 +125,7 @@ func (w *Worker) Run() {
 			if len(writer) == 0 {
 				continue
 			}
-			res, err := mongo.AssetC.BulkWrite(context.Background(), writer, writeOption)
+			res, err := mongo.MongoProxyImpl.AssetC.BulkWrite(context.Background(), writer, writeOption)
 			if err != nil {
 				zap.S().Errorf("handler_worker_bulkwrite", "%s", err.Error())
 			} else {
@@ -135,7 +135,7 @@ func (w *Worker) Run() {
 		}
 		// count oversize, write into mongo
 		if len(writer) >= 100 {
-			res, err := mongo.AssetC.BulkWrite(context.Background(), writer, writeOption)
+			res, err := mongo.MongoProxyImpl.AssetC.BulkWrite(context.Background(), writer, writeOption)
 			if err != nil {
 				zap.S().Errorf("handler_worker_bulkwrite", "%s", err.Error())
 			} else {

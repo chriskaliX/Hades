@@ -23,14 +23,14 @@ type CountRsp struct {
 // An agent is online with 2 conditions. status is on, and heartbeat
 // available within 30 mins.
 func AgentCount(c *gin.Context) {
-	total, err := mongo.StatusC.CountDocuments(context.Background(), bson.D{})
+	total, err := mongo.MongoProxyImpl.StatusC.CountDocuments(context.Background(), bson.D{})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
 	// within 5 mins, it's available
 	hbEndtime := time.Now().Unix() - conf.Config.Backend.AgentHBOfflineSec
-	online, err := mongo.StatusC.CountDocuments(context.Background(), bson.M{
+	online, err := mongo.MongoProxyImpl.StatusC.CountDocuments(context.Background(), bson.M{
 		"status": true, "last_heartbeat_time": bson.M{"$gt": hbEndtime}})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
@@ -54,7 +54,7 @@ type ConnStatRsp struct {
 func AgentStat(c *gin.Context) {
 	agentid := c.Query("agent_id")
 	var as mongo.AgentStatus
-	err := mongo.StatusC.FindOne(context.Background(), bson.M{"agent_id": agentid}).Decode(&as)
+	err := mongo.MongoProxyImpl.StatusC.FindOne(context.Background(), bson.M{"agent_id": agentid}).Decode(&as)
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
@@ -106,7 +106,7 @@ func AgentBasic(c *gin.Context) {
 	options.Skip = &skip
 	options.Limit = &pageSize
 	// find
-	cur, err := mongo.StatusC.Find(context.Background(), bson.D{})
+	cur, err := mongo.MongoProxyImpl.StatusC.Find(context.Background(), bson.D{})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return

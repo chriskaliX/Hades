@@ -31,7 +31,7 @@ func TagAction(c *gin.Context) {
 	filter := bson.M{"agent_id": req.AgentID}
 	switch c.Request.Method {
 	case http.MethodDelete:
-		if _, err = mongo.StatusC.UpdateOne(
+		if _, err = mongo.MongoProxyImpl.StatusC.UpdateOne(
 			context.TODO(),
 			filter,
 			bson.M{"$pull": bson.M{"tags": req.Name}},
@@ -41,7 +41,7 @@ func TagAction(c *gin.Context) {
 		}
 	case http.MethodGet:
 		var result map[string]interface{}
-		err := mongo.StatusC.FindOne(context.Background(), filter).Decode(&result)
+		err := mongo.MongoProxyImpl.StatusC.FindOne(context.Background(), filter).Decode(&result)
 		if err != nil {
 			common.Response(c, common.ErrorCode, err.Error())
 			return
@@ -52,7 +52,7 @@ func TagAction(c *gin.Context) {
 		}
 		common.Response(c, common.SuccessCode, resp)
 	case http.MethodPut:
-		_, err := mongo.StatusC.UpdateOne(
+		_, err := mongo.MongoProxyImpl.StatusC.UpdateOne(
 			context.Background(),
 			filter,
 			bson.M{"$addToSet": bson.M{"tags": req.Name}},

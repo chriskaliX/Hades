@@ -35,7 +35,7 @@ func Auth() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		s := redis.Inst.Get(context.Background(), token)
+		s := redis.RedisProxyImpl.Client.Get(context.Background(), token)
 		if s.Err() != nil && s.Err().Error() != nilErrRedis {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return

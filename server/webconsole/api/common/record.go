@@ -16,7 +16,7 @@ func LogRecord(c *gin.Context, msg string) error {
 	if !ok {
 		username = ""
 	}
-	_, err := mongo.RecordC.InsertOne(context.Background(), bson.M{
+	_, err := mongo.MongoProxyImpl.RecordC.InsertOne(context.Background(), bson.M{
 		"gmt_create": time.Now().Unix(),
 		"message":    msg,
 		"operator":   username,

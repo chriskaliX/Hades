@@ -45,7 +45,7 @@ func CreateUser(username string, password string, Role RoleId) error {
 		return err
 	}
 	// check if already exists
-	res := UserC.FindOne(
+	res := MongoProxyImpl.UserC.FindOne(
 		context.Background(),
 		bson.M{"username": username},
 	)
@@ -62,7 +62,7 @@ func CreateUser(username string, password string, Role RoleId) error {
 		PasswordUpdateTime: time.Now().Unix(),
 		Status:             Normal,
 	}
-	if _, err = UserC.InsertOne(
+	if _, err = MongoProxyImpl.UserC.InsertOne(
 		context.Background(),
 		user,
 	); err != nil {
@@ -74,7 +74,7 @@ func CreateUser(username string, password string, Role RoleId) error {
 // CheckPassword by username and password
 func CheckPassword(username string, password string) error {
 	// check if user exists
-	res := UserC.FindOne(
+	res := MongoProxyImpl.UserC.FindOne(
 		context.Background(),
 		bson.M{"username": username},
 	)
@@ -93,7 +93,7 @@ func CheckPassword(username string, password string) error {
 // Change username
 func ChangePassword(username string, password string) error {
 	// check if user exists
-	res := UserC.FindOne(
+	res := MongoProxyImpl.UserC.FindOne(
 		context.Background(),
 		bson.M{"username": username},
 	)
@@ -108,7 +108,7 @@ func ChangePassword(username string, password string) error {
 	}
 	user.Password = string(passwd)
 	user.PasswordUpdateTime = time.Now().Unix()
-	_, err = UserC.UpdateOne(
+	_, err = MongoProxyImpl.UserC.UpdateOne(
 		context.Background(),
 		bson.M{"username": username},
 		bson.M{"$set": bson.M{"password": user.Password, "password_update_time": user.PasswordUpdateTime}},

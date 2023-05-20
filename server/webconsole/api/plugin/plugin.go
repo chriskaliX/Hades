@@ -32,7 +32,7 @@ func PluginInsert(c *gin.Context) {
 		return
 	}
 	// result
-	if res := mongo.PluginC.FindOne(context.Background(),
+	if res := mongo.MongoProxyImpl.PluginC.FindOne(context.Background(),
 		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
 	); res.Err() == nil {
 		common.Response(c, common.ErrorCode, "plugin already exists")
@@ -55,7 +55,7 @@ func PluginInsert(c *gin.Context) {
 		}
 	}
 	// check done, insert the plugin into db
-	if _, err := mongo.PluginC.InsertOne(
+	if _, err := mongo.MongoProxyImpl.PluginC.InsertOne(
 		context.Background(),
 		pConfig,
 	); err != nil {
@@ -70,7 +70,7 @@ func PluginInsert(c *gin.Context) {
 func PluginSelect(c *gin.Context) {
 	name := c.GetString("name")
 	pversion := c.GetString("pversion")
-	res := mongo.PluginC.FindOne(
+	res := mongo.MongoProxyImpl.PluginC.FindOne(
 		context.Background(),
 		bson.M{"name": name, "pversion": pversion},
 	)
@@ -89,7 +89,7 @@ func PluginSelect(c *gin.Context) {
 func PluginDel(c *gin.Context) {
 	name := c.Query("name")
 	pversion := c.Query("pversion")
-	_, err := mongo.PluginC.DeleteOne(
+	_, err := mongo.MongoProxyImpl.PluginC.DeleteOne(
 		context.Background(),
 		bson.M{"name": name, "pversion": pversion},
 	)
@@ -108,7 +108,7 @@ func PluginUpdate(c *gin.Context) {
 		return
 	}
 	pConfig.ModifyAt = time.Now().Unix()
-	if _, err := mongo.PluginC.UpdateOne(
+	if _, err := mongo.MongoProxyImpl.PluginC.UpdateOne(
 		context.Background(),
 		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
 		bson.M{"$set": bson.M{"urls": pConfig.Urls, "sha256": pConfig.Sha256}},
@@ -128,7 +128,7 @@ type PluginListResp struct {
 func PluginList(c *gin.Context) {
 	var plgResp PluginListResp
 	plgResp.List = make([]PluginConfig, 0)
-	cur, err := mongo.PluginC.Find(
+	cur, err := mongo.MongoProxyImpl.PluginC.Find(
 		context.Background(),
 		bson.D{},
 	)
@@ -173,7 +173,7 @@ func SendPlugin(c *gin.Context) {
 
 func actionInsert(c *gin.Context, pReq PluginRequest) {
 	var plgConfig PluginConfig
-	err := mongo.PluginC.FindOne(
+	err := mongo.MongoProxyImpl.PluginC.FindOne(
 		context.Background(),
 		bson.M{"name": pReq.Name, "pversion": pReq.Version}).Decode(&plgConfig)
 	if err != nil {

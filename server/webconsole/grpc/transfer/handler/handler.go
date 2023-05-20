@@ -57,7 +57,7 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error
 	// Data update, also, update the address of the grpc for sendcommand
 	// TODO: use channel or just put in kafka
 	options := options.Update().SetUpsert(true)
-	_, err = mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
+	_, err = mongo.MongoProxyImpl.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
 		bson.M{
 			"$set": bson.M{
 				"addr":                  addr,

@@ -41,24 +41,24 @@ type record struct {
 func HomePage(c *gin.Context) {
 	var resp homePageResp
 	var err error
-	resp.HostOnline, err = mongo.StatusC.CountDocuments(context.Background(), bson.M{"last_heartbeat_time": bson.M{"$gt": time.Now().Unix() - conf.Config.Backend.AgentHBOfflineSec}})
+	resp.HostOnline, err = mongo.MongoProxyImpl.StatusC.CountDocuments(context.Background(), bson.M{"last_heartbeat_time": bson.M{"$gt": time.Now().Unix() - conf.Config.Backend.AgentHBOfflineSec}})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	resp.HostOffline, err = mongo.StatusC.CountDocuments(context.Background(), bson.M{})
+	resp.HostOffline, err = mongo.MongoProxyImpl.StatusC.CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
 	resp.HostOffline = resp.HostOffline - resp.HostOnline
 	// 是否需要添加 Update time 过滤?
-	resp.Container, err = mongo.AssetC.CountDocuments(context.Background(), bson.M{"data_type": 3018})
+	resp.Container, err = mongo.MongoProxyImpl.AssetC.CountDocuments(context.Background(), bson.M{"data_type": 3018})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	resp.Service, err = mongo.AssetC.CountDocuments(context.Background(), bson.M{"data_type": 3008})
+	resp.Service, err = mongo.MongoProxyImpl.AssetC.CountDocuments(context.Background(), bson.M{"data_type": 3008})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
@@ -67,7 +67,7 @@ func HomePage(c *gin.Context) {
 	findOptions := options.Find()
 	findOptions.SetLimit(5)
 	findOptions.SetSort(bson.M{"gmt_create": -1})
-	cur, err := mongo.RecordC.Find(context.Background(), bson.D{}, findOptions)
+	cur, err := mongo.MongoProxyImpl.RecordC.Find(context.Background(), bson.D{}, findOptions)
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
@@ -97,14 +97,14 @@ func HomePage(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	start := time.Now()
-	if _, err = redis.Inst.Ping(ctx).Result(); err != nil {
+	if _, err = redis.RedisProxyImpl.Client.Ping(ctx).Result(); err != nil {
 		resp.RedisDelay = math.MaxInt64
 	} else {
 		elapsed := time.Since(start).Milliseconds()
 		resp.RedisDelay = elapsed
 	}
 	start = time.Now()
-	if err = mongo.StatusC.Database().Client().Ping(ctx, nil); err != nil {
+	if err = mongo.MongoProxyImpl.StatusC.Database().Client().Ping(ctx, nil); err != nil {
 		resp.MongoDelay = math.MaxInt64
 	} else {
 		elapsed := time.Since(start).Milliseconds()

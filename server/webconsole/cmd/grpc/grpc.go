@@ -7,6 +7,7 @@ import (
 	"hboat/pkg/basic"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var grpcCommand = &cobra.Command{
@@ -31,8 +32,9 @@ func init() {
 
 // The main function of hboat
 func WebServer(command *cobra.Command, args []string) {
-	if err := basic.Init(); err != nil {
-		panic(err)
+	if err := basic.Initialization(); err != nil {
+		zap.S().Error(err)
+		return
 	}
 	// run grpc and web
 	go api.RunGrpcServer(wport)

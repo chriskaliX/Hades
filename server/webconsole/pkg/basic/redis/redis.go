@@ -8,17 +8,13 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-var Inst redis.UniversalClient
+var RedisProxyImpl = &RedisProxy{}
 
-type RedisMode int
+type RedisProxy struct {
+	Client redis.UniversalClient
+}
 
-const (
-	RedisModeCluster RedisMode = iota
-	RedisModeSentinel
-	RedisModeSingle
-)
-
-func NewRedisClient(addrs []string, masterName, password string, mode RedisMode) error {
+func (r *RedisProxy) Init(addrs []string, masterName, password string, mode RedisMode) error {
 	if len(addrs) == 0 {
 		return errors.New("addrs is required")
 	}
@@ -35,7 +31,7 @@ func NewRedisClient(addrs []string, masterName, password string, mode RedisMode)
 		if err != nil {
 			return err
 		}
-		Inst = client
+		r.Client = client
 		return nil
 	// Cluster
 	case RedisModeCluster:
@@ -48,7 +44,7 @@ func NewRedisClient(addrs []string, masterName, password string, mode RedisMode)
 		if err != nil {
 			return err
 		}
-		Inst = client
+		r.Client = client
 		return nil
 	case RedisModeSingle:
 		opts := &redis.Options{
@@ -60,9 +56,17 @@ func NewRedisClient(addrs []string, masterName, password string, mode RedisMode)
 		if err != nil {
 			return err
 		}
-		Inst = client
+		r.Client = client
 		return nil
 	default:
 		return fmt.Errorf("redis mode %d is not valid", mode)
 	}
 }
+
+type RedisMode int
+
+const (
+	RedisModeCluster RedisMode = iota
+	RedisModeSentinel
+	RedisModeSingle
+)

@@ -36,7 +36,7 @@ func Login(c *gin.Context) {
 	// success, set the session
 	sessionid := utils.GenerateSession()
 	duration := time.Duration(conf.Config.Backend.UserSessionLifetimeMin) * time.Minute
-	if err := redis.Inst.Set(context.Background(), sessionid, req.Username, duration).Err(); err != nil {
+	if err := redis.RedisProxyImpl.Client.Set(context.Background(), sessionid, req.Username, duration).Err(); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
@@ -47,7 +47,7 @@ func Login(c *gin.Context) {
 
 func Logout(c *gin.Context) {
 	token := c.GetHeader("token")
-	err := redis.Inst.Del(context.Background(), token).Err()
+	err := redis.RedisProxyImpl.Client.Del(context.Background(), token).Err()
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
@@ -83,7 +83,7 @@ func CurrentUser(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	s := redis.Inst.Get(context.Background(), token)
+	s := redis.RedisProxyImpl.Client.Get(context.Background(), token)
 	if s.Err() != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return

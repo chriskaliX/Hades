@@ -56,7 +56,7 @@ func (g *GRPCPool) Delete(agentID string) {
 	g.connLock.Lock()
 	defer g.connLock.Unlock()
 	delete(g.connPool, agentID)
-	mongo.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
+	mongo.MongoProxyImpl.StatusC.UpdateOne(context.Background(), bson.M{"agent_id": agentID},
 		bson.M{"$set": bson.M{"status": false}})
 }
 
