@@ -17,7 +17,6 @@
 #include <missing_definitions.h>
 #endif
 
-#include "constants.h"
 #include "define.h"
 #include "utils_buf.h"
 #include "utils.h"
@@ -54,6 +53,8 @@ int BPF_KPROBE(kprobe_do_init_module)
     data.context.type = DO_INIT_MODULE;
 
     struct module *mod = (struct module *)PT_REGS_PARM1(ctx);
+    if (mod == NULL)
+        return 0;
     char *modname = NULL;
     bpf_probe_read_str(&modname, 64 - sizeof(unsigned long), &mod->name);
     save_str_to_buf(&data, &modname, 0);
@@ -498,9 +499,9 @@ int BPF_KPROBE(kprobe_security_file_permission)
         return 0;
     
     // get configuration from bpf_map, if not contained, skip
-    u64 stext = hades_constants_stext();
-    u64 etext = hades_constants_etext();
-    if (stext == 0 || etext == 0)
+    u64 *stext = get_config(STEXT);
+    u64 *etext = get_config(ETEXT);
+    if (stext == NULL || etext == NULL)
         return 0;
 
     // Add detections for module address
@@ -513,12 +514,12 @@ int BPF_KPROBE(kprobe_security_file_permission)
     // for now, we do not use MODULE_VADDR, since we need to get this address from
     // userspace also.
     if (iterate_shared_addr > 0) {
-        if (iterate_shared_addr >= stext && iterate_shared_addr <= etext) {
+        if (iterate_shared_addr >= *stext && iterate_shared_addr <= *etext) {
             return 0;
         }
     }
     if (iterate_addr > 0) {
-        if (iterate_addr >= stext && iterate_addr <= etext) {
+        if (iterate_addr >= *stext && iterate_addr <= *etext) {
             return 0;
         }
     }

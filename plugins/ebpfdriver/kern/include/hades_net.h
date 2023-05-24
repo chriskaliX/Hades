@@ -57,7 +57,7 @@ int sys_exit_connect(struct syscall_exit_args *ctx)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     net_ctx_t *net_ctx = bpf_map_lookup_elem(&connect_cache, &pid_tgid);
-    if (net_ctx == 0)
+    if (net_ctx == NULL)
         return 0;
     
     event_data_t data = {};

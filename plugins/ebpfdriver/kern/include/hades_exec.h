@@ -195,15 +195,6 @@ int sys_exit_execveat(void *ctx)
     return 0;
 }
 
-struct _sys_enter_prctl {
-    unsigned long long unused;
-    long syscall_nr;
-    int option;
-    unsigned long arg2;
-    unsigned long arg3;
-    unsigned long arg4;
-    unsigned long arg5;
-};
 /*
  * Prctl(CAP)/Ptrace(SYS_ENTER) inject process
  * In Elkeid, only PR_SET_NAME is collected, in function "prctl_pre_handler".
@@ -283,13 +274,6 @@ int sys_enter_ptrace(struct syscall_enter_args *ctx)
     save_pid_tree_to_buf(&data, 12, 4);
     return events_perf_submit(&data);
 }
-
-struct _sys_enter_memfd_create {
-    unsigned long long unused;
-    long syscall_nr;
-    const char *uname;
-    unsigned int flags;
-};
 
 // https://xeldax.top/article/linux_no_file_elf_mem_execute
 SEC("tracepoint/syscalls/sys_enter_memfd_create")

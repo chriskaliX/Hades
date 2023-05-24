@@ -99,21 +99,7 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 				LostHandler:        driver.lostHandler,
 			}},
 		},
-		Maps: []*manager.Map{
-			{Name: configMap},
-		},
 	}
-
-	// if isEnableRingbuf() {
-	// 	driver.Manager.PerfMaps = append(driver.Manager.PerfMaps, &manager.PerfMap{
-	// 		Map: manager.Map{Name: "exec_events_ringbuf"},
-	// 		PerfMapOptions: manager.PerfMapOptions{
-	// 			PerfRingBufferSize: 256 * os.Getpagesize(),
-	// 			DataHandler:        driver.dataHandler,
-	// 			LostHandler:        driver.lostHandler,
-	// 		},
-	// 	})
-	// }
 
 	if !conf.Debug {
 		driver.Manager.Maps = append(driver.Manager.Maps, &manager.Map{Name: "pid_filter", Contents: []ebpf.MapKV{{
@@ -121,13 +107,8 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		}}})
 	}
 
-	for _, event := range decoder.Events {
-		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
-		if event.GetMaps() != nil {
-			driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
-		}
-	}
-
+	// Change to config_map instead of global variable since it would be failed under
+	// certain version (less 5.2), using map is an compatiable. Drop the ConstantEditors
 	var stext, etext, pgid uint64
 	// Init options with constant value updated
 	if _stext := utils.Ksyms.Get("_stext"); _stext != nil {
@@ -138,6 +119,18 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 	}
 	if _pgid, err := syscall.Getpgid(os.Getpid()); err == nil && !conf.Debug {
 		pgid = uint64(_pgid)
+	}
+	driver.Manager.Maps = append(driver.Manager.Maps, &manager.Map{Name: "config_map", Contents: []ebpf.MapKV{
+		{Key: uint32(0), Value: stext}, // _stext
+		{Key: uint32(1), Value: etext}, // _etext
+		{Key: uint32(2), Value: pgid},  // _pgid
+	}})
+
+	for _, event := range decoder.Events {
+		driver.Manager.Probes = append(driver.Manager.Probes, event.GetProbes()...)
+		if event.GetMaps() != nil {
+			driver.Manager.Maps = append(driver.Manager.Maps, event.GetMaps()...)
+		}
 	}
 
 	if err := driver.Manager.InitWithOptions(
@@ -150,12 +143,6 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 			RLimit: &unix.Rlimit{
 				Cur: math.MaxUint64,
 				Max: math.MaxUint64,
-			},
-			// Init added, be careful that bpf_printk
-			ConstantEditors: []manager.ConstantEditor{
-				{Name: "hades_stext", Value: stext},
-				{Name: "hades_etext", Value: etext},
-				{Name: "hades_pgid", Value: pgid},
 			},
 		}); err != nil {
 		return nil, err

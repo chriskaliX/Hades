@@ -450,13 +450,14 @@ struct syscall_buffer {
 };
 
 BPF_HASH(syscall_buffer_cache, u64, struct syscall_buffer, 512);
-struct syscall_buffer syscall_buffer_zero = {};
+
+static struct syscall_buffer syscall_buffer_zero = {};
 
 static __always_inline struct syscall_buffer *
 reset_syscall_buffer_cache(u64 id)
 {
     int ret = bpf_map_update_elem(&syscall_buffer_cache, &id,
-                                  &syscall_buffer_zero, BPF_ANY);
+                                  &syscall_buffer_zero, BPF_NOEXIST);
     if (ret < 0) {
         // should never happen
         return 0;

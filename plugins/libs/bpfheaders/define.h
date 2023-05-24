@@ -49,6 +49,8 @@
 #define TMP_BUF_IDX    1
 #define SUBMIT_BUF_IDX 0
 #define STRING_BUF_IDX 1
+#define ARGS_IDX       2
+#define ENVP_IDX       3
 
 #define EXECVE_GET_SOCK_FD_LIMIT  8
 #define EXECVE_GET_SOCK_PID_LIMIT 4
@@ -178,7 +180,7 @@ BPF_RINGBUF_OUTPUT(file_events_ringbuf, 1024);
 BPF_RINGBUF_OUTPUT(net_events_ringbuf, 1024);
 #endif
 
-BPF_PERCPU_ARRAY(bufs, buf_t, 3);
+BPF_PERCPU_ARRAY(bufs, buf_t, 4);
 BPF_PERCPU_ARRAY(bufs_off, __u32, MAX_BUFFERS);
 
 #ifdef CORE
@@ -258,18 +260,16 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
     return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline int get_config(__u32 key)
+static __always_inline __u64 *get_config(__u32 key)
 {
-    __u64 *config = bpf_map_lookup_elem(&config_map, &key);
-    if (config == NULL)
-        return 0;
-    return *config;
+    return bpf_map_lookup_elem(&config_map, &key);
 }
 
 /* config */
-#define DENY_BPF                  0
-#define STEXT                     1
-#define ETEXT                     2
+// #define DENY_BPF                  0
+#define STEXT                     0
+#define ETEXT                     1
+#define HADES_PGID_KEY            2
 /* hook point id */
 #define SYS_ENTER_MEMFD_CREATE    614
 #define SYS_ENTER_EXECVEAT        698

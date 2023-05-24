@@ -13,7 +13,6 @@
 #include <missing_definitions.h>
 #endif
 
-#include "constants.h"
 #include <utils_buf.h>
 #include "bpf_helpers.h"
 #include "bpf_core_read.h"
@@ -101,8 +100,12 @@ static __always_inline int init_context(context_t *context,
 // 0 on false & 1 on true
 static __always_inline int context_filter(context_t *context)
 {
+    u64 *pgid_p = get_config(HADES_PGID_KEY);
+    if (pgid_p == NULL) {
+        return 0;
+    }
     // filter by the pgid, all agent and plugins are reliable by default
-    if (context->pgid == (u32)hades_constants_pgid())
+    if (context->pgid == *pgid_p)
         return 1;
     // ID filter for all
     if (bpf_map_lookup_elem(&pid_filter, &context->tid) != 0)
@@ -246,7 +249,7 @@ static __always_inline void *get_path_str(struct path *path)
         struct super_block *d_sb = READ_KERN(dentry->d_sb);
         if (d_sb != 0) {
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
-            int prefix_len; // calculate prefix str 
+            volatile int prefix_len; // calculate prefix str, prevent opt
             if (s_magic == PIPEFS_MAGIC) {
                 // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
                 //  d_inode(dentry)->i_ino);
@@ -297,8 +300,9 @@ static __always_inline void *get_path_str(struct path *path)
             
             tmp_inode[i] = ']';
             tmp_inode[i + 1] = '\0';
-            bpf_probe_read_str(&(string_p->buf[prefix_len & (MAX_PERCPU_BUFSIZE - 1)]), MAX_STRING_SIZE,
-                                   (void *)tmp_inode);
+            int p_len = prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1);
+            bpf_probe_read_str(&(string_p->buf[p_len]), MAX_STRING_SIZE,
+                                (void *)tmp_inode);
             goto out;
         }
         d_name = READ_KERN(dentry->d_name);
