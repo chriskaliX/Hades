@@ -59,7 +59,6 @@ int sys_exit_connect(struct syscall_exit_args *ctx)
     net_ctx_t *net_ctx = bpf_map_lookup_elem(&connect_cache, &pid_tgid);
     if (net_ctx == NULL)
         return 0;
-    
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         goto delete;
@@ -67,6 +66,7 @@ int sys_exit_connect(struct syscall_exit_args *ctx)
         goto delete;
     data.context.type = SYSCONNECT;
     data.context.retval = ctx->ret;
+    void *exe = get_exe_from_task(data.task);
     u16 family = net_ctx->sa_family;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
     int fd = net_ctx->fd;
@@ -79,7 +79,6 @@ int sys_exit_connect(struct syscall_exit_args *ctx)
         net_conn_v4_t net_details = {};
         get_network_details_from_sock_v4(sk, &net_details, 0);
         save_to_submit_buf(&data, &net_details, sizeof(struct network_connection_v4), 1);
-        
     } else if (family == AF_INET6) {
         net_conn_v6_t net_details = {};
         get_network_details_from_sock_v6(sk, &net_details, 0);
@@ -87,7 +86,7 @@ int sys_exit_connect(struct syscall_exit_args *ctx)
     } else {
         goto delete;
     }
-    void *exe = get_exe_from_task(data.task);
+    
     save_str_to_buf(&data, exe, 2);
     bpf_map_delete_elem(&connect_cache, &pid_tgid);
     return events_perf_submit(&data);

@@ -138,7 +138,9 @@ func NewDriver(s SDK.ISandbox) (*Driver, error) {
 		manager.Options{
 			DefaultKProbeMaxActive: 512,
 			VerifierOptions: ebpf.CollectionOptions{
-				Programs: ebpf.ProgramOptions{LogSize: 1 * 1024 * 1024},
+				Programs: ebpf.ProgramOptions{
+					LogSize: 1 * 1024 * 1024,
+				},
 			},
 			RLimit: &unix.Rlimit{
 				Cur: math.MaxUint64,
