@@ -28,14 +28,14 @@ cert/
 **/*.gz
 
 # ignore binary
-plugins/ebpfdriver/ebpfdriver
+plugins/edriver/edriver
 plugins/collector/collector
 plugins/ncp/ncp
 plugins/edr/edr
 
 # libbpf test
-plugins/ebpfdriver/kern/headers/*.h
-plugins/ebpfdriver/kern/headers/libbpf
+plugins/edriver/kern/headers/*.h
+plugins/edriver/kern/headers/libbpf
 plugins/edr/kern/headers/*.h
 plugins/edr/kern/headers/libbpf
 
@@ -46,11 +46,11 @@ plugins/edr/kern/headers/libbpf
 **/*.exe
 
 # test
-plugins/ebpfdriver/test/dist/*.txt
+plugins/edriver/test/dist/*.txt
 machine-id
 
 # rust-demo
 target
 Cargo.lock
 ncp-rst
-plugins/ebpfdriver/test/dist/2.txt
+plugins/edriver/test/dist/2.txt

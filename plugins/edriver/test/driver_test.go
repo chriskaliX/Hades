@@ -46,9 +46,9 @@ func TestMain(t *testing.T) {
 	conf.Debug = true
 	sconfig := &SDK.SandboxConfig{
 		Debug: conf.Debug,
-		Name:  "ebpfdriver",
+		Name:  "edriver",
 		LogConfig: &logger.Config{
-			Path:        "ebpfdriver.log",
+			Path:        "edriver.log",
 			MaxSize:     10,
 			MaxBackups:  10,
 			Compress:    true,

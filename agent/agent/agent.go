@@ -7,7 +7,7 @@ import (
 
 const (
 	Product = "hades-agent"
-	ENVNAME = "SPECIFIED_AGENT_ID_HADES"
+	envName = "SPECIFIED_AGENT_ID_HADES"
 )
 
 var (
@@ -24,7 +24,7 @@ func init() {
 	}
 	// ID init
 	var ok bool
-	if ID, ok = os.LookupEnv(ENVNAME); ok {
+	if ID, ok = os.LookupEnv(envName); ok {
 		return
 	}
 	genUUID()

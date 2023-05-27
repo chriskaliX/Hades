@@ -34,7 +34,7 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 ## Plugins
 
-- [eBPF Driver](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver)
+- [eBPF Driver](https://github.com/chriskaliX/Hades/tree/main/plugins/edriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
 - HoneyPot (gopacket-based)
 - Monitor
@@ -49,7 +49,7 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 > Here are 21 hooks over `tracepoints`/`kprobes`/`uprobes`. The fields are extended just like Elkeid(basically).
 
-For [details](https://github.com/chriskaliX/Hades/tree/main/plugins/ebpfdriver) of these hooks.
+For [details](https://github.com/chriskaliX/Hades/tree/main/plugins/edriver) of these hooks.
 
 <details><summary> eBPF driver hook details </summary>
 <p>

@@ -3,7 +3,7 @@ EBPF_CO-RE_FLAG := core
 EBPF_SOURCE_PATH = kern/hades_ebpf_driver.bpf.o
 EBPF_SOURCE_CO-RE_PATH = kern/hades_ebpf_driver.bpf.core.o
 EBPF_TARGET_PATH = user/hades_ebpf_driver.o
-GO_TARGET_PATH := -o ebpfdriver
+GO_TARGET_PATH := -o edriver
 VERSION := v1.1.0
 
 no-core:

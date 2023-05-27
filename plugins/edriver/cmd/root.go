@@ -8,7 +8,7 @@ import (
 )
 
 var RootCmd = &cobra.Command{
-	Use:     "ebpfdriver",
+	Use:     "edriver",
 	Version: conf.VERSION,
 }
 

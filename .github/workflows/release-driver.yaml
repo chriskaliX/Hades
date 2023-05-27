@@ -3,7 +3,7 @@ name: Hades-driver
 on:
   push:
     tags:
-    - ebpfdriver-v*
+    - edriver-v*
 
 jobs:
   build:
@@ -35,15 +35,15 @@ jobs:
       
       - name: build
         run: |
-          cd plugins/ebpfdriver
+          cd plugins/edriver
           make core
           cd ../..
 
       - name: upload
         uses: actions/upload-artifact@v3
         with:
-          path: plugins/ebpfdriver/ebpfdriver
-          name: ebpfdriver
+          path: plugins/edriver/edriver
+          name: edriver
       
   release:
     runs-on: ubuntu-latest
@@ -64,12 +64,12 @@ jobs:
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - uses: actions/download-artifact@v3
       with:
-        path: /tmp/ebpfdriver
+        path: /tmp/edriver
     - name: package
-      working-directory: /tmp/ebpfdriver/ebpfdriver
+      working-directory: /tmp/edriver/edriver
       run: |
-        sha256sum ebpfdriver >> checksum.txt
-        tar zcvf /tmp/ebpfdriver.tgz ebpfdriver checksum.txt
+        sha256sum edriver >> checksum.txt
+        tar zcvf /tmp/edriver.tgz edriver checksum.txt
     - name: upload
       id: upload
       uses: actions/upload-release-asset@v1
@@ -78,7 +78,7 @@ jobs:
       with:
         asset_content_type: application/tar+gzip
         asset_name: ${{ env.RELEASE_VERSION }}.tgz
-        asset_path: /tmp/ebpfdriver.tgz
+        asset_path: /tmp/edriver.tgz
         upload_url: ${{steps.create_release.outputs.upload_url}}
     needs:
     - build

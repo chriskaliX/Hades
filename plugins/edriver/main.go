@@ -45,9 +45,9 @@ func main() {
 		}
 		sconfig := &SDK.SandboxConfig{
 			Debug: conf.Debug,
-			Name:  "ebpfdriver",
+			Name:  "edriver",
 			LogConfig: &logger.Config{
-				Path:        "ebpfdriver.log",
+				Path:        "edriver.log",
 				MaxSize:     10,
 				MaxBackups:  10,
 				Compress:    true,

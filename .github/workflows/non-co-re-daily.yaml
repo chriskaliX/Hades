@@ -30,9 +30,9 @@ jobs:
           sudo apt-get install linux-headers-$(uname -r)
       - name: Build non-CO-RE
         run: |
-          cd plugins/ebpfdriver
+          cd plugins/edriver
           make
       - name: Test
         run: |
-          cd plugins/ebpfdriver
+          cd plugins/edriver
           make testing

@@ -17,7 +17,7 @@ type Pool struct {
 	p3 *sync.Pool
 }
 
-// For plugin ebpfdriver as an example, most of the data sizes are within
+// For plugin edriver as an example, most of the data sizes are within
 // 2048, drop size over 4096 as default
 func NewPool() Pool {
 	return Pool{

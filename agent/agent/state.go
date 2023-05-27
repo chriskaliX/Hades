@@ -25,7 +25,7 @@ var stateTypeMap = map[StateType]string{
 }
 
 var (
-	mu           = &sync.Mutex{}
+	mu           sync.Mutex
 	currentState = StateTypeRunning
 	abnormalErrs = []string{} // max length should be set
 )

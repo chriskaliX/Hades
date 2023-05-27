@@ -44,11 +44,11 @@
    在 driver 目录下，会看见对应的 driver 文件，启动即可。
 
    默认情况下不会有输出，指定 **`--env debug`** 可以看到输出
-   (driver file is generated in `Hades/plugins/ebpfdriver`, or you can run `./ebpfdriver`, `--debug` to get the output)
+   (driver file is generated in `Hades/plugins/edriver`, or you can run `./edriver`, `--debug` to get the output)
 
 ## 目前支持 Hook
 
-> Hook 的作用和笔记记录在 `Hades/plugins/ebpfdriver/kern/include` 下各个函数中, 持续学习并且更新。后续会讲笔记附在这个 Repo，或者新开一个 Repo 用于维护
+> Hook 的作用和笔记记录在 `Hades/plugins/edriver/kern/include` 下各个函数中, 持续学习并且更新。后续会讲笔记附在这个 Repo，或者新开一个 Repo 用于维护
 
 内核态 Hook
 
