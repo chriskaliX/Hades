@@ -25,12 +25,6 @@ type PageResp struct {
 
 func DBPageSearch(col *mongo.Collection, req *PageReq, filter bson.M) (*PageResp, error) {
 	result := &PageResp{}
-	total, err := col.CountDocuments(context.Background(), filter)
-	if err != nil {
-		// TODO log
-		return nil, err
-	}
-	result.Total = total
 	// set up the options
 	findOption := options.Find()
 	// precheck for field
@@ -87,6 +81,12 @@ func DBPageSearch(col *mongo.Collection, req *PageReq, filter bson.M) (*PageResp
 		return nil, err
 	}
 	defer cursor.Close(context.Background())
+	// move the total after combined filter
+	total, err := col.CountDocuments(context.Background(), combinedFilter)
+	if err != nil {
+		return nil, err
+	}
+	result.Total = total
 	result.Items = make([]map[string]interface{}, 0)
 	// get from cursor
 	if err = cursor.All(context.TODO(), &result.Items); err != nil {
