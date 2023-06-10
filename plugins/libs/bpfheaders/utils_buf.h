@@ -443,21 +443,24 @@ out:
 #define MAX_DATA_PER_SYSCALL 4096
 
 struct syscall_buffer {
+    char args[MAX_DATA_PER_SYSCALL];
+    char envp[MAX_DATA_PER_SYSCALL];
     u16 cursor;
     u16 envp_cursor;
 };
 
+static struct syscall_buffer syscall_buffer_zero = {0};
+
 BPF_HASH(syscall_buffer_cache, u64, struct syscall_buffer, 512);
 
 static __always_inline struct syscall_buffer *
-reset_syscall_buffer_cache(struct syscall_buffer *zero, u64 id)
+reset_syscall_buffer_cache(u64 id)
 {
-    zero->cursor = 0;
-    zero->envp_cursor = 0;
     int ret = bpf_map_update_elem(&syscall_buffer_cache, &id,
-                                  zero, BPF_NOEXIST);
-    if (ret < 0) { // should never happen
-        return NULL;
+                                  &syscall_buffer_zero, BPF_NOEXIST);
+    if (ret < 0) {
+        // should never happen
+        return 0;
     }
     return bpf_map_lookup_elem(&syscall_buffer_cache, &id);
 }
@@ -477,11 +480,6 @@ static __always_inline int delete_syscall_buffer_cache(u64 id)
 static __always_inline int save_args_into_buffer(struct syscall_buffer *buf,
                                                  const char *const *ptr)
 {
-    int args_idx = ARGS_IDX;
-    buf_t *args_p = bpf_map_lookup_elem(&bufs, &args_idx);
-    if (args_p == NULL)
-        return 0;
-
     u8 elem_num = 0;
     buf->cursor += 1;
     if (ptr == NULL)
@@ -495,14 +493,14 @@ static __always_inline int save_args_into_buffer(struct syscall_buffer *buf,
         if (buf->cursor >
             (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
-        int sz = bpf_probe_read_str(&(args_p->buf[buf->cursor + sizeof(int)]),
+        int sz = bpf_probe_read_str(&(buf->args[buf->cursor + sizeof(int)]),
                                     MAX_STRING_SIZE, argp);
         // success
         if (sz > 0) {
             // never happen, just satisfy the verifier
             if (buf->cursor > (MAX_DATA_PER_SYSCALL) - sizeof(int))
                 goto out;
-            bpf_probe_read(&(args_p->buf[buf->cursor]), sizeof(int), &sz);
+            bpf_probe_read(&(buf->args[buf->cursor]), sizeof(int), &sz);
             buf->cursor += sz + sizeof(int);
             elem_num++;
             continue;
@@ -511,18 +509,13 @@ static __always_inline int save_args_into_buffer(struct syscall_buffer *buf,
         }
     }
 out:
-    args_p->buf[0] = elem_num;
+    buf->args[0] = elem_num;
     return 1;
 }
 
 static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
                                                  const char *const *ptr)
 {
-    int envp_idx = ENVP_IDX;
-    buf_t *envp_p = bpf_map_lookup_elem(&bufs, &envp_idx);
-    if (envp_p == NULL)
-        return 0;
-
     char *ld_preload = "LD_PRELO";
     char *ssh_connection = "SSH_CONN";
     u8 elem_num = 0;
@@ -539,7 +532,7 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
         if (buf->envp_cursor >
             (MAX_DATA_PER_SYSCALL) - (MAX_STRING_SIZE) - sizeof(int))
             goto out;
-        sz = bpf_probe_read_str(&(envp_p->buf[buf->envp_cursor + sizeof(int)]),
+        sz = bpf_probe_read_str(&(buf->envp[buf->envp_cursor + sizeof(int)]),
                                 MAX_STRING_SIZE, argp);
         // success
         if (sz > 0) {
@@ -548,14 +541,14 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
                 goto out;
             if (ssh_connection_flag == 0 &&
                 has_prefix(ssh_connection,
-                           (char *)&(envp_p->buf[buf->envp_cursor + sizeof(int)]),
+                           (char *)&(buf->envp[buf->envp_cursor + sizeof(int)]),
                            9)) {
                 ssh_connection_flag = 1;
                 tmp_flag = 1;
             }
             if (ld_preload_flag == 0 &&
                 has_prefix(ld_preload,
-                           (char *)&envp_p->buf[buf->envp_cursor + sizeof(int)],
+                           (char *)&buf->envp[buf->envp_cursor + sizeof(int)],
                            9)) {
                 ld_preload_flag = 1;
                 tmp_flag = 1;
@@ -566,7 +559,7 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
             // never happen, just satisfy the verifier
             if (buf->envp_cursor > (MAX_DATA_PER_SYSCALL) - sizeof(int))
                 goto out;
-            bpf_probe_read(&(envp_p->buf[buf->envp_cursor]), sizeof(int), &sz);
+            bpf_probe_read(&(buf->envp[buf->envp_cursor]), sizeof(int), &sz);
             buf->envp_cursor += sz + sizeof(int);
             elem_num++;
             continue;
@@ -575,7 +568,7 @@ static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
         }
     }
 out:
-    envp_p->buf[0] = elem_num;
+    buf->envp[0] = elem_num;
     return 1;
 }
 
@@ -583,16 +576,11 @@ out:
 static __always_inline int
 save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
 {
-    int args_idx = ARGS_IDX;
-    buf_t *args_p = bpf_map_lookup_elem(&bufs, &args_idx);
-    if (args_p == NULL)
-        return 0;
-
     // read argv str to buf
     bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
                                          ((MAX_PERCPU_BUFSIZE) -
                                           (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, &(args_p->buf[0]));
+                   MAX_DATA_PER_SYSCALL, buf->args);
     // exceed size
     if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
         return 0;
@@ -606,15 +594,10 @@ save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
 static __always_inline int
 save_envp_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
 {
-    int envp_idx = ENVP_IDX;
-    buf_t *envp_p = bpf_map_lookup_elem(&bufs, &envp_idx);
-    if (envp_p == NULL)
-        return 0;
-
     bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
                                          ((MAX_PERCPU_BUFSIZE) -
                                           (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, &(envp_p->buf[0]));
+                   MAX_DATA_PER_SYSCALL, buf->envp);
     if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
         return 0;
     data->submit_p->buf[data->buf_off] = index;

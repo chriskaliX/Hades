@@ -29,15 +29,15 @@ cert/
 
 # ignore binary
 plugins/edriver/edriver
-plugins/collector/collector
+plugins/collector/collector 
 plugins/ncp/ncp
 plugins/edr/edr
 
 # libbpf test
-plugins/edriver/kern/headers/*.h
-plugins/edriver/kern/headers/libbpf
-plugins/edr/kern/headers/*.h
-plugins/edr/kern/headers/libbpf
+plugins/edriver/bpf/headers/*.h
+plugins/edriver/bpf/headers/libbpf
+plugins/edr/bpf/headers/*.h
+plugins/edr/bpf/headers/libbpf
 
 # pprof
 *.pprof
@@ -54,3 +54,4 @@ target
 Cargo.lock
 ncp-rst
 plugins/edriver/test/dist/2.txt
+target/

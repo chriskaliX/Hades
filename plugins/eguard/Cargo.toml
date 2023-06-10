@@ -1,0 +1,20 @@
+[package]
+name = "eguard"
+version = "0.1.0"
+authors = ["Daniel Xu <dxu@dxuuu.xyz>"]
+license = "LGPL-2.1-only OR BSD-2-Clause"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+libbpf-rs = "0.20"
+libc = "0.2"
+plain = "0.2"
+time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
+clap = { version = "3.1", default-features = false, features = ["std", "derive"] }
+nix = { version = "0.26", default-features = false, features = ["net", "user"] }
+ctrlc = "3.2"
+crossbeam = "0.8"
+
+[build-dependencies]
+libbpf-cargo = "0.20"

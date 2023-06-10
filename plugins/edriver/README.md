@@ -48,7 +48,7 @@
 
 ## 目前支持 Hook
 
-> Hook 的作用和笔记记录在 `Hades/plugins/edriver/kern/include` 下各个函数中, 持续学习并且更新。后续会讲笔记附在这个 Repo，或者新开一个 Repo 用于维护
+> Hook 的作用和笔记记录在 `Hades/plugins/edriver/bpf/include` 下各个函数中, 持续学习并且更新。后续会讲笔记附在这个 Repo，或者新开一个 Repo 用于维护
 
 内核态 Hook
 

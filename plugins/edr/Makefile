@@ -1,7 +1,7 @@
 EBPF_BUILD := +$(MAKE) -C kern
 NAME := hades_edr
 EBPF_CO-RE_FLAG := core
-EBPF_SOURCE_PATH = kern/$(NAME).bpf.o
+EBPF_SOURCE_PATH = bpf/$(NAME).bpf.o
 EBPF_SOURCE_CO-RE_PATH = kern/$(NAME).core.bpf.o
 EBPF_TARGET_PATH = $(NAME).bpf.o
 GO_TARGET_PATH := -o edr

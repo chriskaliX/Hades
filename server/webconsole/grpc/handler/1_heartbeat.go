@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"fmt"
+	"hboat/grpc/handler/subhandle"
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
 	"hboat/pkg/basic/mongo"
@@ -10,6 +12,8 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	mg "go.mongodb.org/mongo-driver/mongo"
 )
 
 type Heartbeat struct{}
@@ -52,6 +56,30 @@ func (h *Heartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 		return err
 	}
 	conn.SetAgentDetail(data)
+	// Add metrics
+	// agent_metrics format: sys_cpu, agent_cpu, sys_mem, agent_mem
+	// docs := bson.D{{Key: "metrics", Value: fmt.Sprintf("%f,%f,%f,%f",
+	// 	data["sys_cpu"],
+	// 	data["agent_cpu"],
+	// 	data["sys_mem"],
+	// 	float64(data["rss"].(float64)/(1024*1024)))},
+	// 	{Key: "agent_id", Value: req.AgentID},
+	// 	{Key: "type", Value: subhandle.AgentType},
+	// 	{Key: "timestamp", Value: primitive.NewDateTimeFromTime(time.Now().UTC())},
+	// }
+	docs := bson.M{
+		"metrics": fmt.Sprintf("%f,%f,%f,%f",
+			data["sys_cpu"],
+			data["agent_cpu"],
+			data["sys_mem"],
+			float64(data["rss"].(float64)/(1024*1024))),
+		"agent_id":  req.AgentID,
+		"type":      subhandle.AgentType,
+		"timestamp": primitive.NewDateTimeFromTime(time.Now().UTC()),
+	}
+
+	model := mg.NewInsertOneModel().SetDocument(docs)
+	DefaultWorker.AddMetric(mg.NewInsertOneModel().SetDocument(model))
 	return nil
 }
 

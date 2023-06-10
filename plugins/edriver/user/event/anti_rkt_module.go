@@ -77,9 +77,7 @@ func (i *ModuleScan) Trigger(m *manager.Manager) error {
 }
 
 //go:noinline
-func (m *ModuleScan) trigger(mod_kset uint64) error {
-	return nil
-}
+func (m *ModuleScan) trigger(mod_kset uint64) error { return nil }
 
 func (m *ModuleScan) RegistCron() (string, decoder.EventCronFunc) {
 	return "* */10 * * * *", m.Trigger

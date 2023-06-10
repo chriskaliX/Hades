@@ -269,7 +269,7 @@ func (d *Driver) dataHandler(cpu int, data []byte, perfmap *manager.PerfMap, man
 		} else if err == decoder.ErrIgnore {
 			return
 		}
-		zap.S().Errorf("decode event error: %s", err)
+		zap.S().Errorf("decode %s error: %s", eventDecoder.Name(), err)
 		return
 	}
 	// Fillup the context by the values that Event offers

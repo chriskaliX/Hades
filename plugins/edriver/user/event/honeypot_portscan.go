@@ -1,3 +1,4 @@
+/*portscan detection will be move to eguard, since it's tc related*/
 package event
 
 import (
@@ -96,6 +97,6 @@ func (HoneyPot) GetMaps() []*manager.Map { return nil }
 
 func (HoneyPot) RegistCron() (string, decoder.EventCronFunc) { return "", nil }
 
-func init() {
-	decoder.RegistEvent(&HoneyPot{})
-}
+// func init() {
+// 	decoder.RegistEvent(&HoneyPot{})
+// }
