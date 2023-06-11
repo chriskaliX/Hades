@@ -5,6 +5,7 @@ import (
 	"hades-ebpf/conf"
 	"hades-ebpf/user"
 	"hades-ebpf/user/decoder"
+	"io/ioutil"
 	"net"
 	"os/exec"
 	"strings"
@@ -110,6 +111,11 @@ func TestMain(t *testing.T) {
 	// Better UI for command line usage
 	sandbox.Run(appRun)
 	time.Sleep(5 * time.Second)
+	f, err := ioutil.ReadFile("edriver.log")
+	if err == nil {
+		t.Log(string(f))
+	}
+
 	// clean up
 	exec.Command("rm", "-f", "test/dist/*.txt").Start() // clean up
 	assert.Equal(t, connect_flag, true, "connect testcase failed")

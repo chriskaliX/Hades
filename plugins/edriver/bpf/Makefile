@@ -3,6 +3,13 @@ CMD_TR ?= tr
 CMD_CUT ?= cut
 CMD_LLC ?= llc
 CMD_CLANG ?= clang
+CMD_GO ?= go
+CMD_AWK ?= awk
+CMD_SED ?= sed
+CMD_CUT ?= cut
+CMD_GIT ?= git
+CMD_MD5 ?= md5
+
 OPT ?= opt
 LLVM_DIS ?= llvm-dis
 CMD_LLVM_STRIP ?= llvm-strip
@@ -11,6 +18,15 @@ CHECK_TOOLS_EXSITS := $(foreach exec,$(EXECUTABLES),\
         $(if $(shell command -v $(exec) 2> /dev/null), ,then $(error "No $(exec) in PATH")) )
 CLANG_VERSION := $(shell $(CMD_CLANG) --version 2>/dev/null | \
 	head -1 | $(CMD_TR) -d '[:alpha:]' | $(CMD_TR) -d '[:space:]' | $(CMD_CUT) -d'.' -f1)
+GO_VERSION := $(shell $(CMD_GO) version 2>/dev/null | $(CMD_AWK) '{print $$3}' | $(CMD_SED) 's:go::g' | $(CMD_CUT) -d. -f1,2)
+TAG_COMMIT := $(shell git rev-list --abbrev-commit --tags --max-count=1)
+TAG := $(shell git describe --abbrev=0 --tags ${TAG_COMMIT} 2>/dev/null || true)
+COMMIT := $(shell git rev-parse --short HEAD)
+DATE := $(shell git log -1 --format=%cd --date=format:"%Y%m%d")
+LAST_GIT_TAG := $(TAG:v%=%)-$(DATE)-$(COMMIT)
+
+UNAME_M := $(shell uname -m)
+UNAME_R := $(shell uname -r)
 
 # envs
 KERN_RELEASE ?= $(shell uname -r)
@@ -38,7 +54,8 @@ nocore: \
 	$(MAKE) hades_ebpf_driver.bpf.o -s --no-print-directory
 
 core: \
-	pre_show
+	pre_show \
+	env_show
 	@printf "$(INFO_COLOR) Compile CO-RE driver\n"
 	$(MAKE) bpf-core -s --no-print-directory
 
@@ -60,6 +77,34 @@ pre_show:
 	@printf "$(SUCC_COLOR) Clang version pass\n"
 	@printf "$(INFO_COLOR) Clean for the old driver...\n"
 	$(MAKE) clean -s --no-print-directory
+
+# env print from ecapture
+.PHONY: env_show
+env_show:
+	@echo ---------------------------------------
+	@echo "Hades Makefile Environment:"
+	@echo ---------------------------------------
+	@echo "CLANG_VERSION            $(CLANG_VERSION)"
+	@echo "GO_VERSION               $(GO_VERSION)"
+	@echo ---------------------------------------
+	@echo "CMD_CLANG                $(CMD_CLANG)"
+	@echo "CMD_GIT                  $(CMD_GIT)"
+	@echo "CMD_GO                   $(CMD_GO)"
+	@echo "CMD_INSTALL              $(CMD_INSTALL)"
+	@echo "CMD_LLC                  $(CMD_LLC)"
+	@echo "CMD_MD5                  $(CMD_MD5)"
+	@echo "CMD_PKGCONFIG            $(CMD_PKGCONFIG)"
+	@echo "CMD_STRIP                $(CMD_STRIP)"
+	@echo "VERSION                  $(VERSION)"
+	@echo "LAST_GIT_TAG             $(LAST_GIT_TAG)"
+	@echo ---------------------------------------
+	@echo "UNAME_M                  $(UNAME_M)"
+	@echo "UNAME_R                  $(UNAME_R)"
+	@echo "ARCH                     $(ARCH)"
+	@echo ---------------------------------------
+	@echo "KERN_RELEASE             $(KERN_RELEASE)"
+	@echo "KERN_BLD_PATH            $(KERN_BLD_PATH)"
+	@echo "KERN_SRC_PATH            $(KERN_SRC_PATH)"
 
 # libbpf
 # Build libbpf to get the common headers for both core and no-core
