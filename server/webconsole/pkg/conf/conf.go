@@ -21,11 +21,6 @@ type Conf struct {
 		Password   string   `yaml:"password"`
 		MasterName string   `yaml:"mastername"`
 	} `yaml:"redis"`
-	Influx struct {
-		Addrs    []string `yaml:"addrs"`
-		username string   `yaml:"username"`
-		Password string   `yaml:"password"`
-	} `yaml:"influx"`
 	Backend struct {
 		AgentHBOfflineSec      int64 `yaml:"agent_heartbeat_offline_sec"`
 		UserSessionLifetimeMin int   `yaml:"user_session_lifetime_min"`

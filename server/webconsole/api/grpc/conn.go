@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"hboat/api/common"
 	"hboat/pkg/basic/mongo"
 	"hboat/pkg/conf"
@@ -94,6 +95,9 @@ type AgentBasicResp struct {
 	Status   bool        `json:"status"`
 	CreateAt int64       `json:"create_at"`
 	Platform interface{} `json:"platform"`
+	Tags     []string    `json:"tags"`
+	Cpu      string      `json:"cpu"`
+	Mem      string      `json:"mem"`
 	Addr     interface{} `json:"addr"`
 }
 
@@ -119,11 +123,22 @@ func AgentBasic(c *gin.Context) {
 			continue
 		}
 		detail := as.AgentDetail
+		var cpu, rss float64
+		cpu = detail["cpu"].(float64)
+		rss = detail["rss"].(float64)
+		for _, v := range as.PluginDetail {
+			cpu += v["cpu"].(float64)
+			rss += v["rss"].(float64)
+		}
+
 		tmp := AgentBasicResp{
 			AgentID:  as.AgentID,
 			Hostname: detail["hostname"],
 			Status:   as.IsOnline(),
 			CreateAt: as.CreateAt,
+			Tags:     as.Tags,
+			Cpu:      fmt.Sprintf("%.2f", cpu*100),
+			Mem:      fmt.Sprintf("%.1f", rss/(1024*1024)),
 			Platform: detail["platform"],
 			Addr:     as.Addr,
 		}

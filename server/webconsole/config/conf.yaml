@@ -7,11 +7,6 @@ redis:
   mode: 2 # 2 for single mode
   mastername: ""
   password: ""
-influx:
-  addrs:
-    - "127.0.0.1:8086"
-  username: ""
-  password: ""
 backend:
   agent_heartbeat_offline_sec: 300
   user_session_lifetime_min: 1200
