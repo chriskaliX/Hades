@@ -109,6 +109,7 @@ func TestMain(t *testing.T) {
 	}()
 	// Better UI for command line usage
 	sandbox.Run(appRun)
+	time.Sleep(5 * time.Second)
 	// clean up
 	exec.Command("rm", "-f", "test/dist/*.txt").Start() // clean up
 	assert.Equal(t, connect_flag, true, "connect testcase failed")
