@@ -449,9 +449,9 @@ struct syscall_buffer {
     u16 envp_cursor;
 };
 
-static struct syscall_buffer syscall_buffer_zero = {0};
-
 BPF_HASH(syscall_buffer_cache, u64, struct syscall_buffer, 512);
+
+static struct syscall_buffer syscall_buffer_zero = {};
 
 static __always_inline struct syscall_buffer *
 reset_syscall_buffer_cache(u64 id)

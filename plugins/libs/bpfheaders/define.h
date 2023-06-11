@@ -39,7 +39,7 @@
 #define MAX_PERCPU_BUFSIZE      (1 << 15)
 #define MAX_STRING_SIZE         256
 #define MAX_STR_ARR_ELEM        32
-#define MAX_PATH_COMPONENTS     14
+#define MAX_PATH_COMPONENTS     16
 #define MAX_PATH_COMPONENTS_SIM 10
 #define MAX_NODENAME            64
 #define MAX_PID_TREE_TRACE      12
