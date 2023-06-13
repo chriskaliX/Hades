@@ -443,14 +443,8 @@ out:
 #define MAX_DATA_PER_SYSCALL 4096
 
 struct syscall_buffer {
-    union {
-        char args[MAX_DATA_PER_SYSCALL];
-        char *args_p;
-    };
-    union {
-        char envp[MAX_DATA_PER_SYSCALL];
-        char *envp_p;
-    };
+    char args[MAX_DATA_PER_SYSCALL];
+    char envp[MAX_DATA_PER_SYSCALL];
     u16 cursor;
     u16 envp_cursor;
 };
@@ -519,6 +513,7 @@ out:
     return 1;
 }
 
+// lpm
 static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
                                                  const char *const *ptr)
 {
@@ -586,7 +581,7 @@ save_argv_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
     bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
                                          ((MAX_PERCPU_BUFSIZE) -
                                           (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, buf->args_p);
+                   MAX_DATA_PER_SYSCALL, buf->args);
     // exceed size
     if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
         return 0;
@@ -603,7 +598,7 @@ save_envp_to_buf(event_data_t *data, struct syscall_buffer *buf, int index)
     bpf_probe_read(&(data->submit_p->buf[(data->buf_off + 1) &
                                          ((MAX_PERCPU_BUFSIZE) -
                                           (MAX_DATA_PER_SYSCALL)-1)]),
-                   MAX_DATA_PER_SYSCALL, buf->envp_p);
+                   MAX_DATA_PER_SYSCALL, buf->envp);
     if (data->buf_off > MAX_PERCPU_BUFSIZE - 1)
         return 0;
     data->submit_p->buf[data->buf_off] = index;
