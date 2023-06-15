@@ -56,7 +56,7 @@ SEC("tracepoint/syscalls/sys_enter_execve")
 int sys_enter_execve(struct syscall_enter_args *ctx)
 {
     __u64 id = bpf_get_current_pid_tgid();
-     struct syscall_buffer *buf = reset_syscall_buffer_cache(id);
+    struct syscall_buffer *buf = reset_syscall_buffer_cache(id);
     if (!buf)
         return 0;
     save_args_into_buffer(buf, (void *)ctx->args[1]);

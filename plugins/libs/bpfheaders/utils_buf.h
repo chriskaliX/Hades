@@ -513,7 +513,6 @@ out:
     return 1;
 }
 
-// lpm
 static __always_inline int save_envp_into_buffer(struct syscall_buffer *buf,
                                                  const char *const *ptr)
 {
