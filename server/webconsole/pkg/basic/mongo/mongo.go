@@ -100,7 +100,7 @@ func (m *MongoProxy) timeCollectionPreCreate(db *mongo.Database, colName string,
 	}
 	if !match {
 		// As default, we get metrics ans save them for 7 days
-		opts := options.CreateCollection().SetTimeSeriesOptions(tso).SetExpireAfterSeconds(7 * 24 * 60 * 60)
+		opts := options.CreateCollection().SetTimeSeriesOptions(tso).SetExpireAfterSeconds(3 * 24 * 60 * 60)
 		return db.CreateCollection(context.TODO(), colName, opts)
 	}
 	return nil
