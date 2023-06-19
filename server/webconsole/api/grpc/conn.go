@@ -128,11 +128,12 @@ func AgentBasic(c *gin.Context) {
 		rss = detail["rss"].(float64)
 		for _, v := range as.PluginDetail {
 			// pass the lost ones
-			if time.Now().Unix()-int64(v["last_heartbeat_time"].(int64)) > 180 {
+			if !as.IsOnline() {
 				continue
 			}
 			cpu += v["cpu"].(float64)
 			rss += v["rss"].(float64)
+			fmt.Println(v["cpu"].(float64), v["rss"].(float64))
 		}
 
 		tmp := AgentBasicResp{
