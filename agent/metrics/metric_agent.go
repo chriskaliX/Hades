@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"agent/agent"
+	"agent/plugin"
 	"agent/proto"
 	"agent/transport"
 	"agent/transport/connection"
@@ -120,16 +121,32 @@ func (m *AgentMetric) Flush(now time.Time) {
 
 	pid := os.Getpid()
 	m.Pid = strconv.Itoa(pid)
+	var cpuTotal float64
+	var rssTotal uint64
 	if cpu, rss, rs, ws, fds, startAt, err := getProcResource(pid); err == nil {
-		m.Cpu = strconv.FormatFloat(cpu, 'f', 8, 64)
+		cpuTotal = cpu
+		rssTotal = rss
 		m.ReadSpeed = strconv.FormatFloat(rs, 'f', 8, 64)
 		m.WriteSpeed = strconv.FormatFloat(ws, 'f', 8, 64)
-		m.Rss = strconv.FormatUint(rss, 10)
 		m.Nfd = strconv.FormatInt(int64(fds), 10)
 		m.StartAt = strconv.FormatInt(startAt, 10)
 	} else {
 		zap.S().Errorf("agent getProcResource failed: %s", err.Error())
 	}
+	// add the plugin cpu/memory into this
+	for _, plg := range plugin.PluginManager.GetAll() {
+		if plg.IsExited() {
+			continue
+		}
+		if cpu, rss, _, _, _, _, err := getProcResource(plg.Pid()); err == nil {
+			cpuTotal += cpu
+			rssTotal += rss
+		} else {
+			zap.S().Errorf("plugin %s getProcResource failed: %s", plg.Name(), err.Error())
+		}
+	}
+	m.Cpu = strconv.FormatFloat(cpuTotal, 'f', 8, 64)
+	m.Rss = strconv.FormatUint(rssTotal, 10)
 
 	s := connection.DefaultStatsHandler.GetStats(now)
 	m.RxSpeed = strconv.FormatFloat(s.RxSpeed, 'f', 8, 64)

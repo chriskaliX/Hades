@@ -20,22 +20,15 @@ type homePageResp struct {
 	HostOffline int64 `json:"host_offline"`
 	Container   int64 `json:"container"`
 	Service     int64 `json:"service"`
-	// log record
-	Record []record `json:"record"`
 	// security alerts
-	Alert    []int `json:"alert"` // 7 days alert count
-	Vul      []int `json:"vul"`
-	Critical int   `json:"critical"`
-	High     int   `json:"high"`
+	Record   []record                 `json:"record"`
+	Alert    []map[string]interface{} `json:"alert"` // 7 days alert count
+	Vul      []int                    `json:"vul"`
+	Critical int                      `json:"critical"`
+	High     int                      `json:"high"`
 	// DB delay
 	RedisDelay int64 `json:"redis_delay"`
 	MongoDelay int64 `json:"mongo_delay"`
-}
-
-type record struct {
-	GmtCreate int64  `json:"gmt_create"`
-	Message   string `json:"message"`
-	Operator  string `json:"operator"`
 }
 
 func HomePage(c *gin.Context) {
@@ -63,9 +56,9 @@ func HomePage(c *gin.Context) {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	// records
+	// record
 	findOptions := options.Find()
-	findOptions.SetLimit(5)
+	findOptions.SetLimit(6)
 	findOptions.SetSort(bson.M{"gmt_create": -1})
 	cur, err := mongo.MongoProxyImpl.RecordC.Find(context.Background(), bson.D{}, findOptions)
 	if err != nil {
@@ -81,16 +74,19 @@ func HomePage(c *gin.Context) {
 			common.Response(c, common.ErrorCode, err.Error())
 			return
 		}
-		// 处理查询结果
 		resp.Record = append(resp.Record, record{
 			GmtCreate: result["gmt_create"].(int64),
 			Operator:  result["operator"].(string),
 			Message:   result["message"].(string),
 		})
 	}
+
 	// TODO: finished the alert
-	resp.Alert = []int{0, 1, 5, 4, 2, 1}
-	resp.Vul = []int{7, 2, 4, 1, 1, 3}
+	resp.Alert = []map[string]interface{}{
+		{"time": "2022-01-01", "value": 1},
+		{"time": "2022-01-02", "value": 2},
+		{"time": "2022-01-03", "value": 7},
+	}
 	resp.Critical = 2
 	resp.High = 5
 	// Ping the redis / mongodb
@@ -111,5 +107,44 @@ func HomePage(c *gin.Context) {
 		resp.MongoDelay = elapsed
 	}
 
+	common.Response(c, common.SuccessCode, resp)
+}
+
+type recordResp struct {
+	Record []record `json:"record"`
+}
+
+type record struct {
+	GmtCreate int64  `json:"gmt_create"`
+	Message   string `json:"message"`
+	Operator  string `json:"operator"`
+}
+
+// Operation records
+func Record(c *gin.Context) {
+	var resp recordResp
+	findOptions := options.Find()
+	findOptions.SetLimit(6)
+	findOptions.SetSort(bson.M{"gmt_create": -1})
+	cur, err := mongo.MongoProxyImpl.RecordC.Find(context.Background(), bson.D{}, findOptions)
+	if err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+	defer cur.Close(context.Background())
+	resp.Record = make([]record, 0)
+	for cur.Next(context.Background()) {
+		var result map[string]interface{}
+		err := cur.Decode(&result)
+		if err != nil {
+			common.Response(c, common.ErrorCode, err.Error())
+			return
+		}
+		resp.Record = append(resp.Record, record{
+			GmtCreate: result["gmt_create"].(int64),
+			Operator:  result["operator"].(string),
+			Message:   result["message"].(string),
+		})
+	}
 	common.Response(c, common.SuccessCode, resp)
 }

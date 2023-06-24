@@ -4,6 +4,7 @@ import (
 	"fmt"
 	gApi "hboat/api/grpc"
 	"hboat/api/host"
+	"hboat/api/host/application"
 	"hboat/api/middleware"
 	"hboat/api/plugin"
 	"hboat/api/static"
@@ -124,9 +125,15 @@ func RunGrpcServer(port int) {
 		aGroup.GET("/get", host.AgentAsset)
 	}
 	{
-		apiv1Router.Any("/tag", host.TagAction)
+		appGroup := apiv1Router.Group("/application")
+		appGroup.GET("/dashboard", application.Dashboard)
 	}
 	{
+		apiv1Router.Any("/tag", host.TagAction)
+	}
+	// Homepage API
+	{
+		apiv1Router.GET("/record", Record)
 		apiv1Router.GET("/home", HomePage)
 	}
 

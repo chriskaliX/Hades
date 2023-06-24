@@ -5,8 +5,6 @@ import (
 	"hboat/grpc/handler/subhandle"
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var EventHandler = make(map[int32]Event)
@@ -60,6 +58,6 @@ func (w *Worker) Add(dt int32, agentid string, m map[string]interface{}) {
 	w.Asset.Add(dt, agentid, m)
 }
 
-func (w *Worker) AddMetric(model *mongo.InsertOneModel) {
+func (w *Worker) AddMetric(model interface{}) {
 	w.Metric.Add(model)
 }
