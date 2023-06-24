@@ -163,7 +163,7 @@ func Dashboard(c *gin.Context) {
 			primitive.E{Key: "total", Value: bson.D{primitive.E{Key: "$sum", Value: 1}}},
 		}}},
 		bson.D{primitive.E{Key: "$sort", Value: bson.D{primitive.E{Key: "total", Value: -1}}}},
-		bson.D{primitive.E{Key: "$limit", Value: 6}},
+		bson.D{primitive.E{Key: "$limit", Value: 5}},
 	}
 	cur, err = mongo.MongoProxyImpl.AssetC.Aggregate(ctx, appPipeline)
 	if err != nil {

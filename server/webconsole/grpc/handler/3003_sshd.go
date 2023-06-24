@@ -1,12 +1,15 @@
 package handler
 
 import (
-	"fmt"
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
+
+	utilcache "k8s.io/apimachinery/pkg/util/cache"
 )
 
-type Sshd struct{}
+type Sshd struct {
+	c *utilcache.LRUExpireCache
+}
 
 var _ Event = (*Sshd)(nil)
 
@@ -19,9 +22,26 @@ func (s *Sshd) Handle(m map[string]string, req *pb.RawData, conn *pool.Connectio
 	for k, v := range m {
 		mapper[k] = v
 	}
-	fmt.Println(mapper)
-	// DefaultWorker.Add(s.ID(), req.AgentID, mapper)
+	DefaultWorker.Add(s.ID(), req.AgentID, mapper)
 	return nil
 }
 
-func init() { RegistEvent(&Sshd{}) }
+// ssh alarm
+// single ip: within 5 mins, 5 failed
+// multi ip: within 5 mins, 5 failed
+// For now, just a demo
+func (s *Sshd) incr(m map[string]string, req *pb.RawData) error {
+	// item, ok := s.c.Get(req.AgentID)
+	// if !ok {
+	// 	var init int = 1
+	// 	s.c.Add(req.AgentID, init, 120*time.Second)
+	// }
+	// s.c.Update(req.AgentID, item.(int)+1)
+	return nil
+}
+
+func init() {
+	RegistEvent(&Sshd{
+		c: utilcache.NewLRUExpireCache(1024 * 8),
+	})
+}

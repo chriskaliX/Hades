@@ -25,6 +25,9 @@ const (
 	// agent_metrics format: sys_cpu, agent_cpu, sys_mem, agent_mem // adding networking afterwards
 	// plugin_metrics format: cpu, rss, tx_tps, tx_speed
 	metricCol = "metric"
+	// ssh log
+	sshCol   = "ssh_log"
+	alarmCol = "alarm"
 )
 
 var MongoProxyImpl = &MongoProxy{}
@@ -38,6 +41,8 @@ type MongoProxy struct {
 	UserC   *mongo.Collection
 	RecordC *mongo.Collection
 	MetricC *mongo.Collection
+	SshC    *mongo.Collection
+	Alarm   *mongo.Collection
 }
 
 func (m *MongoProxy) Init(uri string, poolsize uint64) error {
@@ -68,6 +73,15 @@ func (m *MongoProxy) Init(uri string, poolsize uint64) error {
 		return err
 	}
 	m.MetricC = m.client.Database(dbName).Collection(metricCol)
+	// ssh with expire
+	m.SshC = m.client.Database(dbName).Collection(sshCol)
+	model := mongo.IndexModel{
+		Keys:    bson.M{"timestamp": 1},
+		Options: options.Index().SetExpireAfterSeconds(7 * 24 * 60 * 60),
+	}
+	m.SshC.Indexes().CreateOne(ctx, model)
+	// alarm
+	m.MetricC = m.client.Database(dbName).Collection(alarmCol)
 
 	// backend admin user init
 	res := m.UserC.FindOne(context.Background(), bson.M{"username": "admin"})
