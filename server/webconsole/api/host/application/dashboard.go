@@ -4,11 +4,17 @@ import (
 	"context"
 	"hboat/api/common"
 	"hboat/pkg/basic/mongo"
+<<<<<<< HEAD
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+=======
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+>>>>>>> 8563085b7fec8effadc3c3a82883b84312af7907
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -20,6 +26,7 @@ type dashboardResp struct {
 	ApplicationCount int64 `json:"application_count"`
 	CrontabCount     int64 `json:"crontab_count"`
 	KmodCount        int64 `json:"kmod_count"`
+<<<<<<< HEAD
 	SocketCount      int64 `json:"socket_count"` // open port
 	BpfCount         int64 `json:"bpf_count"`
 	SocketTop        []top `json:"socket_top"`
@@ -35,6 +42,14 @@ type top struct {
 const countLimit int64 = 9999
 
 func Dashboard(c *gin.Context) {
+=======
+}
+
+const countLimit int64 = 99999
+
+func Dashboard(c *gin.Context) {
+
+>>>>>>> 8563085b7fec8effadc3c3a82883b84312af7907
 	var resp dashboardResp
 
 	containerCount, err := getCount(bson.M{"data_type": 3018})
@@ -79,6 +94,7 @@ func Dashboard(c *gin.Context) {
 		return
 	}
 	resp.KmodCount = kmodCount
+<<<<<<< HEAD
 	socketCount, err := getCount(bson.M{"data_type": 5001, "sip": "0.0.0.0"})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
@@ -179,18 +195,24 @@ func Dashboard(c *gin.Context) {
 	resp.ApplicationTop = fillTop(resp.ApplicationTop)
 	resp.SystemdTop = fillTop(resp.SystemdTop)
 	resp.SocketTop = fillTop(resp.SocketTop)
+=======
+>>>>>>> 8563085b7fec8effadc3c3a82883b84312af7907
 
 	common.Response(c, common.SuccessCode, &resp)
 }
 
 func getCount(filter bson.M) (int64, error) {
+<<<<<<< HEAD
 	filter["update_time"] = bson.M{"$gt": time.Now().Unix() - 60*60*24}
+=======
+>>>>>>> 8563085b7fec8effadc3c3a82883b84312af7907
 	var max int64 = countLimit
 	opts := &options.CountOptions{
 		Limit: &max,
 	}
 	return mongo.MongoProxyImpl.AssetC.CountDocuments(context.Background(), filter, opts)
 }
+<<<<<<< HEAD
 
 func fillTop(t []top) []top {
 	if len(t) < 5 {
@@ -198,3 +220,5 @@ func fillTop(t []top) []top {
 	}
 	return t
 }
+=======
+>>>>>>> 8563085b7fec8effadc3c3a82883b84312af7907
