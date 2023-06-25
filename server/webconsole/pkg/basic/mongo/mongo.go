@@ -42,7 +42,7 @@ type MongoProxy struct {
 	RecordC *mongo.Collection
 	MetricC *mongo.Collection
 	SshC    *mongo.Collection
-	Alarm   *mongo.Collection
+	AlarmC  *mongo.Collection
 }
 
 func (m *MongoProxy) Init(uri string, poolsize uint64) error {
@@ -81,7 +81,7 @@ func (m *MongoProxy) Init(uri string, poolsize uint64) error {
 	}
 	m.SshC.Indexes().CreateOne(ctx, model)
 	// alarm
-	m.MetricC = m.client.Database(dbName).Collection(alarmCol)
+	m.AlarmC = m.client.Database(dbName).Collection(alarmCol)
 
 	// backend admin user init
 	res := m.UserC.FindOne(context.Background(), bson.M{"username": "admin"})

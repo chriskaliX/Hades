@@ -1,5 +1,7 @@
 package mongo
 
+import "time"
+
 type AlarmLevel string
 
 const (
@@ -22,7 +24,7 @@ type Alarm struct {
 	Type        string      `json:"type" bson:"type"`
 	Status      AlarmStatus `json:"status" bson:"status"`
 	AgentId     string      `json:"agent_id" bson:"agent_id"`
-	GmtCreate   int64       `json:"gmt_create" bson:"gmt_create"`
-	GmtModified int64       `json:"gmt_modified" bson:"gmt_modified"`
+	GmtCreate   time.Time   `json:"gmt_create" bson:"gmt_create"`
+	GmtModified time.Time   `json:"gmt_modified" bson:"gmt_modified"`
 	Description interface{} `json:"description" bson:"description"`
 }

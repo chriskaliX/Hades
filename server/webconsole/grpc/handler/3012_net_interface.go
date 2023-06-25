@@ -30,4 +30,4 @@ func (c *NetInterface) Handle(m map[string]string, req *pb.RawData, conn *pool.C
 	return nil
 }
 
-func init() { RegistEvent(&Iptable{}) }
+func init() { RegistEvent(&NetInterface{}) }

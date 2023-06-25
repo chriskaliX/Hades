@@ -30,4 +30,4 @@ func (c *Bpf) Handle(m map[string]string, req *pb.RawData, conn *pool.Connection
 	return nil
 }
 
-func init() { RegistEvent(&Iptable{}) }
+func init() { RegistEvent(&Bpf{}) }

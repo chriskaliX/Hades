@@ -30,4 +30,4 @@ func (c *SystemdUnit) Handle(m map[string]string, req *pb.RawData, conn *pool.Co
 	return nil
 }
 
-func init() { RegistEvent(&Iptable{}) }
+func init() { RegistEvent(&SystemdUnit{}) }
