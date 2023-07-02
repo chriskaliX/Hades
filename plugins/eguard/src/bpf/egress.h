@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
+ /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
@@ -8,13 +8,18 @@
 #define ETH_P_IP    0x0800
 #define ETH_P_IPV6  0x86DD
 
-#define TC_ACT_UNSPEC	(-1)
-#define TC_ACT_SHOT
+#define TC_ACT_UNSPEC       (-1)
+#define TC_ACT_OK		    0
+#define TC_ACT_RECLASSIFY	1
+#define TC_ACT_SHOT		    2
 
 #define s6_addr16 in6_u.u6_addr16
 #define s6_addr32 in6_u.u6_addr32
 
 #define EGRESS_POLICY_MAP_SIZE 16384
+#define ACTION_DENY     0
+#define ACTION_LOG      1
+#define PROTOCOL_ALL    0
 
 // send out the perf event
 struct {
@@ -28,13 +33,19 @@ struct policy_key {
     struct  in6_addr addr;
 };
 
+struct policy_value {
+    __u32   action;
+    __u32   protocol;
+};
+
 // Dump the skeleton
 struct policy_key _policy_key = {0};
+struct policy_value _policy_value = {0};
 
 struct {
 	__uint(type, BPF_MAP_TYPE_LPM_TRIE);
 	__type(key, struct policy_key);
-	__type(value, u64); // count
+	__type(value, struct policy_value); // count
     __uint(map_flags, BPF_F_NO_PREALLOC);
     __uint(max_entries, EGRESS_POLICY_MAP_SIZE);
 } EGRESS_POLICY_MAP SEC(".maps");
@@ -113,8 +124,8 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
         pkt.protocol = ip6->nexthdr;
     }
 
-    // to parse the protocol and get the port
-    //
+    // get protocol through the packet, icmp & icmpv6 will be supported in the feature
+    // 
     switch (pkt.protocol) {
         case IPPROTO_TCP:
             if (!skb_revalidate_data(skb, &start, &end, l4_hdr_off + sizeof(struct tcphdr)))
@@ -123,18 +134,33 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
             pkt.src_port = tcp->source;
             pkt.dst_port = tcp->dest;
             break;
-        default:
-            return TC_ACT_UNSPEC;
+        case IPPROTO_UDP:
+            if (!skb_revalidate_data(skb, &start, &end, l4_hdr_off + sizeof(struct udphdr)))
+                return TC_ACT_UNSPEC;
+            struct udphdr *udp = (void *) start + l4_hdr_off;
+            pkt.src_port = udp->source;
+            pkt.dst_port = udp->dest;
     }
     // fill up the key
     struct policy_key key = { 
         .prefixlen = 128,
         .addr = pkt.dst_addr
     };
-    if (bpf_map_lookup_elem(&EGRESS_POLICY_MAP, &key)) {
+
+    struct policy_value *value = bpf_map_lookup_elem(&EGRESS_POLICY_MAP, &key);
+    if (value) {
         size_t pkt_size = sizeof(pkt);
+        // protocol match
+        if (value->protocol != PROTOCOL_ALL && value->protocol != pkt.protocol) {
+            return TC_ACT_UNSPEC;
+        }
+
         bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
+        if (value->action == ACTION_DENY) {
+            return TC_ACT_SHOT;
+        }       
     }
+
     return TC_ACT_UNSPEC;
 };
 

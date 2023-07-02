@@ -127,6 +127,9 @@ func RunGrpcServer(port int) {
 	{
 		appGroup := apiv1Router.Group("/application")
 		appGroup.GET("/dashboard", application.Dashboard)
+		appGroup.GET("/get", application.GeneralApp)
+		appGroup.GET("/container/get", application.ContainerDash)
+		appGroup.GET("/container/top", application.ContainerTop)
 	}
 	{
 		apiv1Router.Any("/tag", host.TagAction)

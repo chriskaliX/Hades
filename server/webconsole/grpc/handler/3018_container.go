@@ -4,9 +4,12 @@ import (
 	"hboat/grpc/transfer/pool"
 	pb "hboat/grpc/transfer/proto"
 	"strconv"
+	"strings"
 )
 
 type Container struct{}
+
+const imgName = "image_name"
 
 var _ Event = (*Container)(nil)
 
@@ -22,14 +25,19 @@ func (c *Container) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 		case "pid", "pns":
 			i, _ := strconv.ParseUint(v, 10, 32)
 			mapper[k] = i
-		// case "labels":
-		// 	value := make(map[string]interface{})
-		// 	json.Unmarshal([]byte(v), &value)
-		// 	mapper[k] = value
 		default:
 			mapper[k] = v
 		}
 	}
+	// extract the real name and version
+	name, ok := mapper[imgName].(string)
+	if ok {
+		arr := strings.Split(name, ":")
+		mapper["image_name_without_version"] = arr[0]
+	} else {
+		mapper["image_name_without_version"] = ""
+	}
+
 	DefaultWorker.Add(c.ID(), req.AgentID, mapper)
 	return nil
 }

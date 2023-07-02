@@ -2,7 +2,9 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"hboat/api/common"
+	"hboat/grpc/handler"
 	"hboat/pkg/basic/mongo"
 	"time"
 
@@ -34,6 +36,7 @@ type top struct {
 
 const countLimit int64 = 9999
 
+// dashboard or we say overview
 func Dashboard(c *gin.Context) {
 	var resp dashboardResp
 
@@ -108,7 +111,7 @@ func Dashboard(c *gin.Context) {
 			primitive.E{Key: "total", Value: bson.D{primitive.E{Key: "$sum", Value: 1}}},
 		}}},
 		bson.D{primitive.E{Key: "$sort", Value: bson.D{primitive.E{Key: "total", Value: -1}}}},
-		bson.D{primitive.E{Key: "$limit", Value: 6}},
+		bson.D{primitive.E{Key: "$limit", Value: 5}},
 	}
 	ctx := context.Background()
 	cur, err := mongo.MongoProxyImpl.AssetC.Aggregate(ctx, socketPipeline)
@@ -136,7 +139,7 @@ func Dashboard(c *gin.Context) {
 			primitive.E{Key: "total", Value: bson.D{primitive.E{Key: "$sum", Value: 1}}},
 		}}},
 		bson.D{primitive.E{Key: "$sort", Value: bson.D{primitive.E{Key: "total", Value: -1}}}},
-		bson.D{primitive.E{Key: "$limit", Value: 6}},
+		bson.D{primitive.E{Key: "$limit", Value: 5}},
 	}
 	cur, err = mongo.MongoProxyImpl.AssetC.Aggregate(ctx, systemdPipeline)
 	if err != nil {
@@ -181,6 +184,48 @@ func Dashboard(c *gin.Context) {
 	resp.SocketTop = fillTop(resp.SocketTop)
 
 	common.Response(c, common.SuccessCode, &resp)
+}
+
+// general assets search
+func GeneralApp(c *gin.Context) {
+	type request struct {
+		Type string `form:"type" binding:"required"`
+	}
+
+	type response struct {
+		Total  int32                    `json:"total"`
+		Assets []map[string]interface{} `json:"assets"`
+	}
+
+	pageReq := common.PageReq{}
+	if err := c.Bind(&pageReq); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+
+	// agent asset request binding
+	req := request{}
+	if err := c.Bind(&req); err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+		return
+	}
+
+	dt, ok := handler.EventNameCache[req.Type]
+	if !ok {
+		common.Response(c, common.ErrorCode, fmt.Sprintf("type %s is not registed", req.Type))
+		return
+	}
+
+	respCommon, err := common.DBPageSearch(mongo.MongoProxyImpl.AssetC, &pageReq, bson.M{"data_type": dt.ID(), "update_time": bson.M{"$gt": time.Now().Unix() - 3*24*60*60}})
+	if err != nil {
+		common.Response(c, common.ErrorCode, err.Error())
+	}
+
+	resp := response{
+		Total:  int32(respCommon.Total),
+		Assets: respCommon.Items,
+	}
+	common.Response(c, common.SuccessCode, resp)
 }
 
 func getCount(filter bson.M) (int64, error) {

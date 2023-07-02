@@ -1,30 +1,32 @@
 mod eguard_skel {
     include!("../bpf/eguard.skel.rs");
 }
-use eguard_skel::*;
-use libbpf_rs::{TcHookBuilder,TC_EGRESS, TcHook, PerfBufferBuilder, MapFlags};
-use plain::Plain;
+use crate::config::config::*;
+use crate::config::ip_config::IpConfig;
+
+use super::ip_address::IpAddress;
 use super::BpfProgram;
-use anyhow::{Result, Ok, bail, Context};
-use std::net::{Ipv6Addr, Ipv4Addr};
-use std::str::FromStr;
-use std::sync::{Mutex, Arc};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::{self, spawn, sleep};
+use anyhow::{bail, Context, Ok, Result};
 use core::time::Duration;
+use eguard_skel::*;
+use libbpf_rs::{MapFlags, PerfBufferBuilder, TcHook, TcHookBuilder, TC_EGRESS};
+use libc::{IPPROTO_TCP, IPPROTO_UDP};
+use plain::Plain;
+use std::fs;
+use std::net::Ipv6Addr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, sleep, spawn};
 
 #[derive(Default)]
 pub struct TcEvent<'a> {
     fd: i32,
     if_name: String,
     if_idx: i32,
-    // skel and hook
-    skel: Option<EguardSkel<'a>>,
+    skel: Option<EguardSkel<'a>>, // skel and hook
     tchook: Option<TcHook>,
-    // the thread
     thread_handle: Option<thread::JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
-    // event internal status
     stuatus: AtomicBool,
 }
 
@@ -42,6 +44,41 @@ impl<'a> TcEvent<'a> {
         Ok(())
     }
 
+    // flush config from Vec<Policy>, delete firstly, then add
+    pub fn flush_config(&mut self, cfg: EgressPolicy) -> Result<()> {
+        // delete the cfgs if not in the new ones
+        let mut key = eguard_bss_types::policy_key::default();
+        let mut value = eguard_bss_types::policy_value::default();
+        // parse key
+        let ip = IpConfig::new(&cfg.address)?;
+        key.prefixlen = (ip.prefixlen).to_le();
+        key.addr = eguard_bss_types::in6_addr::default();
+        let address = IpAddress::from_ip(ip.subnet);
+        key.addr.in6_u.u6_addr8 = address.0;
+        let key = unsafe { plain::as_bytes(&key) };
+        // parse value
+        match cfg.action {
+            EgressAction::DENY => value.action = 0,
+            EgressAction::LOG => value.action = 1,
+        }
+        // parse protocol
+        match cfg.protocol {
+            EgressProtocol::ALL => value.protocol = 0,
+            EgressProtocol::TCP => value.protocol = IPPROTO_TCP as u32,
+            EgressProtocol::UDP => value.protocol = IPPROTO_UDP as u32,
+        }
+        // flush to the map
+        let value = unsafe { plain::as_bytes(&value) };
+        self.skel
+            .as_mut()
+            .unwrap()
+            .maps_mut()
+            .EGRESS_POLICY_MAP()
+            .update(&key, &value, MapFlags::ANY)?;
+
+        Ok(())
+    }
+
     fn exit_thread(&mut self) {
         if let Some(thread) = &self.thread_handle {
             *self.running.lock().unwrap() = false;
@@ -51,14 +88,14 @@ impl<'a> TcEvent<'a> {
                 }
                 sleep(Duration::new(1, 0));
             }
-        }        
+        }
     }
 
     // event handlers
     fn handle_event(_cpu: i32, data: &[u8]) {
         let mut event = eguard_bss_types::net_packet::default();
         plain::copy_from_bytes(&mut event, data).expect("data buffer was too short");
-    
+
         let sip: Ipv6Addr;
         let dip: Ipv6Addr;
 
@@ -66,7 +103,6 @@ impl<'a> TcEvent<'a> {
             sip = Ipv6Addr::from(event.src_addr.in6_u.u6_addr8);
             dip = Ipv6Addr::from(event.dst_addr.in6_u.u6_addr8);
         }
-        
 
         println!(
             "{:#?} {:#?}",
@@ -89,33 +125,19 @@ impl<'a> BpfProgram for TcEvent<'a> {
         // initialization
         let builder = EguardSkelBuilder::default();
         self.skel = Some(builder.open()?.load()?);
-        let skel = self.skel.as_mut();
-        if skel.is_none() {
-            bail!("skel is invalid")
-        }
-        let skel = skel.unwrap();
+        let skel = self.skel.as_mut().unwrap();
 
         // generate the tc hook
         self.fd = skel.progs().hades_egress().fd();
-        self.tchook = Some(TcHookBuilder::new()
-            .fd(self.fd.clone())
-            .ifindex(self.if_idx.clone())
-            .replace(true)
-            .handle(1)
-            .priority(1)
-            .hook(TC_EGRESS));
-        
-        // debugging here
-        let value = (1 as u64).to_ne_bytes();
-        let mut key = eguard_bss_types::policy_key::default();
-
-        key.prefixlen = (96 as u32).to_le();
-        key.addr = eguard_bss_types::in6_addr::default();
-        key.addr.in6_u.u6_addr8 = Ipv6Addr::from_str("0000:0000:0000:0000:0000:0000:192.168.1.1").unwrap().octets();
-
-        let key_bytes: &[u8];
-        unsafe { key_bytes = any_as_u8_slice(&key) };
-        skel.maps_mut().EGRESS_POLICY_MAP().update(key_bytes, &value, MapFlags::ANY)?;
+        self.tchook = Some(
+            TcHookBuilder::new()
+                .fd(self.fd.clone())
+                .ifindex(self.if_idx.clone())
+                .replace(true)
+                .handle(1)
+                .priority(1)
+                .hook(TC_EGRESS),
+        );
 
         // consume the perf continusiouly
         let perf = PerfBufferBuilder::new(skel.maps_mut().events())
@@ -129,11 +151,20 @@ impl<'a> BpfProgram for TcEvent<'a> {
         let thread_job = spawn(move || {
             while *running.lock().unwrap() {
                 if let Err(_) = perf.poll(Duration::from_millis(100)) {
-                    break
+                    break;
                 }
             }
         });
         self.thread_handle = Some(thread_job);
+
+        // load configuration if config.yaml exists
+        if let std::result::Result::Ok(yaml_string) = fs::read_to_string("config.yaml") {
+            let config: Config = serde_yaml::from_str(&yaml_string)?;
+            for v in config.egress.into_iter() {
+                self.flush_config(v)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -141,12 +172,8 @@ impl<'a> BpfProgram for TcEvent<'a> {
     // This message is harmless, reference: https://www.spinics.net/lists/bpf/msg44842.html
     fn attach(&mut self) -> Result<()> {
         if let Some(mut hook) = self.tchook {
-            hook
-                .create()
-                .context("failed to create egress TC qdisc")?;  
-            hook
-                .attach()
-                .context("failed to attach egress TC prog")?;
+            hook.create().context("failed to create egress TC qdisc")?;
+            hook.attach().context("failed to attach egress TC prog")?;
             // check if the hook isready
             if let Err(e) = hook.query() {
                 self.exit_thread();
@@ -179,15 +206,4 @@ impl<'a> BpfProgram for TcEvent<'a> {
     fn status(&self) -> bool {
         return self.stuatus.load(Ordering::Relaxed);
     }
-}
-
-pub unsafe fn serialize_row<T: Sized>(src: &T) ->&[u8] {
-    ::std::slice::from_raw_parts((src as *const T) as *const u8, ::std::mem::size_of::<T>())      
-}
-
-unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts(
-        (p as *const T) as *const u8,
-        ::core::mem::size_of::<T>(),
-    )
 }

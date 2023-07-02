@@ -1,0 +1,8 @@
+egress:
+  - name: "eguard_egress_test_project"
+    address: "192.168.1.1/24"
+    protocol: TCP # ALL/TCP/UDP
+    ports:
+      - 80 # unused for now
+    action: DENY # DENY/LOG
+    level: INFO
