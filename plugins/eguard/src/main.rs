@@ -41,7 +41,13 @@ fn main() {
     }).unwrap();
     // set channel and replace
     let (tx, rx) = bounded(512);
-    *event::event::TX.lock().unwrap() = Some(tx);
+    // *event::event::TX.lock().unwrap() = Some(tx);
+    {
+        let mut lock = event::event::TX
+          .lock()
+          .map_err(|e| error!("failed to define shared notification sender: {}", e)).unwrap();
+        *lock = Some(tx);
+    }
 
     // tc egress restriction
     Bpfmanager::bump_memlock_rlimit().unwrap();
@@ -51,6 +57,7 @@ fn main() {
     mgr.load_program("tc", Box::new(event));
     if let Err(e) = mgr.start_program("tc") {
         error!("{}", e);
+        return;
     }
     info!("init bpf program successfully");
     // task_receive thread
@@ -87,9 +94,7 @@ fn main() {
                         return;
                     }
                 }
-                Err(err) => {
-                    continue;
-                }
+                Err(_) => continue
             }
         }).unwrap();
     let _ = record_send.join();

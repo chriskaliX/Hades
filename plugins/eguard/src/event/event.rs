@@ -1,9 +1,9 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crossbeam::channel::Sender;
 use lazy_static::lazy_static;
 use sdk::Record;
 
 lazy_static! {
-    pub static ref TX: Mutex<Option<Sender<Record>>> = Mutex::new(None);
+    pub static ref TX: Arc<Mutex<Option<Sender<Record>>>> = Arc::new(Mutex::new(None));
 }

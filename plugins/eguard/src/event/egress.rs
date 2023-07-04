@@ -3,11 +3,16 @@ mod eguard_skel {
 }
 use crate::config::config::*;
 use crate::config::ip_config::IpConfig;
+use log::*;
+use sdk::{Record, Payload};
+use coarsetime::Clock;
 
+use super::event::TX;
 use super::ip_address::IpAddress;
 use super::BpfProgram;
 use anyhow::{bail, Context, Ok, Result};
 use core::time::Duration;
+use std::collections::HashMap;
 use eguard_skel::*;
 use libbpf_rs::{MapFlags, PerfBufferBuilder, TcHook, TcHookBuilder, TC_EGRESS};
 use libc::{IPPROTO_TCP, IPPROTO_UDP};
@@ -94,7 +99,10 @@ impl<'a> TcEvent<'a> {
     // event handlers
     fn handle_event(_cpu: i32, data: &[u8]) {
         let mut event = eguard_bss_types::net_packet::default();
-        plain::copy_from_bytes(&mut event, data).expect("data buffer was too short");
+        if let Err(e) = plain::copy_from_bytes(&mut event, data) {
+            error!("copy bytes from kernel failed: {:?}", e);
+            return;
+        };
 
         let sip: Ipv6Addr;
         let dip: Ipv6Addr;
@@ -104,15 +112,32 @@ impl<'a> TcEvent<'a> {
             dip = Ipv6Addr::from(event.dst_addr.in6_u.u6_addr8);
         }
 
-        println!(
-            "{:#?} {:#?}",
-            sip.to_ipv4().unwrap().to_string(),
-            dip.to_ipv4().unwrap().to_string(),
-        );
+        let mut rec = Record::new();
+        let mut payload = Payload::new();
+
+        rec.set_data_type(3200);
+        rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
+        let mut map = HashMap::with_capacity(4);
+        map.insert("sip".to_string(), sip.to_ipv4().unwrap().to_string());
+        map.insert("dip".to_string(), dip.to_ipv4().unwrap().to_string());
+        payload.set_fields(map);
+        rec.set_data(payload);
+
+        let mut lock = TX
+            .lock()
+            .map_err(|e| error!("unable to acquire notification send channel: {}", e)).unwrap();
+        match &mut *lock {
+            Some(sender) => {
+                if let Err(_) = sender.send(rec) {
+                    return;
+                }
+            }
+            None => return,
+        }
     }
 
     fn handle_lost_events(cpu: i32, count: u64) {
-        eprintln!("lost {count} events on CPU {cpu}");
+        error!("lost {} events on CPU {}", count, cpu);
     }
 }
 
