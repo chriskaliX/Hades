@@ -18,7 +18,7 @@ mod manager;
 use crate::manager::manager::Bpfmanager;
 
 fn main() {
-    let mut client = Client::new(true);
+    let mut client = Client::new(false);
     let logger = Logger::new(Config {
         max_size: 1024 * 1024 * 5,
         path: PathBuf::from("./eguard.log"),
@@ -53,10 +53,11 @@ fn main() {
     Bpfmanager::bump_memlock_rlimit().unwrap();
     let mut mgr = Bpfmanager::new();
     let mut event = TcEvent::new();
-    event.set_if("eth0").unwrap(); // debug
+    // debug
+    event.set_if("eth0").unwrap();
     mgr.load_program("tc", Box::new(event));
     if let Err(e) = mgr.start_program("tc") {
-        error!("{}", e);
+        error!("start tc failed: {}", e);
         return;
     }
     info!("init bpf program successfully");
@@ -98,6 +99,7 @@ fn main() {
             }
         }).unwrap();
     let _ = record_send.join();
+    info!("record_send is exiting");
     mgr.stop_program("tc").unwrap();
     info!("plugin will exit");
 }

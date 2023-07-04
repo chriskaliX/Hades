@@ -117,9 +117,33 @@ impl<'a> TcEvent<'a> {
 
         rec.set_data_type(3200);
         rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
-        let mut map = HashMap::with_capacity(4);
-        map.insert("sip".to_string(), sip.to_ipv4().unwrap().to_string());
-        map.insert("dip".to_string(), dip.to_ipv4().unwrap().to_string());
+        let mut map = HashMap::with_capacity(7);
+        map.insert("ifindex".to_string(), event.ifindex.to_string());
+        map.insert("protocol".to_string(), event.protocol.to_string());
+        match sip.to_ipv4() {
+            Some(s) => {
+                map.insert("sip".to_string(), s.to_string());
+            }
+            None => {
+                map.insert("sip".to_string(), sip.to_string());
+            }
+        }
+        map.insert("sport".to_string(), event.src_port.to_string());
+        match dip.to_ipv4() {
+            Some(s) => {
+                map.insert("dip".to_string(), s.to_string());
+            }
+            None => {
+                map.insert("dip".to_string(), dip.to_string());
+            }
+        }
+        map.insert("dport".to_string(), event.dst_port.to_string());
+        let mut action = "log";
+        if event.action == 0 {
+            action = "deny";
+        }
+        map.insert("action".to_string(), action.to_string());
+        
         payload.set_fields(map);
         rec.set_data(payload);
 
@@ -128,7 +152,8 @@ impl<'a> TcEvent<'a> {
             .map_err(|e| error!("unable to acquire notification send channel: {}", e)).unwrap();
         match &mut *lock {
             Some(sender) => {
-                if let Err(_) = sender.send(rec) {
+                if let Err(err) = sender.send(rec) {
+                    error!("send failed: {}", err);
                     return;
                 }
             }
