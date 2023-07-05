@@ -21,6 +21,8 @@
 #define ACTION_LOG      1
 #define PROTOCOL_ALL    0
 
+#define MAX_PORT_ARR    32
+
 // send out the perf event
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -36,6 +38,7 @@ struct policy_key {
 struct policy_value {
     __u32   action;
     __u32   protocol;
+    __u16   ports[MAX_PORT_ARR];
 };
 
 // Dump the skeleton
@@ -49,6 +52,29 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
     __uint(max_entries, EGRESS_POLICY_MAP_SIZE);
 } EGRESS_POLICY_MAP SEC(".maps");
+
+// check the port
+// true: matched
+// false: not matched
+static __always_inline bool
+port_check(struct policy_value *policy, __u16 port)
+{
+#pragma unroll
+    for (int i = 0; i < MAX_PORT_ARR; i++) {
+        // if the port not set, return true;
+        if (policy->ports[i] == 0) {
+            // if empty, means match all
+            if (i == 0) {
+                return true;
+            }
+            return false;
+        }
+        if (policy->ports[i] == port) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static __always_inline bool
 skb_revalidate_data(struct __sk_buff *skb, uint8_t **head, uint8_t **tail, const u32 offset)
@@ -156,9 +182,16 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
         struct policy_value *value = bpf_map_lookup_elem(&EGRESS_POLICY_MAP, &key);
         if (value) {
             size_t pkt_size = sizeof(pkt);
-            // protocol match
+            // protocol match, port is ignored
             if (value->protocol != PROTOCOL_ALL && value->protocol != pkt.protocol) {
                 return TC_ACT_UNSPEC;
+            }
+
+            // for now, only support udp & tcp
+            if (pkt.protocol == IPPROTO_TCP || pkt.protocol == IPPROTO_UDP) {
+                if (port_check(value, pkt.dst_port) == false) {
+                    return TC_ACT_UNSPEC;
+                }
             }
 
             if (value->action == ACTION_DENY) {
@@ -176,4 +209,3 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
 
     return TC_ACT_UNSPEC;
 };
-

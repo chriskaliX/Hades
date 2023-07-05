@@ -71,7 +71,7 @@ fn main() {
                     // handle task
                 }
                 Err(e) => {
-                    error!("when receiving task,an error occurred:{}", e);
+                    error!("when receiving task, an error occurred:{}", e);
                     control_s.store(true, Ordering::Relaxed);
                     return;
                 }

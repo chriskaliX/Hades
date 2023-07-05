@@ -36,6 +36,7 @@ pub struct TcEvent<'a> {
 }
 
 unsafe impl Plain for eguard_bss_types::net_packet {}
+const MAX_PORT_ARR: usize = 32;
 
 impl<'a> TcEvent<'a> {
     pub fn new() -> Self {
@@ -72,6 +73,14 @@ impl<'a> TcEvent<'a> {
             EgressProtocol::TCP => value.protocol = IPPROTO_TCP as u32,
             EgressProtocol::UDP => value.protocol = IPPROTO_UDP as u32,
         }
+        // parse ports
+        for (i, v) in cfg.ports.into_iter().enumerate() {
+            if i >= (MAX_PORT_ARR - 1) {
+                break;
+            }
+            value.ports[i] = v.to_be();
+        }
+
         // flush to the map
         let value = unsafe { plain::as_bytes(&value) };
         self.skel
