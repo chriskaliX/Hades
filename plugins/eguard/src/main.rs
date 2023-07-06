@@ -19,7 +19,7 @@ use crate::manager::manager::Bpfmanager;
 
 fn main() {
     let mut client = Client::new(false);
-    let logger = Logger::new(Config {
+    set_boxed_logger(Box::new(Logger::new(Config {
         max_size: 1024 * 1024 * 5,
         path: PathBuf::from("./eguard.log"),
         #[cfg(not(feature = "debug"))]
@@ -30,8 +30,8 @@ fn main() {
         max_backups: 10,
         compress: true,
         client: Some(client.clone()),
-    });
-    set_boxed_logger(Box::new(logger)).unwrap();
+    }))).unwrap();
+    
     // Install Ctrl-C handler
     let control_s = Arc::new(AtomicBool::new(false));
     let control_l = control_s.clone();
@@ -39,13 +39,13 @@ fn main() {
     ctrlc::set_handler(move || {
         control_c.store(true, Ordering::Relaxed);
     }).unwrap();
+
     // set channel and replace
     let (tx, rx) = bounded(512);
-    // *event::event::TX.lock().unwrap() = Some(tx);
     {
-        let mut lock = event::event::TX
-          .lock()
-          .map_err(|e| error!("failed to define shared notification sender: {}", e)).unwrap();
+        let mut lock = event::event::TX.lock()
+            .map_err(|e| error!("failed to define shared notification sender: {}", e))
+            .unwrap();
         *lock = Some(tx);
     }
 

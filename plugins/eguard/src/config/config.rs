@@ -23,7 +23,7 @@ pub struct EgressPolicy {
     pub name: String,
     pub address: String,
     pub protocol: EgressProtocol,
-    pub ports: Vec<u16>,
+    pub ports: Option<Vec<String>>,
     pub action: EgressAction,
     pub level: String,
 }

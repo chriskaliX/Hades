@@ -38,7 +38,8 @@ struct policy_key {
 struct policy_value {
     __u32   action;
     __u32   protocol;
-    __u16   ports[MAX_PORT_ARR];
+    __u16   ports[MAX_PORT_ARR];       // 32
+    __u16   ports_range[MAX_PORT_ARR]; // 16 range only
 };
 
 // Dump the skeleton
@@ -59,19 +60,29 @@ struct {
 static __always_inline bool
 port_check(struct policy_value *policy, __u16 port)
 {
+    int empty = false;
 #pragma unroll
     for (int i = 0; i < MAX_PORT_ARR; i++) {
         // if the port not set, return true;
         if (policy->ports[i] == 0) {
             // if empty, means match all
-            if (i == 0) {
-                return true;
-            }
-            return false;
+            if (i == 0)
+                empty = true;
+            break;
         }
         if (policy->ports[i] == port) {
             return true;
         }
+    }
+#pragma unroll
+    for (int i = 0; i < MAX_PORT_ARR; i+=2) {
+        if (policy->ports_range[i] == 0 || policy->ports_range[i+1] == 0) {
+            if (i == 0)
+                return empty;
+            return false;
+        }
+        if (policy->ports_range[i] <= bpf_ntohs(port) && policy->ports_range[i+1] >= bpf_ntohs(port))
+            return true;
     }
     return false;
 }
