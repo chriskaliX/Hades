@@ -135,47 +135,38 @@ impl<'a> TcEvent<'a> {
             error!("copy bytes from kernel failed: {:?}", e);
             return;
         };
-
+    
         let sip: Ipv6Addr;
         let dip: Ipv6Addr;
-
+    
         unsafe {
             sip = Ipv6Addr::from(event.src_addr.in6_u.u6_addr8);
             dip = Ipv6Addr::from(event.dst_addr.in6_u.u6_addr8);
         }
-
+    
         let mut rec = Record::new();
         let mut payload = Payload::new();
-
+    
         rec.set_data_type(3200);
         rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
+    
         let mut map = HashMap::with_capacity(7);
         map.insert("ifindex".to_string(), event.ifindex.to_string());
         map.insert("protocol".to_string(), event.protocol.to_string());
-        match sip.to_ipv4() {
-            Some(s) => {
-                map.insert("sip".to_string(), s.to_string());
-            }
-            None => {
-                map.insert("sip".to_string(), sip.to_string());
-            }
-        }
+        map.insert("sip".to_string(), match sip.to_ipv4() {
+            Some(s) => s.to_string(),
+            None => sip.to_string(),
+        });
         map.insert("sport".to_string(), event.src_port.to_be().to_string());
-        match dip.to_ipv4() {
-            Some(s) => {
-                map.insert("dip".to_string(), s.to_string());
-            }
-            None => {
-                map.insert("dip".to_string(), dip.to_string());
-            }
-        }
+        map.insert("dip".to_string(), match dip.to_ipv4() {
+            Some(s) => s.to_string(),
+            None => dip.to_string(),
+        });
         map.insert("dport".to_string(), event.dst_port.to_be().to_string());
-        let mut action = "log";
-        if event.action == 0 {
-            action = "deny";
-        }
+    
+        let action = if event.action == 0 { "deny" } else { "log" };
         map.insert("action".to_string(), action.to_string());
-        
+    
         payload.set_fields(map);
         rec.set_data(payload);
 
