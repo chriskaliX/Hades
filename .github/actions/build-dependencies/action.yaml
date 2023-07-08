@@ -5,7 +5,7 @@ inputs:
   go-version:
     description: Version of Go
     required: true
-    default: "1.17"
+    default: "1.19"
 runs:
   using: composite
   steps:
@@ -16,11 +16,11 @@ runs:
     - name: Install Compilers
       run: |
         sudo apt-get update
-        sudo apt-get install --yes build-essential pkgconf libelf-dev llvm-12 clang-12
+        sudo apt-get install --yes build-essential pkgconf libelf-dev llvm-14 clang-14
         for tool in "clang" "llc" "llvm-strip"
         do
           sudo rm -f /usr/bin/$tool
-          sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+          sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
         done
       shell: bash
       
