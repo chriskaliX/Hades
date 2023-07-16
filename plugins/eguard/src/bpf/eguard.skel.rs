@@ -9,12 +9,16 @@ pub use self::imp::*;
 #[allow(non_camel_case_types)]
 #[allow(clippy::transmute_ptr_to_ref)]
 #[allow(clippy::upper_case_acronyms)]
+#[warn(single_use_lifetimes)]
 mod imp {
     use libbpf_rs::libbpf_sys;
+    use libbpf_rs::skel::OpenSkel;
+    use libbpf_rs::skel::Skel;
+    use libbpf_rs::skel::SkelBuilder;
 
-    fn build_skel_config() -> libbpf_rs::Result<libbpf_rs::skeleton::ObjectSkeletonConfig<'static>>
-    {
-        let mut builder = libbpf_rs::skeleton::ObjectSkeletonConfigBuilder::new(DATA);
+    fn build_skel_config(
+    ) -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>> {
+        let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(DATA);
         builder
             .name("eguard_bpf")
             .map("events", false)
@@ -30,8 +34,9 @@ mod imp {
         pub obj_builder: libbpf_rs::ObjectBuilder,
     }
 
-    impl<'a> EguardSkelBuilder {
-        pub fn open(mut self) -> libbpf_rs::Result<OpenEguardSkel<'a>> {
+    impl<'a> SkelBuilder<'a> for EguardSkelBuilder {
+        type Output = OpenEguardSkel<'a>;
+        fn open(mut self) -> libbpf_rs::Result<OpenEguardSkel<'a>> {
             let mut skel_config = build_skel_config()?;
             let open_opts = self.obj_builder.opts(std::ptr::null());
 
@@ -46,7 +51,7 @@ mod imp {
             Ok(OpenEguardSkel { obj, skel_config })
         }
 
-        pub fn open_opts(
+        fn open_opts(
             self,
             open_opts: libbpf_sys::bpf_object_open_opts,
         ) -> libbpf_rs::Result<OpenEguardSkel<'a>> {
@@ -62,13 +67,20 @@ mod imp {
 
             Ok(OpenEguardSkel { obj, skel_config })
         }
+
+        fn object_builder(&self) -> &libbpf_rs::ObjectBuilder {
+            &self.obj_builder
+        }
+        fn object_builder_mut(&mut self) -> &mut libbpf_rs::ObjectBuilder {
+            &mut self.obj_builder
+        }
     }
 
     pub struct OpenEguardMaps<'a> {
         inner: &'a libbpf_rs::OpenObject,
     }
 
-    impl<'a> OpenEguardMaps<'a> {
+    impl OpenEguardMaps<'_> {
         pub fn events(&self) -> &libbpf_rs::OpenMap {
             self.inner.map("events").unwrap()
         }
@@ -86,7 +98,7 @@ mod imp {
         inner: &'a mut libbpf_rs::OpenObject,
     }
 
-    impl<'a> OpenEguardMapsMut<'a> {
+    impl OpenEguardMapsMut<'_> {
         pub fn events(&mut self) -> &mut libbpf_rs::OpenMap {
             self.inner.map_mut("events").unwrap()
         }
@@ -104,7 +116,7 @@ mod imp {
         inner: &'a libbpf_rs::OpenObject,
     }
 
-    impl<'a> OpenEguardProgs<'a> {
+    impl OpenEguardProgs<'_> {
         pub fn hades_egress(&self) -> &libbpf_rs::OpenProgram {
             self.inner.prog("hades_egress").unwrap()
         }
@@ -114,7 +126,7 @@ mod imp {
         inner: &'a mut libbpf_rs::OpenObject,
     }
 
-    impl<'a> OpenEguardProgsMut<'a> {
+    impl OpenEguardProgsMut<'_> {
         pub fn hades_egress(&mut self) -> &mut libbpf_rs::OpenProgram {
             self.inner.prog_mut("hades_egress").unwrap()
         }
@@ -184,11 +196,12 @@ mod imp {
 
     pub struct OpenEguardSkel<'a> {
         pub obj: libbpf_rs::OpenObject,
-        skel_config: libbpf_rs::skeleton::ObjectSkeletonConfig<'a>,
+        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
     }
 
-    impl<'a> OpenEguardSkel<'a> {
-        pub fn load(mut self) -> libbpf_rs::Result<EguardSkel<'a>> {
+    impl<'a> OpenSkel for OpenEguardSkel<'a> {
+        type Output = EguardSkel<'a>;
+        fn load(mut self) -> libbpf_rs::Result<EguardSkel<'a>> {
             let ret = unsafe { libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::System(-ret));
@@ -203,29 +216,38 @@ mod imp {
             })
         }
 
-        pub fn progs(&self) -> OpenEguardProgs {
+        fn open_object(&self) -> &libbpf_rs::OpenObject {
+            &self.obj
+        }
+
+        fn open_object_mut(&mut self) -> &mut libbpf_rs::OpenObject {
+            &mut self.obj
+        }
+    }
+    impl OpenEguardSkel<'_> {
+        pub fn progs(&self) -> OpenEguardProgs<'_> {
             OpenEguardProgs { inner: &self.obj }
         }
 
-        pub fn progs_mut(&mut self) -> OpenEguardProgsMut {
+        pub fn progs_mut(&mut self) -> OpenEguardProgsMut<'_> {
             OpenEguardProgsMut {
                 inner: &mut self.obj,
             }
         }
 
-        pub fn maps(&self) -> OpenEguardMaps {
+        pub fn maps(&self) -> OpenEguardMaps<'_> {
             OpenEguardMaps { inner: &self.obj }
         }
 
-        pub fn maps_mut(&mut self) -> OpenEguardMapsMut {
+        pub fn maps_mut(&mut self) -> OpenEguardMapsMut<'_> {
             OpenEguardMapsMut {
                 inner: &mut self.obj,
             }
         }
 
-        pub fn bss(&mut self) -> &'a mut eguard_bss_types::bss {
+        pub fn bss(&mut self) -> &'_ mut eguard_bss_types::bss {
             unsafe {
-                std::mem::transmute::<*mut std::ffi::c_void, &'a mut eguard_bss_types::bss>(
+                std::mem::transmute::<*mut std::ffi::c_void, &'_ mut eguard_bss_types::bss>(
                     self.skel_config.map_mmap_ptr(2).unwrap(),
                 )
             }
@@ -236,7 +258,7 @@ mod imp {
         inner: &'a libbpf_rs::Object,
     }
 
-    impl<'a> EguardMaps<'a> {
+    impl EguardMaps<'_> {
         pub fn events(&self) -> &libbpf_rs::Map {
             self.inner.map("events").unwrap()
         }
@@ -254,7 +276,7 @@ mod imp {
         inner: &'a mut libbpf_rs::Object,
     }
 
-    impl<'a> EguardMapsMut<'a> {
+    impl EguardMapsMut<'_> {
         pub fn events(&mut self) -> &mut libbpf_rs::Map {
             self.inner.map_mut("events").unwrap()
         }
@@ -272,7 +294,7 @@ mod imp {
         inner: &'a libbpf_rs::Object,
     }
 
-    impl<'a> EguardProgs<'a> {
+    impl EguardProgs<'_> {
         pub fn hades_egress(&self) -> &libbpf_rs::Program {
             self.inner.prog("hades_egress").unwrap()
         }
@@ -282,7 +304,7 @@ mod imp {
         inner: &'a mut libbpf_rs::Object,
     }
 
-    impl<'a> EguardProgsMut<'a> {
+    impl EguardProgsMut<'_> {
         pub fn hades_egress(&mut self) -> &mut libbpf_rs::Program {
             self.inner.prog_mut("hades_egress").unwrap()
         }
@@ -295,43 +317,23 @@ mod imp {
 
     pub struct EguardSkel<'a> {
         pub obj: libbpf_rs::Object,
-        skel_config: libbpf_rs::skeleton::ObjectSkeletonConfig<'a>,
+        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
         pub links: EguardLinks,
     }
 
-    unsafe impl<'a> Send for EguardSkel<'a> {}
-    unsafe impl<'a> Sync for EguardSkel<'a> {}
+    unsafe impl Send for EguardSkel<'_> {}
+    unsafe impl Sync for EguardSkel<'_> {}
 
-    impl<'a> EguardSkel<'a> {
-        pub fn progs(&self) -> EguardProgs {
-            EguardProgs { inner: &self.obj }
+    impl Skel for EguardSkel<'_> {
+        fn object(&self) -> &libbpf_rs::Object {
+            &self.obj
         }
 
-        pub fn progs_mut(&mut self) -> EguardProgsMut {
-            EguardProgsMut {
-                inner: &mut self.obj,
-            }
+        fn object_mut(&mut self) -> &mut libbpf_rs::Object {
+            &mut self.obj
         }
 
-        pub fn maps(&self) -> EguardMaps {
-            EguardMaps { inner: &self.obj }
-        }
-
-        pub fn maps_mut(&mut self) -> EguardMapsMut {
-            EguardMapsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn bss(&mut self) -> &'a mut eguard_bss_types::bss {
-            unsafe {
-                std::mem::transmute::<*mut std::ffi::c_void, &'a mut eguard_bss_types::bss>(
-                    self.skel_config.map_mmap_ptr(2).unwrap(),
-                )
-            }
-        }
-
-        pub fn attach(&mut self) -> libbpf_rs::Result<()> {
+        fn attach(&mut self) -> libbpf_rs::Result<()> {
             let ret = unsafe { libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::System(-ret));
@@ -345,6 +347,35 @@ mod imp {
             };
 
             Ok(())
+        }
+    }
+    impl EguardSkel<'_> {
+        pub fn progs(&self) -> EguardProgs<'_> {
+            EguardProgs { inner: &self.obj }
+        }
+
+        pub fn progs_mut(&mut self) -> EguardProgsMut<'_> {
+            EguardProgsMut {
+                inner: &mut self.obj,
+            }
+        }
+
+        pub fn maps(&self) -> EguardMaps<'_> {
+            EguardMaps { inner: &self.obj }
+        }
+
+        pub fn maps_mut(&mut self) -> EguardMapsMut<'_> {
+            EguardMapsMut {
+                inner: &mut self.obj,
+            }
+        }
+
+        pub fn bss(&mut self) -> &'_ mut eguard_bss_types::bss {
+            unsafe {
+                std::mem::transmute::<*mut std::ffi::c_void, &'_ mut eguard_bss_types::bss>(
+                    self.skel_config.map_mmap_ptr(2).unwrap(),
+                )
+            }
         }
     }
 
