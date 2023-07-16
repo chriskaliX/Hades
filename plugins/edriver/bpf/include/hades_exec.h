@@ -92,7 +92,6 @@ int sys_exit_execve(void *ctx)
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         goto delete;
-    // try to patch the stack
     void *file_path = get_path_str_simple(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     void *ttyname = get_task_tty_str(data.task);
@@ -166,7 +165,7 @@ int sys_exit_execveat(void *ctx)
     struct fs_struct *file = get_task_fs(data.task);
     if (file == NULL)
         goto delete;
-    void *file_path = get_path_str(GET_FIELD_ADDR(file->pwd));
+    void *file_path = get_path_str_simple(GET_FIELD_ADDR(file->pwd));
     save_str_to_buf(&data, file_path, 1);
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
