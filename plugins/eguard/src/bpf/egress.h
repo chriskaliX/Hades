@@ -181,8 +181,7 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
             pkt.dst_port = udp->dest;
     }
 
-    // egress
-    if(ingress == false) {
+    if(ingress == false) { // egress
         // fill up the key
         struct policy_key key = { 
             .prefixlen = 128,
@@ -213,8 +212,7 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
                 bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
             }
         }
-    // ingress
-    } else {
+    } else { // ingress
         // scan detection
     }
 

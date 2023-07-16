@@ -19,11 +19,13 @@ use eguard_skel::*;
 use libbpf_rs::{MapFlags, PerfBufferBuilder, TcHook, TcHookBuilder, TC_EGRESS};
 use libc::{IPPROTO_TCP, IPPROTO_UDP};
 use plain::Plain;
-use std::fs;
 use std::net::Ipv6Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, spawn};
+
+#[cfg(feature = "debug")]
+use std::fs;
 
 #[derive(Default)]
 pub struct TcEvent<'a> {
@@ -229,6 +231,7 @@ impl<'a> BpfProgram for TcEvent<'a> {
         self.thread_handle = Some(thread_job);
 
         // load configuration if config.yaml exists
+        #[cfg(feature = "debug")]
         if let Ok(yaml_string) = fs::read_to_string("config.yaml") {
             let config: Config = serde_yaml::from_str(&yaml_string)?;
             for v in config.egress.into_iter() {

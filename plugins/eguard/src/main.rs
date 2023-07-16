@@ -15,6 +15,7 @@ mod config;
 mod event;
 mod manager;
 
+use crate::config::config::Config as BpfConfig;
 use crate::manager::manager::Bpfmanager;
 
 fn main() {
@@ -67,11 +68,19 @@ fn main() {
         .name("task_receive".to_owned())
         .spawn(move || loop {
             match client_c.receive() {
-                Ok(_) => {
+                Ok(task) => {
                     // handle task
+                    match serde_json::from_str::<BpfConfig>(task.get_data()) {
+                        Ok(config) => {
+                            println!("{:#?}", config);
+                        },
+                        Err(e) => {
+                            error!("parse task failed: {}", e);
+                        }
+                    }
                 }
                 Err(e) => {
-                    error!("when receiving task, an error occurred:{}", e);
+                    error!("when receiving task, an error occurred: {}", e);
                     control_s.store(true, Ordering::Relaxed);
                     return;
                 }
