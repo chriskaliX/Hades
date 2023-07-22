@@ -196,7 +196,7 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
     char socket_prefix[] = "socket:";
 
 #pragma unroll
-    for (int i = 0; i < 12; i++) { // const to debug
+    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) { // const to debug
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
