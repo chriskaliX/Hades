@@ -8,10 +8,40 @@
 #include <missing_definitions.h>
 #endif
 
+// Workaround: Newer LLVM versions might fail to optimize has_prefix()
+// loop unrolling with the following error:
+//
+//     warning: loop not unrolled: the optimizer was unable to perform
+//     the requested transformation; the transformation might be
+//     disabled or specified as part of an unsupported transformation
+//     ordering
+//
+// FROM: https://github.com/aquasecurity/tracee/blob/6076457ebb95432da3104f358cb9a29a1d8416c4/pkg/ebpf/c/common/common.h#L31
+#if defined(__clang__) && __clang_major__ > 13
+
+    #define has_prefix(p, s, n)                                                                    \
+        ({                                                                                         \
+            int rc = 0;                                                                            \
+            char *pre = p, *str = s;                                                               \
+            _Pragma("unroll") for (int z = 0; z < n; pre++, str++, z++)                            \
+            {                                                                                      \
+                if (!*pre) {                                                                       \
+                    rc = 1;                                                                        \
+                    break;                                                                         \
+                } else if (*pre != *str) {                                                         \
+                    rc = 0;                                                                        \
+                    break;                                                                         \
+                }                                                                                  \
+            }                                                                                      \
+            rc;                                                                                    \
+        })
+
+#else
+
 static __inline int has_prefix(char *prefix, char *str, int n)
 {
     int i;
-#pragma unroll
+    #pragma unroll
     for (i = 0; i < n; prefix++, str++, i++) {
         if (!*prefix)
             return 1;
@@ -19,8 +49,12 @@ static __inline int has_prefix(char *prefix, char *str, int n)
             return 0;
         }
     }
+
+    // prefix is too long
     return 0;
 }
+
+#endif
 
 static __always_inline int prefix(char *prefix, char *str, int n)
 {
