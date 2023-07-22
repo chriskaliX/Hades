@@ -93,7 +93,7 @@ int BPF_KPROBE(kprobe_security_kernel_read_file)
     data.context.type = SECURITY_KERNEL_READ_FILE;
     // get the file
     struct file *file = (struct file *)PT_REGS_PARM1(ctx);
-    void *file_path = get_path_str(GET_FIELD_ADDR(file->f_path));
+    void *file_path = get_path_str_simple(GET_FIELD_ADDR(file->f_path));
     save_str_to_buf(&data, file_path, 0);
 
     // get the id

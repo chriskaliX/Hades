@@ -39,7 +39,7 @@ int BPF_KPROBE(kprobe_security_sb_mount)
     struct path *path = (struct path *)PT_REGS_PARM2(ctx);
     const char *type = (const char *)PT_REGS_PARM3(ctx);
     unsigned long flags = (unsigned long)PT_REGS_PARM4(ctx);
-    void *path_str = get_path_str(path);
+    void *path_str = get_path_str_simple(path);
     save_str_to_buf(&data, (void *)dev_name, 0);
     save_str_to_buf(&data, path_str, 1);
     save_str_to_buf(&data, (void *)type, 2);
