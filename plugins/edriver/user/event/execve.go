@@ -61,10 +61,10 @@ func (e *Execve) DecodeEvent(d *decoder.EbpfDecoder) (err error) {
 	if e.TTYName, err = d.DecodeString(); err != nil {
 		return
 	}
-	if e.Stdin, err = d.DecodeString(); err != nil {
+	if e.Stdin, err = d.DecodePath(); err != nil {
 		return
 	}
-	if e.Stdout, err = d.DecodeString(); err != nil {
+	if e.Stdout, err = d.DecodePath(); err != nil {
 		return
 	}
 	if e.Family, e.Sport, e.Dport, e.Sip, e.Dip, err = d.DecodeAddr(); err != nil {

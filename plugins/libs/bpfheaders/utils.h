@@ -242,6 +242,7 @@ static __always_inline void *get_path_str(struct path *path)
     }
 
     // no path avaliable.
+    // let the userspace to checkout this
     if (buf_off == (MAX_PERCPU_BUFSIZE >> 1)) {
         // memfd files have no path in the filesystem -> extract their name
         buf_off = 0;
@@ -267,39 +268,46 @@ static __always_inline void *get_path_str(struct path *path)
                 goto out;
             }
 
-            char tmp_inode[9];
-            int i, j;
-            int k = 0; // when first char is no-zero, it's work
-            unsigned long inode = get_inode_nr_from_dentry(dentry);
-        #if defined(__TARGET_ARCH_x86)
-            int s_flag = 0; // no-zero char start flag
-        #endif
-        #pragma unroll
-            for (i = 0; i < 8; i++) {
-                tmp_inode[7 - i] = inode % 10 + '0';
-                inode /= 10;
-            }
-            // ISSUE remains in arm64 ( |= not allow), just remove for now
-        #pragma unroll
-            for (j = 0; j < 8; j++) { // e.g: 1234567
-                // find first no-zero value position
-                #if defined(__TARGET_ARCH_x86)
-                if ((s_flag == 0) && (tmp_inode[j] != '0')) { 
-                    if (j == 0)
-                        break;
-                    s_flag = 1;
-                }
-                if (s_flag == 1)
-                #endif
-                    tmp_inode[k++] = tmp_inode[j];  
-            }
+        //     char tmp_inode[9];
+        //     int i, j;
+        //     int k = 0; // when first char is no-zero, it's work
+        //     unsigned long inode = get_inode_nr_from_dentry(dentry);
+        // #if defined(__TARGET_ARCH_x86)
+        //     int s_flag = 0; // no-zero char start flag
+        // #endif
+        // #pragma unroll
+        //     for (i = 0; i < 8; i++) {
+        //         tmp_inode[7 - i] = inode % 10 + '0';
+        //         inode /= 10;
+        //     }
+        //     // ISSUE remains in arm64 ( |= not allow), just remove for now
+        // #pragma unroll
+        //     for (j = 0; j < 8; j++) { // e.g: 1234567
+        //         // find first no-zero value position
+        //         #if defined(__TARGET_ARCH_x86)
+        //         if ((s_flag == 0) && (tmp_inode[j] != '0')) { 
+        //             if (j == 0)
+        //                 break;
+        //             s_flag = 1;
+        //         }
+        //         if (s_flag == 1)
+        //         #endif
+        //             tmp_inode[k++] = tmp_inode[j];  
+        //     }
 
-            if (k != 0) {
-                i = k;
-            }
-            
-            tmp_inode[i] = ']';
-            tmp_inode[i + 1] = '\0';
+        //     if (k != 0) {
+        //         i = k;
+        //     }
+
+            unsigned long inode = get_inode_nr_from_dentry(dentry);
+            // int p_len = prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1);
+            bpf_probe_read(&(string_p->buf[prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1)]), MAX_STRING_SIZE,
+                                (void *)inode);
+            prefix_len += sizeof(unsigned long);
+
+            char tmp_inode[2];
+            tmp_inode[0] = ']';
+            tmp_inode[1] = '\0';
             int p_len = prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1);
             bpf_probe_read_str(&(string_p->buf[p_len]), MAX_STRING_SIZE,
                                 (void *)tmp_inode);
@@ -664,7 +672,7 @@ static __always_inline void *get_fraw_str(u64 num)
     if (!_file)
         return &string_p->buf[0];
     struct path p = READ_KERN(_file->f_path);
-    void *path = get_path_str_simple(GET_FIELD_ADDR(p)); // for debug
+    void *path = get_path_str(GET_FIELD_ADDR(p)); // for debug
     if (!path)
         return &string_p->buf[0];
     // Another thing is that the length of path might be 0.
