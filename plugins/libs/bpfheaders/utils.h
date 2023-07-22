@@ -194,7 +194,7 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
     unsigned long inode = 0;
 
 #pragma unroll
-    for (int i = 0; i < 8; i++) { // const to debug
+    for (int i = 0; i < 12; i++) { // const to debug
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
@@ -249,24 +249,24 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
         buf_off = 0;
         // Handle pipe with d_name.len = 0
         struct super_block *d_sb = READ_KERN(dentry->d_sb);
-        if (d_sb != 0) {
-            unsigned long s_magic = READ_KERN(d_sb->s_magic);
-             // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
-            if (s_magic == PIPEFS_MAGIC) {
-                // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
-                //  d_inode(dentry)->i_ino);
-                // Since snprintf requires kernel version over 5.10
-                char pipe_prefix[] = "pipe:";
-                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
-            } else if (s_magic == SOCKFS_MAGIC) {
-                char socket_prefix[] = "socket:";
-                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)socket_prefix);
-            } else {
-                goto out;
-            }
-            inode = get_inode_nr_from_dentry(dentry);
-            goto out;
-        }
+        // if (d_sb != 0) {
+        //     unsigned long s_magic = READ_KERN(d_sb->s_magic);
+        //      // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
+        //     if (s_magic == PIPEFS_MAGIC) {
+        //         // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
+        //         //  d_inode(dentry)->i_ino);
+        //         // Since snprintf requires kernel version over 5.10
+        //         char pipe_prefix[] = "pipe:";
+        //         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
+        //     } else if (s_magic == SOCKFS_MAGIC) {
+        //         char socket_prefix[] = "socket:";
+        //         bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)socket_prefix);
+        //     } else {
+        //         goto out;
+        //     }
+        //     inode = get_inode_nr_from_dentry(dentry);
+        //     goto out;
+        // }
         d_name = READ_KERN(dentry->d_name);
         if (d_name.len > 0) {
             bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
