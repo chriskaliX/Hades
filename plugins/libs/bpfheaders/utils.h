@@ -664,7 +664,7 @@ static __always_inline void *get_fraw_str(u64 num)
     if (!_file)
         return &string_p->buf[0];
     struct path p = READ_KERN(_file->f_path);
-    void *path = get_path_str(GET_FIELD_ADDR(p));
+    void *path = get_path_str_simple(GET_FIELD_ADDR(p)); // for debug
     if (!path)
         return &string_p->buf[0];
     // Another thing is that the length of path might be 0.
