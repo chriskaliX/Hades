@@ -165,7 +165,9 @@ get_inode_nr_from_dentry(struct dentry *dentry)
 
 // source code: __prepend_path
 // http://blog.sina.com.cn/s/blog_5219094a0100calt.html
-static __always_inline void *get_path_str(struct path *path)
+// get_path_str for now is only used by get_fraw_str, so we need to extract the inode to userspace
+// let the userspace cope with the string convert, which is inproper in kernel space.
+static __always_inline void *get_path_str(struct path *path, event_data_t *data, u8 index)
 {
     struct path f_path;
     bpf_probe_read(&f_path, sizeof(struct path), path);
@@ -188,6 +190,8 @@ static __always_inline void *get_path_str(struct path *path)
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
+    // inode for the magic
+    unsigned long inode = 0;
 
 #pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
@@ -250,67 +254,22 @@ static __always_inline void *get_path_str(struct path *path)
         struct super_block *d_sb = READ_KERN(dentry->d_sb);
         if (d_sb != 0) {
             unsigned long s_magic = READ_KERN(d_sb->s_magic);
-            volatile int prefix_len; // calculate prefix str, prevent opt
+             // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
             if (s_magic == PIPEFS_MAGIC) {
                 // return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
                 //  d_inode(dentry)->i_ino);
                 // Since snprintf requires kernel version over 5.10
-                char pipe_prefix[] = "pipe:[";
+                char pipe_prefix[] = "pipe:";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)pipe_prefix);
-                prefix_len = sizeof(pipe_prefix) - 1;  // why - 1? because char[] auto add '＼0'
             } else if (s_magic == SOCKFS_MAGIC) {
-                char socket_prefix[] = "socket:[";
+                char socket_prefix[] = "socket:";
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
                                    (void *)socket_prefix);
-                prefix_len = sizeof(socket_prefix) - 1;
-            } else { // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
+            } else {
                 goto out;
             }
-
-        //     char tmp_inode[9];
-        //     int i, j;
-        //     int k = 0; // when first char is no-zero, it's work
-        //     unsigned long inode = get_inode_nr_from_dentry(dentry);
-        // #if defined(__TARGET_ARCH_x86)
-        //     int s_flag = 0; // no-zero char start flag
-        // #endif
-        // #pragma unroll
-        //     for (i = 0; i < 8; i++) {
-        //         tmp_inode[7 - i] = inode % 10 + '0';
-        //         inode /= 10;
-        //     }
-        //     // ISSUE remains in arm64 ( |= not allow), just remove for now
-        // #pragma unroll
-        //     for (j = 0; j < 8; j++) { // e.g: 1234567
-        //         // find first no-zero value position
-        //         #if defined(__TARGET_ARCH_x86)
-        //         if ((s_flag == 0) && (tmp_inode[j] != '0')) { 
-        //             if (j == 0)
-        //                 break;
-        //             s_flag = 1;
-        //         }
-        //         if (s_flag == 1)
-        //         #endif
-        //             tmp_inode[k++] = tmp_inode[j];  
-        //     }
-
-        //     if (k != 0) {
-        //         i = k;
-        //     }
-
-            unsigned long inode = get_inode_nr_from_dentry(dentry);
-            // int p_len = prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1);
-            bpf_probe_read(&(string_p->buf[prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1)]), MAX_STRING_SIZE,
-                                (void *)inode);
-            prefix_len += sizeof(unsigned long);
-
-            char tmp_inode[2];
-            tmp_inode[0] = ']';
-            tmp_inode[1] = '\0';
-            int p_len = prefix_len & (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - 1);
-            bpf_probe_read_str(&(string_p->buf[p_len]), MAX_STRING_SIZE,
-                                (void *)tmp_inode);
+            inode = get_inode_nr_from_dentry(dentry);
             goto out;
         }
         d_name = READ_KERN(dentry->d_name);
@@ -330,7 +289,12 @@ static __always_inline void *get_path_str(struct path *path)
     }
 out:
     set_buf_off(STRING_BUF_IDX, buf_off);
-    return &string_p->buf[buf_off];
+    save_str_to_buf(data, (void *)&string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)], index);
+    if (inode > 0 && data != NULL) {
+        save_to_submit_buf(data, &inode, sizeof(inode), index);
+    }
+    return NULL;
+
 }
 
 // strip fs judgement version, for shorter insts
@@ -657,26 +621,24 @@ get_task_real_cred(struct task_struct *task)
     return READ_KERN(task->real_cred);
 }
 
-// TODO: op
 // change this as filename rather than f_path
-static __always_inline void *get_fraw_str(u64 num)
+static __always_inline void *get_fraw_str(u64 num, event_data_t *data, u8 index)
 {
     char nothing[] = "-1";
+    // This should not happen
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return NULL;
-    bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, nothing);
-    // get the fd if it exists
-    struct file *_file = file_get_raw(num);
-    // if null read the fd
-    if (!_file)
-        return &string_p->buf[0];
-    struct path p = READ_KERN(_file->f_path);
-    void *path = get_path_str(GET_FIELD_ADDR(p)); // for debug
-    if (!path)
-        return &string_p->buf[0];
-    // Another thing is that the length of path might be 0.
-    return path;
+    // get the fd if it exists, then return nothing
+    struct file *file = file_get_raw(num);
+    if (!file) {
+        save_str_to_buf(data, nothing, index);
+        return NULL;
+    }
+    // the real get path function, send inside this
+    struct path p = READ_KERN(file->f_path);
+    get_path_str(GET_FIELD_ADDR(p), data, index); // for debug
+    return NULL;
 }
 
 /* Reference: http://jinke.me/2018-08-23-socket-and-linux-file-system/ */

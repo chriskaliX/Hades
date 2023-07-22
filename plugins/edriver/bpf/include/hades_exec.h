@@ -96,10 +96,9 @@ int sys_exit_execve(void *ctx)
     save_str_to_buf(&data, file_path, 1);
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
-    void *stdin = get_fraw_str(0);
-    save_str_to_buf(&data, stdin, 3);
-    void *stdout = get_fraw_str(1);
-    save_str_to_buf(&data, stdout, 4);
+    get_fraw_str(0, &data, 3);
+    get_fraw_str(1, &data, 4);
+    // save_str_to_buf(&data, stdout, 4);
     __u32 socket_pid = get_socket_info(&data, 5);
     // save socket_pid
     // 0 means error, we'll handle that in user space
@@ -169,10 +168,8 @@ int sys_exit_execveat(void *ctx)
     save_str_to_buf(&data, file_path, 1);
     void *ttyname = get_task_tty_str(data.task);
     save_str_to_buf(&data, ttyname, 2);
-    void *stdin = get_fraw_str(0);
-    save_str_to_buf(&data, stdin, 3);
-    void *stdout = get_fraw_str(1);
-    save_str_to_buf(&data, stdout, 4);
+    get_fraw_str(0, &data, 3);
+    get_fraw_str(1, &data, 4);
     __u32 socket_pid = get_socket_info(&data, 5);
     // save socket_pid
     // 0 means error, we'll handle that in user space

@@ -232,6 +232,15 @@ func (d *EbpfDecoder) DecodePath() (s string, err error) {
 	}
 	d.DecodeUint8(&d.dummy)
 	s = string(d.innerBuffer[:size-1])
+	// NOTICE: for now, only ugly hardcode, will be better
+	if s == "pipe:" || s == "socket:" {
+		d.DecodeUint8(&d.dummy)
+		var inode uint64
+		if err = d.DecodeUint64(&inode); err != nil {
+			return
+		}
+		s = s + "[" + strconv.FormatUint(inode, 10) + "]"
+	}
 	return	
 }
 
