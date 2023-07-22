@@ -194,7 +194,7 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
     unsigned long inode = 0;
 
 #pragma unroll
-    for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+    for (int i = 0; i < 12; i++) { // const to debug
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
@@ -208,12 +208,9 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
             // so update the dentry as the mnt_mountpoint(in order to continue the dentry loop for the mountpoint)
             // We reached root, but not global root - continue with mount point path
             if (mnt_p != mnt_parent_p) {
-                bpf_probe_read(&dentry, sizeof(struct dentry *),
-                               &mnt_p->mnt_mountpoint);
-                bpf_probe_read(&mnt_p, sizeof(struct mount *),
-                               &mnt_p->mnt_parent);
-                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *),
-                               &mnt_p->mnt_parent);
+                bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount *), &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
                 vfsmnt = &mnt_p->mnt;
                 continue;
             }
@@ -287,10 +284,11 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
         bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
                        &zero);
     }
+
 out:
     set_buf_off(STRING_BUF_IDX, buf_off);
     save_str_to_buf(data, (void *)&string_p->buf[buf_off & (MAX_PERCPU_BUFSIZE - 1)], index);
-    if (inode > 0 && data != NULL) {
+    if (inode > 0) {
         save_to_submit_buf(data, &inode, sizeof(inode), index);
     }
     return NULL;
