@@ -157,7 +157,7 @@ impl Drop for Client {
         let _ = self.raw_flush();
         let trd = thread::current();
         debug!(
-            "has drpooed client from thread, id: {:?}, name: {:?}",
+            "has dropped client from thread, id: {:?}, name: {:?}",
             trd.id(),
             trd.name()
         );

@@ -803,7 +803,7 @@ static __always_inline void *get_exe_from_task(struct task_struct *task)
     if (file == NULL)
         return &string_p->buf[0];
     struct path p = READ_KERN(file->f_path);
-    void *path = get_path_str(GET_FIELD_ADDR(p));
+    void *path = get_path_str_simple(GET_FIELD_ADDR(p));
     if (path == NULL)
         return &string_p->buf[0];
     return path;

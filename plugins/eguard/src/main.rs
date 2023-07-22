@@ -9,13 +9,14 @@ use std::thread;
 use std::time::Duration;
 use event::egress::TcEvent;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 mod config;
 mod event;
 mod manager;
 
 use crate::config::config::Config as BpfConfig;
+use crate::event::egress::EVENT_EGRESS;
 use crate::manager::manager::Bpfmanager;
 
 fn main() {
@@ -52,18 +53,19 @@ fn main() {
 
     // tc egress restriction
     Bpfmanager::bump_memlock_rlimit().unwrap();
-    let mut mgr = Bpfmanager::new();
+    let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(Bpfmanager::new()).into();
     let mut event = TcEvent::new();
     // debug
     event.set_if("eth0").unwrap();
-    mgr.load_program("tc", Box::new(event));
-    if let Err(e) = mgr.start_program("tc") {
+    mgr.lock().unwrap().load_program(EVENT_EGRESS, Box::new(event));
+    if let Err(e) = mgr.lock().unwrap().start_program(EVENT_EGRESS) {
         error!("start tc failed: {}", e);
         return;
     }
     info!("init bpf program successfully");
     // task_receive thread
     let mut client_c = client.clone();
+    let mgr_c = mgr.clone();
     let _ = thread::Builder::new()
         .name("task_receive".to_owned())
         .spawn(move || loop {
@@ -72,8 +74,10 @@ fn main() {
                     // handle task
                     match serde_json::from_str::<BpfConfig>(task.get_data()) {
                         Ok(config) => {
-                            println!("{:#?}", config);
-                        },
+                            if let Err(e) = mgr_c.lock().unwrap().flush_config(config) {
+                                error!("parse task failed: {}", e);
+                            }
+                        }
                         Err(e) => {
                             error!("parse task failed: {}", e);
                         }
@@ -109,6 +113,6 @@ fn main() {
         }).unwrap();
     let _ = record_send.join();
     info!("record_send is exiting");
-    mgr.stop_program("tc").unwrap();
+    mgr.lock().unwrap().stop_program(EVENT_EGRESS);
     info!("plugin will exit");
 }

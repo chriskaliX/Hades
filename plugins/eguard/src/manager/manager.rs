@@ -1,9 +1,9 @@
-use crate::event::BpfProgram;
+use crate::{event::{BpfProgram, egress::EVENT_EGRESS}, config::config::Config};
 use anyhow::{anyhow, bail, Ok, Result};
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 pub struct Bpfmanager {
-    events: HashMap<String, Box<dyn BpfProgram>>,
+    events: HashMap<String, Box<dyn BpfProgram + Send>>,
 }
 
 impl Bpfmanager {
@@ -30,7 +30,7 @@ impl Bpfmanager {
     // Load the bpfprogram into the hashmap
     // @param - key - the id of the program
     //        - program - the BPF program implement BpfTrait
-    pub fn load_program(&mut self, key: &str, prog: Box<dyn BpfProgram>) {
+    pub fn load_program(&mut self, key: &str, prog: Box<dyn BpfProgram + Send>) {
         self.events.insert(key.to_owned(), prog);
     }
 
@@ -44,12 +44,16 @@ impl Bpfmanager {
         Ok(())
     }
 
-    pub fn stop_program(&mut self, key: &str) -> Result<()> {
-        let program = self.events.get_mut(key).ok_or_else(|| anyhow!("invalid"))?;
-        if !program.status() {
-            return Ok(());
+    /// use drop to make this happen
+    pub fn stop_program(&mut self, key: &str) {
+        self.events.remove(key);
+    }
+
+    pub fn flush_config(&mut self, key: Config) -> Result<()> {
+        // flush egress
+        if let Some(v) = self.events.get(EVENT_EGRESS) {
+            v.flush_config(key)?
         }
-        program.detech()?;
         Ok(())
     }
 }
