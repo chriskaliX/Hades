@@ -194,7 +194,7 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
     unsigned long inode = 0;
 
 #pragma unroll
-    for (int i = 0; i < 10; i++) { // const to debug
+    for (int i = 0; i < 8; i++) { // const to debug
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
