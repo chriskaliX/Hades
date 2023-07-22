@@ -194,7 +194,7 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
     unsigned long inode = 0;
 
 #pragma unroll
-    for (int i = 0; i < 12; i++) { // const to debug
+    for (int i = 0; i < 10; i++) { // const to debug
         mnt_root = READ_KERN(vfsmnt->mnt_root);
         d_parent = READ_KERN(dentry->d_parent);
         // 1. dentry == d_parent means we reach the dentry root
@@ -257,12 +257,10 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
                 //  d_inode(dentry)->i_ino);
                 // Since snprintf requires kernel version over 5.10
                 char pipe_prefix[] = "pipe:";
-                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
-                                   (void *)pipe_prefix);
+                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
             } else if (s_magic == SOCKFS_MAGIC) {
                 char socket_prefix[] = "socket:";
-                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
-                                   (void *)socket_prefix);
+                bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)socket_prefix);
             } else {
                 goto out;
             }
@@ -271,18 +269,15 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
         }
         d_name = READ_KERN(dentry->d_name);
         if (d_name.len > 0) {
-            bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
-                               (void *)d_name.name);
+            bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
             goto out;
         }
     } else {
         // Add leading slash
         buf_off -= 1;
-        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1,
-                       &slash);
+        bpf_probe_read(&(string_p->buf[buf_off & ((MAX_PERCPU_BUFSIZE)-1)]), 1, &slash);
         // Null terminate the path string
-        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1,
-                       &zero);
+        bpf_probe_read(&(string_p->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1, &zero);
     }
 
 out:
