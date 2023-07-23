@@ -54,9 +54,7 @@ fn main() {
     // tc egress restriction
     Bpfmanager::bump_memlock_rlimit().unwrap();
     let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(Bpfmanager::new()).into();
-    let mut event = TcEvent::new();
-    // debug
-    event.set_if("eth0").unwrap();
+    let event = TcEvent::new();
     mgr.lock().unwrap().load_program(EVENT_EGRESS, Box::new(event));
     if let Err(e) = mgr.lock().unwrap().start_program(EVENT_EGRESS) {
         error!("start tc failed: {}", e);

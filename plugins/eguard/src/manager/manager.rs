@@ -57,3 +57,36 @@ impl Bpfmanager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::egress::TcEvent;
+    use crate::config::config::Config;
+
+    #[test]
+    fn test_bpfmanager() -> Result<()> {
+        // Create a new Bpfmanager instance
+        let mut bpfmanager = Bpfmanager::new();
+
+        // Load a BPF program into the Bpfmanager
+        let key = "egress";
+        let egress_program = TcEvent::new();
+        bpfmanager.load_program(key, Box::new(egress_program));
+
+        // Start a loaded BPF program
+        assert!(bpfmanager.start_program(key).is_ok());
+
+        // Try to start the same program again (should fail)
+        assert!(bpfmanager.start_program(key).is_err());
+
+        // Flush the config
+        let config = Config { egress: vec![] };
+        assert!(bpfmanager.flush_config(config).is_ok());
+
+        // Stop the BPF program
+        bpfmanager.stop_program(key);
+
+        Ok(())
+    }
+}

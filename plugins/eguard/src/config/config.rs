@@ -1,33 +1,51 @@
 mod eguard_skel {
     include!("../bpf/eguard.skel.rs");
 }
-
 use plain::Plain;
 use serde::{Deserialize, Serialize};
-use anyhow:: Result;
+use anyhow::Result;
 use libc::{IPPROTO_TCP, IPPROTO_UDP};
 use crate::event::ip_address::IpAddress;
 use self::eguard_skel::eguard_bss_types;
 use super::ip_config::IpConfig;
 
+#[cfg(feature = "debug")]
+use std::fs;
+#[cfg(feature = "debug")]
+use anyhow::anyhow;
+
+
 const MAX_PORT_ARR: usize = 32;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Config {
+    pub egress: Vec<EgressPolicy>,
+}
+
+impl Config {
+    #[cfg(feature = "debug")]
+    pub fn from_file(path: &str) -> Result<Self> {
+        let file = fs::read_to_string(path)?;
+        let config: Config = serde_yaml::from_str(&file)
+            .map_err(|err| anyhow!("failed to parse YAML: {}", err))?;
+        Ok(config)
+    }
+}
+
+/// Represents the action for egress policy.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum EgressAction {
     DENY,
     LOG,
 }
 
+/// Represents the protocol for egress policy.
+/// ICMP will be supported in the feature
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum EgressProtocol {
     ALL,
     TCP,
     UDP,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
-    pub egress: Vec<EgressPolicy>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -103,5 +121,33 @@ impl EgressPolicy {
         // flush to the map
         let value = unsafe { plain::as_bytes(&value) }.to_vec();
         Ok((key, value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_egress_policy_to_bytes() {
+        // Create a sample EgressPolicy
+        let egress_policy = EgressPolicy {
+            name: String::from("Policy 1"),
+            address: String::from("192.168.0.1/24"),
+            protocol: EgressProtocol::TCP,
+            ports: Some(vec![String::from("80"), String::from("443")]),
+            action: EgressAction::LOG,
+            level: String::from("high"),
+        };
+
+        // Convert EgressPolicy to bytes
+        let result = egress_policy.to_bytes();
+
+        // Assert the result
+        assert!(result.is_ok());
+
+        let (key, value) = result.unwrap();
+        assert!(!key.is_empty());
+        assert!(!value.is_empty());
     }
 }

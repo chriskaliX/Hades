@@ -55,7 +55,7 @@ mod test {
         assert_eq!(ip_config.is_err(), true);
 
         let ip_config = IpConfig::new("::ffff:c0a8:101/120").unwrap();
-        let ip = "::ffff:c0a8:101/120".parse::<Ipv6Addr>().unwrap();
+        let ip = "::ffff:c0a8:101".parse::<Ipv6Addr>().unwrap();
         assert_eq!(ip_config.subnet, ip);
         assert_eq!(ip_config.prefixlen, 120);
     }

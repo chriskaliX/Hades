@@ -43,15 +43,15 @@ impl IpAddress {
 
     fn is_v4(&self) -> bool {
         self.0[0] == 0xFF
-            && self.0[1] == 0xFF
-            && self.0[2] == 0xFF
-            && self.0[3] == 0xFF
-            && self.0[4] == 0xFF
-            && self.0[5] == 0xFF
-            && self.0[6] == 0xFF
-            && self.0[7] == 0xFF
-            && self.0[8] == 0xFF
-            && self.0[9] == 0xFF
+            && self.0[1] == 0x00
+            && self.0[2] == 0x00
+            && self.0[3] == 0x00
+            && self.0[4] == 0x00
+            && self.0[5] == 0x00
+            && self.0[6] == 0x00
+            && self.0[7] == 0x00
+            && self.0[8] == 0x00
+            && self.0[9] == 0x00
             && self.0[10] == 0xFF
             && self.0[11] == 0xFF
     }
@@ -111,21 +111,23 @@ impl From<IpAddr> for IpAddress {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
     fn test_default_xdp_ip() {
         let default = IpAddress::default();
-        assert_eq!(default.0, [0xFF; 16]);
+        assert_eq!(default.0, [0x00; 16]);
     }
 
     #[test]
     fn test_from_ipv4() {
         let ip = IpAddress::from_ip("1.2.3.4".parse().unwrap());
-        for n in 0..12 {
-            assert_eq!(ip.0[n], 0xFF);
+        for n in 0..9 {
+            assert_eq!(ip.0[n], 0x00);
         }
+        assert_eq!(ip.0[10], 0xFF);
+        assert_eq!(ip.0[11], 0xFF);
         assert_eq!(ip.0[12], 1);
         assert_eq!(ip.0[13], 2);
         assert_eq!(ip.0[14], 3);
@@ -135,10 +137,10 @@ mod test {
     #[test]
     fn test_to_ipv4() {
         let raw_ip = IpAddress([
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 1, 2, 3, 4,
+            0x00, 000, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 1, 2, 3, 4,
         ]);
         let ip = raw_ip.as_ip();
-        let intended_ip: IpAddr = "1.2.3.4".parse().unwrap();
+        let intended_ip: IpAddr = "::ffff:1.2.3.4".parse().unwrap();
         assert_eq!(ip, intended_ip);
     }
 

@@ -8,7 +8,7 @@ use sdk::{Record, Payload};
 use coarsetime::Clock;
 use lazy_static::lazy_static;
 
-use super::event::TX;
+use super::event::{TX, get_default_interface};
 use super::BpfProgram;
 use anyhow::{bail, Context, Result};
 use core::time::Duration;
@@ -22,9 +22,6 @@ use std::net::Ipv6Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, spawn};
-
-#[cfg(feature = "debug")]
-use std::fs;
 
 lazy_static! {
     static ref TC_EVENT_HASH_MAP: Mutex<HashMap<&'static [u8], &'static [u8]>> = {
@@ -85,7 +82,6 @@ impl<'a> TcEvent<'a> {
     
         let mut rec = Record::new();
         let mut payload = Payload::new();
-    
         rec.set_data_type(3200);
         rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
     
@@ -102,17 +98,14 @@ impl<'a> TcEvent<'a> {
             None => dip.to_string(),
         });
         map.insert("dport".to_string(), event.dst_port.to_be().to_string());
-    
         let action = if event.action == 0 { "deny" } else { "log" };
         map.insert("action".to_string(), action.to_string());
     
         payload.set_fields(map);
         rec.set_data(payload);
 
-        let mut lock = TX
-            .lock()
-            .map_err(|e| error!("unable to acquire notification send channel: {}", e)).unwrap();
-        match &mut *lock {
+        let lock = TX.lock().map_err(|e| error!("unable to acquire notification send channel: {}", e));
+        match &mut *lock.unwrap() {
             Some(sender) => {
                 if let Err(err) = sender.send(rec) {
                     error!("send failed: {}", err);
@@ -120,7 +113,7 @@ impl<'a> TcEvent<'a> {
                 }
             }
             None => return,
-        }
+        }    
     }
 
     fn handle_lost_events(cpu: i32, count: u64) {
@@ -142,12 +135,13 @@ impl Drop for TcEvent<'_> {
 impl<'a> BpfProgram for TcEvent<'a> {
     fn init(&mut self) -> Result<()> {
         // check the if_name
-        if self.if_name.is_empty() {
-            bail!("if_name is empty")
-        }
+        let interface = get_default_interface()?;
+        info!("attach to interface: {}", interface);
+        self.set_if(&interface)?;
         // initialization
-        let builder = EguardSkelBuilder::default();
-        let skel = RefCell::new(Some(builder.open()?.load()?));
+        let skel = EguardSkelBuilder::default().open()?.load()?;
+        let skel = RefCell::new(Some(skel));
+    
         // generate the tc hook
         self.tchook = Some(
             TcHookBuilder::new(skel.borrow_mut().as_ref().unwrap().progs().hades_egress().as_fd())
@@ -178,8 +172,7 @@ impl<'a> BpfProgram for TcEvent<'a> {
         self.skel.replace(skel.borrow_mut().take());
         // load configuration if config.yaml exists
         #[cfg(feature = "debug")]
-        if let Ok(yaml_string) = fs::read_to_string("config.yaml") {
-            let config: Config = serde_yaml::from_str(&yaml_string)?;
+        if let Ok(config) = Config::from_file("config.yaml") {
             self.flush_config(config)?;
         }
         Ok(())
@@ -188,24 +181,29 @@ impl<'a> BpfProgram for TcEvent<'a> {
     // libbpf: Kernel error message: Exclusivity flag on, cannot modify
     // This message is harmless, reference: https://www.spinics.net/lists/bpf/msg44842.html
     fn attach(&mut self) -> Result<()> {
-        if let Some(mut hook) = self.tchook {
+        let hook = self.tchook.take();
+        if let Some(mut hook) = hook {
             hook.create().context("failed to create egress TC qdisc")?;
             hook.attach().context("failed to attach egress TC prog")?;
-            // check if the hook isready
+            
+            // check if the hook is ready
             if let Err(e) = hook.query() {
                 self.exit_thread();
-                bail!(e)
+                bail!(e);
             }
+            
             if self.skel.borrow().is_none() {
                 self.exit_thread();
-                bail!("skel is invalid")
+                bail!("skel is invalid");
             }
+            
+            self.tchook = Some(hook);
+            self.status.store(true, Ordering::Relaxed);
+            Ok(())
         } else {
             self.exit_thread();
-            bail!("tchook not exists")
+            bail!("tchook does not exist");
         }
-        self.status.store(true, Ordering::Relaxed);
-        Ok(())
     }
 
     fn detech(&mut self) -> Result<()> {
@@ -250,7 +248,6 @@ impl<'a> BpfProgram for TcEvent<'a> {
                     .update(&key, &value, MapFlags::ANY)?;
             }
         }
-
         Ok(())
     }
 
