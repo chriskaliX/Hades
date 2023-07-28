@@ -10,13 +10,13 @@ use lazy_static::lazy_static;
 
 use super::event::{TX, get_default_interface};
 use super::BpfProgram;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use core::time::Duration;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::os::fd::AsFd;
 use eguard_skel::*;
-use libbpf_rs::{MapFlags, PerfBufferBuilder, TcHook, TcHookBuilder, TC_EGRESS};
+use libbpf_rs::{MapFlags, PerfBufferBuilder, TcHook, TcHookBuilder, TC_EGRESS, TC_INGRESS};
 use plain::Plain;
 use std::net::Ipv6Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -37,7 +37,8 @@ pub struct TcEvent<'a> {
     if_name: String,
     if_idx: i32,
     skel: RefCell<Option<EguardSkel<'a>>>, // skel and hook
-    tchook: Option<TcHook>,
+    egress_hook: Option<TcHook>,
+    ingress_hook: Option<TcHook>,
     thread_handle: Option<thread::JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
     status: AtomicBool,
@@ -100,6 +101,7 @@ impl<'a> TcEvent<'a> {
         map.insert("dport".to_string(), event.dst_port.to_be().to_string());
         let action = if event.action == 0 { "deny" } else { "log" };
         map.insert("action".to_string(), action.to_string());
+        map.insert("ingress".to_string(), event.ingress.to_string());
     
         payload.set_fields(map);
         rec.set_data(payload);
@@ -124,6 +126,7 @@ impl<'a> TcEvent<'a> {
 
 impl Drop for TcEvent<'_> {
     fn drop(&mut self) {
+        self.exit_thread();
         // drop and exit
         if let Err(e) = self.detech() {
             error!("{}", e);
@@ -143,13 +146,21 @@ impl<'a> BpfProgram for TcEvent<'a> {
         let skel = RefCell::new(Some(skel));
     
         // generate the tc hook
-        self.tchook = Some(
+        self.egress_hook = Some(
             TcHookBuilder::new(skel.borrow_mut().as_ref().unwrap().progs().hades_egress().as_fd())
                 .ifindex(self.if_idx.clone())
                 .replace(true)
                 .handle(1)
                 .priority(1)
                 .hook(TC_EGRESS),
+        );
+        self.ingress_hook = Some(
+            TcHookBuilder::new(skel.borrow_mut().as_ref().unwrap().progs().hades_ingress().as_fd())
+                .ifindex(self.if_idx.clone())
+                .replace(true)
+                .handle(1)
+                .priority(1)
+                .hook(TC_INGRESS),
         );
 
         // consume the perf continusiouly
@@ -158,17 +169,18 @@ impl<'a> BpfProgram for TcEvent<'a> {
             .lost_cb(TcEvent::handle_lost_events)
             .build()?;
         let running = Arc::new(Mutex::new(true));
-        let running_clone = running.clone();
+        let running_clone = Arc::clone(&running);
         self.running = running_clone;
         // spawn the consumer
-        let thread_job = spawn(move || {
+        let thread_handle = spawn(move || {
             while *running.lock().unwrap() {
                 if let Err(_) = perf.poll(Duration::from_millis(100)) {
                     break;
                 }
             }
         });
-        self.thread_handle = Some(thread_job);
+        self.thread_handle = Some(thread_handle);
+        
         self.skel.replace(skel.borrow_mut().take());
         // load configuration if config.yaml exists
         #[cfg(feature = "debug")]
@@ -181,47 +193,35 @@ impl<'a> BpfProgram for TcEvent<'a> {
     // libbpf: Kernel error message: Exclusivity flag on, cannot modify
     // This message is harmless, reference: https://www.spinics.net/lists/bpf/msg44842.html
     fn attach(&mut self) -> Result<()> {
-        let hook = self.tchook.take();
-        if let Some(mut hook) = hook {
-            hook.create().context("failed to create egress TC qdisc")?;
-            hook.attach().context("failed to attach egress TC prog")?;
-            
-            // check if the hook is ready
-            if let Err(e) = hook.query() {
-                self.exit_thread();
-                bail!(e);
+        fn attach_hook(hook: &mut Option<libbpf_rs::TcHook>) -> Result<()> {
+            if let Some(ref mut hook) = hook {
+                hook.create().context("failed to create TC qdisc")?;
+                hook.attach().context("failed to attach TC prog")?;
+                hook.query()?;
             }
-            
-            if self.skel.borrow().is_none() {
-                self.exit_thread();
-                bail!("skel is invalid");
-            }
-            
-            self.tchook = Some(hook);
-            self.status.store(true, Ordering::Relaxed);
             Ok(())
-        } else {
-            self.exit_thread();
-            bail!("tchook does not exist");
         }
+        attach_hook(&mut self.egress_hook)?;
+        attach_hook(&mut self.ingress_hook)?;
+
+        self.status.store(true, Ordering::Relaxed);
+        Ok(())
     }
 
+    /// actually, it is destory
     fn detech(&mut self) -> Result<()> {
-        if let Some(mut hook) = self.tchook {
-            hook.detach()?;
-            hook.destroy()?;
-            self.exit_thread();
-            self.status.store(false, Ordering::Relaxed);
-        } else {
-            bail!("tchook not exists")
-        }
+        let mut destroy_all = libbpf_rs::TcHook::new(self.skel.borrow_mut().as_ref().unwrap().progs().hades_egress().as_fd());
+        destroy_all
+            .ifindex(self.if_idx)
+            .attach_point(TC_EGRESS | TC_INGRESS);
+        destroy_all.destroy()?;
         Ok(())
     }
 
     fn flush_config(self: &TcEvent<'a>, cfgs: Config) -> Result<()> {
         // cache up the vec
         let mut temp = HashMap::new();
-        for v in cfgs.egress.into_iter() {
+        for v in cfgs.tc.into_iter() {
             let (key, value) = v.to_bytes()?;
             temp.insert(key, value);
         }
@@ -233,7 +233,7 @@ impl<'a> BpfProgram for TcEvent<'a> {
                 skel.as_mut()
                     .unwrap()
                     .maps_mut()
-                    .EGRESS_POLICY_MAP()
+                    .policy_map()
                     .delete(&key)?;
                 map.remove(key);
             }
@@ -244,7 +244,7 @@ impl<'a> BpfProgram for TcEvent<'a> {
                 skel.as_mut()
                     .unwrap()
                     .maps_mut()
-                    .EGRESS_POLICY_MAP()
+                    .policy_map()
                     .update(&key, &value, MapFlags::ANY)?;
             }
         }

@@ -19,7 +19,7 @@ const MAX_PORT_ARR: usize = 32;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub egress: Vec<EgressPolicy>,
+    pub tc: Vec<TcPolicy>,
 }
 
 impl Config {
@@ -34,7 +34,7 @@ impl Config {
 
 /// Represents the action for egress policy.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub enum EgressAction {
+pub enum TcAction {
     DENY,
     LOG,
 }
@@ -42,25 +42,26 @@ pub enum EgressAction {
 /// Represents the protocol for egress policy.
 /// ICMP will be supported in the feature
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub enum EgressProtocol {
+pub enum TcProtocol {
     ALL,
     TCP,
     UDP,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct EgressPolicy {
+pub struct TcPolicy {
     pub name: String,
+    pub ingress: bool,
     pub address: String,
-    pub protocol: EgressProtocol,
+    pub protocol: TcProtocol,
     pub ports: Option<Vec<String>>,
-    pub action: EgressAction,
+    pub action: TcAction,
     pub level: String,
 }
 
 unsafe impl Plain for eguard_bss_types::net_packet {}
 
-impl EgressPolicy {
+impl TcPolicy {
     pub fn to_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
         let mut key = eguard_bss_types::policy_key::default();
         let mut value = eguard_bss_types::policy_value::default();
@@ -75,15 +76,16 @@ impl EgressPolicy {
 
         // parse value
         value.action = match self.action {
-            EgressAction::DENY => 0,
-            EgressAction::LOG => 1,
+            TcAction::DENY => 0,
+            TcAction::LOG => 1,
         };
+        value.ingress = self.ingress as u8;
 
         // parse protocol
         value.protocol = match self.protocol {
-            EgressProtocol::ALL => 0,
-            EgressProtocol::TCP => IPPROTO_TCP as u32,
-            EgressProtocol::UDP => IPPROTO_UDP as u32,
+            TcProtocol::ALL => 0,
+            TcProtocol::TCP => IPPROTO_TCP as u32,
+            TcProtocol::UDP => IPPROTO_UDP as u32,
         };
 
         // parse ports
@@ -131,12 +133,13 @@ mod tests {
     #[test]
     fn test_egress_policy_to_bytes() {
         // Create a sample EgressPolicy
-        let egress_policy = EgressPolicy {
+        let egress_policy = TcPolicy {
             name: String::from("Policy 1"),
+            ingress: false,
             address: String::from("192.168.0.1/24"),
-            protocol: EgressProtocol::TCP,
+            protocol: TcProtocol::TCP,
             ports: Some(vec![String::from("80"), String::from("443")]),
-            action: EgressAction::LOG,
+            action: TcAction::LOG,
             level: String::from("high"),
         };
 

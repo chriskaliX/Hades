@@ -81,7 +81,7 @@ mod tests {
         assert!(bpfmanager.start_program(key).is_err());
 
         // Flush the config
-        let config = Config { egress: vec![] };
+        let config = Config { tc: vec![] };
         assert!(bpfmanager.flush_config(config).is_ok());
 
         // Stop the BPF program

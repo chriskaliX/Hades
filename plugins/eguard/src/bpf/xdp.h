@@ -16,7 +16,7 @@ struct {
 	__type(key, u16);                   // port
 	__type(value, struct redirect_value); // count
     __uint(map_flags, BPF_F_NO_PREALLOC);
-    __uint(max_entries, EGRESS_POLICY_MAP_SIZE);
+    __uint(max_entries, POLICY_MAP_SIZE);
 } redirect_map SEC(".maps");
 
 // from katran

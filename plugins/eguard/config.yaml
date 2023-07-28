@@ -1,9 +1,19 @@
-egress:
+tc:
   - name: "eguard_egress_test_project"
+    ingress: false
     address: "192.168.1.1/24"
     protocol: TCP # ALL/TCP/UDP
     ports:        # empty means all ports. 32(single port like 80), 16(range like 8079-8080)
       - 80
       - 8079-8080
+    action: DENY  # DENY/LOG
+    level: INFO
+  - name: "eguard_ingress_test_project"
+    ingress: true
+    address: "172.25.0.1/16"
+    protocol: TCP # ALL/TCP/UDP
+    ports:        # empty means all ports. 32(single port like 80), 16(range like 8079-8080)
+      - 9999
+      - 10000
     action: DENY  # DENY/LOG
     level: INFO

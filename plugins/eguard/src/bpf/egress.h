@@ -16,7 +16,7 @@
 #define s6_addr16 in6_u.u6_addr16
 #define s6_addr32 in6_u.u6_addr32
 
-#define EGRESS_POLICY_MAP_SIZE 16384
+#define POLICY_MAP_SIZE  16384
 #define ACTION_DENY     0
 #define ACTION_LOG      1
 #define PROTOCOL_ALL    0
@@ -40,6 +40,7 @@ struct policy_value {
     __u32   protocol;
     __u16   ports[MAX_PORT_ARR];       // 32
     __u16   ports_range[MAX_PORT_ARR]; // 16 range only
+    __u8    ingress;
 };
 
 // Dump the skeleton
@@ -51,8 +52,8 @@ struct {
 	__type(key, struct policy_key);
 	__type(value, struct policy_value); // count
     __uint(map_flags, BPF_F_NO_PREALLOC);
-    __uint(max_entries, EGRESS_POLICY_MAP_SIZE);
-} EGRESS_POLICY_MAP SEC(".maps");
+    __uint(max_entries, POLICY_MAP_SIZE);
+} policy_map SEC(".maps");
 
 // check the port
 // true: matched
@@ -111,6 +112,7 @@ typedef struct net_packet {
     __be16 src_port, dst_port;
     u8 protocol;
     u8 action;
+    u8 ingress;
 } net_packet_t;
 
 // Dump the skeleton
@@ -181,40 +183,38 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
             pkt.dst_port = udp->dest;
     }
 
-    if(ingress == false) { // egress
-        // fill up the key
-        struct policy_key key = { 
-            .prefixlen = 128,
-            .addr = pkt.dst_addr
-        };
-
-        // counter in kernel space
-        struct policy_value *value = bpf_map_lookup_elem(&EGRESS_POLICY_MAP, &key);
-        if (value) {
-            size_t pkt_size = sizeof(pkt);
-            // protocol match, port is ignored
-            if (value->protocol != PROTOCOL_ALL && value->protocol != pkt.protocol) {
+    struct policy_key key = {0};
+    // egress
+    if(ingress == false) {
+        pkt.ingress = 0;
+        key.prefixlen = 128;
+        key.addr = pkt.dst_addr;
+    // ingress
+    } else {
+        pkt.ingress = 1;
+        key.prefixlen = 128;
+        key.addr = pkt.src_addr;
+    }
+    struct policy_value *value = bpf_map_lookup_elem(&policy_map, &key);
+    if (value && value->ingress == pkt.ingress) {
+        size_t pkt_size = sizeof(pkt);
+        // protocol match, port is ignored
+        if (value->protocol != PROTOCOL_ALL && value->protocol != pkt.protocol) {
+            return TC_ACT_UNSPEC;
+        }
+        // for now, only support udp & tcp
+        if (pkt.protocol == IPPROTO_TCP || pkt.protocol == IPPROTO_UDP) {
+            if (port_check(value, pkt.dst_port) == false) {
                 return TC_ACT_UNSPEC;
             }
-
-            // for now, only support udp & tcp
-            if (pkt.protocol == IPPROTO_TCP || pkt.protocol == IPPROTO_UDP) {
-                if (port_check(value, pkt.dst_port) == false) {
-                    return TC_ACT_UNSPEC;
-                }
-            }
-
-            if (value->action == ACTION_DENY) {
-                pkt.action = ACTION_DENY;
-                bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
-                return TC_ACT_SHOT;
-            } else {
-                bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
-            }
         }
-    } else { // ingress
-        // scan detection
+        if (value->action == ACTION_DENY) {
+            pkt.action = ACTION_DENY;
+            bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
+            return TC_ACT_SHOT;
+        } else {
+            bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, &pkt, pkt_size);
+        }
     }
-
     return TC_ACT_UNSPEC;
 };
