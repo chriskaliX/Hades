@@ -5,6 +5,10 @@
 
 > eguard is meant for the formal version of edr. This is based on libbpf-rs and will add BTFhub into this project.
 
+## Features
+
+- [x] Ingress/Egress ACL
+
 ## Quick start
 
 > prerequisite: BTF supported kernel version (will move on to the BTFHub in the feature)

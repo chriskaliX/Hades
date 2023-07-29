@@ -32,10 +32,10 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 ## 插件列表
 
-- [Driver-eBPF](https://github.com/chriskaliX/Hades/tree/main/plugins/edriver)
+- [EDriver](https://github.com/chriskaliX/Hades/tree/main/plugins/edriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
-- HoneyPot
-- Monitor
+- [Eguard](https://github.com/chriskaliX/Hades/tree/main/plugins/eguard)
+- [NCP](https://github.com/chriskaliX/Hades/tree/main/plugins/ncp)
 - Scanner
 - Logger
 
@@ -43,7 +43,7 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 ---
 
-### eBPF Driver
+### EDriver
 
 > 支持 `21` 种 Hook，涵盖大部分安全审计检测需求，采集字段基本和 Elkeid 相同
 
