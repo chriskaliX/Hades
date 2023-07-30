@@ -3,6 +3,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
+#include "general.h"
 #include "../../../libs/core/vmlinux.h"
 
 #define ETH_P_IP    0x0800
@@ -22,13 +23,7 @@
 #define PROTOCOL_ALL    0
 
 #define MAX_PORT_ARR    32
-
-// send out the perf event
-struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-} events SEC(".maps");
+#define TYPE_TC         3200
 
 struct policy_key {
     __u32   prefixlen;
@@ -105,6 +100,7 @@ skb_revalidate_data(struct __sk_buff *skb, uint8_t **head, uint8_t **tail, const
 }
 
 typedef struct net_packet {
+    u32 event_type;
     uint64_t ts;
     u32 len;
     u32 ifindex;
@@ -136,6 +132,7 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
     struct ethhdr *eth = (struct ethhdr *)start;
 
     net_packet_t pkt = {0};
+    pkt.event_type = TYPE_TC;
     pkt.ts = bpf_ktime_get_ns();
     pkt.len = skb->len;
     pkt.ifindex = skb->ifindex;
@@ -184,15 +181,15 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
     }
 
     struct policy_key key = {0};
+    key.prefixlen = 128;
+
     // egress
     if(ingress == false) {
         pkt.ingress = 0;
-        key.prefixlen = 128;
         key.addr = pkt.dst_addr;
     // ingress
     } else {
         pkt.ingress = 1;
-        key.prefixlen = 128;
         key.addr = pkt.src_addr;
     }
     struct policy_value *value = bpf_map_lookup_elem(&policy_map, &key);

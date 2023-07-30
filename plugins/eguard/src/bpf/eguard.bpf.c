@@ -6,7 +6,6 @@
 #include "tc.h"
 // #include "xdp.h"
 
-// Egress-based packet drop
 SEC("tc")
 int hades_egress(struct __sk_buff *skb)
 {

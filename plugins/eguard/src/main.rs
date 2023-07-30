@@ -7,7 +7,7 @@ use sdk::{logger::*, Client};
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
-use event::egress::TcEvent;
+use event::tc::TcEvent;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -16,8 +16,9 @@ mod event;
 mod manager;
 
 use crate::config::config::Config as BpfConfig;
-use crate::event::egress::EVENT_EGRESS;
 use crate::manager::manager::Bpfmanager;
+
+pub const TYPE_TC: u32 = 3200;
 
 fn main() {
     let mut client = Client::new(false);
@@ -53,10 +54,22 @@ fn main() {
 
     // tc egress restriction
     Bpfmanager::bump_memlock_rlimit().unwrap();
-    let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(Bpfmanager::new()).into();
+    // let mgr = Bpfmanager::new();
+    let mgr = match Bpfmanager::new() {
+        Ok(m) => {
+            let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(m).into();
+            mgr
+        }
+        Err (e) => {
+            error!("load bpfmanager failed: {}", e);
+            return;
+        }
+    };
+
+    // let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(Bpfmanager::new()).into();
     let event = TcEvent::new();
-    mgr.lock().unwrap().load_program(EVENT_EGRESS, Box::new(event));
-    if let Err(e) = mgr.lock().unwrap().start_program(EVENT_EGRESS) {
+    mgr.lock().unwrap().load_program(TYPE_TC, Box::new(event));
+    if let Err(e) = mgr.lock().unwrap().start_program(TYPE_TC) {
         error!("start tc failed: {}", e);
         return;
     }
@@ -110,7 +123,5 @@ fn main() {
             }
         }).unwrap();
     let _ = record_send.join();
-    info!("record_send is exiting");
-    mgr.lock().unwrap().stop_program(EVENT_EGRESS);
     info!("plugin will exit");
 }
