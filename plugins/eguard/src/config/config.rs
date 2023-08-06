@@ -8,6 +8,7 @@ use libc::{IPPROTO_TCP, IPPROTO_UDP};
 use crate::event::ip_address::IpAddress;
 use self::eguard_skel::eguard_bss_types;
 use super::ip_config::IpConfig;
+use serde_json::Value;
 
 #[cfg(feature = "debug")]
 use std::fs;
@@ -54,7 +55,7 @@ pub struct TcPolicy {
     pub ingress: bool,
     pub address: String,
     pub protocol: TcProtocol,
-    pub ports: Option<Vec<String>>,
+    pub ports: Option<Vec<Value>>,
     pub action: TcAction,
     pub level: String,
 }
@@ -93,29 +94,39 @@ impl TcPolicy {
             let mut range_index: usize = 0;
             let mut index: usize = 0;
             for (_, v) in ports.iter().enumerate().take(MAX_PORT_ARR) {
-                if v.contains('-') {
-                    let fields: Vec<&str> = v.split('-').collect();
-                    if fields.len() == 2 {
-                        let start: u16 = match fields[0].parse() {
-                            Ok(s) => s,
-                            _ => continue,
-                        };
-                        let end: u16 = match fields[1].parse() {
-                            Ok(e) => e,
-                            _ => continue,
-                        };
-                        if end >= start {
-                            // notice: little-endian
-                            value.ports_range[2 * range_index] = start;
-                            value.ports_range[2 * range_index + 1] = end;
-                            range_index += 1;
+                match v {
+                    serde_json::Value::Number(num) => {
+                        if let Some(n) = num.as_u64() {
+                            value.ports[index] = (n as u16).to_be();
                         }
                     }
-                } else {
-                    if let Ok(port) = v.parse::<u16>() {
-                        value.ports[index] = port.to_be();
-                        index += 1;
+                    serde_json::Value::String(s) => {
+                        if s.contains('-') {
+                            let fields: Vec<&str> = s.split('-').collect();
+                            if fields.len() == 2 {
+                                let start: u16 = match fields[0].parse() {
+                                    Ok(s) => s,
+                                    _ => continue,
+                                };
+                                let end: u16 = match fields[1].parse() {
+                                    Ok(e) => e,
+                                    _ => continue,
+                                };
+                                if end >= start {
+                                    // notice: little-endian
+                                    value.ports_range[2 * range_index] = start;
+                                    value.ports_range[2 * range_index + 1] = end;
+                                    range_index += 1;
+                                }
+                            }
+                        } else {
+                            if let Ok(port) = s.parse::<u16>() {
+                                value.ports[index] = port.to_be();
+                                index += 1;
+                            }
+                        }
                     }
+                    _ => {}               
                 }
             }            
         }

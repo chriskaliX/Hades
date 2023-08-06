@@ -28,6 +28,8 @@ const (
 	// ssh log
 	sshCol   = "ssh_log"
 	alarmCol = "alarm"
+	// configuration
+	configCol = "config"
 )
 
 var MongoProxyImpl = &MongoProxy{}
@@ -43,6 +45,7 @@ type MongoProxy struct {
 	MetricC *mongo.Collection
 	SshC    *mongo.Collection
 	AlarmC  *mongo.Collection
+	ConfigC *mongo.Collection
 }
 
 func (m *MongoProxy) Init(uri string, poolsize uint64) error {
@@ -82,6 +85,7 @@ func (m *MongoProxy) Init(uri string, poolsize uint64) error {
 	m.SshC.Indexes().CreateOne(ctx, model)
 	// alarm
 	m.AlarmC = m.client.Database(dbName).Collection(alarmCol)
+	m.ConfigC = m.client.Database(dbName).Collection(configCol)
 
 	// backend admin user init
 	res := m.UserC.FindOne(context.Background(), bson.M{"username": "admin"})

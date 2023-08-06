@@ -68,7 +68,6 @@ func AgentStat(c *gin.Context) {
 
 	pluginList := make([]map[string]interface{}, 0, len(as.PluginDetail))
 	for k := range as.PluginDetail {
-		// 增加状态
 		as.PluginDetail[k]["status"] = false
 		if hb, ok := as.PluginDetail[k]["last_heartbeat_time"]; ok {
 			if hbtime, ok := hb.(int64); ok {
@@ -141,4 +140,9 @@ func AgentBasic(c *gin.Context) {
 		resList = append(resList, tmp)
 	}
 	common.Response(c, common.SuccessCode, resList)
+}
+
+// clear the agent plugins
+func AgentClear(c *gin.Context) {
+
 }

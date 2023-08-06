@@ -119,6 +119,8 @@ func RunGrpcServer(port int) {
 		gGroup.GET("/select", plugin.PluginSelect)
 		gGroup.GET("/delete", plugin.PluginDel)
 		gGroup.POST("/send", plugin.SendPlugin)
+		gGroup.GET("/config", host.PluginConfig)
+		gGroup.POST("/config", host.PluginConfig)
 	}
 	{
 		aGroup := apiv1Router.Group("/asset")

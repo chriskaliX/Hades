@@ -18,12 +18,9 @@ pre_show:
 clean:
 	rm -f hboat
 
-.PHONY: build
-build:
-	cd frontend && npm run build && cd ..
-
 .PHONY: build_frontend
 build_frontend:
 	rm -f api/static/frontend/*
 	cd frontend && npm run build && cd ..
 	cp frontend/dist/* api/static/frontend/
+	go build -o hboat cmd/main.go
