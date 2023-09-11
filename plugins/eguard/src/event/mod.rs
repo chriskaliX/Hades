@@ -2,15 +2,15 @@ pub(crate) mod eguard_skel {
     include!("../bpf/eguard.skel.rs");
 }
 
-use anyhow::Result;
 use crate::config::config::Config;
+use anyhow::Result;
 
 use self::eguard_skel::EguardSkel;
 
-pub mod tc;
-pub mod xdp;
 pub mod event;
 pub mod ip_address;
+pub mod tc;
+pub mod xdp;
 
 pub trait BpfProgram: Sync {
     /// init he bpf program

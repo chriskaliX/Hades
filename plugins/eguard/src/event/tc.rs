@@ -2,21 +2,21 @@ mod eguard_skel {
     include!("../bpf/eguard.skel.rs");
 }
 use crate::config::config::*;
-use log::*;
-use sdk::{Record, Payload};
 use coarsetime::Clock;
 use lazy_static::lazy_static;
+use log::*;
+use sdk::{Payload, Record};
 
 use super::eguard_skel::EguardSkel;
-use super::event::{TX, get_default_interface};
+use super::event::{get_default_interface, TX};
 use super::BpfProgram;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
-use std::os::fd::AsFd;
 use eguard_skel::*;
 use libbpf_rs::{MapFlags, TcHook, TcHookBuilder, TC_EGRESS, TC_INGRESS};
 use plain::Plain;
+use std::collections::HashMap;
 use std::net::Ipv6Addr;
+use std::os::fd::AsFd;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
@@ -52,7 +52,7 @@ impl<'a> TcEvent {
 }
 
 impl<'a> BpfProgram for TcEvent {
-    fn init(&mut self, skel: &mut EguardSkel) -> Result<()> {
+    fn init(&mut self, _skel: &mut EguardSkel) -> Result<()> {
         // check the if_name
         let interface = get_default_interface()?;
         info!("attach to interface: {}", interface);
@@ -60,7 +60,7 @@ impl<'a> BpfProgram for TcEvent {
         // load configuration if config.yaml exists
         #[cfg(feature = "debug")]
         if let Ok(config) = Config::from_file("config.yaml") {
-            self.flush_config(config, skel)?;
+            self.flush_config(config, _skel)?;
         }
         Ok(())
     }
@@ -111,7 +111,7 @@ impl<'a> BpfProgram for TcEvent {
         Ok(())
     }
 
-    fn flush_config(self: &TcEvent, cfgs: Config, skel:&mut EguardSkel) -> Result<()> {
+    fn flush_config(self: &TcEvent, cfgs: Config, skel: &mut EguardSkel) -> Result<()> {
         // cache up the vec
         let mut temp = HashMap::new();
         for v in cfgs.tc.into_iter() {
@@ -122,9 +122,7 @@ impl<'a> BpfProgram for TcEvent {
         let mut map = TC_EVENT_HASH_MAP.lock().unwrap();
         for (key, _) in map.clone().into_iter() {
             if !temp.contains_key(key) {
-                skel.maps_mut()
-                    .policy_map()
-                    .delete(&key)?;
+                skel.maps_mut().policy_map().delete(&key)?;
                 map.remove(key);
             }
         }
@@ -150,41 +148,49 @@ impl<'a> BpfProgram for TcEvent {
             error!("copy bytes from kernel failed: {:?}", e);
             return;
         };
-    
+
         let sip: Ipv6Addr;
         let dip: Ipv6Addr;
-    
+
         unsafe {
             sip = Ipv6Addr::from(event.src_addr.in6_u.u6_addr8);
             dip = Ipv6Addr::from(event.dst_addr.in6_u.u6_addr8);
         }
-    
+
         let mut rec = Record::new();
         let mut payload = Payload::new();
         rec.set_data_type(3200);
         rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
-    
+
         let mut map = HashMap::with_capacity(7);
         map.insert("ifindex".to_string(), event.ifindex.to_string());
         map.insert("protocol".to_string(), event.protocol.to_string());
-        map.insert("sip".to_string(), match sip.to_ipv4() {
-            Some(s) => s.to_string(),
-            None => sip.to_string(),
-        });
+        map.insert(
+            "sip".to_string(),
+            match sip.to_ipv4() {
+                Some(s) => s.to_string(),
+                None => sip.to_string(),
+            },
+        );
         map.insert("sport".to_string(), event.src_port.to_be().to_string());
-        map.insert("dip".to_string(), match dip.to_ipv4() {
-            Some(s) => s.to_string(),
-            None => dip.to_string(),
-        });
+        map.insert(
+            "dip".to_string(),
+            match dip.to_ipv4() {
+                Some(s) => s.to_string(),
+                None => dip.to_string(),
+            },
+        );
         map.insert("dport".to_string(), event.dst_port.to_be().to_string());
         let action = if event.action == 0 { "deny" } else { "log" };
         map.insert("action".to_string(), action.to_string());
         map.insert("ingress".to_string(), event.ingress.to_string());
-    
+
         payload.set_fields(map);
         rec.set_data(payload);
 
-        let lock = TX.lock().map_err(|e| error!("unable to acquire notification send channel: {}", e));
+        let lock = TX
+            .lock()
+            .map_err(|e| error!("unable to acquire notification send channel: {}", e));
         match &mut *lock.unwrap() {
             Some(sender) => {
                 if let Err(err) = sender.send(rec) {
@@ -193,6 +199,6 @@ impl<'a> BpfProgram for TcEvent {
                 }
             }
             None => return,
-        }    
-    } 
+        }
+    }
 }

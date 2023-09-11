@@ -1,19 +1,28 @@
 mod eguard_skel {
     include!("../bpf/eguard.skel.rs");
 }
-use crate::{event::BpfProgram, config::config::Config, TYPE_TC};
+use crate::{config::config::Config, event::BpfProgram, TYPE_TC};
 use anyhow::{anyhow, bail, Ok, Result};
 use lazy_static::lazy_static;
-use libbpf_rs::{skel::{SkelBuilder, OpenSkel}, PerfBufferBuilder};
-use std::{collections::HashMap, sync::{Arc, Mutex, RwLock}, time::Duration, thread::{spawn, self}};
+use libbpf_rs::{
+    skel::{OpenSkel, SkelBuilder},
+    PerfBufferBuilder,
+};
 use log::*;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, RwLock},
+    thread::{self, spawn},
+    time::Duration,
+};
 
 use crate::event::eguard_skel::{EguardSkel, EguardSkelBuilder};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::Cursor;
-use byteorder::{ReadBytesExt, LittleEndian};
 
 lazy_static! {
-    static ref EVENTS: Arc<RwLock<HashMap<u32, Box<dyn BpfProgram + Send>>>> = Arc::new(RwLock::new(HashMap::new()));
+    static ref EVENTS: Arc<RwLock<HashMap<u32, Box<dyn BpfProgram + Send>>>> =
+        Arc::new(RwLock::new(HashMap::new()));
 }
 
 pub struct Bpfmanager<'a> {
@@ -101,7 +110,7 @@ impl Bpfmanager<'_> {
 
     fn handle_event(_cpu: i32, data: &[u8]) {
         if data.len() < 4 {
-            return
+            return;
         }
         let mut cursor = Cursor::new(&data[0..4]);
         let event_type = cursor.read_u32::<LittleEndian>().unwrap();
@@ -117,7 +126,7 @@ impl Bpfmanager<'_> {
 impl Drop for Bpfmanager<'_> {
     fn drop(&mut self) {
         let events = &mut *EVENTS.write().unwrap();
-        for (key, e) in events.iter_mut() {        
+        for (key, e) in events.iter_mut() {
             if let Some(skel) = self.skel.as_mut() {
                 if let Err(err) = e.detech(skel) {
                     error!("drop event {} failed: {}", key, err);
@@ -135,8 +144,8 @@ impl Drop for Bpfmanager<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::tc::TcEvent;
     use crate::config::config::Config;
+    use crate::event::tc::TcEvent;
 
     #[test]
     fn test_bpfmanager() -> Result<()> {

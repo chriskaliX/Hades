@@ -1,7 +1,3 @@
-pub struct XdpEvent {
+pub struct XdpEvent {}
 
-}
-
-impl XdpEvent {
-    
-}
+impl XdpEvent {}

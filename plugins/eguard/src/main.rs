@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 use crossbeam::channel::bounded;
-use log::*;
+use event::tc::TcEvent;
 use log::set_boxed_logger;
+use log::*;
 use sdk::{logger::*, Client};
 use std::path::PathBuf;
-use std::thread;
-use std::time::Duration;
-use event::tc::TcEvent;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 mod config;
 mod event;
@@ -33,20 +33,23 @@ fn main() {
         max_backups: 10,
         compress: true,
         client: Some(client.clone()),
-    }))).unwrap();
-    
+    })))
+    .unwrap();
+
     // Install Ctrl-C handler
     let control_s = Arc::new(AtomicBool::new(false));
     let control_l = control_s.clone();
     let control_c = control_s.clone();
     ctrlc::set_handler(move || {
         control_c.store(true, Ordering::Relaxed);
-    }).unwrap();
+    })
+    .unwrap();
 
     // set channel and replace
     let (tx, rx) = bounded(512);
     {
-        let mut lock = event::event::TX.lock()
+        let mut lock = event::event::TX
+            .lock()
             .map_err(|e| error!("failed to define shared notification sender: {}", e))
             .unwrap();
         *lock = Some(tx);
@@ -60,7 +63,7 @@ fn main() {
             let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(m).into();
             mgr
         }
-        Err (e) => {
+        Err(e) => {
             error!("load bpfmanager failed: {}", e);
             return;
         }
@@ -119,9 +122,10 @@ fn main() {
                         return;
                     }
                 }
-                Err(_) => continue
+                Err(_) => continue,
             }
-        }).unwrap();
+        })
+        .unwrap();
     let _ = record_send.join();
     info!("plugin will exit");
 }

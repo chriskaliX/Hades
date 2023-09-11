@@ -10,7 +10,7 @@ static = ["libbpf-rs/static"]
 
 [dependencies]
 anyhow = "1.0"
-libbpf-rs = {version = "0.21.1", features=["static"]}
+libbpf-rs = {version = "0.21.2", features=["static"]}
 libc = "0.2.0"
 plain = "0.2"
 time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
@@ -30,4 +30,4 @@ pnet = "0.27"
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
-libbpf-cargo = "0.21.1"
+libbpf-cargo = "0.21.2"

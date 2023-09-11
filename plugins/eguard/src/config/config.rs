@@ -1,20 +1,19 @@
 mod eguard_skel {
     include!("../bpf/eguard.skel.rs");
 }
-use plain::Plain;
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use libc::{IPPROTO_TCP, IPPROTO_UDP};
-use crate::event::ip_address::IpAddress;
 use self::eguard_skel::eguard_bss_types;
 use super::ip_config::IpConfig;
+use crate::event::ip_address::IpAddress;
+use anyhow::Result;
+use libc::{IPPROTO_TCP, IPPROTO_UDP};
+use plain::Plain;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[cfg(feature = "debug")]
-use std::fs;
-#[cfg(feature = "debug")]
 use anyhow::anyhow;
-
+#[cfg(feature = "debug")]
+use std::fs;
 
 const MAX_PORT_ARR: usize = 32;
 
@@ -27,8 +26,8 @@ impl Config {
     #[cfg(feature = "debug")]
     pub fn from_file(path: &str) -> Result<Self> {
         let file = fs::read_to_string(path)?;
-        let config: Config = serde_yaml::from_str(&file)
-            .map_err(|err| anyhow!("failed to parse YAML: {}", err))?;
+        let config: Config =
+            serde_yaml::from_str(&file).map_err(|err| anyhow!("failed to parse YAML: {}", err))?;
         Ok(config)
     }
 }
@@ -126,9 +125,9 @@ impl TcPolicy {
                             }
                         }
                     }
-                    _ => {}               
+                    _ => {}
                 }
-            }            
+            }
         }
 
         // flush to the map
@@ -149,7 +148,10 @@ mod tests {
             ingress: false,
             address: String::from("192.168.0.1/24"),
             protocol: TcProtocol::TCP,
-            ports: Some(vec![String::from("80"), String::from("443")]),
+            ports: Some(vec![
+                serde_json::Value::String(String::from("80")),
+                serde_json::Value::String(String::from("443")),
+            ]),
             action: TcAction::LOG,
             level: String::from("high"),
         };

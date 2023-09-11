@@ -72,6 +72,10 @@ func (h *Heartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 			Key:   "timestamp",
 			Value: time.Now().UTC(),
 		},
+		primitive.E{
+			Key:   "agent_id",
+			Value: req.AgentID,
+		},
 	}
 	DefaultWorker.AddMetric(docs)
 	return nil
