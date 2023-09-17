@@ -38,6 +38,8 @@ plugins/edriver/bpf/headers/*.h
 plugins/edriver/bpf/headers/libbpf
 plugins/edr/bpf/headers/*.h
 plugins/edr/bpf/headers/libbpf
+plugins/eguard/src/bpf/headers/*.h
+plugins/eguard/src/bpf/headers/libbpf
 
 # pprof
 *.pprof

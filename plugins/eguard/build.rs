@@ -12,7 +12,7 @@ fn main() {
     SkeletonBuilder::new()
         .source(SRC)
         .debug(true)
-        .clang_args("-c -g -O2 -I ../libs/core/")
+        .clang_args("-c -g -O2 -I src/bpf/headers/ -I ../libs/core/ -I../libs/bpfheaders/ -DCORE")
         .build_and_generate(&out)
         .unwrap();
     // println!("cargo:rerun-if-changed={SRC}");

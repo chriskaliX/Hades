@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2023 chriskali
-#include "../../../libs/core/vmlinux.h"
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include "events/tc.h"
-// #include "xdp.h"
+#include "events/dns.h"
+// #include "events/xdp.h"
 
 SEC("tc")
 int hades_egress(struct __sk_buff *skb)

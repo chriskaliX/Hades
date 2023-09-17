@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
+#ifndef __ACL_H
+#define __ACL_H
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
@@ -103,3 +105,5 @@ static __always_inline int acl_rule(net_packet_t pkt, struct __sk_buff *skb) {
     }
     return TC_ACT_UNSPEC;
 }
+
+#endif
