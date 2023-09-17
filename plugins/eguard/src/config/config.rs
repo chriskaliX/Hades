@@ -17,6 +17,7 @@ use std::fs;
 
 const MAX_PORT_ARR: usize = 32;
 
+/// Config of the eguard, for now, only tc vec
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub tc: Vec<TcPolicy>,

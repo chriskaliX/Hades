@@ -69,7 +69,6 @@ fn main() {
         }
     };
 
-    // let mgr: Arc<Mutex<Bpfmanager>> = Mutex::new(Bpfmanager::new()).into();
     let event = TcEvent::new();
     mgr.lock().unwrap().load_program(TYPE_TC, Box::new(event));
     if let Err(e) = mgr.lock().unwrap().start_program(TYPE_TC) {

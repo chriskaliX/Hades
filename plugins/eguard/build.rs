@@ -12,7 +12,7 @@ fn main() {
     SkeletonBuilder::new()
         .source(SRC)
         .debug(true)
-        .clang_args("-c -g -O2")
+        .clang_args("-c -g -O2 -I ../libs/core/")
         .build_and_generate(&out)
         .unwrap();
     // println!("cargo:rerun-if-changed={SRC}");

@@ -3,7 +3,7 @@
 #include "../../../libs/core/vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
-#include "tc.h"
+#include "events/tc.h"
 // #include "xdp.h"
 
 SEC("tc")
