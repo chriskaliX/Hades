@@ -93,7 +93,7 @@ typedef struct data_context {
     __u64 cgroup_id; // cgroup_id
     __u32 pns;       // in Elkeid, they use pid_inum and root_pid_inum. TODO: go
                      // through this
-    __u32 type;      // type of struct
+    __u32 dt;        // type of struct
     __u32 pid;       // processid
     __u32 tid;       // thread id
     __u32 uid;       // user id

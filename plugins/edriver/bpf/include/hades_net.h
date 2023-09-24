@@ -64,7 +64,7 @@ int sys_exit_connect(struct syscall_exit_args *ctx)
         goto delete;
     if (context_filter(&data.context))
         goto delete;
-    data.context.type = SYSCONNECT;
+    data.context.dt = SYSCONNECT;
     data.context.retval = ctx->ret;
     void *exe = get_exe_from_task(data.task);
     u16 family = net_ctx->sa_family;
@@ -102,7 +102,7 @@ int BPF_KPROBE(kprobe_security_socket_bind)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SECURITY_SOCKET_BIND;
+    data.context.dt = SECURITY_SOCKET_BIND;
 
     // This is for getting protocol
     // In Elkeid, the protocol is not concerned, only sa_family, sip, sport, res
@@ -260,7 +260,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
             return 0;
         if (context_filter(&data.context))
             return 0;
-        data.context.type = UDP_RECVMSG;
+        data.context.dt = UDP_RECVMSG;
         data.context.retval = retval;
 
         int opcode = (string_p->buf[2] >> 3) & 0x0f;

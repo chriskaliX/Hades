@@ -22,7 +22,7 @@ int BPF_KPROBE(kprobe_commit_creds)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = COMMIT_CREDS;
+    data.context.dt = COMMIT_CREDS;
 
     struct cred *new = (struct cred *)PT_REGS_PARM1(ctx);
     struct cred *old = (struct cred *)get_task_real_cred(data.task);

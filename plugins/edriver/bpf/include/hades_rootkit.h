@@ -50,7 +50,7 @@ int BPF_KPROBE(kprobe_do_init_module)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = DO_INIT_MODULE;
+    data.context.dt = DO_INIT_MODULE;
 
     struct module *mod = (struct module *)PT_REGS_PARM1(ctx);
     if (mod == NULL)
@@ -90,7 +90,7 @@ int BPF_KPROBE(kprobe_security_kernel_read_file)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = SECURITY_KERNEL_READ_FILE;
+    data.context.dt = SECURITY_KERNEL_READ_FILE;
     // get the file
     struct file *file = (struct file *)PT_REGS_PARM1(ctx);
     void *file_path = get_path_str_simple(GET_FIELD_ADDR(file->f_path));
@@ -111,7 +111,7 @@ int BPF_KPROBE(kprobe_call_usermodehelper)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = CALL_USERMODEHELPER;
+    data.context.dt = CALL_USERMODEHELPER;
     void *path = (void *)PT_REGS_PARM1(ctx);
     save_str_to_buf(&data, path, 0);
     unsigned long argv = PT_REGS_PARM2(ctx);
@@ -219,7 +219,7 @@ int trigger_sct_scan(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = ANTI_RKT_SCT;
+    data.context.dt = ANTI_RKT_SCT;
     // Hook golang uprobe with eBPF
     // After golang 1.17, params stay at registers (Go internal ABI specification)
     // https://go.googlesource.com/go/+/refs/heads/dev.regabi/src/cmd/compile/internal-abi.md
@@ -252,7 +252,7 @@ int trigger_idt_scan(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = 1201;
+    data.context.dt = 1201;
     // Hook golang uprobe with eBPF
     // After golang 1.17, params stay at registers (Go internal ABI specification)
     // https://go.googlesource.com/go/+/refs/heads/dev.regabi/src/cmd/compile/internal-abi.md
@@ -318,7 +318,7 @@ int trigger_module_scan(struct pt_regs *ctx)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = ANTI_RKT_MODULE;
+    data.context.dt = ANTI_RKT_MODULE;
 
     struct kset *mod_kset = NULL;
 	struct kobject *cur = NULL;
@@ -396,7 +396,7 @@ int trigger_module_scan(struct pt_regs *ctx)
 //     event_data_t data = {};
 //     if (!init_event_data(&data, ctx))
 //         return 0;
-//     data.context.type = 1207;
+//     data.context.dt = 1207;
 
 //     struct vmap_area *cur = NULL;
 //     struct vm_struct *vm_area = NULL;
@@ -485,7 +485,7 @@ int BPF_KPROBE(kprobe_security_file_permission)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = ANTI_RKT_FOPS;
+    data.context.dt = ANTI_RKT_FOPS;
 
     struct file_operations *fops = (struct file_operations *) READ_KERN(f_inode->i_fop);
     if (fops == NULL)
@@ -578,7 +578,7 @@ int BPF_KPROBE(kprobe_security_file_permission)
 //         return 0;
 //     if (context_filter(&data.context))
 //         return 0;
-//     data.context.type = SYS_BPF;
+//     data.context.dt = SYS_BPF;
 //     void *exe = get_exe_from_task(data.task);
 //     save_str_to_buf(&data, exe, 0);
 //     // command

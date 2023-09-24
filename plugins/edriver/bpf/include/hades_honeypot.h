@@ -193,7 +193,7 @@ int BPF_KPROBE(kprobe_tcp_reset)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = HONEYPOT_PORTSCAN_DETECT;
+    data.context.dt = HONEYPOT_PORTSCAN_DETECT;
     u16 family = AF_INET6;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
@@ -225,7 +225,7 @@ int BPF_KPROBE(kprobe_icmp_send)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = HONEYPOT_PORTSCAN_DETECT;
+    data.context.dt = HONEYPOT_PORTSCAN_DETECT;
     u16 family = AF_INET;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
     struct sk_buff *skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
@@ -247,7 +247,7 @@ int BPF_KPROBE(krpobe_icmp6_send)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = HONEYPOT_PORTSCAN_DETECT;
+    data.context.dt = HONEYPOT_PORTSCAN_DETECT;
     u16 family = AF_INET6;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
     struct sk_buff *skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
@@ -265,7 +265,7 @@ int BPF_KPROBE(krpobe_icmp_rcv)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = HONEYPOT_PORTSCAN_DETECT;
+    data.context.dt = HONEYPOT_PORTSCAN_DETECT;
     u16 family = AF_INET;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
     struct sk_buff *skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
@@ -284,7 +284,7 @@ int BPF_KPROBE(krpobe_icmpv6_rcv)
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    data.context.type = HONEYPOT_PORTSCAN_DETECT;
+    data.context.dt = HONEYPOT_PORTSCAN_DETECT;
     u16 family = AF_INET6;
     save_to_submit_buf(&data, &family, sizeof(u16), 0);
     struct sk_buff *skb = (struct sk_buff *) PT_REGS_PARM1(ctx);

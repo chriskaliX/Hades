@@ -6,6 +6,7 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
 #include "vmlinux.h"
+#include "define.h"
 
 #define TC_ACT_UNSPEC       (-1)
 #define TC_ACT_OK		    0

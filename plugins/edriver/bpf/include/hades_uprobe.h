@@ -14,7 +14,7 @@
 //     event_data_t data = {};
 //     if (!init_event_data(&data, ctx))
 //         return 0;
-//     data.context.type = BASH_READLINE;
+//     data.context.dt = BASH_READLINE;
 //     // exe
 //     void *exe = get_exe_from_task(data.task);
 //     save_str_to_buf(&data, exe, 0);
@@ -60,6 +60,6 @@
 //     event_data_t data = {};
 //     if (!init_event_data(&data, ctx))
 //         return 0;
-//     data.context.type = 2001;
+//     data.context.dt = 2001;
 //     return events_perf_submit(&data);
 // }

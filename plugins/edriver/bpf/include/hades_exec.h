@@ -78,7 +78,7 @@ int sys_exit_execve(void *ctx)
         goto delete;
     if (context_filter(&data.context))
         goto delete;
-    data.context.type = SYS_ENTER_EXECVE;
+    data.context.dt = SYS_ENTER_EXECVE;
     /* filename
    * The filename contains dot slash thing. It's not abs path,
    * but the args[0] of execve(at)
@@ -149,7 +149,7 @@ int sys_exit_execveat(void *ctx)
         goto delete;
     if (context_filter(&data.context))
         goto delete;
-    data.context.type = SYS_ENTER_EXECVEAT;
+    data.context.dt = SYS_ENTER_EXECVEAT;
     /* filename
    * The filename contains dot slash thing. It's not abs path,
    * but the args[0] of execve(at)
@@ -210,7 +210,7 @@ int sys_enter_prctl(struct syscall_enter_args *ctx)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SYS_ENTER_PRCTL;
+    data.context.dt = SYS_ENTER_PRCTL;
 
     int option;
     char *newname = NULL;
@@ -256,7 +256,7 @@ int sys_enter_ptrace(struct syscall_enter_args *ctx)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SYS_ENTER_PTRACE;
+    data.context.dt = SYS_ENTER_PTRACE;
     long request;
     bpf_probe_read(&request, sizeof(request), &ctx->args[0]);
     if (request != PTRACE_POKETEXT && request != PTRACE_POKEDATA)
@@ -280,7 +280,7 @@ int sys_enter_memfd_create(struct syscall_enter_args *ctx)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SYS_ENTER_MEMFD_CREATE;
+    data.context.dt = SYS_ENTER_MEMFD_CREATE;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
     save_str_to_buf(&data, (char *)ctx->args[0], 1);

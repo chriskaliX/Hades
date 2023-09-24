@@ -18,6 +18,8 @@
 1. `cargo libbpf make`
 2. `./target/debug/eguard`
 
+Or just `make all`
+
 ## QA
 
 1. Why Rust

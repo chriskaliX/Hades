@@ -4,8 +4,8 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
 #include "vmlinux.h"
-#include "../rules/acl.h"
-#include "../common/general.h"
+#include "rules/acl.h"
+#include "common/general.h"
 
 #define ETH_P_IP    0x0800
 #define ETH_P_IPV6  0x86DD
@@ -96,5 +96,5 @@ static __always_inline int tc_probe(struct __sk_buff *skb, int ingress)
     }
     pkt.ingress = ingress;
 
-    return acl_rule(pkt, skb);
+    return tc_rule(pkt, skb);
 };

@@ -5,7 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
-#include "../common/general.h"
+#include "common/general.h"
 #include "vmlinux.h"
 
 #define MAX_PORT_ARR    32
@@ -72,7 +72,7 @@ port_check(struct policy_value *policy, __u16 port)
     return false;
 }
 
-static __always_inline int acl_rule(net_packet_t pkt, struct __sk_buff *skb) {
+static __always_inline int tc_rule(net_packet_t pkt, struct __sk_buff *skb) {
     struct policy_key key = {0};
     key.prefixlen = 128;
 
@@ -105,5 +105,10 @@ static __always_inline int acl_rule(net_packet_t pkt, struct __sk_buff *skb) {
     }
     return TC_ACT_UNSPEC;
 }
+
+// static __always_inline int dns_rule(buf_t string_p, void *ctx) {
+//     int size = string_p->
+//     bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, string_p->buf, )
+// }
 
 #endif

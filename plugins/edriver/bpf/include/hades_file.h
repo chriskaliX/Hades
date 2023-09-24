@@ -16,7 +16,7 @@ int BPF_KPROBE(kprobe_security_inode_create)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SECURITY_INODE_CREATE;
+    data.context.dt = SECURITY_INODE_CREATE;
     void *exe = get_exe_from_task(data.task);
     save_str_to_buf(&data, exe, 0);
     struct dentry *dentry = (struct dentry *)PT_REGS_PARM2(ctx);
@@ -34,7 +34,7 @@ int BPF_KPROBE(kprobe_security_sb_mount)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SECURITY_SB_MOUNT;
+    data.context.dt = SECURITY_SB_MOUNT;
     const char *dev_name = (const char *)PT_REGS_PARM1(ctx);
     struct path *path = (struct path *)PT_REGS_PARM2(ctx);
     const char *type = (const char *)PT_REGS_PARM3(ctx);
@@ -58,7 +58,7 @@ int BPF_KPROBE(kprobe_security_inode_rename)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SECURITY_INODE_RENAME;
+    data.context.dt = SECURITY_INODE_RENAME;
     
     struct dentry *from = (struct dentry *) PT_REGS_PARM2(ctx);
     struct dentry *to = (struct dentry *) PT_REGS_PARM4(ctx);
@@ -82,7 +82,7 @@ int BPF_KPROBE(kprobe_security_inode_link)
         return 0;
     if (context_filter(&data.context))
         return 0;
-    data.context.type = SECURITY_INODE_LINK;
+    data.context.dt = SECURITY_INODE_LINK;
     
     struct dentry *from = (struct dentry *) PT_REGS_PARM1(ctx);
     struct dentry *to = (struct dentry *) PT_REGS_PARM3(ctx);
