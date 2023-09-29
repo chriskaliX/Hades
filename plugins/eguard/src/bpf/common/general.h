@@ -37,4 +37,6 @@ typedef struct net_packet {
 // Dump the skeleton
 struct net_packet _net_packet = {0};
 
+struct data_context _context = {0};
+
 #endif

@@ -21,11 +21,17 @@ headers/libbpf/libbpf.a: \
 		install install_uapi_headers
 	install -m 0640 ./src/bpf/headers/libbpf/bpf/*.h ./src/bpf/headers/
 
-all: \
+build: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
 	RUSTFLAGS="-C target-feature=+crt-static -L /usr/lib/x86_64-linux-gnu/" cargo build --release --target x86_64-unknown-linux-gnu --features=static
+
+debug: \
+	headers/libbpf/libbpf.a
+
+	cargo fmt
+	RUSTFLAGS="-C target-feature=+crt-static -L /usr/lib/x86_64-linux-gnu/" cargo build --release --target x86_64-unknown-linux-gnu --features=static,debug
 
 test:
 	cargo fmt

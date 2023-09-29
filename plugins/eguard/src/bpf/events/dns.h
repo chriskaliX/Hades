@@ -109,7 +109,7 @@ int BPF_KPROBE(kprobe_udp_sendmsg)
         // Then use the lpm to find the root address of what we care, and compitable
         // to .com and .com.cn or something like this.
         // record as much as 4 to backforward match by lpm
-        bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, string_p->buf, len & (MAX_PERCPU_BUFSIZE - 1));
+        bpf_perf_event_output(ctx, &exec_events, BPF_F_CURRENT_CPU, string_p->buf, len & (MAX_PERCPU_BUFSIZE - 1));
     }
     return 0;
 }

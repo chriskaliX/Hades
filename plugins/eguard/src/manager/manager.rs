@@ -58,6 +58,8 @@ impl Bpfmanager<'_> {
             .sample_cb(Bpfmanager::handle_event)
             .lost_cb(Bpfmanager::handle_lost_events)
             .build()?;
+        // let probe_perf = PerfBufferBuilder::new(&skel.maps_mut().exec_events())
+
         let thread_handle = spawn(move || {
             while *running.lock().unwrap() {
                 if let Err(_) = perf.poll(Duration::from_millis(100)) {
