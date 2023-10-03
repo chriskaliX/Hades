@@ -22,6 +22,7 @@ twox-hash = "1.6"
 lru-cache = "0.1.2"
 hex = "0.4"
 coarsetime = "0.1"
+tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 protobuf-codegen-pure = "2.28.0"

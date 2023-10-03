@@ -86,9 +86,10 @@ static __always_inline int init_context(context_t *context,
     // Still, I think it's fine if we just get the root pid_namespace from usersapce. I do not
     // catch the reason that Elkeid get this in root.
     // sessionid
-    bpf_probe_read(&context->sessionid, sizeof(context->sessionid),
-                   &task->sessionid);
-    // This may changed since
+    // 
+    // Notice, sessionId maybe empty if audit is not set
+    // bpf_probe_read(&context->sessionid, sizeof(context->sessionid),
+    //                &task->sessionid);
     bpf_probe_read_str(&context->pcomm, sizeof(context->pcomm),
                        &realparent->comm);
     bpf_get_current_comm(&context->comm, sizeof(context->comm));

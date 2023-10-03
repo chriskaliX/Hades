@@ -137,6 +137,20 @@ impl Client {
         Task::parse_from_bytes(&buf).map_err(|err| err.into())
     }
 
+    pub async fn receive_async(&mut self) -> Result<Task, std::io::Error> {
+        let reader = self.reader.clone();
+    
+        tokio::task::spawn_blocking(move || {
+            let mut r = reader.lock();
+            let mut bytes = [0; 4];
+            r.read_exact(&mut bytes[..])?;
+            let length = u32::from_le_bytes(bytes);
+            let mut buf = vec![0; length as usize];
+            r.read_exact(&mut buf[..])?;
+            Task::parse_from_bytes(&buf).map_err(|err| err.into())
+        }).await?
+    }
+
     pub fn raw_write_all(&mut self, buf: &[u8]) -> Result<(), Error> {
         let mut w = self.writer.lock();
         w.write_all(buf)
