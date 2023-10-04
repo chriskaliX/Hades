@@ -64,7 +64,7 @@ static __always_inline int dns_resolve(void *ctx, struct sock *sk, struct msghdr
     int templen;
     int end_flag = 0; // end_flag: question domain parse finished
 #pragma unroll
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 12; i++)
     {
         // firstly get the length
         if (i == 0)

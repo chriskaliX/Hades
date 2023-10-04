@@ -31,6 +31,7 @@ impl<'a> BpfProgram for DnsEvent {
         Ok(())
     }
 
+    // Not working
     fn detech(&mut self, skel: &mut EguardSkel) -> Result<()> {
         match &skel.links.kprobe_udp_sendmsg {
             None => {}

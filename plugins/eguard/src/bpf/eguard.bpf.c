@@ -24,9 +24,6 @@ int hades_ingress(struct __sk_buff *skb)
 SEC("kprobe/udp_sendmsg")
 int BPF_KPROBE(kprobe_udp_sendmsg)
 {
-    int i = 1;
-    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &i, sizeof(int));
-
     int pid = bpf_get_current_pid_tgid() >> 32;
     const char fmt_str[] = "Hello, world, from BPF! My PID is %d\n";
     bpf_trace_printk(fmt_str, sizeof(fmt_str), pid);
@@ -41,7 +38,7 @@ int BPF_KPROBE(kprobe_udp_sendmsg)
         dport = READ_KERN(sin->sin_port);
     else
         dport = READ_KERN(inet->inet_dport);    
-    if (dport != 13568 && dport == 59668 && dport == 0)
+    if (dport != 13568 && dport != 59668 && dport != 0)
         return 0;
     return dns_resolve(ctx, sk, msg);
 }
