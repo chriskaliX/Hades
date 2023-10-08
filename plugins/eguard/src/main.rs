@@ -65,10 +65,11 @@ fn main() -> Result<()> {
     let tc_event = TcEvent::new();
     let dns_event = DnsEvent::new();
 
-    mgr.lock().unwrap().autoload(TYPE_TC, Box::new(tc_event))?;
-    mgr.lock()
-        .unwrap()
-        .autoload(TYPE_DNS, Box::new(dns_event))?;
+    {
+        let mut guard = mgr.lock().unwrap();
+        guard.autoload(TYPE_TC, Box::new(tc_event))?;
+        guard.autoload(TYPE_DNS, Box::new(dns_event))?;
+    }
 
     info!("init bpf program successfully");
     // task_receive thread

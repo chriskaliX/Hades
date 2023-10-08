@@ -27,6 +27,7 @@ lazy_static = "1.4.0"
 coarsetime = "0.1.23"
 pnet = "0.27"
 tokio = { version = "1", features = ["full"] }
+object = "0.25"
 #plugins
 sdk = { path = "../../SDK/rust" }
 

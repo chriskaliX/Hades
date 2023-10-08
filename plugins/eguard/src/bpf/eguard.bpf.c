@@ -20,14 +20,9 @@ int hades_ingress(struct __sk_buff *skb)
     return tc_probe(skb, true);
 }
 
-// Notice: This is not working for now
 SEC("kprobe/udp_sendmsg")
 int BPF_KPROBE(kprobe_udp_sendmsg)
 {
-    int pid = bpf_get_current_pid_tgid() >> 32;
-    const char fmt_str[] = "Hello, world, from BPF! My PID is %d\n";
-    bpf_trace_printk(fmt_str, sizeof(fmt_str), pid);
-
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
     struct inet_sock *inet = (struct inet_sock *) sk;

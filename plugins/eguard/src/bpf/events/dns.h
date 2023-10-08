@@ -23,11 +23,11 @@ static __always_inline int dns_resolve(void *ctx, struct sock *sk, struct msghdr
     event_data_t data = {};
     if (!init_event_data(&data, ctx))
         return 0;
-    events_perf_submit(&data);
+    data.context.dt = 3201;
 
     // handle the udp send package
     int ret = 0;
-    struct iov_iter msg_iter = {};
+    struct iov_iter msg_iter = {0};
     struct iovec iov;
 
     msg_iter = READ_KERN(msg->msg_iter);
@@ -42,11 +42,11 @@ static __always_inline int dns_resolve(void *ctx, struct sock *sk, struct msghdr
         iov_len = 512;
     // Firstly, we need to understand the dns data struct
     // The reference is here: http://c.biancheng.net/view/6457.html
-    // |QR|Opcode|TC|RD|Z|rcode|
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return 0;
-    bpf_probe_read_user(&(string_p->buf[0]), iov_len & (512), iov.iov_base);
+    // clear the comm
+    bpf_probe_read(&(string_p->buf[0]), iov_len & (512), iov.iov_base);
     // The data structure of dns is here...
     // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys...|
     // The datas that we need are flags & querys
@@ -64,13 +64,13 @@ static __always_inline int dns_resolve(void *ctx, struct sock *sk, struct msghdr
     int templen;
     int end_flag = 0; // end_flag: question domain parse finished
 #pragma unroll
-    for (int i = 0; i < 12; i++)
+    for (int i = 0; i < 10; i++)
     {
         // firstly get the length
         if (i == 0)
         {
-            len = string_p->buf[10];
-            len = 10 + len;
+            len = string_p->buf[12];
+            len = 12 + len;
         }
         else
         {
@@ -101,6 +101,6 @@ static __always_inline int dns_resolve(void *ctx, struct sock *sk, struct msghdr
     // Then use the lpm to find the root address of what we care, and compitable
     // to .com and .com.cn or something like this.
     // record as much as 4 to backforward match by lpm
-    save_str_to_buf(&data, (void *)&string_p->buf[11], 1);
+    save_str_to_buf(&data, (void *)&string_p->buf[13], 1);
     return events_perf_submit(&data);
 }

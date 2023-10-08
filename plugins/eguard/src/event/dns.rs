@@ -26,12 +26,11 @@ impl<'a> BpfProgram for DnsEvent {
             .progs_mut()
             .kprobe_udp_sendmsg()
             .attach_kprobe(false, "udp_sendmsg")?;
-
+        skel.links.kprobe_udp_sendmsg = Some(_dns_kprobe);
         self.status.store(true, Ordering::SeqCst);
         Ok(())
     }
 
-    // Not working
     fn detech(&mut self, skel: &mut EguardSkel) -> Result<()> {
         match &skel.links.kprobe_udp_sendmsg {
             None => {}

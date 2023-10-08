@@ -3,7 +3,7 @@ mod eguard_skel {
 }
 use crate::{
     config::config::Config,
-    event::{event::TX, BpfProgram},
+    event::{eguard_skel::eguard_bss_types, event::TX, BpfProgram},
     TYPE_TC,
 };
 use anyhow::{anyhow, bail, Ok, Result};
@@ -13,6 +13,7 @@ use libbpf_rs::{
     PerfBufferBuilder,
 };
 use log::*;
+use plain::Plain;
 use std::{
     collections::HashMap,
     sync::{
@@ -33,6 +34,8 @@ lazy_static! {
     static ref EVENTS: Arc<RwLock<HashMap<u32, Box<dyn BpfProgram + Send>>>> =
         Arc::new(RwLock::new(HashMap::new()));
 }
+
+unsafe impl Plain for eguard_bss_types::data_context {}
 
 pub struct Bpfmanager<'a> {
     skel: Option<EguardSkel<'a>>,
@@ -153,15 +156,34 @@ impl Bpfmanager<'_> {
 
     /// working on this
     fn handle_exec_event(_cpu: i32, data: &[u8]) {
-        if data.len() < 168 {
-            return;
-        }
         // parse the context
-        let mut _cursor = Cursor::new(&data[0..168]);
+        let mut context = eguard_bss_types::data_context::default();
+        plain::copy_from_bytes(&mut context, data).expect("context decode failed");
+        let mut map = HashMap::new();
+        map.insert("cgroupid".to_string(), context.cgroup_id.to_string());
+        map.insert("pns".to_string(), context.pns.to_string());
+        map.insert("pid".to_string(), context.pid.to_string());
+        map.insert("tid".to_string(), context.tid.to_string());
+        map.insert("uid".to_string(), context.uid.to_string());
+        map.insert("gid".to_string(), context.gid.to_string());
+        map.insert("ppid".to_string(), context.ppid.to_string());
+        map.insert("pgid".to_string(), context.pgid.to_string());
+        map.insert("sessionid".to_string(), context.sessionid.to_string());
+        let comm: &[u8] = unsafe { std::mem::transmute(&context.comm[..]) };
+        map.insert("comm".to_string(), trim_null_chars(comm));
+        let pcomm: &[u8] = unsafe { std::mem::transmute(&context.pcomm[..]) };
+        map.insert("pcomm".to_string(), trim_null_chars(pcomm));
+        let nodename: &[u8] = unsafe { std::mem::transmute(&context.nodename[..]) };
+        map.insert("nodename".to_string(), trim_null_chars(nodename));
+
+        // println!("{:?}", data.len());
+
         let mut rec = Record::new();
-        let mut _payload = Payload::new();
+        let mut pld = Payload::new();
+        pld.set_fields(map);
         rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
-        println!("{}", &data[169]);
+        rec.set_data(pld);
+        rec.data_type = context.dt as i32;
         let lock = TX
             .lock()
             .map_err(|e| error!("unable to acquire notification send channel: {}", e));
@@ -199,6 +221,13 @@ impl Drop for Bpfmanager<'_> {
 
         debug!("has dropped bpfmanager from thread");
     }
+}
+
+fn trim_null_chars(data: &[u8]) -> String {
+    String::from_utf8_lossy(data)
+        .to_string()
+        .trim_end_matches('\0')
+        .to_string()
 }
 
 #[cfg(test)]
