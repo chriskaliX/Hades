@@ -258,8 +258,10 @@ static __always_inline void *get_path_str(struct path *path, event_data_t *data,
             switch (s_magic) {
             case PIPEFS_MAGIC:
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)pipe_prefix);
+                buf_off += sizeof(pipe_prefix) - 1;
             case SOCKFS_MAGIC:
                 bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)socket_prefix);
+                buf_off += sizeof(socket_prefix) - 1;
             default:
                 goto out;                    
             }

@@ -230,7 +230,7 @@ func (d *EbpfDecoder) DecodePath() (s string, err error) {
 	if err = d.DecodeBytes(d.innerBuffer[:size-1], uint32(size-1)); err != nil {
 		return
 	}
-	d.DecodeUint8(&d.dummy)
+	d.DecodeUint8(&d.dummy) // index, trivial
 	s = string(d.innerBuffer[:size-1])
 	// NOTICE: for now, only ugly hardcode, will be better
 	if s == "pipe:" || s == "socket:" {
@@ -241,7 +241,7 @@ func (d *EbpfDecoder) DecodePath() (s string, err error) {
 		}
 		s = s + "[" + strconv.FormatUint(inode, 10) + "]"
 	}
-	return	
+	return
 }
 
 func (d *EbpfDecoder) DecodeAddr() (family, sport, dport uint16, sip, dip string, err error) {
