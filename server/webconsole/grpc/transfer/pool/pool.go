@@ -7,7 +7,6 @@ import (
 	"hboat/pkg/basic/mongo"
 	"sync"
 	"time"
-	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -83,21 +82,16 @@ func (g *GRPCPool) SendCommand(agentID string, command *pb.Command) (err error) 
 	select {
 	case conn.CommandChan <- comm:
 	case <-time.After(2 * time.Second):
-		fmt.Println("channel full")
 		return errors.New("command channel is full")
 	}
 	// After sending the command, a wating action like Elkied should be implemented
 	// for knowning the result of the command execution, use a notify latter
 	select {
 	case <-comm.Ready:
-		fmt.Println("err")
-		fmt.Println(comm)
 		return comm.Error
 	case <-time.After(2 * time.Second):
-		fmt.Println("timeout")
 		return errors.New("the command has been sent but get results timed out")
 	}
-	fmt.Println("exit")
 	return
 }
 
