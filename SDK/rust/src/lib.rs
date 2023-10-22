@@ -21,6 +21,9 @@ use std::{
 };
 use coarsetime::Updater;
 
+#[cfg(feature = "debug")]
+use std::collections::BTreeMap;
+
 #[derive(Clone)]
 pub enum EncodeType {
     Protobuf,
@@ -95,8 +98,9 @@ impl Client {
             w.write_all(rec.data_type.to_string().as_bytes())?;
             w.write_all(b",\"timestamp\":")?;
             w.write_all(rec.timestamp.to_string().as_bytes())?;
+            let fields: BTreeMap<_, _> = rec.get_data().get_fields().iter().collect(); 
             w.write_all(b",\"data\":")?;
-            serde_json::to_writer(w.by_ref(), rec.get_data().get_fields())?;
+            serde_json::to_writer(w.by_ref(), &fields)?;
             w.write_all(b"}\n")
         }
     }

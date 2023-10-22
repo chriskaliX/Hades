@@ -36,7 +36,7 @@ pub struct TcEvent {
     status: AtomicBool,
 }
 
-unsafe impl Plain for eguard_bss_types::net_packet {}
+unsafe impl Plain for eguard_bss_types::net_context {}
 
 impl<'a> TcEvent {
     pub fn new() -> Self {
@@ -143,7 +143,7 @@ impl<'a> BpfProgram for TcEvent {
 
     // event handlers
     fn handle_event(&self, _cpu: i32, data: &[u8]) {
-        let mut event = eguard_bss_types::net_packet::default();
+        let mut event = eguard_bss_types::net_context::default();
         if let Err(e) = plain::copy_from_bytes(&mut event, data) {
             error!("copy bytes from kernel failed: {:?}", e);
             return;

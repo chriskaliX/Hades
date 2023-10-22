@@ -141,7 +141,6 @@ impl Bpfmanager<'_> {
     /// context like uid, pid and something else
     fn handle_tc_event(_cpu: i32, data: &[u8]) {
         if data.len() < 4 {
-            println!("not working");
             return;
         }
         let mut cursor = Cursor::new(&data[0..4]);
@@ -175,8 +174,6 @@ impl Bpfmanager<'_> {
         map.insert("pcomm".to_string(), trim_null_chars(pcomm));
         let nodename: &[u8] = unsafe { std::mem::transmute(&context.nodename[..]) };
         map.insert("nodename".to_string(), trim_null_chars(nodename));
-
-        // println!("{:?}", data.len());
 
         let mut rec = Record::new();
         let mut pld = Payload::new();

@@ -45,8 +45,7 @@ static __always_inline int dns_resolve(void *ctx, struct sock *sk, struct msghdr
     buf_t *string_p = get_buf(STRING_BUF_IDX);
     if (string_p == NULL)
         return 0;
-    // clear the comm
-    bpf_probe_read(&(string_p->buf[0]), iov_len & (512), iov.iov_base);
+    bpf_probe_read_user(&(string_p->buf[0]), iov_len & (512), iov.iov_base);
     // The data structure of dns is here...
     // |SessionID(2 bytes)|Flags(2 bytes)|Data(8 bytes)|Querys...|
     // The datas that we need are flags & querys

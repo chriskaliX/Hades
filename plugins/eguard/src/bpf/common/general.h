@@ -21,8 +21,8 @@ struct {
 	__uint(value_size, sizeof(u32));
 } events SEC(".maps");
 
-// net packet
-typedef struct net_packet {
+// net context
+typedef struct net_context {
     u32 event_type;
     uint64_t ts;
     u32 len;
@@ -32,11 +32,20 @@ typedef struct net_packet {
     u8 protocol;
     u8 action;
     u8 ingress;
+} net_context_t;
+
+// net packet
+typedef struct net_packet {
+    net_context_t ctx;
+    buf_t *buf_p;
+    u32 buf_off;
 } net_packet_t;
 
 // Dump the skeleton
 struct net_packet _net_packet = {0};
 
 struct data_context _context = {0};
+
+struct net_context _net_context = {0};
 
 #endif

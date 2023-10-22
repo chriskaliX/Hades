@@ -5,6 +5,8 @@
 
 > eguard is meant for the formal version of edr. This is based on libbpf-rs and will add BTFhub into this project.
 
+> The tc ingress may impact on the hook already does, considering cgroup_skb in the future.
+
 ## Features
 
 - [x] Ingress/Egress ACL

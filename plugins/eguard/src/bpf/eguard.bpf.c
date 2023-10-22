@@ -6,7 +6,6 @@
 #include <bpf/bpf_tracing.h>
 #include "events/tc.h"
 #include "events/dns.h"
-// #include "events/xdp.h"
 
 SEC("tc")
 int hades_egress(struct __sk_buff *skb)
