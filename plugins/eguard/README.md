@@ -20,7 +20,7 @@
 1. `cargo libbpf make`
 2. `./target/debug/eguard`
 
-Or just `make all`
+For debugging usage, `make debug`
 
 ## QA
 
@@ -36,5 +36,3 @@ Or just `make all`
     [x] (Layer 7) Dns-based restriction
     [ ] File access restriction
     [ ] Kernel exploit detection
-
-    For now, I am working on feature 1.
