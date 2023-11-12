@@ -18,9 +18,9 @@ tc:
     action: LOG  # DENY/LOG
     level: INFO
 dns:
-  - name: "eguard_egress_test_dns"
-    action: DENY
-    domain: "grpc.hades.store"
+  # - name: "eguard_egress_test_dns"
+  #   action: DENY
+  #   domain: "grpc.hades.store"
   - name: "eguard_egress_test_dns_1"
     action: DENY
     domain: "*.baidu.com"
