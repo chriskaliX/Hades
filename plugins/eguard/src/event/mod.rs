@@ -9,7 +9,6 @@ use self::eguard_skel::EguardSkel;
 
 pub mod dns;
 pub mod event;
-pub mod ip_address;
 pub mod tc;
 pub mod xdp;
 

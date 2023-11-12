@@ -32,9 +32,9 @@ Or just `make all`
 
     Several basic features which, I think, would be useful in real world. Detection is NOT the purpose of this plugin.
 
-    1. TC-based ip restriction
-    2. Dns-based restriction
-    3. File access restriction
-    4. Kernel exploit detection
+    [x] (Layer 4) TC-based ip restriction
+    [x] (Layer 7) Dns-based restriction
+    [ ] File access restriction
+    [ ] Kernel exploit detection
 
     For now, I am working on feature 1.

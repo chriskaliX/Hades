@@ -249,7 +249,10 @@ mod tests {
         assert!(bpfmanager.start_program(TYPE_TC).is_err());
 
         // Flush the config
-        let config = Config { tc: vec![] };
+        let config = Config {
+            tc: vec![],
+            dns: vec![],
+        };
         assert!(bpfmanager.flush_config(config).is_ok());
 
         Ok(())

@@ -35,6 +35,27 @@ struct dnshdr {
 };
 struct dnshdr _dnshdr = {0};
 
+// DNS ACL structs
+struct dns_policy_key {
+    __u32 prefixlen;
+    char  domain[255];
+};
+
+struct dns_policy_value {
+    __u32 action;
+};
+
+struct dns_policy_key _dns_policy_key = {0};
+struct dns_policy_value _dns_policy_value = {0};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_LPM_TRIE);
+	__type(key, struct dns_policy_key);
+	__type(value, struct dns_policy_value);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+    __uint(max_entries, POLICY_MAP_SIZE);
+} dns_policy_map SEC(".maps");
+
 #define SIZE_DNSHDR         sizeof(struct dnshdr)
 #define SIZE_CONTEXT        sizeof(net_context_t)
 #define DNS_MAX_LEN         255
@@ -42,7 +63,7 @@ struct dnshdr _dnshdr = {0};
 #define MID_WAY             8192
 
 static __always_inline int tc_context_fill(net_packet_t pkt);
-static __always_inline int load_dns(net_packet_t pkt, struct __sk_buff *skb);
+static __always_inline int load_dns(net_packet_t pkt, struct dns_policy_key *key, struct __sk_buff *skb);
 
 /* l7_acl_rule
  *
@@ -60,11 +81,25 @@ static __always_inline int l7_acl_rule(net_packet_t pkt, struct __sk_buff *skb) 
         pkt.ctx.event_type = TYPE_DNS;
         // set ctx into buffer
         tc_context_fill(pkt);
+        
+        // trim key
+        struct dns_policy_key key = {0};
+        key.prefixlen = 255;
 
         bpf_skb_load_bytes(skb, DNS_OFFSET, (void *)&pkt.buf_p->buf[SIZE_CONTEXT], SIZE_DNSHDR);
-        int offset = load_dns(pkt, skb);
+        int offset = load_dns(pkt, &key, skb);
         void *output_data = pkt.buf_p->buf;
-        return bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, output_data, SIZE_CONTEXT + SIZE_DNSHDR + offset + 2);
+        // match the lpm
+        struct dns_policy_value *value = bpf_map_lookup_elem(&dns_policy_map, &key);
+        if (value) {
+            if (value->action == ACTION_DENY) {
+                pkt.buf_p->buf[61] = ACTION_DENY;
+                bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, output_data, SIZE_CONTEXT + SIZE_DNSHDR + offset + 2);
+                return TC_ACT_SHOT;
+            }
+
+            return bpf_perf_event_output(skb, &events, BPF_F_CURRENT_CPU, output_data, SIZE_CONTEXT + SIZE_DNSHDR + offset + 2);
+        }
     }
     
     return TC_ACT_UNSPEC;
@@ -89,9 +124,9 @@ static __always_inline int tc_context_fill(net_packet_t pkt)
  * | total_length(2) | domain(total_length) | query_type |
  */
 
-static __always_inline int load_dns(net_packet_t pkt, struct __sk_buff *skb)
+static __always_inline int load_dns(net_packet_t pkt, struct dns_policy_key *key, struct __sk_buff *skb)
 {
-    int i = 0;
+    int i, j = 0;
     int point_offset = 0;
 #pragma unroll
     for (i = 0; i < DNS_MAX_LEN; i++) {
@@ -107,6 +142,13 @@ static __always_inline int load_dns(net_packet_t pkt, struct __sk_buff *skb)
     }
 
     u16 dns_offset = i - 1;
+#pragma unroll
+    for (j = 0; j < DNS_MAX_LEN; j++) {
+        key->domain[j] = pkt.buf_p->buf[(SIZE_CONTEXT + SIZE_DNSHDR + dns_offset + 1 - j) & (MAX_PERCPU_BUFSIZE - 1)];
+        if (j == dns_offset - 1)
+            break;
+    }
+
     __builtin_memcpy(&(pkt.buf_p->buf[SIZE_CONTEXT + SIZE_DNSHDR]), &dns_offset, sizeof(u16));
     return i;
 }
