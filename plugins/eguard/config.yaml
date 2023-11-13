@@ -24,3 +24,7 @@ dns:
   - name: "eguard_egress_test_dns_1"
     action: DENY
     domain: "*.baidu.com"
+file:
+  - name: "file_test_1"
+    action: DENY
+    file: /etc/passwd

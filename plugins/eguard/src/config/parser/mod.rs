@@ -2,11 +2,10 @@ pub mod dns;
 pub mod tc;
 
 use anyhow::{Error, Result};
+use byteorder::{BigEndian, ByteOrder};
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use byteorder::{BigEndian, ByteOrder};
 use zerocopy::FromBytes;
-
 
 pub trait CfgTrait {
     fn to_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)>;
@@ -57,7 +56,6 @@ impl IpConfig {
         })
     }
 }
-
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, FromBytes)]
