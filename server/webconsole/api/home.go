@@ -14,6 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const MAX_LOG = 8
+
 type homePageResp struct {
 	// assets
 	HostOnline  int64 `json:"host_online"`
@@ -63,7 +65,7 @@ func HomePage(c *gin.Context) {
 	}
 	// record
 	findOptions := options.Find()
-	findOptions.SetLimit(6)
+	findOptions.SetLimit(MAX_LOG)
 	findOptions.SetSort(bson.M{"gmt_create": -1})
 	cur, err := mongo.MongoProxyImpl.RecordC.Find(ctx, bson.D{}, findOptions)
 	if err != nil {
@@ -153,7 +155,7 @@ type record struct {
 func Record(c *gin.Context) {
 	var resp recordResp
 	findOptions := options.Find()
-	findOptions.SetLimit(6)
+	findOptions.SetLimit(MAX_LOG)
 	findOptions.SetSort(bson.M{"gmt_create": -1})
 	cur, err := mongo.MongoProxyImpl.RecordC.Find(context.Background(), bson.D{}, findOptions)
 	if err != nil {
