@@ -26,6 +26,8 @@ type homePageResp struct {
 	Vul      []int                    `json:"vul"`
 	Critical int                      `json:"critical"`
 	High     int                      `json:"high"`
+	Mid      int                      `json:"mid"`
+	Low      int                      `json:"low"`
 	// DB delay
 	RedisDelay int64 `json:"redis_delay"`
 	MongoDelay int64 `json:"mongo_delay"`
@@ -112,16 +114,11 @@ func HomePage(c *gin.Context) {
 	}
 	// for debug
 	m := resp.Alert[6]
-	m["value"] = m["value"].(int) + 1
+	m["value"] = m["value"].(int) + 2
 	resp.Alert[6] = m
 
-	// resp.Alert = []map[string]interface{}{
-	// 	{"time": "2022-01-01", "value": 1},
-	// 	{"time": "2022-01-02", "value": 2},
-	// 	{"time": "2022-01-03", "value": 7},
-	// }
-	resp.Critical = 2
-	resp.High = 5
+	resp.Critical = 1
+	resp.High = 1
 	// Ping the redis / mongodb
 	defer cancel()
 	start := time.Now()
