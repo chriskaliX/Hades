@@ -2,7 +2,7 @@ package conf
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -41,7 +41,7 @@ func initConfig() error {
 	}
 	defer file.Close()
 	var configFile []byte
-	if configFile, err = ioutil.ReadAll(file); err != nil {
+	if configFile, err = io.ReadAll(file); err != nil {
 		return err
 	}
 	return yaml.Unmarshal(configFile, &Config)

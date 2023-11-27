@@ -18,7 +18,9 @@ import (
 )
 
 var PluginManager = NewManager()
-var ErrIgnore = errors.New("ignore")
+
+var ErrAlreadyLoad = errors.New("already load")
+var ErrPlgNotExists = errors.New("plugin not exists")
 
 type Manager struct {
 	// plugins cache available SDK.IServer, key is plugin name
@@ -57,7 +59,7 @@ func (m *Manager) Load(ctx context.Context, cfg proto.Config) (err error) {
 	if plg, ok := m.Get(cfg.Name); ok && !plg.IsExited() {
 		if plg.Version() == cfg.Version {
 			// ignore this if already started
-			return ErrIgnore
+			return ErrAlreadyLoad
 		}
 		zap.S().Infof("start to shutdown plugin %s, version %s", plg.Name(), plg.Version())
 		plg.Shutdown()
@@ -94,7 +96,7 @@ func (pm *Manager) unRegist(name string) (err error) {
 
 	plg, ok := pm.plugins[name]
 	if !ok {
-		return fmt.Errorf("plugin %s not found", name)
+		return ErrPlgNotExists
 	}
 	plg.Shutdown()
 	delete(pm.plugins, name)
