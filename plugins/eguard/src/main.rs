@@ -90,26 +90,37 @@ fn main() -> Result<()> {
                         return;
                     }
 
-                    match tokio::time::timeout(timeout, client_c.receive_async()).await {
-                        Ok(result) => match result {
-                            Ok(task) => match serde_json::from_str::<BpfConfig>(task.get_data()) {
-                                Ok(config) => {
-                                    if let Err(e) = mgr_c.lock().unwrap().flush_config(config) {
-                                        error!("parse task failed: {}", e);
-                                    }
-                                }
-                                Err(e) => {
-                                    error!("parse task failed: {}", e);
-                                }
-                            },
-                            Err(e) => {
-                                error!("when receiving task, an error occurred: {}", e);
-                                control_s.store(true, Ordering::SeqCst);
-                                return;
-                            }
-                        },
-                        Err(_) => {}
+                    let result = match tokio::time::timeout(timeout, client_c.receive_async()).await {
+                        Ok(result) => result,
+                        Err(err) => {
+                            error!("get task failed:{}", err);
+                            continue;
+                        }
+                    };
+
+                    let task = match result {
+                        Ok(task) => task,
+                        Err(err) => {
+                            error!("when receiving task, an error occurred: {}", err);
+                            control_s.store(true, Ordering::SeqCst);
+                            return;
+                        }
+                    };
+                    
+                    let config = match serde_json::from_str::<BpfConfig>(task.get_data()) {
+                        Ok(config) => config,
+                        Err(e) => {
+                            error!("parse task failed: {}", e);
+                            continue;
+                        }
+                    };
+    
+                    if let Err(e) = mgr_c.lock().unwrap().flush_config(config) {
+                        error!("flush task failed: {}", e);
+                        continue;
                     }
+
+                    info!("task parse success")
                 }
             });
             rt.shutdown_background();
