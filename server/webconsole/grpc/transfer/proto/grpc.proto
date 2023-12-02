@@ -58,3 +58,20 @@ message ConfigItem{
 service Transfer {
   rpc Transfer (stream RawData) returns (stream Command){}
 }
+
+message FileUploadRequest {
+  string token = 1;
+  bytes data = 2;
+}
+
+message FileUploadResponse {
+  enum StatusCode {
+    SUCCESS = 0;
+    FAILED = 1;
+  }
+  StatusCode status = 1;
+}
+  
+service FileExt {
+  rpc Upload(stream FileUploadRequest) returns (FileUploadResponse);
+}
