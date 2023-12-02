@@ -38,11 +38,12 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				if cfg.Name == agent.Product {
 					continue
 				}
-				err := PluginManager.Load(ctx, *cfg)
-				if err == ErrAlreadyLoad {
-					zap.S().Infof("plugin %s has loaded already", cfg.Name)
-				} else {
-					zap.S().Errorf("plugin %s load failed: %s", cfg.Name, err.Error())
+				if err := PluginManager.Load(ctx, *cfg); err != nil {
+					if err == ErrAlreadyLoad {
+						zap.S().Infof("plugin %s has loaded already", cfg.Name)
+					} else {
+						zap.S().Errorf("plugin %s load failed: %s", cfg.Name, err.Error())
+					}					
 				}
 			}
 			// 移除插件
