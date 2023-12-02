@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"agent/agent"
+	"github.com/chriskaliX/Hades/agent/agent"
 	"net"
 	"os"
 	"strings"

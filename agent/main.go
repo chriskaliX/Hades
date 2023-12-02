@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"agent/agent"
-	"agent/log"
-	"agent/metrics"
-	"agent/plugin"
-	"agent/transport"
-	"agent/transport/connection"
+	"github.com/chriskaliX/Hades/agent/agent"
+	"github.com/chriskaliX/Hades/agent/log"
+	"github.com/chriskaliX/Hades/agent/metrics"
+	"github.com/chriskaliX/Hades/agent/plugin"
+	"github.com/chriskaliX/Hades/agent/transport"
+	"github.com/chriskaliX/Hades/agent/transport/connection"
 
 	"github.com/nightlyone/lockfile"
 	"go.uber.org/zap"
@@ -71,6 +71,7 @@ func main() {
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
+	zap.S().Infof("agent starts, version: %s", agent.Version)
 	if os.Getenv("service_type") == "sysvinit" {
 		l, _ := lockfile.New("/var/run/hades-agent.pid")
 		if err := l.TryLock(); err != nil {

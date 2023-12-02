@@ -19,13 +19,13 @@ type INetRetry interface {
 func IRetry(ctx context.Context, netRetry INetRetry, config Config) (err error) {
 	var retries, delay uint
 	ticker := time.NewTicker(config.BeforeDelay)
+	zap.S().Infof("%s starts first connection after %d secs", netRetry.String(), int(config.BeforeDelay.Seconds()))
 	defer ticker.Stop()
 	select {
 	case <-ctx.Done():
 		return
 	case <-ticker.C:
 	}
-	zap.S().Infof("iretry %s start connection after %d secs", netRetry.String(), int(config.BeforeDelay.Seconds()))
 	for {
 		select {
 		case <-ctx.Done():

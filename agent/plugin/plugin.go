@@ -1,8 +1,8 @@
 package plugin
 
 import (
-	"agent/agent"
-	"agent/transport"
+	"github.com/chriskaliX/Hades/agent/agent"
+	"github.com/chriskaliX/Hades/agent/transport"
 	"context"
 	"fmt"
 	"sync"
@@ -13,8 +13,8 @@ import (
 
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer zap.S().Info("plugin deamon exits")
-	zap.S().Info("plugin deamon starts")
+	defer zap.S().Info("[deamon] plugin exits")
+	zap.S().Info("[deamon] plugin starts")
 	for {
 		select {
 		case <-ctx.Done():

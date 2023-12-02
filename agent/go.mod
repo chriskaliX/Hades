@@ -1,4 +1,4 @@
-module agent
+module github.com/chriskaliX/Hades/agent
 
 go 1.19
 

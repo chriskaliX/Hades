@@ -1,13 +1,13 @@
 package transport
 
 import (
-	"agent/proto"
+	"github.com/chriskaliX/Hades/agent/proto"
 	"context"
 	"sync"
 	"time"
 
-	_ "agent/transport/compressor"
-	"agent/transport/connection"
+	_ "github.com/chriskaliX/Hades/agent/transport/compressor"
+	"github.com/chriskaliX/Hades/agent/transport/connection"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -17,8 +17,8 @@ import (
 func Startup(ctx context.Context, wg *sync.WaitGroup) {
 	var client proto.Transfer_TransferClient
 	defer wg.Done()
-	defer zap.S().Info("grpc deamon exits")
-	zap.S().Info("grpc transport starts")
+	defer zap.S().Info("[deamon] grpc transport exits")
+	zap.S().Info("[deamon] grpc transport starts")
 	subWg := &sync.WaitGroup{}
 	for {
 		select {
@@ -39,7 +39,8 @@ func Startup(ctx context.Context, wg *sync.WaitGroup) {
 				continue
 			}
 			// client start successfully, start the goroutines and wait
-			subWg.Add(2)
+			subWg.Add(3)
+			go startFileExt(subCtx, subWg)
 			go handleSend(subCtx, subWg, client)
 			go func() {
 				handleReceive(subCtx, subWg, client)
@@ -74,8 +75,8 @@ func handleSend(ctx context.Context, wg *sync.WaitGroup, c proto.Transfer_Transf
 
 func handleReceive(ctx context.Context, wg *sync.WaitGroup, client proto.Transfer_TransferClient) {
 	defer wg.Done()
-	defer zap.S().Info("handle receive is exited")
-	zap.S().Info("handle receive starts")
+	defer zap.S().Info("receive handler is exited")
+	zap.S().Info("receive handler starts")
 	for {
 		select {
 		case <-ctx.Done():

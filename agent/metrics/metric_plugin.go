@@ -1,9 +1,9 @@
 package metrics
 
 import (
-	"agent/plugin"
-	"agent/proto"
-	"agent/transport"
+	"github.com/chriskaliX/Hades/agent/plugin"
+	"github.com/chriskaliX/Hades/agent/proto"
+	"github.com/chriskaliX/Hades/agent/transport"
 	"strconv"
 	"time"
 

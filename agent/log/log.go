@@ -1,8 +1,8 @@
 package log
 
 import (
-	"agent/proto"
-	"agent/transport"
+	"github.com/chriskaliX/Hades/agent/proto"
+	"github.com/chriskaliX/Hades/agent/transport"
 	"encoding/json"
 	"strconv"
 	"time"

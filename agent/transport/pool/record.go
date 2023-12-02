@@ -1,7 +1,7 @@
 package pool
 
 import (
-	"agent/proto"
+	"github.com/chriskaliX/Hades/agent/proto"
 	"sync"
 
 	"github.com/chriskaliX/SDK/transport/protocol"

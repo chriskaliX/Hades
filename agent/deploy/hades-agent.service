@@ -4,7 +4,6 @@
 Description=hades-agent
 Wants=network-online.target
 After=network-online.target network.target syslog.target
-
 [Service]
 Type=simple
 ExecStart=/etc/hades/hades-agent
@@ -12,12 +11,10 @@ WorkingDirectory=/etc/hades
 Restart=always
 RestartSec=60
 KillMode=control-group
-# 兼容性
 MemoryMax=250M
 MemoryLimit=250M
 CPUQuota=10%
 Delegate=yes
 EnvironmentFile=-/etc/hades/specified_env
-
 [Install]
 WantedBy=multi-user.target

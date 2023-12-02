@@ -1,8 +1,8 @@
 package agent
 
 import (
-	"agent/proto"
-	"agent/utils"
+	"github.com/chriskaliX/Hades/agent/proto"
+	"github.com/chriskaliX/Hades/agent/utils"
 	"context"
 	"os/exec"
 	"path"

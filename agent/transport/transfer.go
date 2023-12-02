@@ -1,9 +1,9 @@
 package transport
 
 import (
-	"agent/agent"
-	"agent/proto"
-	"agent/transport/pool"
+	"github.com/chriskaliX/Hades/agent/agent"
+	"github.com/chriskaliX/Hades/agent/proto"
+	"github.com/chriskaliX/Hades/agent/transport/pool"
 	"errors"
 	"fmt"
 	"sync"

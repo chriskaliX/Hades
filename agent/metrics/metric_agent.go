@@ -1,11 +1,11 @@
 package metrics
 
 import (
-	"agent/agent"
-	"agent/plugin"
-	"agent/proto"
-	"agent/transport"
-	"agent/transport/connection"
+	"github.com/chriskaliX/Hades/agent/agent"
+	"github.com/chriskaliX/Hades/agent/plugin"
+	"github.com/chriskaliX/Hades/agent/proto"
+	"github.com/chriskaliX/Hades/agent/transport"
+	"github.com/chriskaliX/Hades/agent/transport/connection"
 	"os"
 	"runtime"
 	"strconv"

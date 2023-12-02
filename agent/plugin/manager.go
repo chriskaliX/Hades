@@ -1,16 +1,15 @@
 package plugin
 
 import (
-	"agent/agent"
-	"agent/proto"
-	"agent/transport/pool"
+	"github.com/chriskaliX/Hades/agent/agent"
+	"github.com/chriskaliX/Hades/agent/proto"
+	"github.com/chriskaliX/Hades/agent/transport"
+	"github.com/chriskaliX/Hades/agent/transport/pool"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"sync"
-
-	"agent/transport"
 
 	SDK "github.com/chriskaliX/SDK/transport"
 	"github.com/chriskaliX/SDK/transport/server"
