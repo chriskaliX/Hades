@@ -90,7 +90,8 @@ fn main() -> Result<()> {
                         return;
                     }
 
-                    let result = match tokio::time::timeout(timeout, client_c.receive_async()).await {
+                    let result = match tokio::time::timeout(timeout, client_c.receive_async()).await
+                    {
                         Ok(result) => result,
                         Err(err) => {
                             error!("get task failed:{}", err);
@@ -106,7 +107,7 @@ fn main() -> Result<()> {
                             return;
                         }
                     };
-                    
+
                     let config = match serde_json::from_str::<BpfConfig>(task.get_data()) {
                         Ok(config) => config,
                         Err(e) => {
@@ -114,7 +115,7 @@ fn main() -> Result<()> {
                             continue;
                         }
                     };
-    
+
                     if let Err(e) = mgr_c.lock().unwrap().flush_config(config) {
                         error!("flush task failed: {}", e);
                         continue;
