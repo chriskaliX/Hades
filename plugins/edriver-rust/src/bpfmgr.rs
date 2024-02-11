@@ -1,8 +1,10 @@
 mod hades_skel {
     include!("bpf/hades.skel.rs");
 }
+use crate::events::{execve::Execve, Event};
 use anyhow::{anyhow, Context, Result};
 use hades_skel::*;
+use lazy_static::lazy_static;
 use libbpf_rs::{
     skel::{OpenSkel, Skel, SkelBuilder},
     PerfBufferBuilder,
@@ -10,15 +12,16 @@ use libbpf_rs::{
 use log::*;
 use sdk::{Client, Record};
 use std::{
+    sync::{Arc, Mutex},
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use crate::events::{execve::Execve, Event};
-
-pub struct Bpfmanager {
-    // loss_cnt: u64,
+lazy_static! {
+    pub static ref LOSS_CNT: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 }
+
+pub struct Bpfmanager {}
 
 impl Bpfmanager {
     pub fn new(mut client: Client) -> Result<Self> {
@@ -28,6 +31,8 @@ impl Bpfmanager {
             skel_builder.open().context("fail to open BPF program")?;
         let mut skel = open_skel.load().context("failed to load BPF program")?;
         skel.attach()?;
+        /* loss cnt */
+        let loss_cnt_c = LOSS_CNT.clone();
 
         let _ = thread::Builder::new()
             .name("heartbeat".to_string())
@@ -39,11 +44,16 @@ impl Bpfmanager {
                 let mut rec = Record::new();
                 rec.timestamp = timestamp as i64;
                 rec.data_type = 900;
-                {}
+                let pld = rec.mut_data();
+                pld.fields.insert(
+                    "loss_cnt".to_string(),
+                    loss_cnt_c.lock().unwrap().to_string(),
+                );
                 if let Err(err) = client.send_record(&rec) {
                     warn!("heartbeat will exit: {}", err);
                     break;
                 };
+                *LOSS_CNT.lock().unwrap() = 0;
                 thread::sleep(Duration::from_secs(30))
             });
         let binding = skel.maps();
@@ -64,8 +74,8 @@ impl Bpfmanager {
         println!("{:?}", map);
     }
 
-    fn handle_lost_events(_cpu: i32, count: u64) {
-        println!("error: {:?}", count);
+    fn handle_lost_events(_cpu: i32, cnt: u64) {
+        *LOSS_CNT.lock().unwrap() += cnt;
     }
 
     fn bump_rlimit() -> Result<()> {

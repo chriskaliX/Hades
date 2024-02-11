@@ -15,6 +15,7 @@ log = { version = "0.4", features = ["std"] }
 libc = "0.2.0"
 lru = "0.12.2"
 governor = "0.6.0"
+lazy_static = "1.4.0"
 libbpf-rs = {version = "0.22.1", features=["static"]}
 libbpf-sys = { version = "1.2.1" }
 sdk = { path = "../../SDK/rust" }

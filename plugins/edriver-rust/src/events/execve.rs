@@ -39,6 +39,8 @@ impl Event for Execve {
         m.insert("dip".to_string(), remote_addr);
         m.insert("dport".to_string(), sinfo.remote_port.to_string());
         m.insert("pidtree".to_string(), parse_str(data, &mut idx)?);
+        /* extra information */
+        // m.insert("pod_name".to_string(), );
         // container
         // exe md5
         // pid argv
