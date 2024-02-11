@@ -20,6 +20,8 @@
 #define ARR_ENVS_LEN                (64)
 #define SOCKET_TRACE_LIMIT          (4)
 #define SOCKET_FD_NUM_LIMIT         (12)
+#define PIDTREE_LEN                 (512)
+#define PIDTREE_MASK                (PIDTREE_LEN - 1)
 
 /* consts: fds */
 #define STDIN                       (0)

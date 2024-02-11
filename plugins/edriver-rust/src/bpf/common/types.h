@@ -12,15 +12,15 @@ typedef struct simple_buf {
 } buf_t;
 
 /* privilege slim */
-struct hds_cred_slim {
-    kuid_t uid;
-	kgid_t gid;
-	kuid_t suid;
-	kgid_t sgid;
-	kuid_t euid;
-	kgid_t egid;
-	kuid_t fsuid;
-	kgid_t fsgid;
+struct hds_cred {
+    uid_t uid;
+	gid_t gid;
+	uid_t suid;
+	gid_t sgid;
+	uid_t euid;
+	gid_t egid;
+	uid_t fsuid;
+	gid_t fsgid;
 };
 
 /* socket information */
@@ -40,6 +40,7 @@ struct proc_info {
     __u32 pgid;
     __u32 ppid;
     __u32 sid;
+    __u32 pns;
     __u32 socket_pid;
     char  comm[TASK_COMM_LEN];
     char  node[MAX_NODENAME];
@@ -48,9 +49,12 @@ struct proc_info {
     char  ssh_conn[MAX_STR_ENV];
     char  ld_pre[MAX_STR_ENV];
     char  ld_lib[MAX_STR_ENV];
-    /* user info */
-    struct hds_cred_slim cred;
+    /* extra information */
+    struct hds_cred cred;
     struct hds_socket_info sinfo;
+    char  pidtree[PIDTREE_LEN];
+    /* others */
+    __u16 pidtree_len;
     __u64 retval;
 };
 

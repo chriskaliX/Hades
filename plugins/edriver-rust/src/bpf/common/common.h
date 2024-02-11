@@ -41,7 +41,7 @@ static __always_inline int get_task_pgid(const struct task_struct *cur_task)
 }
 
 /* tty */
-static __always_inline void *get_task_tty_str(struct task_struct *task)
+static __always_inline void *get_task_tty(struct task_struct *task)
 {
     buf_t *cache = get_percpu_buf(LOCAL_CACHE);
     int size = 0;

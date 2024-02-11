@@ -14,6 +14,10 @@ static struct proc_info *proc_info_init(struct task_struct *);
 static unsigned int proc_info_args(struct proc_info *, struct task_struct *);
 static unsigned int proc_info_envs(struct proc_info *, struct task_struct *);
 static __noinline struct sock *proc_socket_info(struct task_struct *, pid_t *);
+static __always_inline int proc_pid_tree(struct proc_info *, struct task_struct *);
+static __always_inline int proc_info_creds(struct proc_info *, struct task_struct *);
+static __noinline int prepend_pid_tree(struct proc_info *, struct task_struct *);
+static __noinline int do_u32toa(uint32_t, char *, int);
 static __noinline int match_key(char *, int, uint64_t, int);
 
 SEC("raw_tracepoint/sched_process_exec")
@@ -34,6 +38,7 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
         return -1;
     proc_info_args(proc_i, task);
     proc_info_envs(proc_i, task);
+    proc_pid_tree(proc_i, task);
 
     /* report */
     struct hds_context c = {0};
@@ -47,6 +52,9 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     SBT((&c), &proc_i->pgid, S_U32);
     SBT((&c), &proc_i->ppid, S_U32);
     SBT((&c), &proc_i->sid, S_U32);
+    SBT((&c), &proc_i->pns, S_U32);
+    SBT((&c), &proc_i->cred.uid, S_U32);
+    SBT((&c), &proc_i->cred.gid, S_U32);
     SBT((&c), &proc_i->socket_pid, S_U32);
     SBT_CHAR((&c), &proc_i->comm);
     SBT_CHAR((&c), &proc_i->node);
@@ -54,7 +62,7 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     SBT_CHAR((&c), &proc_i->ssh_conn);
     SBT_CHAR((&c), &proc_i->ld_pre);
     SBT_CHAR((&c), &proc_i->ld_lib);
-    SBT_CHAR((&c), get_task_tty_str(task));
+    SBT_CHAR((&c), get_task_tty(task));
     /* pwd */
     struct path pwd = BPF_CORE_READ(task, fs, pwd);
     save_path(GET_FIELD_ADDR(pwd) ,(&c));
@@ -66,6 +74,7 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     struct path exe_path = BPF_CORE_READ(task, mm, exe_file, f_path);
     save_path(GET_FIELD_ADDR(exe_path), (&c));
     SBT((&c), &proc_i->sinfo, sizeof(struct hds_socket_info));
+    SBT_CHAR((&c), &proc_i->pidtree);
 
     report_event(&c);
     return 0;
@@ -94,12 +103,14 @@ static struct proc_info *proc_info_init(struct task_struct *task)
     proc_i->tgid = tgid;
     proc_i->ppid = BPF_CORE_READ(task, real_parent, tgid);
     proc_i->pgid = get_task_pgid(task);
+    proc_i->pns = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
     char *uts_name = BPF_CORE_READ(task, nsproxy, uts_ns, name.nodename);
     if (uts_name)
         bpf_probe_read_str(proc_i->node, MAX_NODENAME, uts_name);
     ret = bpf_get_current_comm(&proc_i->comm, TASK_COMM_LEN);
     if (ret < 0)
         return NULL;
+    /* socket */
     struct sock *sk = proc_socket_info(task, &proc_i->socket_pid);
     if (!sk) {
         proc_i->socket_pid = 0;
@@ -111,7 +122,8 @@ static struct proc_info *proc_info_init(struct task_struct *task)
         }
         proc_i->sinfo = sinfo;
     }
-
+    /* user */
+    proc_info_creds(proc_i, task);
     return proc_i;
 }
 
@@ -177,7 +189,6 @@ static unsigned int proc_info_envs(struct proc_info *info, struct task_struct *t
         if (sl <= 0)
             goto out; /* notice: break do not work on unroll */
         len = len + sl;
-        // cache->buf[(len - 1) & MAX_STR_MASK] = 0x20;
         if (match_key(&cache->buf[0], sl, 0x4e4e4f435f485353UL, 14)) {
             /* SSH_CONN */
             bpf_probe_read_str(info->ssh_conn, MAX_STR_ENV, &cache->buf[15]);
@@ -228,6 +239,104 @@ static __noinline struct sock *proc_socket_info(struct task_struct *task, pid_t 
 out:
     return sk;
 }
+
+/* Elkeid v1.8-rc */
+static __always_inline int proc_pid_tree(struct proc_info *info, struct task_struct *task)
+{
+    struct task_struct *parent;
+    int i;
+
+    info->pidtree_len = 0;
+
+#pragma unroll
+    for (i = 0; i < 12; i++) {
+        if (!prepend_pid_tree(info, task))
+            break;
+        parent = BPF_CORE_READ(task, real_parent);
+        if (!parent || parent == task)
+            break;
+        task = parent;
+    }
+
+    /* trailing \0 added */
+    if (info->pidtree_len)
+        info->pidtree_len++;
+    return (int)info->pidtree_len;
+}
+
+static __noinline int prepend_pid_tree(struct proc_info *info, struct task_struct *task)
+{
+    char *comm;
+    pid_t pid;
+    int rc = 0, len, last;
+
+    pid = BPF_CORE_READ(task, tgid);
+    if (!pid)
+        return 0;
+
+    len = last = info->pidtree_len;
+    if (len) {
+        info->pidtree[len & PIDTREE_MASK] = '<';
+        len = len + 1;
+    }
+    rc = do_u32toa(pid, &info->pidtree[len & PIDTREE_MASK], PIDTREE_LEN - len);
+    if (!rc)
+        goto out;
+    len += rc;
+    info->pidtree[len & PIDTREE_MASK] = '.';
+    len = len + 1;
+    comm = BPF_CORE_READ(task, comm);
+    if (!comm)
+        goto out;
+    if (len >= PIDTREE_LEN - TASK_COMM_LEN)
+        goto out;
+    rc = bpf_probe_read_str(&info->pidtree[len & PIDTREE_MASK], TASK_COMM_LEN, comm);
+    if (rc <= 1)
+        goto out;
+    if (rc > TASK_COMM_LEN)
+        rc = TASK_COMM_LEN;
+    len += rc - 1;
+
+    info->pidtree[len & PIDTREE_MASK] = 0;
+    info->pidtree_len = len;
+    return len;
+
+out:
+    info->pidtree[last & PIDTREE_MASK] = 0;
+    return 0;
+}
+
+static __noinline int do_u32toa(uint32_t v, char *s, int l)
+{
+    char t[16] = {0};
+    int i;
+
+#pragma unroll
+    for (i = 0; i < 12; i++) {
+        t[12 - i] = 0x30 + (v % 10);
+        v = v / 10;
+        if (!v)
+            break;
+    }
+    if (i + 1 > l)
+        return 0;
+    bpf_probe_read(s, (i + 1) & 15, &t[(12 - i) & 15]);
+    return (i + 1);
+}
+
+static __always_inline int proc_info_creds(struct proc_info *info, struct task_struct *task)
+{
+    info->cred.uid = BPF_CORE_READ(task, real_cred, uid.val);
+    info->cred.gid = BPF_CORE_READ(task, real_cred, gid.val);
+    info->cred.suid = BPF_CORE_READ(task, real_cred, suid.val);
+    info->cred.sgid = BPF_CORE_READ(task, real_cred, sgid.val);
+    info->cred.euid = BPF_CORE_READ(task, real_cred, euid.val);
+    info->cred.egid = BPF_CORE_READ(task, real_cred, egid.val);
+    info->cred.fsuid = BPF_CORE_READ(task, real_cred, fsuid.val);
+    info->cred.fsgid = BPF_CORE_READ(task, real_cred, fsgid.val);
+    return 0;
+}
+
 
 #endif
 
