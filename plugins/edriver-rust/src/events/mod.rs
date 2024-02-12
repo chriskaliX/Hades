@@ -25,18 +25,6 @@ fn parse_str(data: &[u8], offset: &mut usize) -> Result<String> {
     Ok(v)
 }
 
-fn parse_path(data: &[u8], offset: &mut usize) -> Result<String> {
-    let pre_path = parse_str(data, offset)?;
-    match pre_path.as_str() {
-        "pipe:" | "socket:" => {
-            let node = parse_u64(data, offset)?;
-            Ok(format!("{}:[{}]", pre_path, node.to_string()))
-        }
-        "" => Ok("-1".to_string()),
-        _ => Ok(pre_path),
-    }
-}
-
 fn parse_sinfo(data: &[u8], offset: &mut usize) -> Result<hds_socket_info> {
     let mut sinfo = hds_socket_info::default();
     sinfo.family = parse_u32(data, offset)? as u16;
@@ -73,8 +61,8 @@ fn parse_u32_be(data: &[u8], offset: &mut usize) -> Result<u32> {
     Ok(v as u32)
 }
 
-fn parse_u64(data: &[u8], offset: &mut usize) -> Result<u64> {
-    let v = u32::from_ne_bytes(data[*offset..(*offset + 8)].try_into()?) as usize;
-    *offset += 8;
-    Ok(v as u64)
-}
+// fn parse_u64(data: &[u8], offset: &mut usize) -> Result<u64> {
+//     let v = u32::from_ne_bytes(data[*offset..(*offset + 8)].try_into()?) as usize;
+//     *offset += 8;
+//     Ok(v as u64)
+// }

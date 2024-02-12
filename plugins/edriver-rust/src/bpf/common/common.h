@@ -8,11 +8,28 @@
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 
-#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
-
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
     return container_of(mnt, struct mount, mnt);
+}
+
+/* notice: char * to void * */
+static __noinline int do_u32toa(uint32_t v, void *s, int l)
+{
+    char t[16] = {0};
+    int i;
+
+#pragma unroll
+    for (i = 0; i < 12; i++) {
+        t[12 - i] = 0x30 + (v % 10);
+        v = v / 10;
+        if (!v)
+            break;
+    }
+    if (i + 1 > l)
+        return 0;
+    bpf_probe_read(s, (i + 1) & 15, &t[(12 - i) & 15]);
+    return (i + 1);
 }
 
 /* pgid */
@@ -170,17 +187,14 @@ static __always_inline int get_sock_v4(struct sock *sk, struct hds_socket_info *
     sinfo->local_port = bpf_ntohs(BPF_CORE_READ(inet, inet_num));
     sinfo->remote_address = BPF_CORE_READ(inet, inet_daddr);
     sinfo->remote_port = BPF_CORE_READ(inet, inet_dport);
+    return 0;
 }
 
 /* ===== END ===== */
 
 
-static __always_inline struct file *fget_raw(u64 fd_num)
+static __always_inline struct file *fget_raw(struct task_struct *task, u64 fd_num)
 {
-    // get current task
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    if (task == NULL)
-        return NULL;
     struct file **fd = BPF_CORE_READ(task, files, fdt, fd);
     if (fd == NULL)
         return NULL;
@@ -191,38 +205,28 @@ static __always_inline struct file *fget_raw(u64 fd_num)
     return file;
 }
 
-static __always_inline void *save_path(struct path *path, struct hds_context *ctx)
+static __always_inline void *get_path(struct path *path)
 {
     struct path f_path;
     bpf_probe_read(&f_path, sizeof(struct path), path);
-    char slash = '/';
-    int sz = 0, zero = 0;
-    unsigned long len = 0, off = 0, inode = 0;
-    char pipe_prefix[] = "pipe", socket_prefix[] = "socket", invalid[] = "-1";
-    struct dentry *dentry = f_path.dentry;
+    int sz = 0, zero = 0, off = 0, rc = 0;
+    u32 inode = 0, buf_off = MID_PERCPU_BUFSIZE;
+    char pipe_prefix[] = "pipe:[", socket_prefix[] = "socket:[", invalid[] = "-1";
+    struct dentry *dentry = f_path.dentry, *mnt_root, *d_parent;
     struct vfsmount *vfsmnt = f_path.mnt;
-    struct mount *mnt_parent_p, *mnt_p = real_mount(vfsmnt);
-    bpf_probe_read(&mnt_parent_p, sizeof(struct mount *), &mnt_p->mnt_parent);
-    // from the middle, to avoid rewrite by this
-    u32 buf_off = MID_PERCPU_BUFSIZE;
-    struct dentry *mnt_root, *d_parent;
+    struct mount *mnt_p = real_mount(vfsmnt);
+    struct mount *mnt_parent_p = BPF_CORE_READ(mnt_p, mnt_parent);
     struct qstr d_name;
     buf_t *cache = get_percpu_buf(LOCAL_CACHE);
-    if (cache == NULL)
+    if (!cache)
         return NULL;
 #pragma unroll
     for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
         mnt_root = BPF_CORE_READ(vfsmnt, mnt_root);
         d_parent = BPF_CORE_READ(dentry, d_parent);
-        // 1. dentry == d_parent means we reach the dentry root
-        // 2. dentry == mnt_root means we reach the mount root, they share the same dentry
         if (dentry == mnt_root || dentry == d_parent) {
-            // We reached root, but not mount root - escaped?
             if (dentry != mnt_root)
                 break;
-            // dentry == mnt_root, but the mnt has not reach it's root
-            // so update the dentry as the mnt_mountpoint(in order to continue the dentry loop for the mountpoint)
-            // We reached root, but not global root - continue with mount point path
             if (mnt_p != mnt_parent_p) {
                 bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt_p->mnt_mountpoint);
                 bpf_probe_read(&mnt_p, sizeof(struct mount *), &mnt_p->mnt_parent);
@@ -230,83 +234,74 @@ static __always_inline void *save_path(struct path *path, struct hds_context *ct
                 vfsmnt = &mnt_p->mnt;
                 continue;
             }
-            // dentry == mnt_root && mnt_p == mnt_parent_p, real root for all
-            // Global root - path fully parsed
             break;
         }
-        // Add this dentry name to path
         d_name = BPF_CORE_READ(dentry, d_name);
-        len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
-        off = buf_off - len;
+        off = buf_off - (d_name.len + 1);
         sz = 0;
-        if (off <= buf_off) {
-            len = len & MID_PERCPU_MASK;
-            sz = bpf_probe_read_str(&(cache->buf[off & MID_PERCPU_MASK]), len, (void *)d_name.name);
-        } else {
+        /* off check */
+        if (off > buf_off)
             break;
-        }
-        if (sz > 1) {
-            buf_off -= 1; // remove null byte termination with slash sign
-            bpf_probe_read(&(cache->buf[buf_off & MAX_PERCPU_MASK]), 1, &slash);
-            buf_off -= sz - 1;
-        } else {
-            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+        sz = bpf_probe_read_str(&(cache->buf[off & MID_PERCPU_MASK]), (d_name.len + 1) & MID_PERCPU_MASK, (void *)d_name.name);
+        /* size check */
+        if (!sz)
             break;
-        }
+        cache->buf[(buf_off - 1) & MAX_PERCPU_MASK] = '/';
+        buf_off -= sz;
+        /* dentry update */
         dentry = d_parent;
     }
 
-    // no path avaliable, let the userspace to checkout this
-    // this would be moved into userspace in the future
-    if (buf_off == MID_PERCPU_BUFSIZE) {        
-        // Handle pipe with d_name.len = 0
-        struct super_block *d_sb = BPF_CORE_READ(dentry, d_sb);
-        if (d_sb != 0) {
-            unsigned long s_magic = BPF_CORE_READ(d_sb, s_magic);
-             // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
-            switch (s_magic) {
-            case PIPEFS_MAGIC:
-                bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)pipe_prefix);
-                buf_off += sizeof(pipe_prefix) - 1;
-            case SOCKFS_MAGIC:
-                bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)socket_prefix);
-                buf_off += sizeof(socket_prefix) - 1;
-            default:
-                bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)invalid);
-                goto out;                    
-            }
-            inode = BPF_CORE_READ(dentry, d_inode, i_ino);
-            goto out;
-        }
-        d_name = BPF_CORE_READ(dentry, d_name);
-        if (d_name.len > 0) {
-            bpf_probe_read_str(&(cache->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
-            goto out;
-        }
-    } else {
-        // Add leading slash
+    if (buf_off != MID_PERCPU_BUFSIZE) {
         buf_off -= 1;
-        bpf_probe_read(&(cache->buf[buf_off & MAX_PERCPU_MASK]), 1, &slash);
-        // Null terminate the path string
+        cache->buf[buf_off & MAX_PERCPU_MASK] = '/';
         bpf_probe_read(&(cache->buf[((MAX_PERCPU_BUFSIZE) >> 1) - 1]), 1, &zero);
+        goto out;
     }
+
+    /* magic handle */
+    struct super_block *d_sb = BPF_CORE_READ(dentry, d_sb);
+    if (d_sb) {
+        u64 s_magic = BPF_CORE_READ(d_sb, s_magic);
+        // here, we just need `PIPE` & `SOCKET`. see more magic: https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/magic.h#L86
+        switch (s_magic) {
+        case PIPEFS_MAGIC:
+            rc = bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)pipe_prefix);
+            break;
+        case SOCKFS_MAGIC:
+            rc = bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)socket_prefix);
+            break;
+        default:
+            bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)invalid);
+            goto out;                    
+        }
+        if (!rc)
+            goto out;
+        buf_off = buf_off + rc - 1;
+        inode = BPF_CORE_READ(dentry, d_inode, i_ino);
+        rc = do_u32toa(inode, &cache->buf[buf_off & MAX_PERCPU_MASK], 8);
+        if (!rc)
+            goto out;
+        buf_off += rc;
+        cache->buf[buf_off & MAX_PERCPU_MASK] = ']';
+        bpf_probe_read(&(cache->buf[(buf_off + 1) & MAX_PERCPU_MASK]), 1, &zero);
+        buf_off = MID_PERCPU_BUFSIZE; /* rollback the index */
+        goto out;
+    }
+    d_name = BPF_CORE_READ(dentry, d_name);
+    if (d_name.len > 0)
+        bpf_probe_read_str(&(cache->buf[buf_off & MAX_PERCPU_MASK]), MAX_STRING_SIZE, (void *)d_name.name);
 out:
-    SBT_CHAR(ctx ,&(cache->buf[buf_off & MAX_PERCPU_MASK]));
-    if (inode > 0)
-        SBT(ctx, &inode, S_U64);
-    return NULL;
+    return &(cache->buf[buf_off & MAX_PERCPU_MASK]);
 }
 
-static __always_inline void *save_fd(u64 num, struct hds_context *ctx)
+static __always_inline void *get_fd(struct task_struct *task, u64 num)
 {
-    char nothing[] = "-1";
-    struct file *file = fget_raw(num);
-    if (!file) {
-        SBT_CHAR(ctx, &nothing);
+    struct file *file = fget_raw(task, num);
+    if (!file)
         return NULL;
-    }
-    struct path p = BPF_CORE_READ(file, f_path);
-    return save_path(GET_FIELD_ADDR(p), ctx);
+    struct path path = BPF_CORE_READ(file, f_path);
+    return get_path(__builtin_preserve_access_index(&path));
 }
 
 #endif

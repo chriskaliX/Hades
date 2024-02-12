@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::Ipv4Addr};
 
-use super::{parse_path, parse_sinfo, parse_str, parse_u32, Event};
+use super::{parse_sinfo, parse_str, parse_u32, Event};
 use anyhow::Result;
 
 pub struct Execve {}
@@ -21,15 +21,15 @@ impl Event for Execve {
         m.insert(s, parse_u32(data, &mut idx)?.to_string());
         m.insert("comm".to_string(), parse_str(data, &mut idx)?);
         m.insert("node".to_string(), parse_str(data, &mut idx)?);
-        m.insert("args".to_string(), parse_str(data, &mut idx)?);
+        m.insert("argv".to_string(), parse_str(data, &mut idx)?);
         m.insert("ssh_conn".to_string(), parse_str(data, &mut idx)?);
         m.insert("ld_pre".to_string(), parse_str(data, &mut idx)?);
         m.insert("ld_lib".to_string(), parse_str(data, &mut idx)?);
         m.insert("tty".to_string(), parse_str(data, &mut idx)?);
-        m.insert("pwd".to_string(), parse_path(data, &mut idx)?);
-        m.insert("stdin".to_string(), parse_path(data, &mut idx)?);
-        m.insert("stdout".to_string(), parse_path(data, &mut idx)?);
-        m.insert("exe".to_string(), parse_path(data, &mut idx)?);
+        m.insert("pwd".to_string(), parse_str(data, &mut idx)?);
+        m.insert("stdin".to_string(), parse_str(data, &mut idx)?);
+        m.insert("stdout".to_string(), parse_str(data, &mut idx)?);
+        m.insert("exe".to_string(), parse_str(data, &mut idx)?);
         let sinfo = parse_sinfo(data, &mut idx)?;
         m.insert("sa_family".to_string(), sinfo.family.to_string());
         let local_addr = Ipv4Addr::from(sinfo.local_address).to_string();

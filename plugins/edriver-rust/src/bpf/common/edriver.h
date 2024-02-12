@@ -17,7 +17,6 @@ static __noinline struct sock *proc_socket_info(struct task_struct *, pid_t *);
 static __always_inline int proc_pid_tree(struct proc_info *, struct task_struct *);
 static __always_inline int proc_info_creds(struct proc_info *, struct task_struct *);
 static __noinline int prepend_pid_tree(struct proc_info *, struct task_struct *);
-static __noinline int do_u32toa(uint32_t, char *, int);
 static __noinline int match_key(char *, int, uint64_t, int);
 
 SEC("raw_tracepoint/sched_process_exec")
@@ -65,14 +64,14 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     SBT_CHAR((&c), get_task_tty(task));
     /* pwd */
     struct path pwd = BPF_CORE_READ(task, fs, pwd);
-    save_path(GET_FIELD_ADDR(pwd) ,(&c));
+    SBT_CHAR((&c), get_path(__builtin_preserve_access_index(&pwd)));
     /* stdin */
-    save_fd(0, (&c));
+    SBT_CHAR((&c), get_fd(task, 0));
     /* stdout */
-    save_fd(1, (&c));
+    SBT_CHAR((&c), get_fd(task, 1));
     /* exe */
-    struct path exe_path = BPF_CORE_READ(task, mm, exe_file, f_path);
-    save_path(GET_FIELD_ADDR(exe_path), (&c));
+    struct path exe = BPF_CORE_READ(task, mm, exe_file, f_path);
+    SBT_CHAR((&c), get_path(__builtin_preserve_access_index(&exe)));
     SBT((&c), &proc_i->sinfo, sizeof(struct hds_socket_info));
     SBT_CHAR((&c), &proc_i->pidtree);
 
@@ -304,24 +303,6 @@ static __noinline int prepend_pid_tree(struct proc_info *info, struct task_struc
 out:
     info->pidtree[last & PIDTREE_MASK] = 0;
     return 0;
-}
-
-static __noinline int do_u32toa(uint32_t v, char *s, int l)
-{
-    char t[16] = {0};
-    int i;
-
-#pragma unroll
-    for (i = 0; i < 12; i++) {
-        t[12 - i] = 0x30 + (v % 10);
-        v = v / 10;
-        if (!v)
-            break;
-    }
-    if (i + 1 > l)
-        return 0;
-    bpf_probe_read(s, (i + 1) & 15, &t[(12 - i) & 15]);
-    return (i + 1);
 }
 
 static __always_inline int proc_info_creds(struct proc_info *info, struct task_struct *task)

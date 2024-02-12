@@ -30,7 +30,7 @@
 
 /* consts: magic */
 #define PIPEFS_MAGIC                (0x50495045)
-#define SOCKFS_MAGIC                (0x534F434B)
+#define SOCKFS_MAGIC                (0x534f434b)
 
 /* consts: event id */
 #define SYS_ENTER_MEMFD_CREATE      (614)

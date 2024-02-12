@@ -1,6 +1,7 @@
 mod hades_skel {
     include!("bpf/hades.skel.rs");
 }
+use crate::cache::Transformer;
 use crate::events::{execve::Execve, Event};
 use anyhow::{anyhow, Context, Result};
 use hades_skel::*;
@@ -33,6 +34,13 @@ impl Bpfmanager {
         skel.attach()?;
         /* loss cnt */
         let loss_cnt_c = LOSS_CNT.clone();
+        /* transformer */
+        let trans = Transformer::new();
+        /* event handle wrap */
+        let handle = |_cpu: i32, data: &[u8]| {
+            let map = Execve::parse(&data[4..]).unwrap();
+            println!("{:?}", map);
+        };
 
         let _ = thread::Builder::new()
             .name("heartbeat".to_string())
@@ -70,7 +78,6 @@ impl Bpfmanager {
 
     fn handle_events(_cpu: i32, data: &[u8]) {
         let map = Execve::parse(&data[4..]).unwrap();
-
         println!("{:?}", map);
     }
 
