@@ -2,13 +2,15 @@ mod hades_skel {
     include!("../bpf/hades.skel.rs");
 }
 
+use crate::cache::Transformer;
+
 use self::hades_skel::hades_rodata_types::hds_socket_info;
 use anyhow::Result;
 use std::collections::HashMap;
 
 pub mod execve;
 pub trait Event {
-    fn parse(data: &[u8]) -> Result<HashMap<String, String>>;
+    fn parse(data: &[u8], trans: &mut Transformer) -> Result<HashMap<String, String>>;
 }
 
 /* parse functions */

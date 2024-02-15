@@ -35,10 +35,10 @@ impl Bpfmanager {
         /* loss cnt */
         let loss_cnt_c = LOSS_CNT.clone();
         /* transformer */
-        let trans = Transformer::new();
+        let mut trans = Transformer::new();
         /* event handle wrap */
         let handle = |_cpu: i32, data: &[u8]| {
-            let map = Execve::parse(&data[4..]).unwrap();
+            let map = Execve::parse(&data[4..], &mut trans).unwrap();
             println!("{:?}", map);
         };
 
@@ -67,18 +67,13 @@ impl Bpfmanager {
         let binding = skel.maps();
         let map = binding.events();
         let events = PerfBufferBuilder::new(map)
-            .sample_cb(Self::handle_events)
+            .sample_cb(handle)
             .lost_cb(Self::handle_lost_events)
             .build()?;
 
         loop {
             events.poll(Duration::from_millis(100))?
         }
-    }
-
-    fn handle_events(_cpu: i32, data: &[u8]) {
-        let map = Execve::parse(&data[4..]).unwrap();
-        println!("{:?}", map);
     }
 
     fn handle_lost_events(_cpu: i32, cnt: u64) {

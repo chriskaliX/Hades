@@ -22,7 +22,7 @@ impl NsCache {
     pub fn get(&mut self, pns: u32, pid: u32) -> String {
         let pid = pid.to_string();
 
-        return match self.cache.get_mut(&pns) {
+        match self.cache.get_mut(&pns) {
             Some(v) => v.to_owned(),
             None => {
                 /* ratelimit check */
@@ -30,44 +30,39 @@ impl NsCache {
                     return "-4".to_string();
                 }
                 /* file check */
-                let fcontent = read(format!("/proc/{}/environ", pid));
-                if fcontent.is_err() {
-                    return "-3".to_string();
-                }
+                let file = match read(format!("/proc/{}/environ", pid)) {
+                    Ok(file) => file,
+                    Err(_) => return "-3".to_string(),
+                };
+
                 /* file extract */
-                let pod_name = fcontent
-                    .ok()
-                    .map(|v| {
-                        let envs = v.split(|c| *c == b'\0').map(|s| s.split(|c| *c == b'='));
-                        let mut pod_name = String::new();
-                        for mut env in envs {
-                            if let Some(env_name) = env.next() {
-                                if let Some(env_value) = env.next() {
-                                    match env_name {
-                                        b"MY_POD_NAME" | b"POD_NAME" => {
-                                            pod_name
-                                                .push_str(str::from_utf8(env_value).unwrap_or(""));
-                                        }
-                                        _ => {}
-                                    }
+                let envs = file.split(|c| *c == b'\0').map(|s| s.split(|c| *c == b'='));
+
+                let mut pod_name = String::new();
+                for mut env in envs {
+                    if let Some(env_name) = env.next() {
+                        if let Some(env_value) = env.next() {
+                            match env_name {
+                                b"MY_POD_NAME" | b"POD_NAME" => {
+                                    pod_name.push_str(str::from_utf8(env_value).unwrap_or(""));
                                 }
-                            }
-                            if !pod_name.is_empty() {
-                                break;
+                                _ => {}
                             }
                         }
-                        /* empty short */
-                        if pod_name.len() == 0 {
-                            return pod_name;
-                        }
-                        pod_name
-                    })
-                    .unwrap_or_else(|| "-3".to_string());
+                    }
+                    if !pod_name.is_empty() {
+                        break;
+                    }
+                }
+                /* empty short */
+                if pod_name.len() == 0 {
+                    return pod_name;
+                }
                 /* cache the name */
                 self.put(pns, pod_name.clone());
                 pod_name
             }
-        };
+        }
     }
 
     pub fn put(&mut self, key: u32, value: String) {

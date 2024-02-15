@@ -200,8 +200,6 @@ static __always_inline struct file *fget_raw(struct task_struct *task, u64 fd_nu
         return NULL;
     struct file *file;
     bpf_core_read(&file, sizeof(void *), &fd[fd_num]);
-    if (file == NULL)
-        return NULL;
     return file;
 }
 
@@ -242,8 +240,8 @@ static __always_inline void *get_path(struct path *path)
         /* off check */
         if (off > buf_off)
             break;
-        sz = bpf_probe_read_str(&(cache->buf[off & MID_PERCPU_MASK]), (d_name.len + 1) & MID_PERCPU_MASK, (void *)d_name.name);
         /* size check */
+        sz = bpf_probe_read_str(&(cache->buf[off & MID_PERCPU_MASK]), (d_name.len + 1) & MID_PERCPU_MASK, (void *)d_name.name);
         if (!sz)
             break;
         cache->buf[(buf_off - 1) & MAX_PERCPU_MASK] = '/';
