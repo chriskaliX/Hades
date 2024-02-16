@@ -29,21 +29,18 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     /* ingore kernel threads */
     u32 flags = BPF_CORE_READ(task, flags);
 	if (flags & PF_KTHREAD)
-		return -1;
+		return 0;
 
     /* fulfill proc information */
     struct proc_info *proc_i = proc_info_init(task);
     if (proc_i == NULL)
-        return -1;
+        return 0;
     proc_info_args(proc_i, task);
     proc_info_envs(proc_i, task);
     proc_pid_tree(proc_i, task);
 
     /* report */
-    struct hds_context c = {0};
-    c.ctx = ctx;
-    c.data_type = SYS_ENTER_EXECVE;
-    c.sbt = get_percpu_buf(PRINT_CACHE);
+    struct hds_context c = init_context(ctx, SYS_ENTER_EXECVE);
 
     SBT((&c), &c.data_type, S_U32);
     SBT((&c), &proc_i->pid, S_U32);
@@ -75,8 +72,7 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     SBT((&c), &proc_i->sinfo, sizeof(struct hds_socket_info));
     SBT_CHAR((&c), &proc_i->pidtree);
 
-    report_event(&c);
-    return 0;
+    return report_event(&c);
 }
 
 /* proc_info init */
@@ -116,9 +112,9 @@ static struct proc_info *proc_info_init(struct task_struct *task)
     } else {
         struct hds_socket_info sinfo = {};
         sinfo.family = BPF_CORE_READ(sk, sk_family);
-        if (sinfo.family == AF_INET) {
+        if (sinfo.family == AF_INET)
             get_sock_v4(sk, &sinfo);
-        }
+        // else if (sinfo.family == AF_INET6)
         proc_i->sinfo = sinfo;
     }
     /* user */

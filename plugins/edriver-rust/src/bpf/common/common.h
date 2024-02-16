@@ -13,6 +13,16 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
     return container_of(mnt, struct mount, mnt);
 }
 
+static inline struct hds_context init_context(void *ctx, int dt)
+{
+    struct hds_context c = {
+        .ctx = ctx,
+        .data_type = dt,
+        .sbt = get_percpu_buf(PRINT_CACHE)
+    };
+    return c; 
+}
+
 /* notice: char * to void * */
 static __noinline int do_u32toa(uint32_t v, void *s, int l)
 {

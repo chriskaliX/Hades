@@ -49,7 +49,7 @@
 /* maps defination */
 BPF_PERF_OUTPUT(events, 1024);
 BPF_PERCPU_ARRAY(bufs, buf_t, MAX_BUFFERS);
-BPF_LRU_HASH(proc_info_cache, u32, struct proc_info, 10240);
+BPF_LRU_HASH(proc_info_cache, pid_t, struct proc_info, 10240);
 BPF_HASH(pid_filter, u32, u32, 512);
 
 #endif
