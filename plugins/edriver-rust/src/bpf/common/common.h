@@ -23,6 +23,34 @@ static inline struct hds_context init_context(void *ctx, int dt)
     return c; 
 }
 
+static inline volatile unsigned char get_sock_state(struct sock *sock)
+{
+    volatile unsigned char sk_state_own_impl;
+    bpf_probe_read(
+        (void *) &sk_state_own_impl, sizeof(sk_state_own_impl), (const void *) &sock->sk_state);
+    return sk_state_own_impl;
+}
+
+static inline struct ipv6_pinfo *get_inet_pinet6(struct inet_sock *inet)
+{
+    struct ipv6_pinfo *pinet6_own_impl;
+    bpf_probe_read(&pinet6_own_impl, sizeof(pinet6_own_impl), &inet->pinet6);
+    return pinet6_own_impl;
+}
+
+
+static inline struct ipv6_pinfo *inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
+{
+    volatile unsigned char sk_state_own_impl;
+    sk_state_own_impl = get_sock_state(__sk);
+
+    struct ipv6_pinfo *pinet6_own_impl;
+    pinet6_own_impl = get_inet_pinet6(inet);
+
+    bool sk_fullsock = (1 << sk_state_own_impl) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
+    return sk_fullsock ? pinet6_own_impl : NULL;
+}
+
 /* notice: char * to void * */
 static __noinline int do_u32toa(uint32_t v, void *s, int l)
 {
@@ -200,6 +228,21 @@ static __always_inline int get_sock_v4(struct sock *sk, struct hds_socket_info *
     return 0;
 }
 
+static __always_inline int get_sock_v6(struct sock *sk, struct hds_socket_info_v6 *sinfo)
+{
+    struct inet_sock *inet = (struct inet_sock *)sk;
+    struct ipv6_pinfo *inet6 = inet6_sk_own_impl(sk, inet);
+    struct in6_addr addr = {};
+    addr = BPF_CORE_READ(sk, __sk_common.skc_v6_rcv_saddr);
+    if (ipv6_addr_any(&addr))
+        addr = BPF_CORE_READ(inet6, saddr);
+    sinfo->local_address = BPF_CORE_READ(sk, __sk_common.skc_v6_daddr);
+    sinfo->local_port = BPF_CORE_READ(inet, inet_dport);
+    sinfo->remote_address = addr;
+    sinfo->remote_port = BPF_CORE_READ(inet, inet_sport);
+    return 0;
+}
+
 /* ===== END ===== */
 
 
@@ -247,11 +290,11 @@ static __always_inline void *get_path(struct path *path)
         d_name = BPF_CORE_READ(dentry, d_name);
         off = buf_off - (d_name.len + 1);
         sz = 0;
-        /* off check */
-        if (off > buf_off)
-            break;
         /* size check */
-        sz = bpf_probe_read_str(&(cache->buf[off & MID_PERCPU_MASK]), (d_name.len + 1) & MID_PERCPU_MASK, (void *)d_name.name);
+        off = off & MAX_PERCPU_MASK;
+        if (off > MAX_PERCPU_MASK - MAX_STRING_SIZE)
+            break;
+        sz = bpf_probe_read_str(&(cache->buf[off]), (d_name.len + 1) & MAX_STRING_MASK, (void *)d_name.name);
         if (!sz)
             break;
         cache->buf[(buf_off - 1) & MAX_PERCPU_MASK] = '/';

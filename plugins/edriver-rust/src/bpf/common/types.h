@@ -25,11 +25,17 @@ struct hds_cred {
 
 /* socket information */
 struct hds_socket_info {
-    __u16 family;
     __u32 local_address;
     __u16 local_port;
     __u32 remote_address;
     __u16 remote_port;
+};
+
+struct hds_socket_info_v6 {
+    struct in6_addr local_address;
+    __u16 local_port;
+    struct in6_addr remote_address;
+    __u16 remote_port;    
 };
 
 /* process information */
@@ -51,7 +57,9 @@ struct proc_info {
     char  ld_lib[MAX_STR_ENV];
     /* extra information */
     struct hds_cred cred;
+    __u16 family;
     struct hds_socket_info sinfo;
+    struct hds_socket_info_v6 sinfo_v6;
     char  pidtree[PIDTREE_LEN];
     /* others */
     __u16 pidtree_len;
@@ -68,5 +76,6 @@ struct hds_context {
 
 struct proc_info _proc SEC(".rodata") = {};
 struct hds_socket_info _sinfo SEC(".rodata") = {};
+struct hds_socket_info_v6 _sinfo_v6 SEC(".rodata") = {};
 
 #endif

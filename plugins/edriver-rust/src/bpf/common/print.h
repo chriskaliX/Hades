@@ -21,7 +21,7 @@
         if (ctx->sbt == NULL)                                       \
             return 0;                                               \
         /* pass verifier */                                         \
-        if (ctx->offset > MAX_PERCPU_BUFSIZE - (MAX_STR + S_INT))   \
+        if (ctx->offset > MAX_PERCPU_BUFSIZE - MAX_STR - S_INT)     \
             return 0;                                               \
         int s = bpf_probe_read_str(                                 \
             &(ctx->sbt->buf[ctx->offset + S_INT]),                  \

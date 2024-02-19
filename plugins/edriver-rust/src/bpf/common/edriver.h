@@ -61,15 +61,22 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     SBT_CHAR((&c), get_task_tty(task));
     /* pwd */
     struct path pwd = BPF_CORE_READ(task, fs, pwd);
-    SBT_CHAR((&c), get_path(__builtin_preserve_access_index(&pwd)));
+    void *pwd_ptr = get_path(__builtin_preserve_access_index(&pwd));
+    SBT_CHAR((&c), pwd_ptr);
     /* stdin */
     SBT_CHAR((&c), get_fd(task, 0));
     /* stdout */
     SBT_CHAR((&c), get_fd(task, 1));
     /* exe */
     struct path exe = BPF_CORE_READ(task, mm, exe_file, f_path);
-    SBT_CHAR((&c), get_path(__builtin_preserve_access_index(&exe)));
-    SBT((&c), &proc_i->sinfo, sizeof(struct hds_socket_info));
+    void *exe_ptr = get_path(__builtin_preserve_access_index(&exe));
+    SBT_CHAR((&c), exe_ptr);
+    /* socket info */
+    SBT((&c), &proc_i->family, S_U16);
+    if (proc_i->family == AF_INET6)
+        SBT((&c), &proc_i->sinfo_v6, sizeof(struct hds_socket_info_v6));
+    else if (proc_i->family == AF_INET)
+        SBT((&c), &proc_i->sinfo, sizeof(struct hds_socket_info));
     SBT_CHAR((&c), &proc_i->pidtree);
 
     return report_event(&c);
@@ -109,13 +116,17 @@ static struct proc_info *proc_info_init(struct task_struct *task)
     struct sock *sk = proc_socket_info(task, &proc_i->socket_pid);
     if (!sk) {
         proc_i->socket_pid = 0;
-    } else {
-        struct hds_socket_info sinfo = {};
-        sinfo.family = BPF_CORE_READ(sk, sk_family);
-        if (sinfo.family == AF_INET)
+    } else {        
+        proc_i->family = BPF_CORE_READ(sk, sk_family);
+        if (proc_i->family == AF_INET) {
+            struct hds_socket_info sinfo = {};
             get_sock_v4(sk, &sinfo);
-        // else if (sinfo.family == AF_INET6)
-        proc_i->sinfo = sinfo;
+            proc_i->sinfo = sinfo;
+        } else if (proc_i->family == AF_INET6) {
+            struct hds_socket_info_v6 sinfo_v6 = {};
+            get_sock_v6(sk, &sinfo_v6);
+            proc_i->sinfo_v6 = sinfo_v6;
+        }
     }
     /* user */
     proc_info_creds(proc_i, task);

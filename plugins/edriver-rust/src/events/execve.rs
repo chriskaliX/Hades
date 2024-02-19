@@ -1,8 +1,8 @@
-use std::{collections::HashMap, net::Ipv4Addr};
+use std::collections::HashMap;
 
 use crate::cache::Transformer;
 
-use super::{parse_sinfo, parse_str, parse_u32, Event};
+use super::{parse_sinfo, parse_str, parse_u16, parse_u32, Event};
 use anyhow::Result;
 
 pub struct Execve {}
@@ -39,14 +39,14 @@ impl Event for Execve {
         m.insert("stdout".to_string(), parse_str(data, &mut idx)?);
         let exe = parse_str(data, &mut idx)?;
         m.insert("exe".to_string(), exe.clone());
-        let sinfo = parse_sinfo(data, &mut idx)?;
-        m.insert("sa_family".to_string(), sinfo.family.to_string());
-        let local_addr = Ipv4Addr::from(sinfo.local_address).to_string();
-        m.insert("sip".to_string(), local_addr);
-        m.insert("sport".to_string(), sinfo.local_port.to_string());
-        let remote_addr = Ipv4Addr::from(sinfo.remote_address).to_string();
-        m.insert("dip".to_string(), remote_addr);
-        m.insert("dport".to_string(), sinfo.remote_port.to_string());
+        let family = parse_u16(data, &mut idx)?;
+        m.insert("sa_family".to_string(), family.to_string());
+        let sinfo = parse_sinfo(data, &mut idx, family)?;
+        m.insert("sip".to_string(), sinfo.local_addr);
+        m.insert("sport".to_string(), sinfo.local_port);
+        m.insert("dip".to_string(), sinfo.remote_addr);
+        m.insert("dport".to_string(), sinfo.remote_port);
+
         m.insert("pidtree".to_string(), parse_str(data, &mut idx)?);
         /* extra information */
         m.insert("pod_name".to_string(), trans.ns_cache.get(pns, pid));

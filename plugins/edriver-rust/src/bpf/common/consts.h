@@ -4,6 +4,7 @@
 /* consts: constrains */
 #define TASK_COMM_LEN               (16)
 #define MAX_STRING_SIZE             (256)
+#define MAX_STRING_MASK             (MAX_STRING_SIZE - 1)
 #define MAX_STR_ARR_ELEM            (32)
 #define MAX_PATH_COMPONENTS         (16)
 #define MAX_PATH_COMPONENTS_SIM     (10)
