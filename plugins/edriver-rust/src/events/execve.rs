@@ -46,7 +46,6 @@ impl Event for Execve {
         m.insert("sport".to_string(), sinfo.local_port);
         m.insert("dip".to_string(), sinfo.remote_addr);
         m.insert("dport".to_string(), sinfo.remote_port);
-
         m.insert("pidtree".to_string(), parse_str(data, &mut idx)?);
         /* extra information */
         m.insert("pod_name".to_string(), trans.ns_cache.get(pns, pid));
@@ -59,7 +58,6 @@ impl Event for Execve {
             m.insert("socket_argv".to_string(), trans.argv_cache.get(socket_pid));
         }
         m.insert("exe_hash".to_string(), trans.hash_cache.get(exe));
-
         /* cache fresh */
         trans.argv_cache.put(pid, argv);
 

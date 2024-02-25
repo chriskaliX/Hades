@@ -77,8 +77,8 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
         SBT((&c), &proc_i->sinfo_v6, sizeof(struct hds_socket_info_v6));
     else if (proc_i->family == AF_INET)
         SBT((&c), &proc_i->sinfo, sizeof(struct hds_socket_info));
+    /* process tree */
     SBT_CHAR((&c), &proc_i->pidtree);
-
     return report_event(&c);
 }
 

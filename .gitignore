@@ -57,3 +57,4 @@ Cargo.lock
 ncp-rst
 plugins/edriver/test/dist/2.txt
 target/
+plugins/edriver-rust/src/bpf/hades.skel.rs
