@@ -56,16 +56,16 @@ func ContainerTop(c *gin.Context) {
 	if req.State == "" {
 		match = bson.M{"$match": bson.M{
 			"$and": []bson.M{
-				bson.M{"data_type": 3018},
-				bson.M{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
+				{"data_type": 3018},
+				{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
 			},
 		}}
 	} else {
 		match = bson.M{"$match": bson.M{
 			"$and": []bson.M{
-				bson.M{"data_type": 3018},
-				bson.M{"state": req.State},
-				bson.M{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
+				{"data_type": 3018},
+				{"state": req.State},
+				{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
 			},
 		}}
 	}
@@ -89,6 +89,10 @@ func ContainerTop(c *gin.Context) {
 		var temp top
 		cur.Decode(&temp)
 		resp.Top = append(resp.Top, temp)
+	}
+	// fullfill the top
+	if len(resp.Top) < 3 {
+		resp.Top = append(resp.Top, make([]top, 3-len(resp.Top))...)
 	}
 
 	common.Response(c, common.SuccessCode, resp)

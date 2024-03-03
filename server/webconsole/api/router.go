@@ -110,6 +110,7 @@ func RunGrpcServer(port int) {
 		rGroup.GET("/conn/count", gApi.AgentCount)
 		rGroup.GET("/conn/stat", gApi.AgentStat)
 		rGroup.GET("/conn/basic", gApi.AgentBasic)
+		rGroup.GET("/conn/delete", gApi.AgentClear)
 	}
 	{
 		gGroup := apiv1Router.Group("/plugin")

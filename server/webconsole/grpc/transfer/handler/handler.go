@@ -22,12 +22,11 @@ import (
 type TransferHandler struct{}
 
 func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error) {
-	var agentID string
-	var addr string
+	var agentID, addr string
+	var data *pb.RawData
 
-	// Receive the very first package once grpc established
-	data, err := stream.Recv()
-	if err != nil {
+	// receive the very first package once grpc established
+	if data, err = stream.Recv(); err != nil {
 		return err
 	}
 
@@ -40,7 +39,7 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error
 	addr = p.Addr.String()
 	fmt.Printf("Get connection %s from %s\n", agentID, addr)
 
-	// Initialize the connection
+	// initialize the connection
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	conn := pool.Connection{
 		AgentID:     agentID,
@@ -50,6 +49,8 @@ func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error
 		Ctx:         ctx,
 		CancelFunc:  cancelFunc,
 	}
+
+	// add into the grpc pool
 	if err = pool.GlobalGRPCPool.Add(agentID, &conn); err != nil {
 		return err
 	}

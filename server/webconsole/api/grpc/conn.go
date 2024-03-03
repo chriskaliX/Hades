@@ -122,9 +122,11 @@ func AgentBasic(c *gin.Context) {
 			continue
 		}
 		detail := as.AgentDetail
-		var cpu, rss float64
-		cpu = detail["cpu"].(float64)
-		rss = detail["rss"].(float64)
+		cpu, ok1 := detail["cpu"].(float64)
+		rss, ok2 := detail["rss"].(float64)
+		if !ok1 || !ok2 {
+			continue
+		}
 
 		tmp := AgentBasicResp{
 			AgentID:  as.AgentID,
@@ -144,5 +146,20 @@ func AgentBasic(c *gin.Context) {
 
 // clear the agent plugins
 func AgentClear(c *gin.Context) {
-
+	filter := bson.M{}
+	// delete specific agent id
+	if agentId, ok := c.GetQuery("agent_id"); ok {
+		filter["agent_id"] = agentId
+	} else {
+		// clear the agent by it's heartbeat
+		filter["last_heartbeat_time"] = bson.M{
+			"$lt": time.Now().AddDate(0, 0, -7).Unix(),
+		}
+	}
+	deleteResult, err := mongo.MongoProxyImpl.StatusC.DeleteMany(context.TODO(), filter)
+	if err != nil {
+		common.Response(c, common.ErrorCode, err)
+	}
+	fmt.Printf("Deleted %d documents\n", deleteResult.DeletedCount)
+	common.Response(c, common.SuccessCode, deleteResult.DeletedCount)
 }
