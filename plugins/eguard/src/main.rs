@@ -93,10 +93,7 @@ fn main() -> Result<()> {
                     let result = match tokio::time::timeout(timeout, client_c.receive_async()).await
                     {
                         Ok(result) => result,
-                        Err(err) => {
-                            error!("get task failed:{}", err);
-                            continue;
-                        }
+                        Err(_) => continue, // ignore timeout
                     };
 
                     let task = match result {

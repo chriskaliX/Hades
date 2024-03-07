@@ -191,6 +191,12 @@ impl Logger {
     }
 }
 
+impl Drop for Logger {
+    fn drop(&mut self) {
+        self.flush()
+    }
+}
+
 impl Log for Logger {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
         metadata.level()
