@@ -26,10 +26,10 @@ log = { version = "0.4", features = ["std"] }
 lazy_static = "1.4.0"
 coarsetime = "0.1.23"
 pnet = "0.34"
-tokio = { version = "1", features = ["full"] }
 object = "0.25"
 #plugins
 sdk = { path = "../../SDK/rust" }
+tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 libbpf-cargo = "0.21.2"

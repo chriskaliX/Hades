@@ -19,7 +19,7 @@ impl CfgTrait for DnsPolicy {
         let mut value = eguard_bss_types::dns_policy_value::default();
         let mut domain = self.domain.clone();
         if domain.len() == 0 || domain.len() > 255 {
-            bail!("domain size too long");
+            bail!("domain length error: {}", domain.len());
         }
 
         if domain.contains('*') {

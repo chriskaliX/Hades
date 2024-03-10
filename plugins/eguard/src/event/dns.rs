@@ -3,6 +3,7 @@ mod eguard_skel {
 }
 use coarsetime::Clock;
 use eguard_skel::*;
+use lazy_static::lazy_static;
 
 use std::{
     collections::HashMap,
@@ -12,16 +13,24 @@ use std::{
 
 use super::eguard_skel::EguardSkel;
 use super::event::TX;
-use super::BpfProgram;
-use anyhow::{Ok, Result};
+use super::{update_map, BpfProgram};
+use crate::config::config::Config;
+use anyhow::Result;
 use log::*;
 use plain::Plain;
 use sdk::{Payload, Record};
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref DNS_EVENT_HASH_MAP: Mutex<HashMap<&'static [u8], &'static [u8]>> = {
+        let m = HashMap::new();
+        Mutex::new(m)
+    };
+}
 
 unsafe impl Plain for eguard_bss_types::net_context {}
 unsafe impl Plain for eguard_bss_types::dnshdr {}
 
-/// Notice: This is not working for now
 #[derive(Default)]
 pub struct DnsEvent {
     status: AtomicBool,
@@ -35,6 +44,10 @@ impl<'a> DnsEvent {
 
 impl<'a> BpfProgram for DnsEvent {
     fn init(&mut self, _skel: &mut EguardSkel) -> Result<()> {
+        #[cfg(feature = "debug")]
+        if let Ok(config) = Config::from_file("config.yaml") {
+            self.flush_config(config, _skel)?;
+        }
         Ok(())
     }
 
@@ -54,9 +67,15 @@ impl<'a> BpfProgram for DnsEvent {
 
     fn flush_config(
         &self,
-        _config: crate::config::config::Config,
-        _skel: &mut EguardSkel,
+        cfgs: crate::config::config::Config,
+        skel: &mut EguardSkel,
     ) -> Result<()> {
+        // DNS rules
+        update_map(
+            cfgs.dns,
+            DNS_EVENT_HASH_MAP.lock().unwrap(),
+            skel.maps_mut().dns_policy_map(),
+        )?;
         Ok(())
     }
 

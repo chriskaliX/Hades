@@ -1,25 +1,28 @@
+# protocol: ALL / TCP / UDP
+# ports: empty means all ports. 32(single port like 80), 16(range like 8079-8080)
+# action: DENY / LOG
 tc:
   - name: "eguard_egress_test_project"
     ingress: false
     address: "192.168.1.1/24"
-    protocol: ALL # ALL/TCP/UDP
-    ports:        # empty means all ports. 32(single port like 80), 16(range like 8079-8080)
+    protocol: ALL
+    ports:
       - 80
       - 8079-8080
-    action: LOG  # DENY/LOG
+    action: LOG
     level: INFO
   - name: "eguard_ingress_test_project"
     ingress: true
     address: "172.25.0.1/16"
-    protocol: TCP # ALL/TCP/UDP
-    ports:        # empty means all ports. 32(single port like 80), 16(range like 8079-8080)
+    protocol: TCP
+    ports:
       - 9999
       - 10000
-    action: LOG  # DENY/LOG
+    action: LOG
     level: INFO
 dns:
   - name: "eguard_egress_test_dns"
-    action: DENY
+    action: LOG
     domain: "grpc.hades.store"
   - name: "eguard_egress_test_dns_1"
     action: DENY

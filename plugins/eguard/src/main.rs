@@ -23,6 +23,11 @@ mod manager;
 pub const TYPE_TC: u32 = 3200;
 pub const TYPE_DNS: u32 = 3201;
 
+use std::alloc::System;
+
+#[global_allocator]
+static GLOBAL: System = System;
+
 fn main() -> Result<()> {
     let mut client = Client::new(false);
     set_boxed_logger(Box::new(Logger::new(Config {
@@ -75,36 +80,11 @@ fn main() -> Result<()> {
     // task_receive thread
     let mut client_c = client.clone();
     let timeout = Duration::from_millis(500);
-
-    let record_recv = thread::Builder::new()
+    let _ = thread::Builder::new()
         .name("task_receive".to_owned())
-        .spawn(move || {
-            let rt = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-
-            rt.block_on(async {
-                loop {
-                    if control_s.load(Ordering::SeqCst) {
-                        return;
-                    }
-
-                    let result = match tokio::time::timeout(timeout, client_c.receive_async()).await
-                    {
-                        Ok(result) => result,
-                        Err(_) => continue, // ignore timeout
-                    };
-
-                    let task = match result {
-                        Ok(task) => task,
-                        Err(err) => {
-                            error!("when receiving task, an error occurred: {}", err);
-                            control_s.store(true, Ordering::SeqCst);
-                            return;
-                        }
-                    };
-
+        .spawn(move || loop {
+            match client_c.receive() {
+                Ok(task) => {
                     let config = match serde_json::from_str::<BpfConfig>(task.get_data()) {
                         Ok(config) => config,
                         Err(e) => {
@@ -120,9 +100,13 @@ fn main() -> Result<()> {
 
                     info!("task parse success")
                 }
-            });
-            rt.shutdown_background();
-        })?;
+                Err(e) => {
+                    error!("when receiving task,an error occurred:{}", e);
+                    control_s.store(true, Ordering::Relaxed);
+                    return;
+                }
+            }
+        });
     info!("task receive handler is running");
     // record_send thread
     let record_send = thread::Builder::new()
@@ -146,7 +130,6 @@ fn main() -> Result<()> {
         })
         .unwrap();
     let _ = record_send.join();
-    let _ = record_recv.join();
     info!("plugin will exit");
     Ok(())
 }
