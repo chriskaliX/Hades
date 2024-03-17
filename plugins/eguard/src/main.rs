@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use tokio::time::{timeout, Duration};
 
 use crate::config::config::Config as BpfConfig;
 use crate::event::dns::DnsEvent;
@@ -22,11 +22,6 @@ mod manager;
 
 pub const TYPE_TC: u32 = 3200;
 pub const TYPE_DNS: u32 = 3201;
-
-use std::alloc::System;
-
-#[global_allocator]
-static GLOBAL: System = System;
 
 fn main() -> Result<()> {
     let mut client = Client::new(false);
@@ -47,6 +42,7 @@ fn main() -> Result<()> {
     let control_s = Arc::new(AtomicBool::new(false));
     let control_l = control_s.clone();
     let control_c = control_s.clone();
+    let control_r = control_s.clone();
     ctrlc::set_handler(move || {
         control_c.store(true, Ordering::SeqCst);
     })?;
@@ -77,37 +73,8 @@ fn main() -> Result<()> {
     }
 
     info!("init bpf program successfully");
-    // task_receive thread
     let mut client_c = client.clone();
-    let timeout = Duration::from_millis(500);
-    let _ = thread::Builder::new()
-        .name("task_receive".to_owned())
-        .spawn(move || loop {
-            match client_c.receive() {
-                Ok(task) => {
-                    let config = match serde_json::from_str::<BpfConfig>(task.get_data()) {
-                        Ok(config) => config,
-                        Err(e) => {
-                            error!("parse task failed: {}", e);
-                            continue;
-                        }
-                    };
 
-                    if let Err(e) = mgr_c.lock().unwrap().flush_config(config) {
-                        error!("flush task failed: {}", e);
-                        continue;
-                    }
-
-                    info!("task parse success")
-                }
-                Err(e) => {
-                    error!("when receiving task,an error occurred:{}", e);
-                    control_s.store(true, Ordering::Relaxed);
-                    return;
-                }
-            }
-        });
-    info!("task receive handler is running");
     // record_send thread
     let record_send = thread::Builder::new()
         .name("record_send".to_string())
@@ -116,7 +83,7 @@ fn main() -> Result<()> {
                 break;
             }
 
-            let rec = rx.recv_timeout(timeout);
+            let rec = rx.recv_timeout(std::time::Duration::from_millis(100));
             match rec {
                 Ok(rec) => {
                     if let Err(err) = client.send_record(&rec) {
@@ -130,6 +97,43 @@ fn main() -> Result<()> {
         })
         .unwrap();
     let _ = record_send.join();
+    // task_receive thread
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        info!("task receive handler is running");
+        loop {
+            if control_r.load(Ordering::SeqCst) {
+                break;
+            }
+            // receive data
+            let task = match timeout(Duration::from_millis(1000), client_c.receive_async()).await {
+                Ok(task) => match task {
+                    Ok(task) => task,
+                    Err(_) => {
+                        break;
+                    }
+                },
+                Err(_) => {
+                    continue;
+                }
+            };
+            // exit
+            let config = match serde_json::from_str::<BpfConfig>(task.get_data()) {
+                Ok(config) => config,
+                Err(e) => {
+                    error!("parse task failed: {}", e);
+                    continue;
+                }
+            };
+
+            if let Err(e) = mgr_c.lock().unwrap().flush_config(config) {
+                error!("flush task failed: {}", e);
+                continue;
+            }
+
+            info!("task parse success");
+        }
+    });
     info!("plugin will exit");
     Ok(())
 }

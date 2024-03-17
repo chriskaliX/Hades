@@ -101,13 +101,16 @@ impl<'a> BpfProgram for TcEvent {
         Ok(())
     }
 
-    /// actually, it is destory
-    fn detech(&mut self, skel: &mut EguardSkel) -> Result<()> {
-        let mut destroy_all = libbpf_rs::TcHook::new(skel.progs().hades_egress().as_fd());
-        destroy_all
-            .ifindex(self.if_idx)
-            .attach_point(TC_EGRESS | TC_INGRESS);
-        destroy_all.destroy()?;
+    /// actually, it is destroy
+    fn detach(&mut self, _skel: &mut EguardSkel) -> Result<()> {
+        if let Some(mut egress_hook) = self.egress_hook {
+            egress_hook.detach()?;
+            egress_hook.destroy()?;
+        }
+        if let Some(mut ingress_hook) = self.ingress_hook {
+            ingress_hook.detach()?;
+            ingress_hook.destroy()?;
+        }
         Ok(())
     }
 

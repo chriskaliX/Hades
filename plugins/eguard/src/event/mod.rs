@@ -23,8 +23,8 @@ pub trait BpfProgram: Sync {
     /// attach bpf binary
     fn attach(&mut self, skel: &mut EguardSkel) -> Result<()>;
 
-    /// detech the binary, wrapper the destory method inside if it is needed
-    fn detech(&mut self, skel: &mut EguardSkel) -> Result<()>;
+    /// detach the binary, wrapper the destory method inside if it is needed
+    fn detach(&mut self, skel: &mut EguardSkel) -> Result<()>;
 
     /// status of the bpf program
     fn status(&self) -> bool;

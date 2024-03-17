@@ -3,7 +3,7 @@ mod eguard_skel {
 }
 use crate::{
     config::config::Config,
-    event::{eguard_skel::eguard_bss_types, event::TX, BpfProgram},
+    event::{eguard_skel::eguard_bss_types, BpfProgram},
     TYPE_TC,
 };
 use anyhow::{anyhow, bail, Ok, Result};
@@ -26,8 +26,6 @@ use std::{
 
 use crate::event::eguard_skel::{EguardSkel, EguardSkelBuilder};
 use byteorder::{LittleEndian, ReadBytesExt};
-use coarsetime::Clock;
-use sdk::{Payload, Record};
 use std::io::Cursor;
 
 lazy_static! {
@@ -67,21 +65,14 @@ impl Bpfmanager<'_> {
         // load the skel
         let mut skel = EguardSkelBuilder::default().open()?.load()?;
 
-        let network_perf = PerfBufferBuilder::new(skel.maps_mut().events())
+        let perf_buffer = PerfBufferBuilder::new(skel.maps_mut().events())
             .sample_cb(Bpfmanager::handle_tc_event)
             .lost_cb(Bpfmanager::handle_tc_lost_events)
-            .build()?;
-        let exec_perf = PerfBufferBuilder::new(skel.maps_mut().exec_events())
-            .sample_cb(Bpfmanager::handle_exec_event)
-            .lost_cb(Bpfmanager::handle_exec_lost_events)
             .build()?;
 
         let thread_handle = spawn(move || {
             while running.load(Ordering::SeqCst) {
-                if let Err(_) = network_perf.poll(Duration::from_millis(100)) {
-                    break;
-                }
-                if let Err(_) = exec_perf.poll(Duration::from_millis(100)) {
+                if let Err(_) = perf_buffer.poll(Duration::from_millis(100)) {
                     break;
                 }
             }
@@ -152,52 +143,6 @@ impl Bpfmanager<'_> {
     fn handle_tc_lost_events(cpu: i32, count: u64) {
         error!("lost tc {} events on CPU {}", count, cpu);
     }
-
-    /// working on this
-    fn handle_exec_event(_cpu: i32, data: &[u8]) {
-        // parse the context
-        let mut context = eguard_bss_types::data_context::default();
-        plain::copy_from_bytes(&mut context, data).expect("context decode failed");
-        let mut map = HashMap::new();
-        map.insert("cgroupid".to_string(), context.cgroup_id.to_string());
-        map.insert("pns".to_string(), context.pns.to_string());
-        map.insert("pid".to_string(), context.pid.to_string());
-        map.insert("tid".to_string(), context.tid.to_string());
-        map.insert("uid".to_string(), context.uid.to_string());
-        map.insert("gid".to_string(), context.gid.to_string());
-        map.insert("ppid".to_string(), context.ppid.to_string());
-        map.insert("pgid".to_string(), context.pgid.to_string());
-        map.insert("sessionid".to_string(), context.sessionid.to_string());
-        let comm: &[u8] = unsafe { std::mem::transmute(&context.comm[..]) };
-        map.insert("comm".to_string(), trim_null_chars(comm));
-        let pcomm: &[u8] = unsafe { std::mem::transmute(&context.pcomm[..]) };
-        map.insert("pcomm".to_string(), trim_null_chars(pcomm));
-        let nodename: &[u8] = unsafe { std::mem::transmute(&context.nodename[..]) };
-        map.insert("nodename".to_string(), trim_null_chars(nodename));
-
-        let mut rec = Record::new();
-        let mut pld = Payload::new();
-        pld.set_fields(map);
-        rec.set_timestamp(Clock::now_since_epoch().as_secs() as i64);
-        rec.set_data(pld);
-        rec.data_type = context.dt as i32;
-        let lock = TX
-            .lock()
-            .map_err(|e| error!("unable to acquire notification send channel: {}", e));
-        match &mut *lock.unwrap() {
-            Some(sender) => {
-                if let Err(err) = sender.send(rec) {
-                    error!("send failed: {}", err);
-                    return;
-                }
-            }
-            None => return,
-        }
-    }
-
-    fn handle_exec_lost_events(cpu: i32, count: u64) {
-        error!("lost exec_events {} events on CPU {}", count, cpu);
-    }
 }
 
 impl Drop for Bpfmanager<'_> {
@@ -205,8 +150,10 @@ impl Drop for Bpfmanager<'_> {
         let events = &mut *EVENTS.write().unwrap();
         for (key, e) in events.iter_mut() {
             if let Some(skel) = self.skel.as_mut() {
-                if let Err(err) = e.detech(skel) {
+                if let Err(err) = e.detach(skel) {
                     error!("drop event {} failed: {}", key, err);
+                } else {
+                    info!("drop event {} success", key);
                 }
             }
         }
@@ -215,16 +162,8 @@ impl Drop for Bpfmanager<'_> {
         if let Some(thread) = self.thread_handle.take() {
             thread.join().ok();
         }
-
         debug!("has dropped bpfmanager from thread");
     }
-}
-
-fn trim_null_chars(data: &[u8]) -> String {
-    String::from_utf8_lossy(data)
-        .to_string()
-        .trim_end_matches('\0')
-        .to_string()
 }
 
 #[cfg(test)]

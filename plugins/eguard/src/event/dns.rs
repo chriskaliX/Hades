@@ -56,7 +56,7 @@ impl<'a> BpfProgram for DnsEvent {
         Ok(())
     }
 
-    fn detech(&mut self, _skel: &mut EguardSkel) -> Result<()> {
+    fn detach(&mut self, _skel: &mut EguardSkel) -> Result<()> {
         self.status.store(false, Ordering::SeqCst);
         Ok(())
     }

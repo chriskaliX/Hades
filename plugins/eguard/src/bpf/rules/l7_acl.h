@@ -7,9 +7,10 @@
 #include "common/general.h"
 #include "vmlinux.h"
 
-#define DNS_OFFSET    (sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr))
-#define TYPE_DNS      3201
-#define MAX_DNS_NAME  255
+#define TYPE_DNS            3201
+#define DNS_OFFSET          (sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr))
+#define DNS_MAX_LEN         256
+#define DNS_MAX_PRELEN      (DNS_MAX_LEN) * 8
 
 // The header contains the following fields:
 //     +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
@@ -38,7 +39,7 @@ struct dnshdr _dnshdr = {0};
 // DNS ACL structs
 struct dns_policy_key {
     __u32 prefixlen;
-    char  domain[255];
+    char  domain[DNS_MAX_LEN];
 };
 
 struct dns_policy_value {
@@ -58,8 +59,6 @@ struct {
 
 #define SIZE_DNSHDR         sizeof(struct dnshdr)
 #define SIZE_CONTEXT        sizeof(net_context_t)
-#define DNS_MAX_LEN         255
-#define DNS_MAX_READ_LEN    256
 #define MID_WAY             8192
 
 static __always_inline int tc_context_fill(net_packet_t pkt);
@@ -84,7 +83,7 @@ static __always_inline int l7_acl_rule(net_packet_t pkt, struct __sk_buff *skb) 
         
         // trim key
         struct dns_policy_key key = {0};
-        key.prefixlen = 255;
+        key.prefixlen = DNS_MAX_PRELEN;
 
         bpf_skb_load_bytes(skb, DNS_OFFSET, (void *)&pkt.buf_p->buf[SIZE_CONTEXT], SIZE_DNSHDR);
         int offset = load_dns(pkt, &key, skb);

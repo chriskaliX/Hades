@@ -27,6 +27,9 @@ dns:
   - name: "eguard_egress_test_dns_1"
     action: DENY
     domain: "*.baidu.com"
+  - name: "eguard_egress_test_dns_2"
+    action: DENY
+    domain: "*.loooooooooooooooooooooooooooooooooooog.com"
 file:
   - name: "file_test_1"
     action: DENY
