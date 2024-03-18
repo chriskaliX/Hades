@@ -96,7 +96,6 @@ fn main() -> Result<()> {
             }
         })
         .unwrap();
-    let _ = record_send.join();
     // task_receive thread
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
@@ -134,6 +133,7 @@ fn main() -> Result<()> {
             info!("task parse success");
         }
     });
+    let _ = record_send.join();
     info!("plugin will exit");
     Ok(())
 }
