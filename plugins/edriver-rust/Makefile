@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 CMD_CLANG ?= clang
 
 LIB_PATH := ../libs
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
 LIBBPF_SRC = $(LIB_PATH)/libbpf/src
+PLATFORM := $(shell uname -m)
 
 headers/libbpf/libbpf.a: \
 	$(LIBBPF_SRC) \
@@ -25,14 +27,14 @@ build: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
-	RUSTFLAGS="-C target-feature=+crt-static -L /usr/lib/x86_64-linux-gnu/" cargo build --release --target x86_64-unknown-linux-gnu --features=static
-
+	cargo build --release --bin edrivers --target $(PLATFORM)-unknown-linux-gnu --features=static
+	
 debug: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
-	RUST_BACKTRACE=1 RUSTFLAGS="-C target-feature=+crt-static -L /usr/lib/x86_64-linux-gnu/" cargo build --release --target x86_64-unknown-linux-gnu --features=static,debug
+	cargo build --release --bin edrivers --target $(PLATFORM)-unknown-linux-gnu --features=static,debug
 
 test:
 	cargo fmt
-	RUSTFLAGS="-C target-feature=+crt-static -L /usr/lib/x86_64-linux-gnu/" cargo test --target x86_64-unknown-linux-gnu --features=debug,static
+	cargo test --bin edrivers --target $(PLATFORM)-unknown-linux-gnu --features=static,debug

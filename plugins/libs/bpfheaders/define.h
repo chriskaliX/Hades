@@ -265,6 +265,15 @@ static __always_inline __u64 *get_config(__u32 key)
     return bpf_map_lookup_elem(&config_map, &key);
 }
 
+// compatibility for kernel version v6.4.x and higher
+// iovec changed: iov to __iov
+// referer: https://elixir.bootlin.com/linux/v6.4.16/source/include/linux/uio.h
+// static __always_inline struct iovec hades_iter_iov(struct msghdr *msg)
+// {
+//     struct iovec *iov = (struct iovec *)READ_KERN(msg->msg_iter.iov);
+//     return iov;
+// }
+
 /* config */
 // #define DENY_BPF                  0
 #define STEXT                     0

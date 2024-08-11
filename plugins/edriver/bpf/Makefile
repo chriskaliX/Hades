@@ -205,7 +205,7 @@ hades_ebpf_driver.bpf.core.o: \
 		-I $(LIB_PATH)/bpfheaders/ \
 		-target bpf \
 		-O2 -g \
-		-march=bpf -mcpu=v2 \
+		-mcpu=v2 \
 		-c $(HADES_SRC) \
 		-o $@
 

@@ -8,18 +8,17 @@ fn main() {
 
     SkeletonBuilder::new()
         .source(SRC)
-        .clang_args(
-            "-c 
-            -D__BPF_TRACING__ 
-            -DCORE 
-            -I src/bpf/headers/ 
-            -I../libs/core/
-            -I../libs/bpfheaders/
-            -I src/bpf/ 
-            -target bpf
-            -O2 -g
-            -march=bpf -mcpu=v2",
-        )
+        .clang_args([
+            "-c",
+            "-D__BPF_TRACING__",
+            "-DCORE",
+            "-Isrc/bpf/headers/",
+            "-I../libs/core/",
+            "-I../libs/bpfheaders/",
+            "-Isrc/bpf/",
+            "-O2 -g",
+            "-mcpu=v2",
+        ])
         .debug(false)
         .build_and_generate(&out)
         .unwrap();

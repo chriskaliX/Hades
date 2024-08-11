@@ -19,9 +19,9 @@ governor = "0.6.0"
 lazy_static = "1.4.0"
 twox-hash = "1.6"
 hex = "0.4"
-libbpf-rs = {version = "0.22.1", features=["static"]}
-libbpf-sys = { version = "1.2.1" }
+libbpf-rs = {version = "0.23.3", features = ["static"]}
+libbpf-sys = { version = "1.4.3" }
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
-libbpf-cargo = "0.22.1"
+libbpf-cargo = "0.23.3"
