@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifndef __EDRIVERS_H__
-#define __EDRIVERS_H__
+#ifndef __EDRIVER_H__
+#define __EDRIVER_H__
 #include <vmlinux.h>
 #include <missing_definitions.h>
 #include "consts.h"
@@ -19,6 +19,7 @@ static __always_inline int proc_info_creds(struct proc_info *, struct task_struc
 static __noinline int prepend_pid_tree(struct proc_info *, struct task_struct *);
 static __noinline int match_key(char *, int, uint64_t, int);
 
+// trace/events/sched.h: TP_PROTO(struct task_struct *p, pid_t old_pid, struct linux_binprm *bprm)
 SEC("raw_tracepoint/sched_process_exec")
 int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
 {
@@ -26,7 +27,9 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     if (task == NULL)
         return 0;
 
-    /* ingore kernel threads */
+    /* ingore kernel threads 
+     * https://elixir.bootlin.com/linux/v6.10/source/include/linux/sched.h#L1644
+     */
     u32 flags = BPF_CORE_READ(task, flags);
 	if (flags & PF_KTHREAD)
 		return 0;
@@ -39,9 +42,7 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     proc_info_envs(proc_i, task);
     proc_pid_tree(proc_i, task);
 
-    /* report */
     struct hds_context c = init_context(ctx, SYS_ENTER_EXECVE);
-
     SBT((&c), &c.data_type, S_U32);
     SBT((&c), &proc_i->pid, S_U32);
     SBT((&c), &proc_i->tgid, S_U32);
@@ -63,9 +64,8 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     struct path pwd = BPF_CORE_READ(task, fs, pwd);
     void *pwd_ptr = get_path(__builtin_preserve_access_index(&pwd));
     SBT_CHAR((&c), pwd_ptr);
-    /* stdin */
+    /* stdin & stdout */
     SBT_CHAR((&c), get_fd(task, 0));
-    /* stdout */
     SBT_CHAR((&c), get_fd(task, 1));
     /* exe */
     struct path exe = BPF_CORE_READ(task, mm, exe_file, f_path);
@@ -113,7 +113,7 @@ static struct proc_info *proc_info_init(struct task_struct *task)
     if (ret < 0)
         return NULL;
     /* socket */
-    struct sock *sk = proc_socket_info(task, &proc_i->socket_pid);
+    struct sock *sk = proc_socket_info(task, (pid_t *)&proc_i->socket_pid);
     if (!sk) {
         proc_i->socket_pid = 0;
     } else {        
@@ -195,13 +195,13 @@ static unsigned int proc_info_envs(struct proc_info *info, struct task_struct *t
         if (sl <= 0)
             goto out; /* notice: break do not work on unroll */
         len = len + sl;
-        if (match_key(&cache->buf[0], sl, 0x4e4e4f435f485353UL, 14)) {
+        if (match_key((char *)&cache->buf[0], sl, 0x4e4e4f435f485353UL, 14)) {
             /* SSH_CONN */
             bpf_probe_read_str(info->ssh_conn, MAX_STR_ENV, &cache->buf[15]);
-        } else if (match_key(&cache->buf[0], sl, 0x4f4c4552505f444cUL, 10)) {
+        } else if (match_key((char *)&cache->buf[0], sl, 0x4f4c4552505f444cUL, 10)) {
             /* LD_PRELO */
             bpf_probe_read_str(info->ld_pre, MAX_STR_ENV, &cache->buf[11]);
-        } else if (match_key(&cache->buf[0], sl, 0x415242494c5f444cUL, 15)) {
+        } else if (match_key((char *)&cache->buf[0], sl, 0x415242494c5f444cUL, 15)) {
             /* LD_LIBRA */
             bpf_probe_read_str(info->ld_lib, MAX_STR_ENV, &cache->buf[16]);
         } else {

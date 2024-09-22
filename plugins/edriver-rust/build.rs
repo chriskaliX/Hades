@@ -12,6 +12,7 @@ fn main() {
             "-c",
             "-D__BPF_TRACING__",
             "-DCORE",
+            "-D__aarch64__",
             "-Isrc/bpf/headers/",
             "-I../libs/core/",
             "-I../libs/bpfheaders/",
@@ -19,7 +20,6 @@ fn main() {
             "-O2 -g",
             "-mcpu=v2",
         ])
-        .debug(false)
         .build_and_generate(&out)
         .unwrap();
 }

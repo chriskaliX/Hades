@@ -1,5 +1,5 @@
 use anyhow::Result;
-use edrivers::*;
+use edriver::*;
 use log::*;
 use sdk::{logger::*, Client};
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     // log init
     set_boxed_logger(Box::new(Logger::new(Config {
         max_size: 1024 * 1024 * 5,
-        path: PathBuf::from("./edrivers.log"),
+        path: PathBuf::from("./edriver.log"),
         #[cfg(not(feature = "debug"))]
         file_level: LevelFilter::Info,
         #[cfg(feature = "debug")]

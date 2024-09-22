@@ -8,6 +8,10 @@ use anyhow::Result;
 pub struct Execve {}
 
 impl Event for Execve {
+    fn init() -> Result<()> {
+        Result::Ok(())
+    }
+
     fn parse(data: &[u8], trans: &mut Transformer) -> Result<HashMap<String, String>> {
         let mut m: HashMap<_, _> = HashMap::new();
         let mut idx: usize = 0;

@@ -1,10 +1,6 @@
-mod hades_skel {
-    include!("bpf/hades.skel.rs");
-}
 use crate::cache::Transformer;
 use crate::events::{execve::Execve, Event};
 use anyhow::{anyhow, Context, Result};
-use hades_skel::*;
 use lazy_static::lazy_static;
 use libbpf_rs::{
     skel::{OpenSkel, Skel, SkelBuilder},
@@ -17,6 +13,15 @@ use std::{
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+
+mod hades_skel {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/bpf/hades.skel.rs"
+    ));
+}
+
+use hades_skel::*;
 
 lazy_static! {
     pub static ref LOSS_CNT: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));

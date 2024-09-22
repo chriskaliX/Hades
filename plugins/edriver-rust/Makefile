@@ -27,14 +27,14 @@ build: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
-	cargo build --release --bin edrivers --target $(PLATFORM)-unknown-linux-gnu --features=static
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-gnu --features=static
 	
 debug: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
-	cargo build --release --bin edrivers --target $(PLATFORM)-unknown-linux-gnu --features=static,debug
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-gnu --features=static,debug
 
 test:
 	cargo fmt
-	cargo test --bin edrivers --target $(PLATFORM)-unknown-linux-gnu --features=static,debug
+	cargo test --target $(PLATFORM)-unknown-linux-gnu --features=static,debug -- --include-ignored --show-output

@@ -11,7 +11,10 @@ use std::{
 };
 
 pub mod execve;
+pub mod rasp_java;
+
 pub trait Event {
+    fn init() -> Result<()>;
     fn parse(data: &[u8], trans: &mut Transformer) -> Result<HashMap<String, String>>;
 }
 

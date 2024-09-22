@@ -58,3 +58,6 @@ ncp-rst
 plugins/edriver/test/dist/2.txt
 target/
 plugins/edriver-rust/src/bpf/hades.skel.rs
+# under dev
+plugins/edriver-rust/src/bpf/common/libs/*
+plugins/edriver-rust/src/bpf/common/rasp/*

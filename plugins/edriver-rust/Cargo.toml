@@ -1,5 +1,5 @@
 [package]
-name = "edrivers"
+name = "edriver"
 version = "0.1.0"
 edition = "2021"
 authors = ["chriskali <chriskalix@protonmail.com>"]
@@ -21,6 +21,7 @@ twox-hash = "1.6"
 hex = "0.4"
 libbpf-rs = {version = "0.23.3", features = ["static"]}
 libbpf-sys = { version = "1.4.3" }
+bitflags = "1.2.1"
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]

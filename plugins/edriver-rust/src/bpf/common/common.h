@@ -176,12 +176,13 @@ static __noinline struct sock *find_sock_internal(struct file **fds, int nr, int
         goto out;
     
     socket_state state = BPF_CORE_READ(sock, state);
-    if (state == SS_CONNECTING || state == SS_CONNECTED ||
-        state == SS_DISCONNECTING) {
+    /* https://elixir.bootlin.com/linux/v6.10/source/include/uapi/linux/net.h#L51 */
+    if (state == SS_CONNECTING || state == SS_CONNECTED || state == SS_DISCONNECTING) {
         sk = BPF_CORE_READ(sock, sk);
         if (!sk)
             goto out;
         family = BPF_CORE_READ(sk, sk_family);
+        /* https://elixir.bootlin.com/linux/v6.10/source/include/linux/socket.h#L193 */
         if (family == AF_INET || family == AF_INET6)
             return sk;
     }
