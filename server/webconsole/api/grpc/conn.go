@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hboat/api/common"
+	"hboat/grpc/handler"
 	"hboat/pkg/basic/mongo"
 	"hboat/pkg/conf"
 	"time"
@@ -50,6 +51,7 @@ type ConnStatRsp struct {
 	AgentInfo   map[string]interface{}   `json:"agent_info"`
 	PluginsInfo []map[string]interface{} `json:"plugins_info"`
 	Tags        []string                 `json:"tags"`
+	AppOverview map[string]int64       `json:"app_overview"`
 }
 
 func AgentStat(c *gin.Context) {
@@ -79,10 +81,14 @@ func AgentStat(c *gin.Context) {
 		pluginList = append(pluginList, as.PluginDetail[k])
 	}
 
+	// app overview
+	overview, _ := handleAppOverview(agentid)
+
 	res := ConnStatRsp{
 		AgentInfo:   agentInfo,
 		PluginsInfo: pluginList,
 		Tags:        as.Tags,
+		AppOverview: overview,
 	}
 
 	common.Response(c, common.SuccessCode, res)
@@ -162,4 +168,18 @@ func AgentClear(c *gin.Context) {
 	}
 	fmt.Printf("Deleted %d documents\n", deleteResult.DeletedCount)
 	common.Response(c, common.SuccessCode, deleteResult.DeletedCount)
+}
+
+
+func handleAppOverview(agent_id string) (map[string]int64, error) {
+	var pageReq common.PageReq
+	res := map[string]int64{}
+	for _, t := range common.AssetAllowList {
+		respCommon, err := common.DBPageSearch(context.TODO(), mongo.MongoProxyImpl.AssetC, &pageReq, bson.M{"agent_id": agent_id, "data_type": handler.EventNameCache[t].ID()})
+		if err != nil {
+			continue
+		}
+		res[t] = respCommon.Total
+	}
+	return res, nil
 }

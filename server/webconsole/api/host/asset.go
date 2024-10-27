@@ -15,10 +15,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-var typeAllowlist = []string{
-	"plugins", "users", "sockets", "processes", "crons", "apps", "kmods", "iptables", "net_interfaces", "containers",
-}
-
 // agentAssetResp represents the response structure for agent assets
 type agentAssetResp struct {
 	Total  int32                    `json:"total"`
@@ -80,7 +76,7 @@ func bindRequests(c *gin.Context, pageReq *common.PageReq, assetReq *agentAssetR
 
 // validateAssetType checks if the provided asset type is allowed
 func validateAssetType(assetType string) error {
-	if !slices.Contains(typeAllowlist, assetType) {
+	if !slices.Contains(common.AssetAllowList, assetType) {
 		return fmt.Errorf("type %s is not supported", assetType)
 	}
 	if _, ok := handler.EventNameCache[assetType]; !ok {
