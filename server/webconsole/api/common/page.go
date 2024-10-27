@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// PageReq represents pagination request parameters
 type PageReq struct {
 	Page    int64             `form:"page,default=1" binding:"required,numeric,min=1"`
 	Size    int64             `form:"size,default=10" binding:"required,numeric,min=1,max=5000"`
@@ -18,79 +19,111 @@ type PageReq struct {
 	Keyword map[string]any    `form:"keyword"`
 }
 
+// PageResp represents the response structure for pagination
 type PageResp struct {
 	Total int64                    `json:"total"`
 	Items []map[string]interface{} `json:"items"`
 }
 
-func DBPageSearch(col *mongo.Collection, req *PageReq, filter bson.M) (*PageResp, error) {
+// DBPageSearch performs a paginated search on the given MongoDB collection
+func DBPageSearch(ctx context.Context, col *mongo.Collection, req *PageReq, filter bson.M) (*PageResp, error) {
 	result := &PageResp{}
-	// set up the options
-	findOption := options.Find()
-	// precheck for field
-	if req.Sort != nil && len(req.Sort) == 1 {
-		for k, v := range req.Sort {
-			var order int
-			switch v {
-			case "ascend":
-				order = 1
-			case "descend":
-				order = -1
-			}
-			if order != 0 {
-				findOption.SetSort(bson.D{{Key: k, Value: order}})
-			}
-		}
-	}
-	findOption.SetSkip((req.Page - 1) * req.Size)
-	findOption.SetLimit(req.Size)
-	// Filter & keyword
-	var f []bson.M
-	if req.Filter != nil {
-		for k, v := range req.Filter {
-			if v == nil {
-				continue
-			}
-			f = append(f, bson.M{k: bson.M{"$in": v}})
-		}
-	}
-	if req.Keyword != nil {
-		for k, v := range req.Keyword {
-			var field string
-			switch t := v.(type) {
-			case string:
-				field = t
-			case int64:
-				field = strconv.FormatInt(t, 10)
-			case int:
-				field = strconv.Itoa(t)
-			default:
-				continue
-			}
-			f = append(f, bson.M{
-				k: primitive.Regex{
-					Pattern: ".*" + field + ".*",
-				},
-			})
-		}
-	}
-	combinedFilter := bson.D{{Key: "$and", Value: append([]bson.M{filter}, f...)}}
-	// lookup the cursor
-	cursor, err := col.Find(context.Background(), combinedFilter, findOption)
+
+	// Prepare find options with sorting and pagination
+	findOptions := prepareFindOptions(req)
+
+	// Build the combined filter
+	combinedFilter := buildCombinedFilter(req, filter)
+
+	// Perform the query
+	cursor, err := col.Find(ctx, combinedFilter, findOptions)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
-	// move the total after combined filter
-	total, err := col.CountDocuments(context.Background(), combinedFilter)
+	defer cursor.Close(ctx)
+
+	// Get total count of documents matching the combined filter
+	total, err := col.CountDocuments(ctx, combinedFilter)
 	if err != nil {
 		return nil, err
 	}
+
 	result.Total = total
-	result.Items = make([]map[string]interface{}, 0)
-	// get from cursor
-	if err = cursor.All(context.TODO(), &result.Items); err != nil {
+
+	// Retrieve items from cursor
+	if err := cursor.All(ctx, &result.Items); err != nil {
 		return nil, err
 	}
+
 	return result, nil
+}
+
+// prepareFindOptions sets up the sorting and pagination options for MongoDB query
+func prepareFindOptions(req *PageReq) *options.FindOptions {
+	findOptions := options.Find().
+		SetSkip((req.Page - 1) * req.Size).
+		SetLimit(req.Size)
+
+	if len(req.Sort) == 1 {
+		for field, order := range req.Sort {
+			if orderValue := orderDirection(order); orderValue != 0 {
+				findOptions.SetSort(bson.D{{Key: field, Value: orderValue}})
+			}
+		}
+	}
+
+	return findOptions
+}
+
+// orderDirection converts sort string to BSON order
+func orderDirection(order string) int {
+	switch order {
+	case "ascend":
+		return 1
+	case "descend":
+		return -1
+	default:
+		return 0
+	}
+}
+
+// buildCombinedFilter constructs a combined filter for the MongoDB query
+func buildCombinedFilter(req *PageReq, filter bson.M) bson.D {
+	var filters []bson.M
+
+	if req.Filter != nil {
+		for key, values := range req.Filter {
+			if len(values) > 0 {
+				filters = append(filters, bson.M{key: bson.M{"$in": values}})
+			}
+		}
+	}
+
+	if req.Keyword != nil {
+		for key, value := range req.Keyword {
+			if field := convertToString(value); field != "" {
+				filters = append(filters, bson.M{
+					key: primitive.Regex{
+						Pattern: "(?i).*" + field + ".*",
+					},
+				})
+			}
+		}
+	}
+
+	return bson.D{{Key: "$and", Value: append([]bson.M{filter}, filters...)}}
+}
+
+// convertToString converts different types to string for keyword filtering
+func convertToString(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case int:
+		return strconv.Itoa(v)
+	default:
+		return ""
+	}
 }

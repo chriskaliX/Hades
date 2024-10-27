@@ -15,59 +15,69 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// request binding
+// LoginRequest represents the login request structure
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// Login handles user login
 func Login(c *gin.Context) {
-	// get username
 	var req LoginRequest
 	if err := c.BindJSON(&req); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
+		common.Response(c, common.ErrorCode, "invalid request: "+err.Error())
 		return
 	}
-	// only get username and password
+
+	// Validate username and password
 	if err := mongo.CheckPassword(req.Username, req.Password); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
+		common.Response(c, common.ErrorCode, "authentication failed: "+err.Error())
 		return
 	}
-	// success, set the session
-	sessionid := utils.GenerateSession()
+
+	// Create session and store in Redis
+	sessionID := utils.GenerateSession()
 	duration := time.Duration(conf.Config.Backend.UserSessionLifetimeMin) * time.Minute
-	if err := redis.RedisProxyImpl.Client.Set(context.Background(), sessionid, req.Username, duration).Err(); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
+	if err := redis.RedisProxyImpl.Client.Set(context.Background(), sessionID, req.Username, duration).Err(); err != nil {
+		common.Response(c, common.ErrorCode, "session error: "+err.Error())
 		return
 	}
-	common.LogRecord(c, fmt.Sprintf("user %s login successfully", req.Username))
-	// response with the token
-	common.Response(c, common.SuccessCode, bson.M{"token": sessionid})
+
+	common.LogRecord(c, fmt.Sprintf("user %s logged in successfully", req.Username))
+	// Respond with the token
+	common.Response(c, common.SuccessCode, bson.M{"token": sessionID, "type": "account"})
 }
 
+// Logout handles user logout
 func Logout(c *gin.Context) {
 	token := c.GetHeader("token")
-	err := redis.RedisProxyImpl.Client.Del(context.Background(), token).Err()
-	if err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
+	if token == "" {
+		common.Response(c, common.ErrorCode, "token is required")
+		return
+	}
+
+	if err := redis.RedisProxyImpl.Client.Del(context.Background(), token).Err(); err != nil {
+		common.Response(c, common.ErrorCode, "logout error: "+err.Error())
 		return
 	}
 	common.Response(c, common.SuccessCode, nil)
 }
 
+// Regist handles user registration
 func Regist(c *gin.Context) {
-	// get username
 	var user mongo.User
 	if err := c.BindJSON(&user); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
+		common.Response(c, common.ErrorCode, "invalid request: "+err.Error())
 		return
 	}
-	// admin can not be set by regist
+
+	// Prevent users from registering as admin
 	if user.Role == mongo.RoleAdmin {
 		user.Role = mongo.RoleReadWrite
 	}
+
 	if err := mongo.CreateUser(user.Username, user.Password, user.Role); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
+		common.Response(c, common.ErrorCode, "registration error: "+err.Error())
 		return
 	}
 	common.Response(c, common.SuccessCode, nil)
@@ -77,23 +87,24 @@ type CurrentUserResp struct {
 	Name string `json:"name"`
 }
 
+// CurrentUser retrieves the current logged-in user's information
 func CurrentUser(c *gin.Context) {
 	token := c.GetHeader("token")
 	if token == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	s := redis.RedisProxyImpl.Client.Get(context.Background(), token)
-	if s.Err() != nil {
+
+	username, err := redis.RedisProxyImpl.Client.Get(context.Background(), token).Result()
+	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	username := s.Val()
+
 	if username == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	common.Response(c, common.SuccessCode, CurrentUserResp{
-		Name: username,
-	})
+
+	common.Response(c, common.SuccessCode, CurrentUserResp{Name: username})
 }

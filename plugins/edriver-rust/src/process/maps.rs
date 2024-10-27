@@ -4,12 +4,6 @@ use std::fs::read_to_string;
 
 type PermFlag = u8;
 
-/// Process is the trait to inspect system running process
-pub trait Process {
-    /// Return the process identifier
-    fn pid() -> u32;
-}
-
 /// Information about the process memory mapping
 #[derive(Default, Debug)]
 pub struct Mapping {

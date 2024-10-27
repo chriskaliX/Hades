@@ -18,12 +18,11 @@ var _ Event = (*PluginHeartbeat)(nil)
 
 func (p *PluginHeartbeat) ID() int32 { return 2 }
 
-func (p *PluginHeartbeat) Name() string { return "plugin_heartbeat" }
+func (p *PluginHeartbeat) Name() string { return "plugins" }
 
 func (p *PluginHeartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Connection) error {
 	data := make(map[string]interface{})
 	for k, v := range m {
-		// skip special field, hard-code
 		if k == "pversion" {
 			data[k] = v
 			continue

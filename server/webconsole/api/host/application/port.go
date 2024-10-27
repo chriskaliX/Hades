@@ -1,10 +1,10 @@
 package application
 
-import "github.com/gin-gonic/gin"
+// import "github.com/gin-gonic/gin"
 
-type portResp struct {
-}
+// type portResp struct {
+// }
 
-func ApplicationPort(c *gin.Context) {
+// func ApplicationPort(c *gin.Context) {
 
-}
+// }

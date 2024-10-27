@@ -54,6 +54,7 @@ func (h *Heartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 		return err
 	}
 	conn.SetAgentDetail(data)
+
 	docs := bson.D{
 		primitive.E{
 			Key: "metrics",
@@ -62,6 +63,8 @@ func (h *Heartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 				primitive.E{Key: "agent_cpu", Value: data["cpu"]},
 				primitive.E{Key: "sys_mem", Value: data["sys_mem"]},
 				primitive.E{Key: "agent_mem", Value: data["rss"]},
+				primitive.E{Key: "tx_speed", Value: data["tx_speed"]},
+				primitive.E{Key: "tx_tps", Value: data["tx_tps"]},
 			},
 		},
 		primitive.E{

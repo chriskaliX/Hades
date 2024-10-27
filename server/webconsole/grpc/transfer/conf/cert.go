@@ -12,4 +12,3 @@ var ServerCert []byte
 
 //go:embed ca.crt
 var CaCert []byte
-

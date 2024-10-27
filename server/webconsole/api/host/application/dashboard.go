@@ -101,9 +101,9 @@ func Dashboard(c *gin.Context) {
 	socketPipeline := bson.A{
 		bson.M{"$match": bson.M{
 			"$and": []bson.M{
-				bson.M{"data_type": 5001},
-				bson.M{"sip": "0.0.0.0"},
-				bson.M{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
+				{"data_type": 5001},
+				{"sip": "0.0.0.0"},
+				{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
 			},
 		}},
 		bson.D{primitive.E{Key: "$group", Value: bson.D{
@@ -130,8 +130,8 @@ func Dashboard(c *gin.Context) {
 	systemdPipeline := bson.A{
 		bson.M{"$match": bson.M{
 			"$and": []bson.M{
-				bson.M{"data_type": 3011},
-				bson.M{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
+				{"data_type": 3011},
+				{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
 			},
 		}},
 		bson.D{primitive.E{Key: "$group", Value: bson.D{
@@ -157,8 +157,8 @@ func Dashboard(c *gin.Context) {
 	appPipeline := bson.A{
 		bson.M{"$match": bson.M{
 			"$and": []bson.M{
-				bson.M{"data_type": 3008},
-				bson.M{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
+				{"data_type": 3008},
+				{"update_time": bson.M{"$gt": time.Now().Unix() - 24*60*60}},
 			},
 		}},
 		bson.D{primitive.E{Key: "$group", Value: bson.D{
@@ -216,7 +216,7 @@ func GeneralApp(c *gin.Context) {
 		return
 	}
 
-	respCommon, err := common.DBPageSearch(mongo.MongoProxyImpl.AssetC, &pageReq, bson.M{"data_type": dt.ID(), "update_time": bson.M{"$gt": time.Now().Unix() - 3*24*60*60}})
+	respCommon, err := common.DBPageSearch(context.TODO(), mongo.MongoProxyImpl.AssetC, &pageReq, bson.M{"data_type": dt.ID(), "update_time": bson.M{"$gt": time.Now().Unix() - 3*24*60*60}})
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 	}

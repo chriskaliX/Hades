@@ -6,6 +6,7 @@ import (
 	"hboat/api/host"
 	"hboat/api/host/application"
 	"hboat/api/middleware"
+	"hboat/api/monitor"
 	"hboat/api/plugin"
 	"hboat/api/static"
 	"hboat/api/user"
@@ -133,6 +134,9 @@ func RunGrpcServer(port int) {
 		appGroup.GET("/get", application.GeneralApp)
 		appGroup.GET("/container/get", application.ContainerDash)
 		appGroup.GET("/container/top", application.ContainerTop)
+	}
+	{
+		apiv1Router.GET("/metric", monitor.MetricPerformance)
 	}
 	{
 		apiv1Router.Any("/tag", host.TagAction)

@@ -1,4 +1,3 @@
-// plugin operations
 package plugin
 
 import (
@@ -23,129 +22,113 @@ type PluginConfig struct {
 	Pversion string   `json:"pversion" bson:"pversion" binding:"required"`
 	CreateAt int64    `json:"create_at" bson:"create_at"`
 	ModifyAt int64    `json:"modify_at" bson:"modify_at"`
+	Desc     string   `json:"desc" bson:"desc"`
 }
 
 func PluginInsert(c *gin.Context) {
-	var pConfig PluginConfig
-	if err := c.BindJSON(&pConfig); err != nil {
+	var plugin PluginConfig
+	if err := c.BindJSON(&plugin); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	// result
-	if res := mongo.MongoProxyImpl.PluginC.FindOne(context.Background(),
-		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
-	); res.Err() == nil {
+	// Check if the plugin already exists
+	if err := mongo.MongoProxyImpl.PluginC.FindOne(context.Background(),
+		bson.M{"name": plugin.Name, "pversion": plugin.Pversion}).Err(); err == nil {
 		common.Response(c, common.ErrorCode, "plugin already exists")
 		return
 	}
+
 	now := time.Now().Unix()
-	pConfig.CreateAt = now
-	pConfig.ModifyAt = now
-	// check for all the urls
-	if len(pConfig.Urls) == 0 {
-		common.Response(c, common.ErrorCode, "url is needed")
+	plugin.CreateAt = now
+	plugin.ModifyAt = now
+
+	// Validate URLs
+	if len(plugin.Urls) == 0 {
+		common.Response(c, common.ErrorCode, "at least one URL is required")
+		return
 	}
-	for _, u := range pConfig.Urls {
+
+	for _, u := range plugin.Urls {
 		uri, err := url.Parse(u)
-		if err != nil {
-			common.Response(c, common.ErrorCode, err.Error())
-		}
-		if uri.Scheme != "http" && uri.Scheme != "https" {
-			continue
+		if err != nil || (uri.Scheme != "http" && uri.Scheme != "https") {
+			common.Response(c, common.ErrorCode, fmt.Sprintf("invalid URL: %s", u))
+			return
 		}
 	}
-	// check done, insert the plugin into db
-	if _, err := mongo.MongoProxyImpl.PluginC.InsertOne(
-		context.Background(),
-		pConfig,
-	); err != nil {
+
+	// Insert the plugin into the database
+	if _, err := mongo.MongoProxyImpl.PluginC.InsertOne(context.Background(), plugin); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
 
-	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s is added", pConfig.Name, pConfig.Pversion))
+	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s has been added", plugin.Name, plugin.Pversion))
 	common.Response(c, common.SuccessCode, nil)
 }
 
 func PluginSelect(c *gin.Context) {
 	name := c.GetString("name")
 	pversion := c.GetString("pversion")
-	res := mongo.MongoProxyImpl.PluginC.FindOne(
-		context.Background(),
-		bson.M{"name": name, "pversion": pversion},
-	)
-	if res.Err() != nil {
-		common.Response(c, common.ErrorCode, "plugin not exists")
+
+	var plugin PluginConfig
+	if err := mongo.MongoProxyImpl.PluginC.FindOne(context.Background(), bson.M{"name": name, "pversion": pversion}).Decode(&plugin); err != nil {
+		common.Response(c, common.ErrorCode, "plugin does not exist")
 		return
 	}
-	var plg PluginConfig
-	if err := res.Decode(&plg); err != nil {
-		common.Response(c, common.ErrorCode, err.Error())
-		return
-	}
-	common.Response(c, common.SuccessCode, plg)
+	common.Response(c, common.SuccessCode, plugin)
 }
 
 func PluginDel(c *gin.Context) {
 	name := c.Query("name")
 	pversion := c.Query("pversion")
-	_, err := mongo.MongoProxyImpl.PluginC.DeleteOne(
-		context.Background(),
-		bson.M{"name": name, "pversion": pversion},
-	)
-	if err != nil {
+
+	if _, err := mongo.MongoProxyImpl.PluginC.DeleteOne(context.Background(), bson.M{"name": name, "pversion": pversion}); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s is deleted", name, pversion))
+
+	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s has been deleted", name, pversion))
 	common.Response(c, common.SuccessCode, nil)
 }
 
 func PluginUpdate(c *gin.Context) {
-	var pConfig PluginConfig
-	if err := c.BindJSON(&pConfig); err != nil {
+	var plugin PluginConfig
+	if err := c.BindJSON(&plugin); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	pConfig.ModifyAt = time.Now().Unix()
-	if _, err := mongo.MongoProxyImpl.PluginC.UpdateOne(
-		context.Background(),
-		bson.M{"name": pConfig.Name, "pversion": pConfig.Pversion},
-		bson.M{"$set": bson.M{"urls": pConfig.Urls, "sha256": pConfig.Sha256}},
-	); err != nil {
+
+	plugin.ModifyAt = time.Now().Unix()
+	if _, err := mongo.MongoProxyImpl.PluginC.UpdateOne(context.Background(),
+		bson.M{"name": plugin.Name, "pversion": plugin.Pversion},
+		bson.M{"$set": bson.M{"urls": plugin.Urls, "sha256": plugin.Sha256}}); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
+		return
 	}
 
-	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s is updated", pConfig.Name, pConfig.Pversion))
+	common.LogRecord(c, fmt.Sprintf("plugin: %s, version: %s has been updated", plugin.Name, plugin.Pversion))
 	common.Response(c, common.SuccessCode, nil)
 }
 
-type PluginListResp struct {
-	// plugins and it's version
-	List []PluginConfig `json:"plugins"`
-}
-
 func PluginList(c *gin.Context) {
-	var plgResp PluginListResp
-	plgResp.List = make([]PluginConfig, 0)
-	cur, err := mongo.MongoProxyImpl.PluginC.Find(
-		context.Background(),
-		bson.D{},
-	)
-	if err != nil {
+	var pageReq common.PageReq
+
+	if err := c.ShouldBind(&pageReq); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	defer cur.Close(context.Background())
-	for cur.Next(context.Background()) {
-		var temp PluginConfig
-		err = cur.Decode(&temp)
-		if err != nil {
-			continue
-		}
-		plgResp.List = append(plgResp.List, temp)
+
+	respCommon, err := common.DBPageSearch(context.TODO(), mongo.MongoProxyImpl.PluginC, &pageReq, bson.M{})
+	if err != nil {
+		return
 	}
-	common.Response(c, common.SuccessCode, plgResp)
+
+	response := common.PageResp{
+		Total: respCommon.Total,
+		Items: respCommon.Items,
+	}
+
+	common.Response(c, common.SuccessCode, response)
 }
 
 type PluginRequest struct {
@@ -155,82 +138,79 @@ type PluginRequest struct {
 	Action  string `json:"action"`
 }
 
-// For now, only single instance is considered
 func SendPlugin(c *gin.Context) {
-	var pReq PluginRequest
-	err := c.BindJSON(&pReq)
-	if err != nil {
+	var request PluginRequest
+	if err := c.BindJSON(&request); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	switch pReq.Action {
+
+	switch request.Action {
 	case "insert":
-		actionInsert(c, pReq)
+		actionInsert(c, request)
 	case "delete":
-		actionDelete(c, pReq)
+		actionDelete(c, request)
+	default:
+		common.Response(c, common.ErrorCode, "unknown action")
 	}
 }
 
-func actionInsert(c *gin.Context, pReq PluginRequest) {
-	var plgConfig PluginConfig
-	err := mongo.MongoProxyImpl.PluginC.FindOne(
-		context.Background(),
-		bson.M{"name": pReq.Name, "pversion": pReq.Version}).Decode(&plgConfig)
-	if err != nil {
+func actionInsert(c *gin.Context, request PluginRequest) {
+	var pluginConfig PluginConfig
+	if err := mongo.MongoProxyImpl.PluginC.FindOne(context.Background(), bson.M{"name": request.Name, "pversion": request.Version}).Decode(&pluginConfig); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
-	command := pb.Command{}
-	command.Config = []*pb.ConfigItem{
-		{
-			Name:        plgConfig.Name,
-			Version:     plgConfig.Pversion,
-			SHA256:      plgConfig.Sha256,
-			DownloadURL: plgConfig.Urls,
+
+	command := pb.Command{
+		Config: []*pb.ConfigItem{
+			{
+				Name:        pluginConfig.Name,
+				Version:     pluginConfig.Pversion,
+				SHA256:      pluginConfig.Sha256,
+				DownloadURL: pluginConfig.Urls,
+			},
 		},
 	}
-	// Add the plugins with status on
-	// for single grpc now
-	// TODO: let the frontend controls this
-	// BUG: logical problem, everytime a grpc reconnect, the plugin need to get from mongo
-	// or just wait the plugin heartbeat
-	// (or enforce the heartbeat of all in very first time)
-	conn, err := pool.GlobalGRPCPool.Get(pReq.AgentID)
+
+	// Gather existing plugins
+	conn, err := pool.GlobalGRPCPool.Get(request.AgentID)
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
+
 	for name, detail := range conn.GetPluginsList() {
-		if name == plgConfig.Name {
+		if name == pluginConfig.Name {
 			continue
 		}
-		version, ok := detail["pversion"]
-		if !ok {
-			continue
+		if version, ok := detail["pversion"]; ok {
+			command.Config = append(command.Config, &pb.ConfigItem{
+				Name:    name,
+				Version: version.(string),
+				SHA256:  pluginConfig.Sha256,
+			})
 		}
-		command.Config = append(command.Config, &pb.ConfigItem{
-			Name:    name,
-			Version: version.(string),
-			SHA256:  plgConfig.Sha256,
-		})
 	}
-	err = pool.GlobalGRPCPool.SendCommand(pReq.AgentID, &command)
-	if err != nil {
+
+	if err := pool.GlobalGRPCPool.SendCommand(request.AgentID, &command); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
+
 	common.Response(c, common.SuccessCode, nil)
 }
 
-func actionDelete(c *gin.Context, pReq PluginRequest) {
-	if err := pool.GlobalGRPCPool.SendCommand(pReq.AgentID, &pb.Command{
+func actionDelete(c *gin.Context, request PluginRequest) {
+	if err := pool.GlobalGRPCPool.SendCommand(request.AgentID, &pb.Command{
 		Task: &pb.PluginTask{
 			DataType: config.TaskShutdown,
-			Name:     pReq.Name,
+			Name:     request.Name,
 		},
 	}); err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
+
 	common.Response(c, common.SuccessCode, nil)
 }

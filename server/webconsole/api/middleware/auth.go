@@ -10,42 +10,62 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const nilErrRedis = "redis: nil"
+// Predefined errors and constants
+const (
+	nilErrRedis   = "redis: nil"
+	unauthorized  = http.StatusUnauthorized
+	internalError = http.StatusInternalServerError
+)
 
+// Whitelisted routes for unauthenticated access
 var whitelist = []string{
 	"/api/v1/user/login",
 }
 
+// Auth middleware to protect routes
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// auth 开关
+		// Bypass authentication if disabled
 		if !conf.Config.Backend.Auth {
 			c.Next()
 			return
 		}
-		// Whitelist for frontend
+
+		// Allow access to whitelisted routes
 		if slices.Contains(whitelist, c.Request.URL.Path) {
 			c.Next()
 			return
 		}
 
-		// start check
+		// Check for the authorization token
 		token := c.GetHeader("token")
 		if token == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatus(unauthorized)
 			return
 		}
-		s := redis.RedisProxyImpl.Client.Get(context.Background(), token)
-		if s.Err() != nil && s.Err().Error() != nilErrRedis {
-			c.AbortWithStatus(http.StatusInternalServerError)
+
+		// Retrieve username from Redis
+		username, err := getUsernameFromToken(token)
+		if err != nil {
+			c.AbortWithStatus(internalError)
 			return
 		}
-		username := s.Val()
+
 		if username == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatus(unauthorized)
 			return
 		}
+
 		c.Set("username", username)
 		c.Next()
 	}
+}
+
+// getUsernameFromToken retrieves the username associated with the given token from Redis
+func getUsernameFromToken(token string) (string, error) {
+	result := redis.RedisProxyImpl.Client.Get(context.Background(), token)
+	if result.Err() != nil {
+		return "", result.Err() // Return any error directly
+	}
+	return result.Val(), nil // Return the retrieved username
 }

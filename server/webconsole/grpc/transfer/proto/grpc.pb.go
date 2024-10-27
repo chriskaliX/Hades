@@ -271,7 +271,7 @@ func (m *Item) GetFields() map[string]string {
 	return nil
 }
 
-//server --> agent
+// server --> agent
 type Command struct {
 	AgentCtrl int32         `protobuf:"varint,1,opt,name=AgentCtrl,proto3" json:"AgentCtrl,omitempty"`
 	Task      *PluginTask   `protobuf:"bytes,2,opt,name=Task,proto3" json:"Task,omitempty"`
