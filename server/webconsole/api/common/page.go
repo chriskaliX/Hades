@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -99,31 +98,25 @@ func buildCombinedFilter(req *PageReq, filter bson.M) bson.D {
 		}
 	}
 
-	if req.Keyword != nil {
-		for key, value := range req.Keyword {
-			if field := convertToString(value); field != "" {
-				filters = append(filters, bson.M{
-					key: primitive.Regex{
-						Pattern: "(?i).*" + field + ".*",
-					},
-				})
-			}
-		}
-	}
+    if req.Keyword != nil {
+        for key, value := range req.Keyword {
+            switch v := value.(type) {
+            case string:
+                filters = append(filters, bson.M{
+                    key: primitive.Regex{
+                        Pattern: "(?i).*" + v + ".*",
+                    },
+                })
+            case float64, int, int32, int64:
+                // 处理数字类型
+                filters = append(filters, bson.M{
+                    key: v,
+                })
+            default:
+            }
+        }
+    }
 
 	return bson.D{{Key: "$and", Value: append([]bson.M{filter}, filters...)}}
 }
 
-// convertToString converts different types to string for keyword filtering
-func convertToString(value any) string {
-	switch v := value.(type) {
-	case string:
-		return v
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case int:
-		return strconv.Itoa(v)
-	default:
-		return ""
-	}
-}
