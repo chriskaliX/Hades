@@ -14,9 +14,11 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 
 ## 概览
 
-> 现在仍是一个demo后台，后续会持续迭代
+> 后台逐步开发中
 
-<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-platform.png"/>
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-overview.png"/>
+
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-hostdetail.png"/>
 
 ## 架构
 

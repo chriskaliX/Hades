@@ -18,7 +18,9 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 
 > This is a demo backend for now, still under dev
 
-<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-platform.png"/>
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-overview.png"/>
+
+<img src="https://github.com/chriskaliX/Hades/blob/main/imgs/hades-hostdetail.png"/>
 
 ## Architecture
 
