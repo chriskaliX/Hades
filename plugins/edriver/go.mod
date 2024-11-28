@@ -2,9 +2,7 @@ module hades-ebpf
 
 replace github.com/chriskaliX/SDK => ../../SDK/go
 
-go 1.22.0
-
-toolchain go1.22.2
+go 1.22
 
 require (
 	github.com/aquasecurity/libbpfgo/helpers v0.4.5
