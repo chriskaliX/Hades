@@ -175,7 +175,7 @@ int BPF_KPROBE(kprobe_udp_recvmsg)
         // (type != ITER_IOVEC). But just as I said, be careful about the name of
         // `type` or `iter_type`
         struct iovec *iov = NULL;
-    #if CORE
+    #ifdef CORE
         if (bpf_core_field_exists(msg->msg_iter.__iov))
             iov = (struct iovec *)READ_KERN(msg->msg_iter.__iov);
         else if (bpf_core_field_exists(msg->msg_iter.iov))
@@ -241,7 +241,7 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
 
     msg_iter = READ_KERN(msg->msg_iter);
 
-#if CORE
+#ifdef CORE
     if (bpf_core_field_exists(msg_iter.__iov))
         ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.__iov);
     else if (bpf_core_field_exists(msg_iter.iov))

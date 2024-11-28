@@ -495,12 +495,12 @@ int BPF_KPROBE(kprobe_security_file_permission)
     unsigned long iterate_shared_addr = (unsigned long) READ_KERN(fops->iterate_shared);
     unsigned long iterate_addr = 0;
 
-#if CORE
+#ifdef CORE
     if (bpf_core_field_exists(fops->iterate))
-        unsigned long iterate_addr = (unsigned long) READ_KERN(fops->iterate);
+        iterate_addr = (unsigned long) READ_KERN(fops->iterate);
 #else
     // TODO: need to add kernel version check here
-    unsigned long iterate_addr = (unsigned long) READ_KERN(fops->iterate);
+    iterate_addr = (unsigned long) READ_KERN(fops->iterate);
 #endif
 
     if (iterate_shared_addr == 0 && iterate_addr == 0)
