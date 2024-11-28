@@ -8597,6 +8597,7 @@ struct iov_iter {
 	size_t count;
 	union {
 		const struct iovec *iov;
+		const struct iovec *__iov; // add support for linux kernel version 6.0.0
 		const struct kvec *kvec;
 		const struct bio_vec *bvec;
 		struct xarray *xarray;

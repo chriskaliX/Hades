@@ -5,7 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/cilium/ebpf"
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 type KernelFilter struct{}

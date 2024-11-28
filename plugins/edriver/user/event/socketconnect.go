@@ -7,7 +7,7 @@ import (
 	"hades-ebpf/utils"
 	"time"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 	utilcache "k8s.io/apimachinery/pkg/util/cache"
 )
 

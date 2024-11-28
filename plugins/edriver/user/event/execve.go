@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 var _ decoder.Event = (*Execve)(nil)

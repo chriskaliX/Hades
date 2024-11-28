@@ -25,7 +25,7 @@ import (
 	"github.com/chriskaliX/SDK/transport/protocol"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/btf"
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"

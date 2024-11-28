@@ -493,8 +493,16 @@ int BPF_KPROBE(kprobe_security_file_permission)
 
     // kernel version 4.10 iterate_shared
     unsigned long iterate_shared_addr = (unsigned long) READ_KERN(fops->iterate_shared);
+    unsigned long iterate_addr = 0;
+
+#if CORE
+    if (bpf_core_field_exists(fops->iterate))
+        unsigned long iterate_addr = (unsigned long) READ_KERN(fops->iterate);
+#else
+    // TODO: need to add kernel version check here
     unsigned long iterate_addr = (unsigned long) READ_KERN(fops->iterate);
-    
+#endif
+
     if (iterate_shared_addr == 0 && iterate_addr == 0)
         return 0;
     
@@ -518,6 +526,7 @@ int BPF_KPROBE(kprobe_security_file_permission)
             return 0;
         }
     }
+    
     if (iterate_addr > 0) {
         if (iterate_addr >= *stext && iterate_addr <= *etext) {
             return 0;

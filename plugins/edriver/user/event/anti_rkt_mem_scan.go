@@ -5,7 +5,7 @@ import (
 	"hades-ebpf/user/decoder"
 	"hades-ebpf/utils"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 var _ decoder.Event = (*MemScan)(nil)

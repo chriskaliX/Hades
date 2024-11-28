@@ -3,7 +3,7 @@ package decoder
 import (
 	"testing"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -4,7 +4,7 @@ import (
 	"hades-ebpf/user/decoder"
 
 	"github.com/chriskaliX/SDK/config"
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 var _ decoder.Event = (*Prctl)(nil)

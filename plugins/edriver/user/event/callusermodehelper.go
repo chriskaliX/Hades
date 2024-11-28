@@ -4,7 +4,7 @@ import (
 	"hades-ebpf/user/decoder"
 	"strings"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 var _ decoder.Event = (*CallUsermodeHelper)(nil)

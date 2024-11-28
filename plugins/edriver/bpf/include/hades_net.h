@@ -174,7 +174,16 @@ int BPF_KPROBE(kprobe_udp_recvmsg)
         // https://github.com/trichimtrich/dns-tcp-ebpf, they judge by the
         // (type != ITER_IOVEC). But just as I said, be careful about the name of
         // `type` or `iter_type`
+        struct iovec *iov = NULL;
+    #if CORE
+        if (bpf_core_field_exists(msg->msg_iter.__iov))
+            iov = (struct iovec *)READ_KERN(msg->msg_iter.__iov);
+        else if (bpf_core_field_exists(msg->msg_iter.iov))
+            iov = (struct iovec *)READ_KERN(msg->msg_iter.iov);
+    #else
+        // TODO: need to add kernel version check here
         struct iovec *iov = (struct iovec *)READ_KERN(msg->msg_iter.iov);
+    #endif
         if (iov == NULL)
             return 0;
         unsigned long iov_len = READ_KERN(iov->iov_len);
@@ -225,14 +234,23 @@ int BPF_KRETPROBE(kretprobe_udp_recvmsg, long retval)
     // By the way this struct(msghdr) is defined in socket.h
     struct msghdr *msg = dns_context->msg;
     // Check the msghdr length
-    // issue #39 BUG fix:
-    // due to wrong usage of READ_KERN
+    // issue #39 BUG fix: due to wrong usage of READ_KERN
     int ret = 0;
     struct iov_iter msg_iter = {};
     struct iovec iov;
 
     msg_iter = READ_KERN(msg->msg_iter);
+
+#if CORE
+    if (bpf_core_field_exists(msg_iter.__iov))
+        ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.__iov);
+    else if (bpf_core_field_exists(msg_iter.iov))
+        ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.iov);
+#else
+    // TODO: need to add kernel version check here
     ret = bpf_probe_read(&iov, sizeof(iov), msg_iter.iov);
+#endif
+
     if (ret != 0)
         goto delete;
     unsigned long iov_len = iov.iov_len;

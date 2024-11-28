@@ -112,37 +112,28 @@ static __always_inline int save_str_to_buf(event_data_t *data, void *ptr,
     if (data->buf_off > (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int))
         return 0;
     data->submit_p->buf[(data->buf_off) & (MAX_PERCPU_BUFSIZE - 1)] = index;
-    // Satisfy validator for probe read
-    if ((data->buf_off + 1) <=
-        (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
-        int sz = 0;
-        // Read into buffer
-        // (MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE) just to make BPF verifier happy
-        // added for nothing, assume that this would never failed.
-        sz = bpf_probe_read_str(
-                &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
-                MAX_STRING_SIZE, ptr);
-        if (sz <= 0) {
-            char nothing[] = "-1";
-            // why check it again? nothing
-            // just to make verifier happy, this will not happen
-            if ((data->buf_off + 1) <=
-                (MAX_PERCPU_BUFSIZE) - (MAX_STRING_SIZE) - sizeof(int)) {
-                sz = bpf_probe_read_str(
-                        &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
-                        MAX_STRING_SIZE, nothing);
-            }
+    // satisfy validator for probe read
+    if (data->buf_off > MAX_PERCPU_BUFSIZE - (MAX_STRING_SIZE + 1 + sizeof(int)))
+        return 0;
+    int sz = bpf_probe_read_str(&(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]), MAX_STRING_SIZE, ptr);
+    // added for nothing, assume that this would never failed.
+    if (sz <= 0) {
+        char nothing[] = "-1";
+        // satisfy validator for probe read
+        if (data->buf_off <= MAX_PERCPU_BUFSIZE - (MAX_STRING_SIZE + 1 + sizeof(int))) {
+            sz = bpf_probe_read_str(
+                    &(data->submit_p->buf[data->buf_off + 1 + sizeof(int)]),
+                    MAX_STRING_SIZE, nothing);
         }
-        if (sz > 0) {
-            // just to make verifier happy, this will not happen
-            if ((data->buf_off + 1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
-                return 0;
-            __builtin_memcpy(&(data->submit_p->buf[data->buf_off + 1]), &sz,
-                             sizeof(int));
-            data->buf_off += sz + sizeof(int) + 1;
-            data->context.argnum++;
-            return 1;
-        }
+    }
+    if (sz > 0) {
+        if ((data->buf_off + 1) > (MAX_PERCPU_BUFSIZE) - sizeof(int))
+            return 0;
+        __builtin_memcpy(&(data->submit_p->buf[data->buf_off + 1]), &sz,
+                            sizeof(int));
+        data->buf_off += sz + sizeof(int) + 1;
+        data->context.argnum++;
+        return 1;
     }
     return 0;
 }

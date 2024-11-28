@@ -6,7 +6,7 @@ import (
 	"hades-ebpf/user/filter/window"
 	"strings"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 	"go.uber.org/zap"
 )
 

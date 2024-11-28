@@ -4,7 +4,7 @@ package event
 import (
 	"hades-ebpf/user/decoder"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 var _ decoder.Event = (*HoneyPot)(nil)

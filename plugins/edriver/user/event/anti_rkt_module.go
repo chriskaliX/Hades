@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 )
 
 const maxModule = 512

@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/bytedance/sonic"
-	manager "github.com/ehids/ebpfmanager"
+	manager "github.com/gojue/ebpfmanager"
 	"k8s.io/utils/strings/slices"
 )
 
