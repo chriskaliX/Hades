@@ -1,8 +1,10 @@
-module hades-ebpf
+module edriver
 
 replace github.com/chriskaliX/SDK => ../../SDK/go
 
-go 1.22
+go 1.22.0
+
+toolchain go1.22.2
 
 require (
 	github.com/aquasecurity/libbpfgo/helpers v0.4.5
@@ -16,7 +18,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/time v0.8.0
 	k8s.io/apimachinery v0.31.3
 	k8s.io/utils v0.0.0-20241104163129-6fe5fd82f078
@@ -49,6 +50,7 @@ require (
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/arch v0.12.0 // indirect
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

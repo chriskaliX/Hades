@@ -82,6 +82,15 @@ int rtp__process_exec(struct bpf_raw_tracepoint_args *ctx)
     return report_event(&c);
 }
 
+// SEC("raw_tracepoint/sys_exit")
+// int rtp__sys_exit(struct bpf_raw_tracepoint_args *ctx)
+// {
+//     /* skip failed syscalls */
+//     if (ctx->args[1])
+//         return 0;
+//     return 0;
+// }
+
 /* proc_info init */
 static struct proc_info *proc_info_init(struct task_struct *task)
 {

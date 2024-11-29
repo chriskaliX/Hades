@@ -11,7 +11,6 @@ use std::{
 };
 
 pub mod execve;
-pub mod rasp_java;
 
 pub trait Event {
     fn init() -> Result<()>;

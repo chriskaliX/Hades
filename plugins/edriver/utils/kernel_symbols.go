@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"strings"
 
+	"slices"
+
 	"github.com/aquasecurity/libbpfgo/helpers"
 	"github.com/mitchellh/hashstructure/v2"
 	"go.uber.org/zap"
-	"k8s.io/utils/strings/slices"
 )
 
 /*

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"hades-ebpf/conf"
-	"hades-ebpf/user"
-	"hades-ebpf/user/decoder"
-	_ "hades-ebpf/user/event"
+	"edriver/constants"
+	user "edriver/pkg"
+	"edriver/pkg/decoder"
+	_ "edriver/pkg/events"
 
-	"hades-ebpf/cmd"
+	"edriver/cmd"
 
 	"github.com/chriskaliX/SDK"
 	"github.com/chriskaliX/SDK/logger"
@@ -20,7 +20,7 @@ import (
 var driver *user.Driver
 
 func appRun(s SDK.ISandbox) (err error) {
-	decoder.SetAllowList(conf.EventFilter)
+	decoder.SetAllowList(constants.EventFilter)
 	driver, err = user.NewDriver(s)
 	if err != nil {
 		zap.S().Error(err)
@@ -40,11 +40,11 @@ func appRun(s SDK.ISandbox) (err error) {
 func main() {
 	// inject into sandbox
 	cmd.RootCmd.Run = (func(_ *cobra.Command, _ []string) {
-		if !conf.Debug {
+		if !constants.Debug {
 			SDK.RuntimeOpt()
 		}
-		sconfig := &SDK.SandboxConfig{
-			Debug: conf.Debug,
+		sconstantsig := &SDK.SandboxConfig{
+			Debug: constants.Debug,
 			Name:  "edriver",
 			LogConfig: &logger.Config{
 				Path:        "edriver.log",
@@ -56,7 +56,7 @@ func main() {
 			},
 		}
 		// sandbox init
-		sandbox := SDK.NewSandbox(sconfig)
+		sandbox := SDK.NewSandbox(sconstantsig)
 		// Better UI for command line usage
 		sandbox.Run(appRun)
 	})

@@ -1,6 +1,6 @@
 [package]
 name = "edriver"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["chriskali <chriskalix@protonmail.com>"]
 description = "Rust version of hades edriver"

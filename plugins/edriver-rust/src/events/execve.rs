@@ -13,7 +13,7 @@ impl Event for Execve {
     }
 
     fn parse(data: &[u8], trans: &mut Transformer) -> Result<HashMap<String, String>> {
-        let mut m: HashMap<_, _> = HashMap::new();
+        let mut m: HashMap<String, String> = HashMap::new();
         let mut idx: usize = 0;
         let pid = parse_u32(data, &mut idx)?;
         m.insert("pid".to_string(), pid.to_string());

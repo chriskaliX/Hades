@@ -30,45 +30,26 @@ lazy_static! {
 pub struct Bpfmanager {}
 
 impl Bpfmanager {
-    pub fn new(mut client: Client) -> Result<Self> {
+    pub fn new(client: Client) -> Result<Self> {
         Self::bump_rlimit()?;
+
         let skel_builder = HadesSkelBuilder::default();
-        let open_skel: OpenHadesSkel<'_> =
-            skel_builder.open().context("fail to open BPF program")?;
-        let mut skel = open_skel.load().context("failed to load BPF program")?;
-        skel.attach()?;
-        /* loss cnt */
+        let open_skel = skel_builder.open().context("Skel open failed")?;
+        let mut skel = open_skel.load().context("Load skel failed")?;
+
+        skel.attach().context("Skel attach failed")?;
+
         let loss_cnt_c = LOSS_CNT.clone();
-        /* transformer */
         let mut trans = Transformer::new();
+
         /* event handle wrap */
         let handle = |_cpu: i32, data: &[u8]| {
             let map = Execve::parse(&data[4..], &mut trans).unwrap();
             println!("{:?}", map);
         };
 
-        let _ = thread::Builder::new()
-            .name("heartbeat".to_string())
-            .spawn(move || loop {
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
-                let mut rec = Record::new();
-                rec.timestamp = timestamp as i64;
-                rec.data_type = 900;
-                let pld = rec.mut_data();
-                pld.fields.insert(
-                    "loss_cnt".to_string(),
-                    loss_cnt_c.lock().unwrap().to_string(),
-                );
-                if let Err(err) = client.send_record(&rec) {
-                    warn!("heartbeat will exit: {}", err);
-                    break;
-                };
-                *LOSS_CNT.lock().unwrap() = 0;
-                thread::sleep(Duration::from_secs(30))
-            });
+        Self::start_heartbeat_thread(client, loss_cnt_c)?;
+
         let binding = skel.maps();
         let map = binding.events();
         let events = PerfBufferBuilder::new(map)
@@ -82,7 +63,8 @@ impl Bpfmanager {
     }
 
     fn handle_lost_events(_cpu: i32, cnt: u64) {
-        *LOSS_CNT.lock().unwrap() += cnt;
+        let mut loss_count = LOSS_CNT.lock().unwrap();
+        *loss_count += cnt;
     }
 
     fn bump_rlimit() -> Result<()> {
@@ -93,6 +75,41 @@ impl Bpfmanager {
         if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
             return Err(anyhow!("failed to increase rlimit"));
         }
+        Ok(())
+    }
+
+    fn start_heartbeat_thread(mut client: Client, loss_counter: Arc<Mutex<u64>>) -> Result<()> {
+        thread::Builder::new()
+            .name("heartbeat".to_string())
+            .spawn(move || loop {
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64;
+
+                let mut rec = Record::new();
+                rec.timestamp = timestamp;
+                rec.data_type = 900;
+
+                let pld = rec.mut_data();
+                if let Ok(loss_count) = loss_counter.lock() {
+                    pld.fields
+                        .insert("loss_cnt".to_string(), loss_count.to_string());
+                } else {
+                    warn!("Failed to lock loss_counter");
+                    continue;
+                }
+
+                if let Err(err) = client.send_record(&rec) {
+                    warn!("Heartbeat will exit: {}", err);
+                    break;
+                }
+
+                *loss_counter.lock().unwrap() = 0;
+                thread::sleep(Duration::from_secs(30));
+            })
+            .context("Failed to spawn heartbeat thread")?;
+
         Ok(())
     }
 }
