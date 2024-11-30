@@ -58,6 +58,65 @@
 
 /* consts: vmlinux contants fix */
 #define PF_KTHREAD                  0x00200000
+#define TS_COMPAT                   0x0002    /* 32bit syscall active (64BIT)*/
+
+/* system call mapping */
+#if defined(bpf_target_x86)
+#define NR_exit              80
+#define NR_exit_group        231
+/* execve */
+#define NR_execve            59
+#define NR_execveat          322
+/* ptrace & prctl */
+#define NR_ptrace            101
+#define NR_prctl             157
+/* mount */
+#define NR_mount             40
+/* kernel module init */
+#define NR_init_module       175
+#define NR_finit_module      313
+/* memfd */
+#define NR_memfd_create      319
+/* sockets */
+#define NR_connect           42
+#define NR_accept            43
+#define NR_accept4           288
+#define NR_listen            50
+#define NR_bind              49
+#define NR_recvfrom          45
+#define NR_recvmsg           47
+#define NR_recvmmsg          299
+/* bpf */
+#define NR_bpf               321
+#elif defined(bpf_target_arm64)
+#define NR_exit              93
+#define NR_exit_group        94
+/* execve */
+#define NR_execve            221
+#define NR_execveat          281
+/* ptrace & prctl */
+#define NR_ptrace            117
+#define NR_prctl             167
+/* mount */
+#define NR_mount             40
+/* kernel module init */
+#define NR_init_module       105
+#define NR_finit_module      273
+/* memfd */
+#define NR_memfd_create      279
+/* sockets */
+#define NR_connect           203
+#define NR_accept            202
+#define NR_accept4           242
+#define NR_listen            201
+#define NR_bind              200
+#define NR_recvfrom          207
+#define NR_recvmsg           212
+#define NR_recvmmsg          243
+/* bpf */
+#define NR_bpf               280
+#endif
+
 
 enum buf_index
 {

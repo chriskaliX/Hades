@@ -8,8 +8,9 @@ use libbpf_rs::{
 };
 use log::*;
 use sdk::{Client, Record};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
-    sync::{Arc, Mutex},
+    sync::Arc,
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -24,7 +25,7 @@ mod hades_skel {
 use hades_skel::*;
 
 lazy_static! {
-    pub static ref LOSS_CNT: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+    pub static ref LOSS_CNT: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
 }
 
 pub struct Bpfmanager {}
@@ -39,7 +40,6 @@ impl Bpfmanager {
 
         skel.attach().context("Skel attach failed")?;
 
-        let loss_cnt_c = LOSS_CNT.clone();
         let mut trans = Transformer::new();
 
         /* event handle wrap */
@@ -48,7 +48,7 @@ impl Bpfmanager {
             println!("{:?}", map);
         };
 
-        Self::start_heartbeat_thread(client, loss_cnt_c)?;
+        Self::start_heartbeat_thread(client)?;
 
         let binding = skel.maps();
         let map = binding.events();
@@ -63,8 +63,7 @@ impl Bpfmanager {
     }
 
     fn handle_lost_events(_cpu: i32, cnt: u64) {
-        let mut loss_count = LOSS_CNT.lock().unwrap();
-        *loss_count += cnt;
+        LOSS_CNT.fetch_add(cnt, Ordering::SeqCst);
     }
 
     fn bump_rlimit() -> Result<()> {
@@ -78,7 +77,7 @@ impl Bpfmanager {
         Ok(())
     }
 
-    fn start_heartbeat_thread(mut client: Client, loss_counter: Arc<Mutex<u64>>) -> Result<()> {
+    fn start_heartbeat_thread(mut client: Client) -> Result<()> {
         thread::Builder::new()
             .name("heartbeat".to_string())
             .spawn(move || loop {
@@ -92,20 +91,16 @@ impl Bpfmanager {
                 rec.data_type = 900;
 
                 let pld = rec.mut_data();
-                if let Ok(loss_count) = loss_counter.lock() {
-                    pld.fields
-                        .insert("loss_cnt".to_string(), loss_count.to_string());
-                } else {
-                    warn!("Failed to lock loss_counter");
-                    continue;
-                }
+                let loss_count = LOSS_CNT.load(Ordering::SeqCst);
+                pld.fields
+                    .insert("loss_cnt".to_string(), loss_count.to_string());
 
                 if let Err(err) = client.send_record(&rec) {
                     warn!("Heartbeat will exit: {}", err);
                     break;
                 }
 
-                *loss_counter.lock().unwrap() = 0;
+                LOSS_CNT.store(0, Ordering::SeqCst); // Reset the loss counter
                 thread::sleep(Duration::from_secs(30));
             })
             .context("Failed to spawn heartbeat thread")?;

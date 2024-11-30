@@ -38,7 +38,6 @@ static inline struct ipv6_pinfo *get_inet_pinet6(struct inet_sock *inet)
     return pinet6_own_impl;
 }
 
-
 static inline struct ipv6_pinfo *inet6_sk_own_impl(struct sock *__sk, struct inet_sock *inet)
 {
     volatile unsigned char sk_state_own_impl;
@@ -246,7 +245,6 @@ static __always_inline int get_sock_v6(struct sock *sk, struct hds_socket_info_v
 
 /* ===== END ===== */
 
-
 static __always_inline struct file *fget_raw(struct task_struct *task, u64 fd_num)
 {
     struct file **fd = BPF_CORE_READ(task, files, fdt, fd);
@@ -354,6 +352,35 @@ static __always_inline void *get_fd(struct task_struct *task, u64 num)
         return NULL;
     struct path path = BPF_CORE_READ(file, f_path);
     return get_path(__builtin_preserve_access_index(&path));
+}
+
+static __always_inline bool is_x86_compat(struct task_struct *task)
+{
+#if defined(bpf_target_x86)
+    return READ_KERN(task->thread_info.status) & TS_COMPAT;
+#else
+    return false;
+#endif
+}
+
+static __always_inline bool is_arm64_compat(struct task_struct *task)
+{
+#if defined(bpf_target_arm64)
+    return READ_KERN(task->thread_info.flags) & _TIF_32BIT;
+#else
+    return false;
+#endif
+}
+
+static __always_inline bool is_compat(struct task_struct *task)
+{
+#if defined(bpf_target_x86)
+    return is_x86_compat(task);
+#elif defined(bpf_target_arm64)
+    return is_arm64_compat(task);
+#else
+    return false;
+#endif
 }
 
 #endif
