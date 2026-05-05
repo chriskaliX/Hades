@@ -50,10 +50,6 @@ rpm: pre_show release
 	@printf "$(INFO_COLOR) packing .rpm (cargo-generate-rpm)\n"
 	cargo generate-rpm \
 	  --manifest-path $(WORKSPACE_ROOT)/Cargo.toml \
-	  --set-metadata 'pre_install_script="$(shell cat $(WORKSPACE_ROOT)/deploy/scripts/preinst)"' \
-	  --set-metadata 'post_install_script="$(shell cat $(WORKSPACE_ROOT)/deploy/scripts/postinst)"' \
-	  --set-metadata 'pre_uninstall_script="$(shell cat $(WORKSPACE_ROOT)/deploy/scripts/prerm)"' \
-	  --set-metadata 'post_uninstall_script="$(shell cat $(WORKSPACE_ROOT)/deploy/scripts/postrm)"' \
 	  --output /tmp/
 	@printf "$(SUCC_COLOR) .rpm created in /tmp/\n"
 

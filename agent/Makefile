@@ -34,7 +34,7 @@ release:
 .PHONY: release-musl
 release-musl:
 	@printf "$(INFO_COLOR) building hades-agent (musl static) target=$(TARGET), version: $(BUILD_VERSION)\n"
-	$(BUILD_CMD) build --release --workspace --target $(TARGET)
+	CROSS_ENV="PROTOC" $(BUILD_CMD) build --release --workspace --target $(TARGET)
 	@printf "$(SUCC_COLOR) build complete: target/$(TARGET)/release/hades-agent\n"
 
 .PHONY: check
@@ -62,12 +62,7 @@ deb:
 .PHONY: package-musl
 package-musl: release-musl
 	cargo deb --no-build --target $(TARGET) --output /tmp/
-	cargo generate-rpm --target $(TARGET) \
-	  --set-metadata 'pre_install_script="$(shell cat deploy/scripts/preinst)"' \
-	  --set-metadata 'post_install_script="$(shell cat deploy/scripts/postinst)"' \
-	  --set-metadata 'pre_uninstall_script="$(shell cat deploy/scripts/prerm)"' \
-	  --set-metadata 'post_uninstall_script="$(shell cat deploy/scripts/postrm)"' \
-	  --output /tmp/
+	cargo generate-rpm --target $(TARGET) --output /tmp/
 	@printf "$(SUCC_COLOR) .deb and .rpm packaged to /tmp/\n"
 
 # Package a musl-static .deb.
@@ -89,11 +84,6 @@ rpm:
 #   make rpm-musl TARGET=aarch64-unknown-linux-musl USE_CROSS=1
 .PHONY: rpm-musl
 rpm-musl: release-musl
-	cargo generate-rpm --target $(TARGET) \
-	  --set-metadata 'pre_install_script="$(shell cat deploy/scripts/preinst)"' \
-	  --set-metadata 'post_install_script="$(shell cat deploy/scripts/postinst)"' \
-	  --set-metadata 'pre_uninstall_script="$(shell cat deploy/scripts/prerm)"' \
-	  --set-metadata 'post_uninstall_script="$(shell cat deploy/scripts/postrm)"' \
-	  --output /tmp/
+	cargo generate-rpm --target $(TARGET) --output /tmp/
 	@printf "$(SUCC_COLOR) rpm packaged to /tmp/\n"
 

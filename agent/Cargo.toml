@@ -52,9 +52,10 @@ assets = [
 name = "hades-agent"
 license = "MIT"
 summary = "HIDS hades-agent (Rust)"
-# script fields accept the script *content* (not a path);
-# use %pre/%post scriptlet assets or pipe via `cargo generate-rpm --payload-compress`.
-# Hooks are wired via [[assets]] with config = true, or handled by the CI pipeline.
+pre_install_script   = "deploy/scripts/preinst"
+post_install_script  = "deploy/scripts/postinst"
+pre_uninstall_script  = "deploy/scripts/prerm"
+post_uninstall_script = "deploy/scripts/postrm"
 
 [[package.metadata.generate-rpm.assets]]
 source = "target/release/hades-agent"
