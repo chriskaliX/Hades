@@ -1,0 +1,175 @@
+name: CI - agent
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "agent/**"
+  pull_request:
+    paths:
+      - "agent/**"
+
+# ─── shared cargo cache key ─────────────────────────────────────────────────
+env:
+  CARGO_TERM_COLOR: always
+  CACHE_KEY: ${{ github.job }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
+
+jobs:
+  # ── 1. Unit tests + lint ────────────────────────────────────────────────────
+  test:
+    name: cargo test + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            agent/target
+          key: test-${{ env.CACHE_KEY }}
+          restore-keys: test-cargo-
+
+      - name: cargo test
+        run: cargo test --manifest-path agent/Cargo.toml
+
+      - name: clippy
+        run: cargo clippy --manifest-path agent/Cargo.toml -- -D warnings
+
+  # ── 2. Build .deb (shared artifact for both integ jobs) ─────────────────────
+  build-deb:
+    name: build .deb
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            agent/target
+          key: build-${{ env.CACHE_KEY }}
+          restore-keys: build-cargo-
+
+      # Cache the cargo-deb binary itself to avoid rebuilding it every run
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-deb
+          key: cargo-deb-bin-${{ runner.os }}
+
+      - name: Install cargo-deb
+        run: command -v cargo-deb || cargo install cargo-deb
+
+      - name: Build workspace (release)
+        run: cargo build --release --workspace --manifest-path agent/Cargo.toml
+
+      - name: Package .deb
+        run: cargo deb --no-build --manifest-path agent/Cargo.toml --output /tmp/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hades-agent-deb
+          path: /tmp/hades-agent_*.deb
+          retention-days: 1
+
+  # ── 3. Integration test — systemd ───────────────────────────────────────────
+  integ-systemd:
+    name: integ / systemd
+    runs-on: ubuntu-latest
+    needs: build-deb
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hades-agent-deb
+          path: /tmp/
+
+      - name: Install package
+        run: sudo dpkg -i /tmp/hades-agent_*.deb
+
+      # postinst detects systemctl and sets service_type=systemd automatically.
+      - name: Verify unit is enabled
+        run: systemctl is-enabled hades-agent
+
+      # Agent will start but fail to reach gRPC server — that's expected.
+      # We only verify: process spawned and PID is recorded by systemd.
+      - name: Start agent
+        run: sudo systemctl start hades-agent || true
+
+      - name: Wait for startup
+        run: sleep 3
+
+      - name: hadesctl status
+        run: sudo /etc/hades/hadesctl status
+
+      - name: hadesctl stop
+        run: sudo /etc/hades/hadesctl stop || true
+
+      - name: Disable service
+        run: sudo /etc/hades/hadesctl disable
+
+  # ── 4. Integration test — sysvinit (no systemd) ─────────────────────────────
+  integ-sysvinit:
+    name: integ / sysvinit
+    runs-on: ubuntu-latest
+    needs: build-deb
+    # Run the whole job inside a plain Ubuntu container that has no running
+    # systemd, so hadesctl falls through to the sysvinit code path.
+    container:
+      image: ubuntu:22.04
+      options: --privileged
+
+    steps:
+      - name: Install runtime dependencies
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends cron
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hades-agent-deb
+          path: /tmp/
+
+      # Install; postinst sees systemctl binary but it won't respond (no D-Bus).
+      # We override to sysvinit explicitly after install.
+      - name: Install package
+        run: dpkg -i /tmp/hades-agent_*.deb || true
+
+      - name: Force sysvinit mode
+        run: |
+          /etc/hades/hadesctl set --service_type=sysvinit
+          /etc/hades/hadesctl disable || true
+          /etc/hades/hadesctl enable
+
+      # Agent will start and attempt gRPC — expected to not connect, but the
+      # process should spawn and write the PID file before that.
+      - name: Start agent
+        run: /etc/hades/hadesctl start || true
+
+      - name: Verify process spawned
+        run: |
+          sleep 3
+          PID_FILE=/var/run/hades-agent.pid
+          if [ -f "$PID_FILE" ]; then
+            PID=$(cat "$PID_FILE")
+            echo "PID file found: $PID"
+            kill -0 "$PID" 2>/dev/null && echo "Process is alive" \
+              || echo "Process exited (expected: no gRPC server)"
+          else
+            echo "PID file not found — hadesctl start may have failed"
+            exit 1
+          fi
+
+      - name: hadesctl status
+        run: /etc/hades/hadesctl status || true
+
+      - name: hadesctl stop
+        run: /etc/hades/hadesctl stop || true

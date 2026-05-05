@@ -1,0 +1,118 @@
+[package]
+name = "hades-agent"
+version = "1.0.0"
+edition = "2021"
+authors = ["chriskali <chriskalix@protonmail.com>"]
+description = "HIDS hades-agent (Rust)"
+homepage = "https://github.com/chriskaliX/Hades"
+license = "MIT"
+
+# ── build-time defaults ─────────────────────────────────────────────────────
+# Values here are baked in at compile time by build.rs.
+# Override any of them at build time via environment variables:
+#   HADES_GRPC_ADDR=https://your-server:8000 cargo build --release
+#   "http://grpc.hades.store:8000"
+[package.metadata.hades]
+grpc_addr = "http://127.0.0.1:8000" # REPLACE ME
+
+# ── workspace ───────────────────────────────────────────────────────────────
+# hadesctl is a workspace member so all release binaries land in
+# target/release/, letting cargo-deb and cargo-generate-rpm reference them
+# from a single path.
+[workspace]
+members = ["deploy/hadesctl"]
+
+# ── deb packaging (cargo-deb) ───────────────────────────────────────────────
+# Install: cargo install cargo-deb
+# Build:   cargo deb --no-build  (binaries already built by `make release`)
+[package.metadata.deb]
+name = "hades-agent"
+section = "admin"
+priority = "optional"
+maintainer = "chriskali <chriskalix@protonmail.com>"
+maintainer-scripts = "deploy/scripts/"
+conf-files = ["/etc/hades/specified_env"]
+assets = [
+  # main agent binary
+  ["target/release/hades-agent",            "/etc/hades/hades-agent",            "700"],
+  # control tool
+  ["target/release/hadesctl",               "/etc/hades/hadesctl",               "700"],
+  # systemd unit (installed to /etc/hades/; postinstall links it)
+  ["deploy/hades-agent.service",            "/etc/hades/hades-agent.service",    "600"],
+  # sysvinit script
+  ["deploy/scripts/hades-agent.sysvinit",   "/etc/hades/hades-agent.sysvinit",   "700"],
+]
+# maintainer-scripts maps: preinst → preinstall.sh, postinst → postinstall.sh
+# prerm → preremove.sh, postrm → postremove.sh (cargo-deb naming convention)
+
+# ── rpm packaging (cargo-generate-rpm) ──────────────────────────────────────
+# Install: cargo install cargo-generate-rpm
+# Build:   cargo generate-rpm  (binaries already built by `make release`)
+[package.metadata.generate-rpm]
+name = "hades-agent"
+license = "MIT"
+summary = "HIDS hades-agent (Rust)"
+# script fields accept the script *content* (not a path);
+# use %pre/%post scriptlet assets or pipe via `cargo generate-rpm --payload-compress`.
+# Hooks are wired via [[assets]] with config = true, or handled by the CI pipeline.
+
+[[package.metadata.generate-rpm.assets]]
+source = "target/release/hades-agent"
+dest   = "/etc/hades/hades-agent"
+mode   = "0700"
+user   = "root"
+group  = "root"
+
+[[package.metadata.generate-rpm.assets]]
+source = "target/release/hadesctl"
+dest   = "/etc/hades/hadesctl"
+mode   = "0700"
+user   = "root"
+group  = "root"
+
+[[package.metadata.generate-rpm.assets]]
+source = "deploy/hades-agent.service"
+dest   = "/etc/hades/hades-agent.service"
+mode   = "0600"
+user   = "root"
+group  = "root"
+
+[[package.metadata.generate-rpm.assets]]
+source = "deploy/scripts/hades-agent.sysvinit"
+dest   = "/etc/hades/hades-agent.sysvinit"
+mode   = "0700"
+user   = "root"
+group  = "root"
+
+[[bin]]
+name = "hades-agent"
+path = "src/main.rs"
+
+[dependencies]
+anyhow        = "1"
+async-stream  = "0.3"
+flate2        = "1"
+hex           = "0.4"
+libc          = "0.2"
+log           = "0.4"
+parking_lot   = "0.12"
+procfs        = { version = "0.18", default-features = false }
+prost         = "0.14"
+serde_json    = "1"
+serde         = { version = "1", features = ["derive"] }
+sha2          = "0.11.0"
+sdk           = { path = "../SDK/rust" }
+tar           = "0.4"
+tempfile      = "3"
+tokio         = { version = "1", features = ["full"] }
+tokio-stream  = "0.1"
+tokio-util    = { version = "0.7", features = ["rt", "io"] }
+tonic         = { version = "0.14", features = ["tls-ring", "gzip", "zstd"] }
+tonic-prost   = "0.14"
+ureq          = "3"
+uuid          = { version = "1", features = ["v4", "v5"] }
+clap = { version = "4.6.1", features = ["derive"] }
+
+[build-dependencies]
+tonic-prost-build = "0.14"
+toml             = "0.8"

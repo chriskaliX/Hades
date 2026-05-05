@@ -1,8 +1,6 @@
 fn main() {
-    protobuf_codegen_pure::Codegen::new()
+    prost_build::Config::new()
         .out_dir("src")
-        .inputs(&["../transfer.proto"])
-        .include("../")
-        .run()
-        .expect("Codegen failed");
+        .compile_protos(&["../transfer.proto"], &["../"])
+        .expect("proto compile failed");
 }

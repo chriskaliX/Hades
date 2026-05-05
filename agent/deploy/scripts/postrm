@@ -1,0 +1,13 @@
+#!/bin/bash
+# postrm: called after files are removed.
+# deb: "remove"=uninstall  "purge"=purge  "failed-upgrade"=rollback
+# rpm: 0=uninstall
+#
+# On full removal, delete the installation directory.
+# On upgrade the directory must be kept, so only act on remove/purge/0.
+
+root_dir="/etc/hades"
+
+if [ "$1" == 'remove' ] || [ "$1" == 'purge' ] || [ "$1" -eq 0 ] 2>/dev/null; then
+    rm -rf "${root_dir}"
+fi
