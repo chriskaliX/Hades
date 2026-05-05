@@ -47,18 +47,18 @@ jobs:
   # ── 2. Build .deb + .rpm (both arches, musl static) ────────────────────────
   build:
     name: build / ${{ matrix.arch }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     needs: test
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x86_64
+            runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            use-cross: false
           - arch: aarch64
+            runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
-            use-cross: true
     steps:
       - uses: actions/checkout@v4
 
@@ -85,19 +85,13 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
 
-      - name: Install cross
-        if: matrix.use-cross
-        run: cargo install cross --locked
-
       - name: Install packaging tools
         run: |
           command -v cargo-deb           || cargo install cargo-deb
           command -v cargo-generate-rpm  || cargo install cargo-generate-rpm
 
       - name: Build and package
-        run: make -C agent package-musl TARGET=${{ matrix.target }} USE_CROSS=${{ matrix.use-cross && '1' || '0' }}
-        env:
-          PROTOC: /usr/bin/protoc
+        run: make -C agent package-musl TARGET=${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:

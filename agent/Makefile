@@ -34,7 +34,7 @@ release:
 .PHONY: release-musl
 release-musl:
 	@printf "$(INFO_COLOR) building hades-agent (musl static) target=$(TARGET), version: $(BUILD_VERSION)\n"
-	CROSS_ENV="PROTOC" $(BUILD_CMD) build --release --workspace --target $(TARGET)
+	$(BUILD_CMD) build --release --workspace --target $(TARGET)
 	@printf "$(SUCC_COLOR) build complete: target/$(TARGET)/release/hades-agent\n"
 
 .PHONY: check
