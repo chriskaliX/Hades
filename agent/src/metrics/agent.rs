@@ -49,7 +49,6 @@ impl AgentMetric {
                                   .unwrap_or_else(|_| "0".to_owned()),
             total_memory:     procfs::Meminfo::current().map(|m| m.mem_total).unwrap_or(0),
             pid:              std::process::id(),
-            ..Self::default()
         }
     }
 }

@@ -3,7 +3,6 @@
 /// Mirrors Go's `metrics/metric_host.go`.
 /// Writes directly into `agent::host` so that all other code (gRPC, heartbeat)
 /// always sees an up-to-date snapshot.
-
 use std::time::Instant;
 
 use crate::agent::host::{self, HostInfo};

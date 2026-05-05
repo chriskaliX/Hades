@@ -5,6 +5,7 @@
 //! all bookkeeping to [`manager::Manager`].
 
 mod manager;
+#[allow(clippy::module_inception)]
 mod plugin;
 
 use std::collections::HashMap;

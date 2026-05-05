@@ -5,7 +5,6 @@
 /// This module is intentionally a stub until the `plugin` manager is
 /// implemented: the `PLUGIN_ITER` hook below will be populated by the
 /// plugin module once it exists.  Until then `flush` is a no-op.
-
 use std::time::Instant;
 
 use super::IMetric;

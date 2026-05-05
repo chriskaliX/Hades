@@ -2,7 +2,6 @@
 ///
 /// Mirrors Go's `metrics/resource.go` (getProcResource / getDirSize).
 /// All sampling is synchronous and cheap enough to run in an async context.
-
 use procfs::prelude::*;
 use procfs::process::Process;
 use std::{

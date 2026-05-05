@@ -6,7 +6,6 @@
 ///   host.rs     — hostname & IP refresh (writes `agent::host`)
 ///   agent.rs    — agent-level heartbeat (data_type = 1)
 ///   plugin.rs   — per-plugin status (data_type = 2)
-
 pub mod agent;
 pub mod host;
 pub mod plugin;
