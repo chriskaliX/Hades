@@ -115,4 +115,4 @@ clap = { version = "4.6.1", features = ["derive"] }
 
 [build-dependencies]
 tonic-prost-build = "0.14"
-toml             = "0.8"
+toml             = "1"
