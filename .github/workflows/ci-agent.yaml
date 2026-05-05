@@ -33,6 +33,9 @@ jobs:
           key: test-${{ github.job }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
           restore-keys: test-cargo-
 
+      - name: Install protoc
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler
+
       - name: cargo test
         run: cargo test --manifest-path agent/Cargo.toml
 
@@ -63,6 +66,9 @@ jobs:
         with:
           path: ~/.cargo/bin/cargo-deb
           key: cargo-deb-bin-${{ runner.os }}
+
+      - name: Install protoc
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler
 
       - name: Install cargo-deb
         run: command -v cargo-deb || cargo install cargo-deb
