@@ -44,23 +44,23 @@ jobs:
       - name: clippy
         run: cargo clippy --manifest-path agent/Cargo.toml -- -D warnings
 
-  # ── 2. Multi-arch build (musl static) ──────────────────────────────────────
+  # ── 2. Build .deb + .rpm (both arches, musl static) ────────────────────────
   build:
-    name: build / ${{ matrix.target }}
+    name: build / ${{ matrix.arch }}
     runs-on: ubuntu-latest
     needs: test
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-musl
-            use-cross: false          # native, musl-gcc is enough
-          - target: aarch64-unknown-linux-musl
-            use-cross: true           # cross-rs handles the toolchain
+          - arch: x86_64
+            target: x86_64-unknown-linux-musl
+            use-cross: false
+          - arch: aarch64
+            target: aarch64-unknown-linux-musl
+            use-cross: true
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -75,96 +75,29 @@ jobs:
           key: build-${{ matrix.target }}-${{ hashFiles('agent/Cargo.lock') }}
           restore-keys: build-${{ matrix.target }}-
 
-      - name: Install protoc and musl-tools
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-deb
+            ~/.cargo/bin/cargo-generate-rpm
+          key: cargo-pkg-tools-${{ runner.os }}
+
+      - name: Install system dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
 
       - name: Install cross
         if: matrix.use-cross
         run: cargo install cross --locked
 
-      - name: Build (native musl)
-        if: "!matrix.use-cross"
-        run: cargo build --release --workspace --manifest-path agent/Cargo.toml --target ${{ matrix.target }}
-        env:
-          CC_x86_64_unknown_linux_musl: musl-gcc
-
-      - name: Build (cross)
-        if: matrix.use-cross
-        run: cross build --release --workspace --manifest-path agent/Cargo.toml --target ${{ matrix.target }}
-
-      - name: Verify static binary
+      - name: Install packaging tools
         run: |
-          file agent/target/${{ matrix.target }}/release/hades-agent
-          file agent/target/${{ matrix.target }}/release/hades-agent | grep -q "static" || (echo "NOT static!" && exit 1)
+          command -v cargo-deb           || cargo install cargo-deb
+          command -v cargo-generate-rpm  || cargo install cargo-generate-rpm
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hades-agent-${{ matrix.target }}
-          path: |
-            agent/target/${{ matrix.target }}/release/hades-agent
-            agent/target/${{ matrix.target }}/release/hadesctl
-          retention-days: 7
-
-  # ── 3. Build .deb (both arches) ─────────────────────────────────────────────
-  build-deb:
-    name: build .deb / ${{ matrix.arch }}
-    runs-on: ubuntu-latest
-    needs: test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            target: x86_64-unknown-linux-musl
-            use-cross: false
-            deb-arch: amd64
-          - arch: aarch64
-            target: aarch64-unknown-linux-musl
-            use-cross: true
-            deb-arch: arm64
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            agent/target
-          key: deb-${{ matrix.target }}-${{ hashFiles('agent/Cargo.lock') }}
-          restore-keys: deb-${{ matrix.target }}-
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/cargo-deb
-          key: cargo-deb-bin-${{ runner.os }}
-
-      - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
-
-      - name: Install cross
-        if: matrix.use-cross
-        run: cargo install cross --locked
-
-      - name: Install cargo-deb
-        run: command -v cargo-deb || cargo install cargo-deb
-
-      - name: Build (native musl)
-        if: "!matrix.use-cross"
-        run: cargo build --release --workspace --manifest-path agent/Cargo.toml --target ${{ matrix.target }}
+      - name: Build and package
+        run: make -C agent package-musl TARGET=${{ matrix.target }} USE_CROSS=${{ matrix.use-cross && '1' || '0' }}
         env:
-          CC_x86_64_unknown_linux_musl: musl-gcc
-
-      - name: Build (cross)
-        if: matrix.use-cross
-        run: cross build --release --workspace --manifest-path agent/Cargo.toml --target ${{ matrix.target }}
-
-      - name: Package .deb
-        run: cargo deb --no-build --manifest-path agent/Cargo.toml --target ${{ matrix.target }} --output /tmp/
+          PROTOC: /usr/bin/protoc
 
       - uses: actions/upload-artifact@v4
         with:
@@ -172,10 +105,16 @@ jobs:
           path: /tmp/hades-agent_*.deb
           retention-days: 1
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hades-agent-rpm-${{ matrix.arch }}
+          path: /tmp/hades-agent-*.rpm
+          retention-days: 1
+
   # ── 4. Integration test — systemd ───────────────────────────────────────────
   integ-systemd:
     name: integ / systemd / ${{ matrix.arch }}
-    needs: build-deb
+    needs: build
     strategy:
       fail-fast: false
       matrix:
@@ -215,7 +154,7 @@ jobs:
   # ── 5. Integration test — sysvinit (no systemd) ─────────────────────────────
   integ-sysvinit:
     name: integ / sysvinit / ${{ matrix.arch }}
-    needs: build-deb
+    needs: build
     strategy:
       fail-fast: false
       matrix:
@@ -264,6 +203,43 @@ jobs:
             echo "PID file not found — hadesctl start may have failed"
             exit 1
           fi
+
+      - name: hadesctl status
+        run: /etc/hades/hadesctl status || true
+
+  # ── 6. Integration test — rpm (Rocky Linux) ─────────────────────────────────
+  integ-rpm:
+    name: integ / rpm / ${{ matrix.arch }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: rockylinux:9
+      options: --privileged
+    steps:
+      - name: Install runtime dependencies
+        run: dnf install -y --setopt=install_weak_deps=False cronie
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hades-agent-rpm-${{ matrix.arch }}
+          path: /tmp/
+
+      - name: Install package
+        run: rpm -ivh /tmp/hades-agent-*.rpm || true
+
+      - name: Verify files installed
+        run: |
+          test -f /etc/hades/hadesctl || (echo "hadesctl missing" && exit 1)
+          test -f /usr/bin/hades-agent || test -f /usr/sbin/hades-agent || \
+            find /etc/hades -name hades-agent | grep -q hades-agent
 
       - name: hadesctl status
         run: /etc/hades/hadesctl status || true
