@@ -69,6 +69,3 @@ jobs:
           files: /tmp/packages/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    needs:
-    - build

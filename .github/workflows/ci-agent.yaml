@@ -9,10 +9,8 @@ on:
     paths:
       - "agent/**"
 
-# ─── shared cargo cache key ─────────────────────────────────────────────────
 env:
   CARGO_TERM_COLOR: always
-  CACHE_KEY: ${{ github.job }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
 
 jobs:
   # ── 1. Unit tests + lint ────────────────────────────────────────────────────
@@ -32,7 +30,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             agent/target
-          key: test-${{ env.CACHE_KEY }}
+          key: test-${{ github.job }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
           restore-keys: test-cargo-
 
       - name: cargo test
@@ -57,7 +55,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             agent/target
-          key: build-${{ env.CACHE_KEY }}
+          key: build-${{ github.job }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
           restore-keys: build-cargo-
 
       # Cache the cargo-deb binary itself to avoid rebuilding it every run
