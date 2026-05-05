@@ -177,6 +177,8 @@ jobs:
 
       - name: Force sysvinit mode
         run: |
+          cp /etc/hades/hades-agent.sysvinit /etc/init.d/hades-agent
+          chmod +x /etc/init.d/hades-agent
           /etc/hades/hadesctl set --service_type=sysvinit
           /etc/hades/hadesctl disable || true
           /etc/hades/hadesctl enable
@@ -227,13 +229,19 @@ jobs:
           path: /tmp/
 
       - name: Install package
-        run: rpm -ivh /tmp/hades-agent-*.rpm || true
+        run: rpm -ivh --noscripts /tmp/hades-agent-*.rpm
 
       - name: Verify files installed
         run: |
-          test -f /etc/hades/hadesctl || (echo "hadesctl missing" && exit 1)
-          test -f /usr/bin/hades-agent || test -f /usr/sbin/hades-agent || \
-            find /etc/hades -name hades-agent | grep -q hades-agent
+          test -f /etc/hades/hadesctl    || (echo "hadesctl missing"    && exit 1)
+          test -f /etc/hades/hades-agent || (echo "hades-agent missing" && exit 1)
+
+      - name: Enable service (sysvinit path — no systemd in container)
+        run: |
+          cp /etc/hades/hades-agent.sysvinit /etc/init.d/hades-agent
+          chmod +x /etc/init.d/hades-agent
+          /etc/hades/hadesctl set --service_type=sysvinit
+          /etc/hades/hadesctl enable
 
       - name: hadesctl status
         run: /etc/hades/hadesctl status || true
