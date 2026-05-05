@@ -5,9 +5,11 @@ on:
     branches: ["**"]
     paths:
       - "agent/**"
+      - ".github/workflows/ci-agent.yaml"
   pull_request:
     paths:
       - "agent/**"
+      - ".github/workflows/ci-agent.yaml"
 
 env:
   CARGO_TERM_COLOR: always
