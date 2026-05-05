@@ -80,7 +80,7 @@ jobs:
           path: |
             ~/.cargo/bin/cargo-deb
             ~/.cargo/bin/cargo-generate-rpm
-          key: cargo-pkg-tools-${{ runner.os }}
+          key: cargo-pkg-tools-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install system dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
