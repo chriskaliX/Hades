@@ -184,7 +184,7 @@ jobs:
           /etc/hades/hadesctl enable
 
       - name: Start agent
-        run: /etc/hades/hadesctl start || true
+        run: /etc/hades/hadesctl start
 
       - name: Verify process spawned
         run: |

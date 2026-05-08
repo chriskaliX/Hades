@@ -1,4 +1,5 @@
 pub mod check;
+pub mod cgroup;
 pub mod disable;
 pub mod enable;
 pub mod reload;
@@ -16,8 +17,6 @@ pub const AGENT_FILE:   &str = "/etc/hades/hades-agent";
 pub const AGENT_DIR:    &str = "/etc/hades";
 /// PID directory — must match agent's `PIDPATH` constant in `agent/mod.rs`
 pub const PIDPATH:      &str = "/var/run/";
-/// cgroup v1 root used in sysvinit mode
-pub const CGROUP_PATH:  &str = "/etc/hades/cgroup";
 pub const CRONTAB_FILE: &str = "/etc/cron.d/hades-agent";
 /// Cron job that calls `hadesctl check` every minute (watchdog)
 pub const CRONTAB_LINE: &str = "* * * * * root /etc/hades/hadesctl check\n";
@@ -109,8 +108,8 @@ fn pids_from_cgroup() -> anyhow::Result<Vec<u32>> {
 /// Checks our own mount path first, then walks /proc/self/mountinfo for any
 /// system-level cpu cgroup that contains the service subdirectory.
 fn find_service_cgroup_procs() -> anyhow::Result<String> {
-    // Fast path: we mounted it ourselves
-    let own = format!("{CGROUP_PATH}/cpu/{SERVICE_NAME}/cgroup.procs");
+    // Fast path: we mounted it ourselves (v1 fallback path)
+    let own = format!("/etc/hades/cgroup/cpu/{SERVICE_NAME}/cgroup.procs");
     if std::path::Path::new(&own).exists() {
         return Ok(own);
     }
