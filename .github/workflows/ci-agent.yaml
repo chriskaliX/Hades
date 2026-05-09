@@ -222,7 +222,7 @@ jobs:
       options: --privileged
     steps:
       - name: Install runtime dependencies
-        run: dnf install -y --setopt=install_weak_deps=False cronie
+        run: dnf install -y --setopt=install_weak_deps=False cronie chkconfig
 
       - uses: actions/download-artifact@v4
         with:
