@@ -1,0 +1,15 @@
+[package]
+name = "hadesctl"
+version = "1.0.0"
+edition = "2021"
+authors = ["chriskali <chriskalix@protonmail.com>"]
+description = "Control tool for hades-agent (systemd / sysvinit)"
+
+[[bin]]
+name = "hadesctl"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap   = { version = "4", features = ["derive"] }
+libc   = "0.2"

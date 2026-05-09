@@ -5,6 +5,7 @@ agent/log/hades*
 agent/agent-id
 agent/main
 agent/plugin/collector
+agent/log/*
 hades-agent
 
 # ignore dev 
@@ -12,7 +13,6 @@ hades-agent
 .vscode/
 
 # deploy
-agent/deploy/hadesctl
 agent/deploy/hades-agent
 
 # server
