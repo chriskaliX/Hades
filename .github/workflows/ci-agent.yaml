@@ -177,6 +177,7 @@ jobs:
 
       - name: Force sysvinit mode
         run: |
+          mkdir -p /etc/init.d
           cp /etc/hades/hades-agent.sysvinit /etc/init.d/hades-agent
           chmod +x /etc/init.d/hades-agent
           /etc/hades/hadesctl set --service_type=sysvinit
@@ -238,6 +239,7 @@ jobs:
 
       - name: Enable service (sysvinit path — no systemd in container)
         run: |
+          mkdir -p /etc/init.d
           cp /etc/hades/hades-agent.sysvinit /etc/init.d/hades-agent
           chmod +x /etc/init.d/hades-agent
           /etc/hades/hadesctl set --service_type=sysvinit
