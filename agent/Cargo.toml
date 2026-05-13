@@ -27,6 +27,7 @@ members = ["deploy/hadesctl"]
 # Build:   cargo deb --no-build  (binaries already built by `make release`)
 [package.metadata.deb]
 name = "hades-agent"
+depends = ""
 section = "admin"
 priority = "optional"
 maintainer = "chriskali <chriskalix@protonmail.com>"

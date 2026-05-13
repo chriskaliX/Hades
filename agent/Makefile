@@ -3,11 +3,12 @@ TARGET       ?= x86_64-unknown-linux-musl
 USE_CROSS    ?= 0
 BUILD_CMD     = $(if $(filter 1,$(USE_CROSS)),cross,cargo)
 
-# CC + linker for native x86_64 musl (ignored when USE_CROSS=1).
-# Setting both mirrors Elkeid RASP practice: CC_xxx covers any C deps (cc-rs),
-# CARGO_TARGET_xxx_LINKER covers the Rust link step.
-export CC_x86_64_unknown_linux_musl              ?= musl-gcc
-export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER ?= musl-gcc
+# CC for native x86_64 musl (ignored when USE_CROSS=1).
+# CC_xxx lets cc-rs compile C dependencies (e.g. ring) with the musl toolchain.
+# Do NOT set CARGO_TARGET_xxx_LINKER: musl-gcc links dynamically by default,
+# which produces a binary that depends on the system musl interpreter and
+# crashes on musl < 1.2.4.  Rust's own linker correctly emits static-pie.
+export CC_x86_64_unknown_linux_musl ?= musl-gcc
 
 # colors
 INFO_COLOR = \033[34m[*]\033[0m

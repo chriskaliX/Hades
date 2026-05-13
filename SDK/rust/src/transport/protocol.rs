@@ -27,3 +27,23 @@ pub struct Task {
     #[prost(string, tag = "4")]
     pub token: ::prost::alloc::string::String,
 }
+/// Task command types sent from the server to a plugin.
+/// Generated from `TaskCmd` enum in transfer.proto.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum TaskCmd {
+    TaskShutdown = 0,
+    TaskUpdate   = 1,
+    TaskSetenv   = 2,
+    TaskRestart  = 3,
+}
+impl TaskCmd {
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            TaskCmd::TaskShutdown => "TASK_SHUTDOWN",
+            TaskCmd::TaskUpdate   => "TASK_UPDATE",
+            TaskCmd::TaskSetenv   => "TASK_SETENV",
+            TaskCmd::TaskRestart  => "TASK_RESTART",
+        }
+    }
+}

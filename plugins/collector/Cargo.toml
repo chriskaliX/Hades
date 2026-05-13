@@ -1,0 +1,32 @@
+[package]
+name    = "collector"
+version = "0.1.0"
+edition = "2021"
+authors = ["chriskali <chriskalix@protonmail.com>"]
+
+[[bin]]
+name = "collector"
+path = "src/main.rs"
+
+[features]
+default = []
+debug   = ["sdk/debug"]
+
+[dependencies]
+sdk         = { path = "../../SDK/rust" }
+anyhow      = "1"
+async-trait = "0.1"
+log         = "0.4"
+tokio       = { version = "1", features = ["full"] }
+libc        = "0.2"
+procfs      = { version = "0.18", default-features = false }
+serde_json  = "1"
+zip         = { version = "2", default-features = false, features = ["deflate"] }
+moka        = { version = "0.12", features = ["sync"] }
+aya         = { version = "0.13", default-features = false }
+
+[profile.release]
+lto           = true
+codegen-units = 1
+strip         = true
+panic         = "abort"

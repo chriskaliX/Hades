@@ -15,5 +15,5 @@ pub mod logger;
 pub mod hash;
 
 pub use transport::Client;
-pub use transport::{Payload, Record, Task};
+pub use transport::{Payload, Record, Task, TaskCmd};
 pub use transport::{Server, ServerSnapshot};

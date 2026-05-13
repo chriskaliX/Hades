@@ -20,7 +20,7 @@ const HEALTHY_SESSION_SECS: u64 = 30;
 const MAX_BACKOFF_SECS:      u64 = 120;
 
 pub async fn startup(token: CancellationToken) {
-    log::info!("grpc transport starts");
+    log::info!("transport starts");
     // One-time jitter to stagger reconnects on server restart.
     tokio::select! {
         _ = token.cancelled()                                         => return,
@@ -73,8 +73,34 @@ async fn run_session(ct: CancellationToken) {
         .accept_compressed(CompressionEncoding::Gzip);
 
     let (out_tx, out_rx) = mpsc::channel::<PackagedData>(8);
+
+    // Pre-load the channel with an initial registration frame so tonic sends
+    // it as the first DATA frame while concurrently waiting for response
+    // HEADERS.  This mirrors Go's behaviour: the Go gRPC client's Transfer()
+    // returns immediately (no header wait), and the first client Send() drives
+    // the server's Recv() which in turn causes Go gRPC to flush response
+    // HEADERS.  Tonic blocks transfer().await until response HEADERS arrive,
+    // so without this the two sides deadlock (each waiting for the other).
+    {
+        let h = agent::host::get();
+        let init = PackagedData {
+            records:       vec![],
+            payloads:      vec![],
+            agent_id:      agent::ID.clone(),
+            intranet_ipv4: if h.private_ipv4.is_empty() { vec![] } else { vec![h.private_ipv4.clone()] },
+            intranet_ipv6: if h.private_ipv6.is_empty() { vec![] } else { vec![h.private_ipv6.clone()] },
+            extranet_ipv4: if h.public_ipv4.is_empty()  { vec![] } else { vec![h.public_ipv4.clone()] },
+            extranet_ipv6: if h.public_ipv6.is_empty()  { vec![] } else { vec![h.public_ipv6.clone()] },
+            hostname:      h.hostname.clone(),
+            version:       agent::VERSION.to_owned(),
+            product:       agent::PRODUCT.to_owned(),
+        };
+        // Channel capacity is 8; this is the first item so try_send always succeeds.
+        let _ = out_tx.try_send(init);
+    }
+
     let inbound = match client.transfer(ReceiverStream::new(out_rx)).await {
-        Ok(resp) => { log::info!("transfer stream established"); resp.into_inner() }
+        Ok(resp) => { log::info!("transport stream established"); resp.into_inner() }
         Err(e)   => { log::error!("failed to open transfer stream: {e}"); return; }
     };
 
@@ -86,7 +112,7 @@ async fn run_session(ct: CancellationToken) {
 
     session.cancel();
     let _ = tokio::join!(send_handle, file_handle);
-    log::info!("transfer session closed");
+    log::info!("transport session closed");
 }
 
 async fn handle_send(tx: mpsc::Sender<PackagedData>, token: CancellationToken) {
@@ -103,7 +129,7 @@ async fn handle_send(tx: mpsc::Sender<PackagedData>, token: CancellationToken) {
 }
 
 async fn handle_receive(mut inbound: tonic::codec::Streaming<Command>, session: CancellationToken, ct: CancellationToken) {
-    log::info!("receive handler started");
+    log::info!("transport receive starts");
     loop {
         tokio::select! {
             _ = session.cancelled() => break,
@@ -120,7 +146,7 @@ async fn handle_receive(mut inbound: tonic::codec::Streaming<Command>, session: 
             }
         }
     }
-    log::info!("receive handler exited");
+    log::info!("transport receive exits");
 }
 
 async fn resolve_cmd(cmd: Command, ct: &CancellationToken) -> anyhow::Result<()> {

@@ -38,7 +38,7 @@ pub fn upload_file(req: UploadRequest) -> anyhow::Result<()> {
 }
 
 pub async fn start_file_ext(token: tokio_util::sync::CancellationToken) {
-    log::info!("file_ext handler started");
+    log::info!("file_ext starts");
     // Take receiver ownership out of the static — held in local scope for the
     // session, so recv().await never contends with the std::sync::Mutex.
     let mut rx = UPLOAD_RX.lock().unwrap().take()
@@ -58,7 +58,7 @@ pub async fn start_file_ext(token: tokio_util::sync::CancellationToken) {
     }
     // Return receiver so the next session can reuse the same channel.
     *UPLOAD_RX.lock().unwrap() = Some(rx);
-    log::info!("file_ext handler exited");
+    log::info!("file_ext exits");
 }
 
 async fn handle_upload(req: UploadRequest) -> anyhow::Result<()> {
