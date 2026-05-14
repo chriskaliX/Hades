@@ -37,6 +37,9 @@ jobs:
           key: test-collector-${{ hashFiles('plugins/collector/Cargo.lock') }}
           restore-keys: test-collector-
 
+      - name: Install protoc
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler
+
       - name: cargo test
         run: cargo test --manifest-path plugins/collector/Cargo.toml
 
@@ -64,8 +67,8 @@ jobs:
           key: build-collector-x86_64-musl-${{ hashFiles('plugins/collector/Cargo.lock') }}
           restore-keys: build-collector-x86_64-musl-
 
-      - name: Install musl tools
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends musl-tools
+      - name: Install system dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends musl-tools protobuf-compiler
 
       - name: Build
         run: cd plugins/collector && make
