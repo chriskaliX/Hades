@@ -41,7 +41,7 @@ fn parse_dpkg(reader: impl BufRead) -> Vec<HashMap<String, String>> {
     let mut result = Vec::new();
     let mut pkg: HashMap<String, String> = HashMap::new();
 
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         if line.is_empty() {
             flush_pkg(&mut pkg, &mut result);
             continue;

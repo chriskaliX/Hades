@@ -1,15 +1,15 @@
 use crate::event::apps::{execute, find_version, AppProc, IApp};
 use std::collections::HashMap;
 
-pub struct PHP {
+pub struct Php {
     version: String,
 }
 
-impl PHP {
-    pub fn new() -> Self { PHP { version: String::new() } }
+impl Php {
+    pub fn new() -> Self { Php { version: String::new() } }
 }
 
-impl IApp for PHP {
+impl IApp for Php {
     fn name(&self)     -> &'static str { "php" }
     fn app_type(&self) -> &'static str { "software" }
     fn version(&self)  -> &str         { &self.version }

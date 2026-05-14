@@ -33,7 +33,7 @@ impl IEvent for Socket {
 
         for proto in ["tcp", "tcp6", "udp", "udp6"] {
             let Ok(f) = File::open(format!("/proc/net/{proto}")) else { continue };
-            for (i, line) in BufReader::new(f).lines().flatten().enumerate() {
+            for (i, line) in BufReader::new(f).lines().map_while(Result::ok).enumerate() {
                 if i == 0 { continue; }  // header
                 let mut fields = HashMap::new();
                 if !parse_net_line(&line, proto, &inode_map, &mut fields) { continue; }

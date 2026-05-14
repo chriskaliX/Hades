@@ -104,7 +104,7 @@ impl IEvent for Process {
             fields.insert("stdout".into(),      read_fd_link(pid, 1));
             fields.insert("package_seq".into(), seq.clone());
 
-            let _ = client.send_record(&make_record(DATA_TYPE, fields.drain().collect()));
+            let _ = client.send_record(&make_record(DATA_TYPE, std::mem::take(&mut fields)));
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
         Ok(())

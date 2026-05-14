@@ -3,7 +3,6 @@
 /// cron_watcher.rs.
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
 use anyhow::Result;
@@ -63,10 +62,6 @@ impl IEvent for Cron {
 }
 
 // ── Public parse helper (shared with cron_watcher) ──────────────────────────
-
-pub struct CronEntry {
-    pub fields: HashMap<String, String>,
-}
 
 /// Parse a crontab file.  `with_user=true` means the 6th field is the username
 /// (as in /etc/crontab and /etc/cron.d/ files).

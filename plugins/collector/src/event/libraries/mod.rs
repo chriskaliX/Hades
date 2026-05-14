@@ -1,4 +1,4 @@
-/// libraries/ — mirrors Go's event/libraries/ sub-package.
+//! libraries/ — mirrors Go's event/libraries/ sub-package.
 
 pub mod dpkg;
 pub mod jar;

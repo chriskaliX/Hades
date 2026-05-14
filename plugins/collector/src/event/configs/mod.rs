@@ -1,4 +1,4 @@
-/// configs/ — mirrors Go's event/configs/ sub-package.
+//! configs/ — mirrors Go's event/configs/ sub-package.
 
 pub mod sshconfig;
 pub mod sshdconfig;

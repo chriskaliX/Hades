@@ -1,12 +1,13 @@
-/// cache/socket — mirrors Go's collector/cache/socket/socket.go.
-///
-/// moka::sync::Cache(1024): inode (u32) → Socket.
+//! cache/socket — mirrors Go's collector/cache/socket/socket.go.
+//!
+//! moka::sync::Cache(1024): inode (u32) → Socket.
 
 use std::sync::OnceLock;
 
 use moka::sync::Cache;
 
 #[derive(Clone, Debug, Default)]
+#[allow(dead_code)]
 pub struct Socket {
     pub local_addr:  String,
     pub local_port:  u16,

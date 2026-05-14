@@ -1,8 +1,8 @@
-/// Application collector — data_type 3008.
-///
-/// Mirrors Go's event/apps.go.  Iterates up to 3 000 processes, identifies
-/// running applications (nginx, mysql, redis, kafka, java, …), extracts
-/// versions, and ships one record per detected application instance.
+//! Application collector — data_type 3008.
+//!
+//! Mirrors Go's event/apps.go.  Iterates up to 3 000 processes, identifies
+//! running applications (nginx, mysql, redis, kafka, java, …), extracts
+//! versions, and ships one record per detected application instance.
 
 use std::time::Duration;
 

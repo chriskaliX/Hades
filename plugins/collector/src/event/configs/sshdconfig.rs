@@ -25,7 +25,7 @@ pub async fn run(client: &mut Client) -> Result<()> {
 
     if let Ok(f) = fs::File::open(SSHD_CONFIG) {
         let reader = BufReader::new(f.take(1024 * 1024));
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             let text = line.trim().to_owned();
             if text.is_empty() || text.starts_with('#') { continue; }
             // Split by any whitespace or '=', skip empty tokens — mirrors Go's strings.FieldsFunc

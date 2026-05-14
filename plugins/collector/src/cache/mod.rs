@@ -1,7 +1,7 @@
-/// cache/ — mirrors Go's collector/cache/ package.
-///
-/// Provides shared in-memory caches populated by individual event collectors
-/// and consumed cross-event (e.g. container info read by the application event).
+//! cache/ — mirrors Go's collector/cache/ package.
+//!
+//! Provides shared in-memory caches populated by individual event collectors
+//! and consumed cross-event (e.g. container info read by the application event).
 
 pub mod container;
 pub mod namespace;

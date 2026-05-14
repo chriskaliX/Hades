@@ -53,7 +53,7 @@ pub async fn run(client: &mut Client) -> Result<()> {
 /// Parse an SSH config file into blocks (Host/Match blocks → options JSON).
 fn parse_ssh_config(uid: &str, path: &str) -> Result<Vec<SshConfigBlock>> {
     let f = fs::File::open(path)?;
-    let mut reader = BufReader::new(f.take(16 * 1024));
+    let reader = BufReader::new(f.take(16 * 1024));
 
     let mut blocks: Vec<SshConfigBlock> = Vec::new();
     let mut current_block = String::new();
@@ -71,7 +71,7 @@ fn parse_ssh_config(uid: &str, path: &str) -> Result<Vec<SshConfigBlock>> {
         });
     };
 
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         let text = line.trim().to_lowercase();
         if text.is_empty() || text.starts_with('#') { continue; }
 
@@ -102,7 +102,7 @@ fn user_homes() -> Vec<(String, String)> {
     let Ok(f) = fs::File::open("/etc/passwd") else { return Vec::new() };
     BufReader::new(f)
         .lines()
-        .flatten()
+        .map_while(Result::ok)
         .filter_map(|line| {
             let parts: Vec<&str> = line.splitn(7, ':').collect();
             if parts.len() >= 6 {

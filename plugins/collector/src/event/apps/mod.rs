@@ -1,7 +1,7 @@
-/// event/apps — mirrors Go's collector/event/apps package.
-///
-/// Provides the IApp trait, AppProc data, execution helpers, and the
-/// global app registry returned by `all_apps()`.
+//! event/apps — mirrors Go's collector/event/apps package.
+//!
+//! Provides the IApp trait, AppProc data, execution helpers, and the
+//! global app registry returned by `all_apps()`.
 
 pub mod bigdata;
 pub mod container;
@@ -17,8 +17,7 @@ use std::path::Path;
 
 // ── Public errors ────────────────────────────────────────────────────────────
 
-pub const ERR_VERSION_NOT_FOUND: &str = "version not found";
-pub const ERR_IGNORE: &str            = "ignore";
+pub const ERR_IGNORE: &str = "ignore";
 
 // ── AppProc ──────────────────────────────────────────────────────────────────
 
@@ -262,7 +261,7 @@ pub fn jar_names_for_pid(pid: i32) -> Vec<String> {
         for entry in entries.flatten() {
             if let Ok(target) = std::fs::read_link(entry.path()) {
                 let p = Path::new(&target);
-                if p.extension().map_or(false, |e| e == "jar") {
+                if p.extension().is_some_and(|e| e == "jar") {
                     if let Some(name) = p.file_name() {
                         jars.push(name.to_string_lossy().into_owned());
                     }

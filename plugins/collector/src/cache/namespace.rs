@@ -1,8 +1,8 @@
-/// cache/namespace — mirrors Go's collector/cache/namespace/ns.go.
-///
-/// Single moka::sync::Cache<u32, (Option<pod>, Option<node>)>(4096):
-/// - None = not resolved yet (TTL_MISS 5min, will retry)
-/// - Some(_) = resolved (TTL 1h)
+//! cache/namespace — mirrors Go's collector/cache/namespace/ns.go.
+//!
+//! Single moka::sync::Cache<u32, (Option<pod>, Option<node>)>(4096):
+//! - None = not resolved yet (TTL_MISS 5min, will retry)
+//! - Some(_) = resolved (TTL 1h)
 
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};

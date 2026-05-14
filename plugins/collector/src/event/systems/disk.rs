@@ -25,7 +25,7 @@ impl IEvent for Disk {
 
     async fn run(&mut self, client: &mut Client) -> Result<()> {
         let f = match File::open("/proc/mounts") { Ok(f) => f, Err(_) => return Ok(()) };
-        for line in BufReader::new(f).lines().flatten() {
+        for line in BufReader::new(f).lines().map_while(Result::ok) {
             let cols: Vec<&str> = line.split_whitespace().collect();
             if cols.len() < 3 { continue; }
             let (device, mountpoint, fstype) = (cols[0], cols[1], cols[2]);

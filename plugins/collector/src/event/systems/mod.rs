@@ -1,4 +1,4 @@
-/// systems.rs — mirrors Go's event/systems.go (thin registration shim).
+//! systems.rs — mirrors Go's event/systems.go (thin registration shim).
 
 pub mod bpf_prog;
 pub mod disk;

@@ -32,7 +32,7 @@ impl IEvent for User {
         let seq     = hash();
 
         if let Ok(f) = File::open("/etc/passwd") {
-            for line in BufReader::new(f).lines().flatten() {
+            for line in BufReader::new(f).lines().map_while(Result::ok) {
                 let parts: Vec<&str> = line.splitn(7, ':').collect();
                 if parts.len() < 7 { continue; }
                 let (username, uid, gid, info, home_dir, shell) =
@@ -53,7 +53,7 @@ impl IEvent for User {
                 fields.insert("info".into(),                 info.to_owned());
                 fields.insert("home_dir".into(),             home_dir.to_owned());
                 fields.insert("shell".into(),                shell.to_owned());
-                fields.insert("password".into(),             sentry.get(0).cloned().unwrap_or_default());
+                fields.insert("password".into(),             sentry.first().cloned().unwrap_or_default());
                 fields.insert("password_update_time".into(), days_to_date(sentry.get(1)));
                 fields.insert("password_change_interval".into(), sentry.get(2).cloned().unwrap_or_default());
                 fields.insert("password_validity".into(),    days_to_date(sentry.get(3)));
@@ -74,7 +74,7 @@ impl IEvent for User {
 fn read_shadow() -> HashMap<String, Vec<String>> {
     let mut map = HashMap::new();
     let Ok(f) = File::open("/etc/shadow") else { return map };
-    for line in BufReader::new(f).lines().flatten() {
+    for line in BufReader::new(f).lines().map_while(Result::ok) {
         let parts: Vec<&str> = line.splitn(9, ':').collect();
         if parts.len() >= 7 {
             // index 1=password, 2=lastchange, 3=min, 4=max, 5=warn, 6=inactive

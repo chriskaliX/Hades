@@ -5,10 +5,9 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
-use std::os::unix::io::FromRawFd;
 use std::sync::Arc;
+
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -68,7 +67,7 @@ impl IEvent for Sshd {
             if size <= prev { self.last_size.store(size, Ordering::Relaxed); continue; }
 
             f.seek(SeekFrom::Start(prev as u64)).ok();
-            for line in BufReader::new(&f).lines().flatten() {
+            for line in BufReader::new(&f).lines().map_while(Result::ok) {
                 self.last_size.store(size, Ordering::Relaxed);
                 if !line.contains("sshd[") { continue; }
                 if let Some(fields) = parse_sshd_line(&line) {

@@ -23,7 +23,7 @@ impl IApp for Python {
         if rest.is_empty() { return false; }
         let mut chars = rest.chars();
         // First char must be a digit
-        if !chars.next().map_or(false, |c| c.is_ascii_digit()) { return false; }
+        if !chars.next().is_some_and(|c| c.is_ascii_digit()) { return false; }
         // Optionally: "." followed by more digits
         let tail: String = chars.collect();
         if tail.is_empty() {

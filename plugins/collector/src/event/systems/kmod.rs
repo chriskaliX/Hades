@@ -26,7 +26,7 @@ impl IEvent for Kmod {
     async fn run(&mut self, client: &mut Client) -> Result<()> {
         let seq = hash();
         let f = match File::open("/proc/modules") { Ok(f) => f, Err(_) => return Ok(()) };
-        for line in BufReader::new(f).lines().flatten() {
+        for line in BufReader::new(f).lines().map_while(Result::ok) {
             let cols: Vec<&str> = line.split_whitespace().collect();
             if cols.len() <= 5 { continue; }
             let mut fields = HashMap::new();

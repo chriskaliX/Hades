@@ -1,9 +1,9 @@
-/// YUM repo collector — data_type 3006.
-/// Mirrors Go's event/libraries/yum.go.
-///
-/// Reads /etc/yum.repos.d/**/*.repo files, parses [section] blocks,
-/// and ships one record per repository section.
-/// Only runs on rhel/fedora/suse platforms.
+//! YUM repo collector — data_type 3006.
+//! Mirrors Go's event/libraries/yum.go.
+//!
+//! Reads /etc/yum.repos.d/**/*.repo files, parses [section] blocks,
+//! and ships one record per repository section.
+//! Only runs on rhel/fedora/suse platforms.
 
 use std::collections::HashMap;
 use std::io::Read;
@@ -18,7 +18,7 @@ const DATA_TYPE:   i32   = 3006;
 const YUM_REPOS_DIR: &str = "/etc/yum.repos.d";
 const FILE_LIMIT:  usize = 100;
 const RECORD_LIMIT: usize = 1000;
-const FILE_SIZE_LIMIT: u64 = 1 * 1024 * 1024;
+const FILE_SIZE_LIMIT: u64 = 1024 * 1024;
 
 pub async fn run(client: &mut Client) -> Result<()> {
     // Only run on rpm-based distros — mirrors Go's utils.Platform check
@@ -94,7 +94,7 @@ fn collect_repo_files(dir: &str) -> Vec<String> {
                 let path = entry.path();
                 if path.is_dir() {
                     walk(&path.to_string_lossy(), files);
-                } else if path.extension().map_or(false, |e| e == "repo") {
+                } else if path.extension().is_some_and(|e| e == "repo") {
                     files.push(path.to_string_lossy().into_owned());
                 }
             }
@@ -112,11 +112,10 @@ fn split_sections(content: &str) -> Vec<String> {
 
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            if !current.is_empty() {
+        if trimmed.starts_with('[') && trimmed.ends_with(']')
+            && !current.is_empty() {
                 sections.push(std::mem::take(&mut current));
             }
-        }
         current.push_str(line);
         current.push('\n');
     }

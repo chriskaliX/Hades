@@ -1,8 +1,8 @@
-/// cache/process — mirrors Go's collector/cache/process/cache.go.
-///
-/// moka::sync::Cache: pid → argv (max 2048) and pid → comm (max 4096).
-/// Also houses the exe hash cache (sdk::hash::HashCache backed by moka),
-/// mirroring Go's SDK/go/utils/hash.
+//! cache/process — mirrors Go's collector/cache/process/cache.go.
+//!
+//! moka::sync::Cache: pid → argv (max 2048) and pid → comm (max 4096).
+//! Also houses the exe hash cache (sdk::hash::HashCache backed by moka),
+//! mirroring Go's SDK/go/utils/hash.
 
 use std::sync::OnceLock;
 

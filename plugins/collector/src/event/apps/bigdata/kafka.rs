@@ -24,7 +24,7 @@ impl IApp for Kafka {
         for jar in jar_names_for_pid(p.pid) {
             if jar.starts_with("kafka_") && jar.ends_with(".jar") {
                 let mid = jar.trim_start_matches("kafka_").trim_end_matches(".jar");
-                if let Some(v) = mid.splitn(2, '-').nth(1) {
+                if let Some(v) = mid.split_once('-').map(|x| x.1) {
                     let ver = find_version(v);
                     if !ver.is_empty() {
                         self.version = ver;

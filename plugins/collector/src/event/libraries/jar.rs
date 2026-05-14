@@ -1,9 +1,9 @@
-/// JAR library collector — data_type 3015.
-/// Mirrors Go's event/libraries/jar.go.
-///
-/// Iterates Java processes, reads their open .jar file descriptors,
-/// optionally opens the zip to detect fatjars and MANIFEST.MF versions,
-/// and ships one record per jar.
+//! JAR library collector — data_type 3015.
+//! Mirrors Go's event/libraries/jar.go.
+//!
+//! Iterates Java processes, reads their open .jar file descriptors,
+//! optionally opens the zip to detect fatjars and MANIFEST.MF versions,
+//! and ships one record per jar.
 
 use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
@@ -86,7 +86,7 @@ pub async fn run(client: &mut Client) -> Result<()> {
                 // Pass 1: find META-INF/MANIFEST.MF for version if missing
                 if version.is_empty() {
                     if let Ok(mf) = archive.by_name("META-INF/MANIFEST.MF") {
-                        for line in std::io::BufReader::new(mf).lines().flatten() {
+                        for line in std::io::BufReader::new(mf).lines().map_while(Result::ok) {
                             if let Some(rest) = line.strip_prefix("Implementation-Version:") {
                                 version = rest.trim().to_owned();
                                 break;

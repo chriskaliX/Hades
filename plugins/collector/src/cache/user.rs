@@ -43,7 +43,7 @@ fn lookup_from_passwd(uid: u32) -> Option<String> {
 pub fn group_name(gid: u32) -> String {
     if let Ok(f) = std::fs::File::open("/etc/group") {
         use std::io::BufRead;
-        for line in std::io::BufReader::new(f).lines().flatten() {
+        for line in std::io::BufReader::new(f).lines().map_while(Result::ok) {
             let parts: Vec<&str> = line.splitn(4, ':').collect();
             if parts.len() >= 3 && parts[2].trim().parse::<u32>().ok() == Some(gid) {
                 return parts[0].to_owned();

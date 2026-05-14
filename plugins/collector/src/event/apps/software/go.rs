@@ -57,7 +57,7 @@ fn extract_go_version(buf: &[u8]) -> Option<String> {
     if let Some(v_pos) = after.windows(4).position(|w| w == b"go1.") {
         let slice = &after[v_pos..];
         let end = slice.iter()
-            .position(|&b| b < 0x20 || b > 0x7e)
+            .position(|&b| !(0x20..=0x7e).contains(&b))
             .unwrap_or(slice.len())
             .min(32); // version strings are never this long
         let ver = std::str::from_utf8(&slice[..end]).unwrap_or("");

@@ -1,10 +1,9 @@
-/// cache/container — mirrors Go's collector/cache/container/container.go.
-///
-/// moka::sync::Cache(1024): pns (u32) → container metadata.
+//! cache/container — mirrors Go's collector/cache/container/container.go.
+//!
+//! moka::sync::Cache(1024): pns (u32) → container metadata.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use std::time::Duration;
 
 use moka::sync::Cache;
 

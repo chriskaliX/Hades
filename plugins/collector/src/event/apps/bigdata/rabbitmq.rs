@@ -38,7 +38,7 @@ fn find_rabbitmqctl_in_fds(pid: i32) -> Option<String> {
         for entry in entries.flatten() {
             if let Ok(target) = std::fs::read_link(entry.path()) {
                 let p = Path::new(&target);
-                if p.file_name().map_or(false, |n| n == "rabbitmq-server") {
+                if p.file_name().is_some_and(|n| n == "rabbitmq-server") {
                     if let Some(dir) = p.parent() {
                         return Some(dir.join("rabbitmqctl").to_string_lossy().into_owned());
                     }

@@ -1,4 +1,4 @@
-/// networks.rs — mirrors Go's event/networks.go (thin registration shim).
+//! networks.rs — mirrors Go's event/networks.go (thin registration shim).
 
 pub mod iptables;
 pub mod socket;

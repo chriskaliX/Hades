@@ -1,8 +1,8 @@
-/// event/ — mirrors Go's collector/event/ package.
-///
-/// Top-level entry files (process, user, sshd, cron, cron_watcher, container,
-/// configs_runner, libraries_runner) live here directly.
-/// Sub-packages (systems/, networks/, configs/, libraries/) are nested sub-modules.
+//! event/ — mirrors Go's collector/event/ package.
+//!
+//! Top-level entry files (process, user, sshd, cron, cron_watcher, container,
+//! configs_runner, libraries_runner) live here directly.
+//! Sub-packages (systems/, networks/, configs/, libraries/) are nested sub-modules.
 
 pub mod application;
 pub mod apps;
