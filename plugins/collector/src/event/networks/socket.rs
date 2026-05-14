@@ -82,16 +82,18 @@ fn parse_net_line(
         }
     }
 
-    out.insert("saddr".into(),   saddr);
-    out.insert("sport".into(),   sport);
-    out.insert("daddr".into(),   daddr);
-    out.insert("dport".into(),   dport);
-    out.insert("proto".into(),   proto.to_owned());
-    out.insert("state".into(),   state_str);
-    out.insert("uid".into(),     uid);
-    out.insert("inode".into(),   inode.to_string());
-    out.insert("pid".into(),     info.map(|i| i.pid.to_string()).unwrap_or_default());
-    out.insert("comm".into(),    info.map(|i| i.comm.clone()).unwrap_or_default());
+    out.insert("sip".into(),    saddr);
+    out.insert("sport".into(),  sport);
+    out.insert("dip".into(),    daddr);
+    out.insert("dport".into(),  dport);
+    // Frontend expects numeric type: 6=TCP, 17=UDP
+    let type_num = if proto.starts_with("tcp") { "6" } else { "17" };
+    out.insert("type".into(),   type_num.to_owned());
+    out.insert("state".into(),  state_str);
+    out.insert("uid".into(),    uid);
+    out.insert("inode".into(),  inode.to_string());
+    out.insert("pid".into(),    info.map(|i| i.pid.to_string()).unwrap_or_default());
+    out.insert("comm".into(),   info.map(|i| i.comm.clone()).unwrap_or_default());
     out.insert("cmdline".into(), info.map(|i| i.cmdline.clone()).unwrap_or_default());
     true
 }
