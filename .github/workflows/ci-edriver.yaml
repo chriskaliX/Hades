@@ -56,12 +56,9 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev musl-tools llvm-14 clang-14 protobuf-compiler
-          for tool in clang llc llvm-strip
-          do
-            sudo rm -f /usr/bin/$tool
-            sudo ln -s /usr/bin/${tool}-14 /usr/bin/$tool
-          done
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev \
+            musl-tools llvm clang protobuf-compiler
 
       - name: Build
         run: cd plugins/edriver && make build
