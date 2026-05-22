@@ -7,7 +7,15 @@ description = "Rust version of hades edriver"
 
 [features]
 debug = ["sdk/debug"]
-static = ["libbpf-rs/static"]
+# `vendored` (not just `static`) makes libbpf-sys build its own copy of libbpf,
+# elfutils and zlib from source. The bundled elfutils is configured with
+# `--without-zstd`, so the resulting libelf.a does NOT reference ZSTD_* symbols.
+# Plain `static` would link the system libelf.a which on Ubuntu 24.04+ is built
+# with USE_ZSTD and therefore pulls in unresolved ZSTD_* references at link
+# time (libbpf-sys never emits `cargo:rustc-link-lib=zstd`).
+# `vendored` implies `static-*` for all three native deps, so the final musl
+# binary is still fully self-contained.
+static = ["libbpf-rs/vendored"]
 
 [dependencies]
 anyhow = "1.0"
@@ -18,10 +26,17 @@ governor = "0.10.4"
 lazy_static = "1.5.0"
 twox-hash = "2.1"
 hex = "0.4"
-libbpf-rs = { version = "0.26.2", features = ["static"] }
+libbpf-rs = { version = "0.26.2", features = ["vendored"] }
 bitflags = "2.11.1"
 moka = { version = "0.12", features = ["sync"] }
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
 libbpf-cargo = "0.26.2"
+# Resolver 2 splits feature sets between normal-deps and build-deps. Without
+# this explicit pin, the build-script binary (which uses libbpf-cargo ->
+# libbpf-sys) would still link the system libelf.a (Ubuntu 24.04+ built with
+# ZSTD), causing "undefined reference to ZSTD_*". Enabling `vendored` here
+# makes libbpf-sys compile elfutils with --without-zstd for the host link
+# step too, matching the normal-deps tree.
+libbpf-sys = { version = "1.7", features = ["vendored"] }

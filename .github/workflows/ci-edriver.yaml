@@ -64,15 +64,20 @@ jobs:
           sudo apt-get update -qq
           # Install each package group on its own line so a single package
           # conflict (notably linux-libc-dev on ubuntu-24.04-arm) cannot
-          # silently drop unrelated packages. Mandatory packages have NO
-          # `|| true` fallback so install failures are visible.
+          # silently drop unrelated packages.
           sudo apt-get install -y --no-install-recommends protobuf-compiler
           sudo apt-get install -y --no-install-recommends musl-tools
-          sudo apt-get install -y --no-install-recommends pkgconf libelf-dev libzstd-dev
+          # libbpf-sys is built with the `vendored` feature (via edriver's
+          # `static` -> libbpf-rs/vendored). It compiles bundled libbpf,
+          # elfutils and zlib from source, which needs the autotools stack
+          # plus flex/bison/gettext/gperf to regenerate elfutils' configure.
+          sudo apt-get install -y --no-install-recommends \
+            pkgconf autoconf automake libtool m4 \
+            autopoint gettext gperf flex bison gawk
+          # BPF compilation toolchain
           sudo apt-get install -y --no-install-recommends clang llvm
-          # Optional: build-essential / linux-libc-dev sometimes conflict on ARM.
+          # build-essential occasionally conflicts on ARM via linux-libc-dev.
           sudo apt-get install -y --no-install-recommends build-essential || true
-          sudo apt-get install -y linux-libc-dev || true
 
       - name: Verify toolchain and export PROTOC
         run: |

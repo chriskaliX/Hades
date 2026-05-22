@@ -3,29 +3,17 @@ LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_gnu  = "/usr/lib/x86_64-linux-gnu:/
 LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
 LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl  = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
 LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
-# libbpf-sys vendors and compiles libbpf C sources; use the native gcc (always present).
-# musl-gcc is only needed for the final Rust link step (set via [target.*].linker below).
+# libbpf-sys vendors and compiles libbpf / elfutils / zlib C sources via the
+# `vendored` feature (enabled by edriver's `static` feature). The bundled
+# elfutils is configured `--without-zstd`, so no ZSTD_* symbols leak into the
+# link line and no rustflags workaround is needed.
 CC_x86_64_unknown_linux_musl  = "gcc"
 CC_aarch64_unknown_linux_musl = "gcc"
 
-# Build scripts compile for the HOST triple (gnu). libbpf-sys links the system
-# libelf.a which (on Ubuntu 24.04) depends on ZSTD, but libbpf-sys does NOT
-# emit `cargo:rustc-link-lib=zstd`. We must add it manually for the host link
-# step. [host].rustflags is silently ignored when host and target share an arch
-# (gnu vs musl), so we use [build].rustflags as the host-side fallback.
-#
-# Per Cargo docs, [target.<triple>].rustflags and [build].rustflags are
-# mutually exclusive: when a unit matches [target.X], only that section is
-# used. So [target.*-musl] below fully controls the musl link (crt-static +
-# lzstd) and [build] only applies to build scripts on the gnu host (no
-# [target.*-gnu] defined → fallback to [build]).
-[build]
-rustflags = ["-C", "link-arg=-lzstd"]
-
 [target.x86_64-unknown-linux-musl]
 linker = "musl-gcc"
-rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
+rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.aarch64-unknown-linux-musl]
 linker = "musl-gcc"
-rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
+rustflags = ["-C", "target-feature=+crt-static"]
