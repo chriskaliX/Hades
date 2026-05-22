@@ -56,9 +56,12 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
+          # Core packages — must always succeed
           sudo apt-get install -y --no-install-recommends \
             build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev \
-            musl-tools llvm clang protobuf-compiler
+            musl-tools protobuf-compiler
+          # BPF compilation toolchain — package name is distro-version-dependent
+          sudo apt-get install -y --no-install-recommends clang llvm
 
       - name: Build
         run: cd plugins/edriver && make build
