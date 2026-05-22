@@ -41,7 +41,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev llvm-14 clang-14 protobuf-compiler
+          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev llvm-14 clang-14 protobuf-compiler
           for tool in clang llc llvm-strip
           do
             sudo rm -f /usr/bin/$tool
