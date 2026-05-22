@@ -6,6 +6,7 @@ LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
 LIBBPF_SRC = $(LIB_PATH)/libbpf/src
 PLATFORM := $(shell uname -m)
+LIBC     ?= musl
 
 headers/libbpf/libbpf.a: \
 	$(LIBBPF_SRC) \
@@ -27,14 +28,14 @@ build: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
-	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-gnu --features=static
-	
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static
+
 debug: \
 	headers/libbpf/libbpf.a
 
 	cargo fmt
-	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-gnu --features=static,debug
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static,debug
 
 test:
 	cargo fmt
-	cargo test --target $(PLATFORM)-unknown-linux-gnu --features=static,debug -- --include-ignored --show-output
+	cargo test --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static,debug -- --include-ignored --show-output

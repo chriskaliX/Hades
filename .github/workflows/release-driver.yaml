@@ -15,6 +15,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
 
       - name: Cache cargo registry & build
         uses: actions/cache@v4
@@ -29,7 +31,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev llvm-14 clang-14 protobuf-compiler
+          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev musl-tools llvm-14 clang-14 protobuf-compiler
           for tool in clang llc llvm-strip
           do
             sudo rm -f /usr/bin/$tool
@@ -44,7 +46,8 @@ jobs:
 
       - name: Strip & checksum
         run: |
-          strip plugins/edriver/edriver
+          strip plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver
+          cp plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver plugins/edriver/edriver
           sha256sum plugins/edriver/edriver > plugins/edriver/checksum.txt
 
       - name: Upload artifact

@@ -15,10 +15,18 @@ on:
 
 jobs:
   edriver:
-    name: "Build and test edriver"
-    runs-on: ubuntu-latest
+    name: "Build and test edriver / ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
     steps:
       - name: "Git checkout"
         uses: actions/checkout@v4
@@ -27,6 +35,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Cache cargo registry & build
         uses: actions/cache@v4
@@ -35,13 +45,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             plugins/edriver/target
-          key: ${{ runner.os }}-cargo-edriver-${{ hashFiles('plugins/edriver/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-edriver-
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-
 
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev llvm-14 clang-14 protobuf-compiler
+          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev musl-tools llvm-14 clang-14 protobuf-compiler
           for tool in clang llc llvm-strip
           do
             sudo rm -f /usr/bin/$tool
@@ -49,11 +59,11 @@ jobs:
           done
 
       - name: Build
-        run: |
-          cd plugins/edriver
-          make build
+        run: cd plugins/edriver && make build
+        env:
+          PLATFORM: ${{ matrix.arch }}
 
       - name: Test
-        run: |
-          cd plugins/edriver
-          make test
+        run: cd plugins/edriver && make test
+        env:
+          PLATFORM: ${{ matrix.arch }}
