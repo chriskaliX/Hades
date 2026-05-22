@@ -56,7 +56,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev musl-tools llvm-14 clang-14 protobuf-compiler
+          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev musl-tools llvm-14 clang-14 protobuf-compiler
           for tool in clang llc llvm-strip
           do
             sudo rm -f /usr/bin/$tool
@@ -68,9 +68,11 @@ jobs:
         env:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
+          TARGET_CC: gcc
 
       - name: Test
         run: cd plugins/edriver && make test
         env:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
+          TARGET_CC: gcc
