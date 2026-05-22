@@ -7,15 +7,13 @@ description = "Rust version of hades edriver"
 
 [features]
 debug = ["sdk/debug"]
-# `vendored` (not just `static`) makes libbpf-sys build its own copy of libbpf,
-# elfutils and zlib from source. The bundled elfutils is configured with
-# `--without-zstd`, so the resulting libelf.a does NOT reference ZSTD_* symbols.
-# Plain `static` would link the system libelf.a which on Ubuntu 24.04+ is built
-# with USE_ZSTD and therefore pulls in unresolved ZSTD_* references at link
-# time (libbpf-sys never emits `cargo:rustc-link-lib=zstd`).
-# `vendored` implies `static-*` for all three native deps, so the final musl
-# binary is still fully self-contained.
-static = ["libbpf-rs/vendored"]
+# The `static` feature chains to libbpf-rs/static → libbpf-sys/static, which
+# links the system libelf.a.  On Ubuntu 24.04+ that libelf.a is compiled with
+# USE_ZSTD and references ZSTD_* symbols.  libbpf-sys does NOT emit
+# `cargo:rustc-link-lib=zstd`, so we must add `-lzstd` manually in
+# .cargo/config.toml ([build].rustflags for host build-scripts, and
+# [target.*-musl].rustflags for the final binary).
+static = ["libbpf-rs/static"]
 
 [dependencies]
 anyhow = "1.0"
@@ -26,17 +24,15 @@ governor = "0.10.4"
 lazy_static = "1.5.0"
 twox-hash = "2.1"
 hex = "0.4"
-libbpf-rs = { version = "0.26.2", features = ["vendored"] }
+libbpf-rs = { version = "0.26.2", features = ["static"] }
 bitflags = "2.11.1"
 moka = { version = "0.12", features = ["sync"] }
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
 libbpf-cargo = "0.26.2"
-# Resolver 2 splits feature sets between normal-deps and build-deps. Without
-# this explicit pin, the build-script binary (which uses libbpf-cargo ->
-# libbpf-sys) would still link the system libelf.a (Ubuntu 24.04+ built with
-# ZSTD), causing "undefined reference to ZSTD_*". Enabling `vendored` here
-# makes libbpf-sys compile elfutils with --without-zstd for the host link
-# step too, matching the normal-deps tree.
-libbpf-sys = { version = "1.7", features = ["vendored"] }
+# Resolver 2 splits feature sets for [dependencies] and [build-dependencies].
+# libbpf-cargo → libbpf-sys is compiled for the HOST and also links the
+# system libelf.a (USE_ZSTD on Ubuntu 24.04+). We pin `static` here so that
+# `-lzstd` from [build].rustflags in .cargo/config.toml resolves those refs.
+libbpf-sys = { version = "1.7", features = ["static"] }

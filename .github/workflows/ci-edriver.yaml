@@ -67,13 +67,13 @@ jobs:
           # silently drop unrelated packages.
           sudo apt-get install -y --no-install-recommends protobuf-compiler
           sudo apt-get install -y --no-install-recommends musl-tools
-          # libbpf-sys is built with the `vendored` feature (via edriver's
-          # `static` -> libbpf-rs/vendored). It compiles bundled libbpf,
-          # elfutils and zlib from source, which needs the autotools stack
-          # plus flex/bison/gettext/gperf to regenerate elfutils' configure.
-          sudo apt-get install -y --no-install-recommends \
-            pkgconf autoconf automake libtool m4 \
-            autopoint gettext gperf flex bison gawk
+          # libelf-dev: provides libelf.a for libbpf-sys/static link.
+          # libzstd-dev: Ubuntu 24.04+ system libelf.a is compiled with USE_ZSTD,
+          # so libelf.a references ZSTD_* symbols.  libbpf-sys never emits
+          # `cargo:rustc-link-lib=zstd`, so we must supply libzstd.a ourselves.
+          # .cargo/config.toml adds -lzstd via [build].rustflags (host build-script)
+          # and [target.*-musl].rustflags -Wl,-Bstatic,-lzstd,-Bdynamic (final binary).
+          sudo apt-get install -y --no-install-recommends pkgconf libelf-dev libzstd-dev
           # BPF compilation toolchain
           sudo apt-get install -y --no-install-recommends clang llvm
           # build-essential occasionally conflicts on ARM via linux-libc-dev.
