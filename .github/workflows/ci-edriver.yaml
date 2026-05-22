@@ -56,14 +56,17 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          # protobuf-compiler is isolated: the SDK build script panics at runtime if
-          # protoc is missing, and it must not be silently skipped due to a conflict
-          # in a combined apt-get line (e.g. linux-libc-dev version mismatch on arm64).
-          sudo apt-get install -y protobuf-compiler
-          # Core packages
+          # protobuf-compiler + musl-tools: keep together and away from linux-libc-dev.
+          # linux-libc-dev can conflict with the runner's pre-installed version on
+          # ubuntu-24.04-arm, causing the whole apt-get line to fail and silently
+          # dropping protobuf-compiler (pattern from ci-agent / ci-collector).
+          sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
+          # BPF build deps; linux-libc-dev is pre-installed on GitHub runners so
+          # a version mismatch is common — allow failure.
           sudo apt-get install -y --no-install-recommends \
-            build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev musl-tools
-          # BPF compilation toolchain — package name is distro-version-dependent
+            build-essential pkgconf libelf-dev libzstd-dev || true
+          sudo apt-get install -y linux-libc-dev || true
+          # BPF compilation toolchain
           sudo apt-get install -y --no-install-recommends clang llvm
 
       - name: Build
