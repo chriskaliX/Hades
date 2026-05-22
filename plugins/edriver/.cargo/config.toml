@@ -9,9 +9,15 @@ CC_x86_64_unknown_linux_musl  = "gcc"
 CC_aarch64_unknown_linux_musl = "gcc"
 
 # libbpf-sys does not emit -lzstd even though system libelf.a is built with zstd support.
-# Apply -lzstd to all host compilations (build scripts) via [host], and
-# explicitly to each musl target for the final binary.
-[host]
+# Build scripts (edriver's build.rs) are compiled for the HOST gnu triple, so
+# we must add -lzstd to those host targets explicitly.
+# [host] rustflags is unreliable when a matching [target.*-gnu] section exists,
+# so we spell it out per triple.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-lzstd"]
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
 rustflags = ["-C", "link-arg=-lzstd"]
 
 [target.x86_64-unknown-linux-musl]
@@ -21,6 +27,3 @@ rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
 [target.aarch64-unknown-linux-musl]
 linker = "musl-gcc"
 rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
-
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
