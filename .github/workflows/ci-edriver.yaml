@@ -43,15 +43,20 @@ jobs:
       - name: Add musl target
         run: rustup target add ${{ matrix.target }}
 
-      - name: Cache cargo registry & build
+      - name: Cache cargo registry
         uses: actions/cache@v4
         with:
+          # Intentionally do NOT cache plugins/edriver/target across commits:
+          # Cargo's build-script fingerprint does not always invalidate on
+          # [build].rustflags / config.toml changes, so a restored stale
+          # target/ would reuse a build-script binary linked without -lzstd
+          # and break the ZSTD fix. Re-linking from scratch is cheap; the
+          # registry cache (much larger) still provides the speedup.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            plugins/edriver/target
-          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-${{ hashFiles('plugins/edriver/Cargo.lock', 'plugins/edriver/.cargo/config.toml') }}
-          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-registry-v2-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-registry-v2-
 
       - name: Install build dependencies
         run: |
