@@ -38,6 +38,9 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Add musl target
+        run: rustup target add ${{ matrix.target }}
+
       - name: Cache cargo registry & build
         uses: actions/cache@v4
         with:

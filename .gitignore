@@ -18,6 +18,8 @@ agent/deploy/hades-agent
 
 # server
 server/webconsole/frontend
+server/webconsole/frontend_backup
+server/webconsole/frontend_v2
 server/frontend
 
 # ignore certs
