@@ -4,6 +4,12 @@ LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu = "/usr/lib/aarch64-linux-gnu:
 LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl  = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
 LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
 
+# libbpf-sys does not emit -lzstd even though system libelf.a is built with zstd support.
+# Apply -lzstd to all host compilations (build scripts) via [host], and
+# explicitly to each musl target for the final binary.
+[host]
+rustflags = ["-C", "link-arg=-lzstd"]
+
 [target.x86_64-unknown-linux-musl]
 linker = "x86_64-linux-musl-gcc"
 rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
@@ -14,7 +20,3 @@ rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
-rustflags = ["-C", "link-arg=-lzstd"]
-
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-lzstd"]
