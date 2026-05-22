@@ -75,12 +75,9 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
-          # -lzstd is needed by the build-script link step: libbpf-sys links
-          # system libelf.a (Ubuntu 24.04 built with ZSTD support) but does not
-          # emit cargo:rustc-link-lib=zstd itself. RUSTFLAGS applies to build
-          # scripts (gnu host) and is overridden by [target.musl].rustflags for
-          # the final binary, so crt-static is not affected.
-          RUSTFLAGS: "-C link-arg=-lzstd"
+          # prost-build (SDK/rust/build.rs) calls protoc; set PROTOC explicitly
+          # so it does not rely on PATH lookup heuristics.
+          PROTOC: /usr/bin/protoc
 
       - name: Test
         run: cd plugins/edriver && make test
@@ -88,4 +85,4 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
-          RUSTFLAGS: "-C link-arg=-lzstd"
+          PROTOC: /usr/bin/protoc

@@ -8,6 +8,20 @@ LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu
 CC_x86_64_unknown_linux_musl  = "gcc"
 CC_aarch64_unknown_linux_musl = "gcc"
 
+# Build scripts compile for the HOST triple (gnu). libbpf-sys links the system
+# libelf.a which (on Ubuntu 24.04) depends on ZSTD, but libbpf-sys does NOT
+# emit `cargo:rustc-link-lib=zstd`. We must add it manually for the host link
+# step. [host].rustflags is silently ignored when host and target share an arch
+# (gnu vs musl), so we use [build].rustflags as the host-side fallback.
+#
+# Per Cargo docs, [target.<triple>].rustflags and [build].rustflags are
+# mutually exclusive: when a unit matches [target.X], only that section is
+# used. So [target.*-musl] below fully controls the musl link (crt-static +
+# lzstd) and [build] only applies to build scripts on the gnu host (no
+# [target.*-gnu] defined → fallback to [build]).
+[build]
+rustflags = ["-C", "link-arg=-lzstd"]
+
 [target.x86_64-unknown-linux-musl]
 linker = "musl-gcc"
 rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lzstd"]
