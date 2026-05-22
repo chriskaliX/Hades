@@ -20,7 +20,7 @@ signal-hook   = "0.3.14"
 libc          = "0.2"
 serde_json    = "1"
 twox-hash     = "1.6"
-lru-cache     = "0.1.2"
+moka          = { version = "0.12", features = ["sync"] }
 hex           = "0.4"
 coarsetime    = "0.1"
 tokio         = { version = "1", features = ["full"] }

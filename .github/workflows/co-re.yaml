@@ -1,34 +1,59 @@
-# core build
-name: CO-RE
+# driver ci build
+name: CI - edriver
 on:
   push:
-    branches: [main]
+    branches: ["**"]
+    paths:
+      - "plugins/edriver/**"
+      - "SDK/rust/**"
+      - ".github/workflows/co-re.yaml"
   pull_request:
-    branches: [main]
-
-env:
-  GO_VERSION: "1.22"
+    paths:
+      - "plugins/edriver/**"
+      - "SDK/rust/**"
+      - ".github/workflows/co-re.yaml"
 
 jobs:
-  CO-RE:
-    name: "Build eBPF driver(CO-RE)"
+  edriver:
+    name: "Build and test edriver"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
     steps:
       - name: "Git checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
-      - name: "Install Dependencies"
-        uses: ./.github/actions/build-dependencies
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: Build CO-RE
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            plugins/edriver/target
+          key: ${{ runner.os }}-cargo-edriver-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-edriver-
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev llvm-14 clang-14
+          for tool in clang llc llvm-strip
+          do
+            sudo rm -f /usr/bin/$tool
+            sudo ln -s /usr/bin/${tool}-14 /usr/bin/$tool
+          done
+
+      - name: Build
         run: |
           cd plugins/edriver
-          make core
+          make build
+
       - name: Test
         run: |
           cd plugins/edriver
-          make testing
+          make test

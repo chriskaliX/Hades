@@ -134,10 +134,16 @@ pub fn get_connection() -> anyhow::Result<Channel> {
         .keep_alive_timeout(Duration::from_secs(20))
         .keep_alive_while_idle(true);
 
-    let ep = if INSECURE_TRANSPORT.load(Ordering::Relaxed) {
-        ep
-    } else {
+    // Only apply TLS when the address scheme is https:// AND insecure mode is off.
+    // Applying tls_config() to an http:// URI causes tonic to silently upgrade to
+    // TLS while the server speaks plaintext, resulting in a permanent hang.
+    let use_tls = !INSECURE_TRANSPORT.load(Ordering::Relaxed)
+        && addr.starts_with("https://");
+
+    let ep = if use_tls {
         ep.tls_config(build_tls_config()?)?
+    } else {
+        ep
     };
 
     let ch = ep.connect_lazy();

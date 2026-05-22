@@ -5,6 +5,7 @@
 /// This module is intentionally a stub until the `plugin` manager is
 /// implemented: the `PLUGIN_ITER` hook below will be populated by the
 /// plugin module once it exists.  Until then `flush` is a no-op.
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use super::IMetric;
@@ -37,10 +38,21 @@ pub fn register_iter(f: PluginIterFn) {
     let _ = PLUGIN_ITER.set(f);
 }
 
-/// Returns snapshots of all currently live plugins, or an empty vec if the
-/// plugin module has not yet registered an iterator.
-pub fn iter_snapshots() -> Vec<PluginSnapshot> {
-    PLUGIN_ITER.get().map(|f| f()).unwrap_or_default()
+
+// ── Cached totals (updated by PluginMetric::flush, read by AgentMetric) ────────
+//
+// These atomics let AgentMetric include all-plugin CPU+RSS in the agent
+// heartbeat without re-sampling /proc (which would reset PROC_CACHE deltas
+// and give PluginMetric near-zero CPU readings).
+static PLUGIN_CPU_TOTAL_BITS: AtomicU64 = AtomicU64::new(0);
+static PLUGIN_RSS_TOTAL:      AtomicU64 = AtomicU64::new(0);
+
+/// Returns the most-recently computed (cpu_fraction_sum, rss_bytes_sum) for
+/// all live plugins.  Called by AgentMetric every flush cycle.
+pub fn last_plugin_totals() -> (f64, u64) {
+    let cpu = f64::from_bits(PLUGIN_CPU_TOTAL_BITS.load(Ordering::Relaxed));
+    let rss = PLUGIN_RSS_TOTAL.load(Ordering::Relaxed);
+    (cpu, rss)
 }
 
 // ── PluginMetric ────────────────────────────────────────────────────────────
@@ -71,17 +83,24 @@ impl IMetric for PluginMetric {
             None    => return, // plugin module not yet initialised
         };
 
+        let mut total_cpu = 0.0_f64;
+        let mut total_rss = 0_u64;
+
         for snap in iter() {
             let (cpu_str, rss_str, rs_str, ws_str, nfd_str, start_at_str) =
                 match resource::sample(snap.pid) {
-                    Some(r) => (
-                        format!("{:.8}", r.cpu),
-                        r.rss.to_string(),
-                        format!("{:.8}", r.read_speed),
-                        format!("{:.8}", r.write_speed),
-                        r.fds.to_string(),
-                        r.start_at.to_string(),
-                    ),
+                    Some(r) => {
+                        total_cpu += r.cpu;
+                        total_rss += r.rss;
+                        (
+                            format!("{:.8}", r.cpu),
+                            r.rss.to_string(),
+                            format!("{:.8}", r.read_speed),
+                            format!("{:.8}", r.write_speed),
+                            r.fds.to_string(),
+                            r.start_at.to_string(),
+                        )
+                    }
                     None => (
                         "0.00000000".to_owned(),
                         "0".to_owned(),
@@ -119,7 +138,12 @@ impl IMetric for PluginMetric {
                 timestamp: ts,
                 data: Some(Payload { fields }),
             };
-            let _ = trans().transmission(rec, false);
+            // Keep plugin status records under pressure so performance lines stay continuous.
+            let _ = trans().transmission(rec, true);
         }
+
+        // Update cached totals for AgentMetric to include in agent heartbeat.
+        PLUGIN_CPU_TOTAL_BITS.store(total_cpu.to_bits(), Ordering::Relaxed);
+        PLUGIN_RSS_TOTAL.store(total_rss, Ordering::Relaxed);
     }
 }

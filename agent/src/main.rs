@@ -87,7 +87,7 @@ async fn main() {
     // wg.Wait() — block until all workers have returned.
     tasks.join_all().await;
 
-    info!("agent is stop");
+    info!("agent exits");
 }
 
 /// Acquire an exclusive non-blocking flock on `path`, writing the current PID.

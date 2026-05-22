@@ -1,0 +1,38 @@
+[package]
+name = "edriver"
+version = "0.2.2"
+edition = "2021"
+authors = ["chriskali <chriskalix@protonmail.com>"]
+description = "Rust version of hades edriver"
+
+[features]
+debug = ["sdk/debug"]
+# The `static` feature chains to libbpf-rs/static → libbpf-sys/static, which
+# links the system libelf.a.  On Ubuntu 24.04+ that libelf.a is compiled with
+# USE_ZSTD and references ZSTD_* symbols.  libbpf-sys does NOT emit
+# `cargo:rustc-link-lib=zstd`, so we must add `-lzstd` manually in
+# .cargo/config.toml ([build].rustflags for host build-scripts, and
+# [target.*-musl].rustflags for the final binary).
+static = ["libbpf-rs/static"]
+
+[dependencies]
+anyhow = "1.0"
+log = { version = "0.4", features = ["std"] }
+libc = "0.2.186"
+users = "0.11.0"
+governor = "0.10.4"
+lazy_static = "1.5.0"
+twox-hash = "2.1"
+hex = "0.4"
+libbpf-rs = { version = "0.26.2", features = ["static"] }
+bitflags = "2.11.1"
+moka = { version = "0.12", features = ["sync"] }
+sdk = { path = "../../SDK/rust" }
+
+[build-dependencies]
+libbpf-cargo = "0.26.2"
+# Resolver 2 splits feature sets for [dependencies] and [build-dependencies].
+# libbpf-cargo → libbpf-sys is compiled for the HOST and also links the
+# system libelf.a (USE_ZSTD on Ubuntu 24.04+). We pin `static` here so that
+# `-lzstd` from [build].rustflags in .cargo/config.toml resolves those refs.
+libbpf-sys = { version = "1.7", features = ["static"] }

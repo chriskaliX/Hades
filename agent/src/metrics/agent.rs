@@ -60,25 +60,23 @@ impl IMetric for AgentMetric {
     fn flush(&self, _now: Instant) {
         let ts = unix_ts();
 
-        let (mut cpu_total, mut rss_total, rs_str, ws_str, nfd_str, start_at_str) =
+        let (cpu_total, rss_total, rs_str, ws_str, nfd_str, start_at_str) =
             match resource::sample(self.pid) {
-                Some(r) => (
-                    r.cpu,
-                    r.rss,
-                    format!("{:.8}", r.read_speed),
-                    format!("{:.8}", r.write_speed),
-                    r.fds.to_string(),
-                    r.start_at.to_string(),
-                ),
+                Some(r) => {
+                    // Add the most-recently cached plugin totals (computed by
+                    // PluginMetric::flush which runs in the same 60-s tick).
+                    let (plg_cpu, plg_rss) = plugin::last_plugin_totals();
+                    (
+                        r.cpu + plg_cpu,
+                        r.rss + plg_rss,
+                        format!("{:.8}", r.read_speed),
+                        format!("{:.8}", r.write_speed),
+                        r.fds.to_string(),
+                        r.start_at.to_string(),
+                    )
+                }
                 None => (0.0, 0, "0.00000000".into(), "0.00000000".into(), "0".into(), "0".into()),
             };
-
-        for snap in plugin::iter_snapshots() {
-            if let Some(r) = resource::sample(snap.pid) {
-                cpu_total += r.cpu;
-                rss_total += r.rss;
-            }
-        }
 
         let gstats                 = stats_handler().get_stats();
         let (tx_tps, rx_tps)       = trans().get_state();
@@ -140,7 +138,8 @@ impl IMetric for AgentMetric {
                 timestamp: ts,
                 data: Some(Payload { fields }),
             },
-            false,
+            // Keep agent status records under pressure so performance lines stay continuous.
+            true,
         );
     }
 }

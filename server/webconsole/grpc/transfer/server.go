@@ -14,9 +14,10 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	_ "hboat/grpc/transfer/compressor"
 	"hboat/grpc/transfer/handler"
 	pb "hboat/grpc/transfer/proto"
+
+	_ "google.golang.org/grpc/encoding/gzip"
 )
 
 const (

@@ -37,7 +37,7 @@ pub async fn startup(token: CancellationToken) {
     let _ = METRICS_MANAGER.set(manager.clone());
     plugin_metrics::register_iter(metric_snapshots);
 
-    log::info!("[daemon] plugin starts");
+    log::info!("plugin starts");
     loop {
         tokio::select! {
             _ = token.cancelled() => break,
@@ -46,7 +46,7 @@ pub async fn startup(token: CancellationToken) {
         }
     }
     manager.shutdown_all();
-    log::info!("[daemon] plugin exits");
+    log::info!("plugin exits");
 }
 
 /// Forward one [`Task`] to the addressed plugin and report status to server.

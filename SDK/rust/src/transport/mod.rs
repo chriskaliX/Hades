@@ -3,5 +3,5 @@ pub mod protocol;
 pub mod server;
 
 pub use client::Client;
-pub use protocol::{Payload, Record, Task};
+pub use protocol::{Payload, Record, Task, TaskCmd};
 pub use server::{Server, ServerSnapshot};

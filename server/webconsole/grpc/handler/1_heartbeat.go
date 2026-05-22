@@ -65,6 +65,8 @@ func (h *Heartbeat) Handle(m map[string]string, req *pb.RawData, conn *pool.Conn
 				primitive.E{Key: "agent_mem", Value: data["rss"]},
 				primitive.E{Key: "tx_speed", Value: data["tx_speed"]},
 				primitive.E{Key: "tx_tps", Value: data["tx_tps"]},
+				primitive.E{Key: "rx_speed", Value: data["rx_speed"]},
+				primitive.E{Key: "rx_tps", Value: data["rx_tps"]},
 			},
 		},
 		primitive.E{

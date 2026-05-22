@@ -8,77 +8,88 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps: 
-      - uses: actions/checkout@v2
+    steps:
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-      
-      - name: go env
-        uses: actions/setup-go@v2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          go-version: '1.18'
-      
-      - name: llvm env
+          targets: x86_64-unknown-linux-musl
+
+      - name: Add musl target
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            plugins/edriver/target
+          key: ${{ runner.os }}-release-edriver-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-release-edriver-
+
+      - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes build-essential pkgconf libelf-dev llvm-12 clang-12 linux-tools-common linux-tools-generic
-          for tool in "clang" "llc" "llvm-strip"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev musl-tools llvm-14 clang-14 protobuf-compiler
+          for tool in clang llc llvm-strip
           do
             sudo rm -f /usr/bin/$tool
-            sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+            sudo ln -s /usr/bin/${tool}-14 /usr/bin/$tool
           done
-        shell: bash
-      
-      - name: auth
-        run: |
-          gh auth login --with-token <<<'${{ secrets.GITHUB_TOKEN }}'
-      
-      - name: build
+
+      - name: Build
         run: |
           cd plugins/edriver
-          make core
+          make build
           cd ../..
+        env:
+          LIBBPF_SYS_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu
+      - name: Strip & checksum
+        run: |
+          strip plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver
+          cp plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver plugins/edriver/edriver
+          sha256sum plugins/edriver/edriver > plugins/edriver/checksum.txt
 
-      - name: upload
-        uses: actions/upload-artifact@v3
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: plugins/edriver/edriver
           name: edriver
+          path: |
+            plugins/edriver/edriver
+            plugins/edriver/checksum.txt
+          retention-days: 7
       
   release:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-    - name: create release
-      id: create_release
-      uses: actions/create-release@v1
-      env: 
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Extract version
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+    - name: Download artifact
+      uses: actions/download-artifact@v4
       with:
-        # draft for testing! 
+        name: edriver
+        path: /tmp/edriver
+
+    - name: Package
+      working-directory: /tmp/edriver
+      run: |
+        tar zcvf /tmp/${{ env.RELEASE_VERSION }}.tgz edriver checksum.txt
+
+    - name: Create GitHub release
+      uses: softprops/action-gh-release@v2
+      with:
         draft: true
         prerelease: false
-        release_name: Release ${{github.ref}}
-        tag_name: ${{github.ref}}
-    - name: version env
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-    - uses: actions/download-artifact@v3
-      with:
-        path: /tmp/edriver
-    - name: package
-      working-directory: /tmp/edriver/edriver
-      run: |
-        sha256sum edriver >> checksum.txt
-        tar zcvf /tmp/edriver.tgz edriver checksum.txt
-    - name: upload
-      id: upload
-      uses: actions/upload-release-asset@v1
+        name: Release ${{ github.ref_name }}
+        files: /tmp/${{ env.RELEASE_VERSION }}.tgz
       env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      with:
-        asset_content_type: application/tar+gzip
-        asset_name: ${{ env.RELEASE_VERSION }}.tgz
-        asset_path: /tmp/edriver.tgz
-        upload_url: ${{steps.create_release.outputs.upload_url}}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     needs:
     - build

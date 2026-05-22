@@ -16,3 +16,11 @@ message Task {
     string data = 3;
     string token = 4;
 }
+
+// Task command types sent from the server to a plugin.
+enum TaskCmd {
+    TASK_SHUTDOWN = 0;
+    TASK_UPDATE   = 1;
+    TASK_SETENV   = 2;
+    TASK_RESTART  = 3;
+}

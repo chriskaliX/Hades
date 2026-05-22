@@ -1,168 +1,118 @@
-// hash calculate the hash from file
+// hash — exe file hashing with moka cache.
+//
+// Algorithm (mirrors Go SDK/go/utils/hash):
+//   xxhash64(decimal_size_string ++ first_32KB_of_file)
+//
+// moka::sync::Cache is Send+Sync internally, so HashCache needs no external
+// Mutex. mtime+size are validated on every access for correctness; entries
+// idle out after INTERVAL seconds.
+
 use std::{
-    fs::{File},
+    fs::File,
     hash::Hasher,
     io::{ErrorKind, Read},
     str,
+    time::{Duration, UNIX_EPOCH},
 };
+
 use hex::encode;
-use lru_cache::LruCache;
+use moka::sync::Cache;
 use twox_hash::XxHash64;
-use std::time::UNIX_EPOCH;
 
-// Default interval time is 10 mins
-const INTERVAL:u64 = 600;
+const INTERVAL: u64 = 600; // idle-eviction TTL, seconds
 
-pub struct HashCache {
-    cache: LruCache<Vec<u8>, FileInfo>,
-    buffer: Vec<u8>,
+#[derive(Clone)]
+struct FileEntry {
+    hash:  Vec<u8>, // hex-encoded xxhash64
+    mtime: u64,
+    size:  u64,
 }
 
-pub struct FileInfo {
-    size: u64,
-    hash: Vec<u8>,
-    modified: u64,
-    accessed: u64,
+pub struct HashCache {
+    cache: Cache<Vec<u8>, FileEntry>,
 }
 
 impl HashCache {
     pub fn new(cap: usize) -> Self {
         Self {
-            cache: LruCache::new(cap),
-            buffer: Vec::with_capacity(32 * 1024),
+            cache: Cache::builder()
+                .max_capacity(cap as u64)
+                .time_to_idle(Duration::from_secs(INTERVAL))
+                .build(),
         }
     }
-    // get hash with modified time and size check
-    pub fn get(&mut self, exe: &[u8]) -> Vec<u8> {
+
+    /// Return the xxhash64 of `exe` (hex bytes), or `b"-3"` on any error.
+    pub fn get(&self, exe: &[u8]) -> Vec<u8> {
         if exe.len() > 1024 {
             return b"-3".to_vec();
         }
-        let mut hasher = XxHash64::default();
-        return match self.cache.get_mut(exe) {
-            Some(fi) => {
-                // updater to 1 sec
-                let now = coarsetime::Clock::now_since_epoch().as_secs();
-                // access time check
-                if now <= fi.accessed + INTERVAL {
-                    return fi.hash.clone();
-                }
-                // if anything goes wrong, keep the invalid "-3" for half INTERVAL time
-                // read file
-                let file = match str::from_utf8(exe) {
-                    Ok(v) => { 
-                        match File::open(v) {
-                            Ok(t) => { t },
-                            Err(_) => { return b"-3".to_vec(); }
-                        }
-                    }
-                    Err(_) => { return b"-3".to_vec(); }
-                };
-                // modified time & size check
-                let metadata = match file.metadata() {
-                    Ok(v) => { v }
-                    Err(_) => { return b"-3".to_vec(); }
-                };
-                let modified = match metadata.modified() {
-                    Ok(v) => { 
-                        match v.duration_since(UNIX_EPOCH) {
-                            Ok(t) => { t.as_secs() },
-                            Err(_) => { return b"-3".to_vec(); }
-                        }
-                    }
-                    Err(_) => { return b"-3".to_vec(); }
-                };
-                if modified == fi.modified && metadata.len() == fi.size {
-                    fi.accessed = now;
-                    return fi.hash.clone();
-                }
-                // hash check
-                hasher.write_u64(metadata.len());
-                self.buffer.clear();
-                if let Err(err) = file.take(32 * 1024).read_to_end(&mut self.buffer) {
-                    if err.kind() != ErrorKind::UnexpectedEof {
-                        return b"-3".to_vec();
-                    }
-                }
-                hasher.write(&self.buffer);
-                let hash = encode(hasher.finish().to_be_bytes()).into_bytes();
-                // update the value
-                fi.accessed = now;
-                fi.modified = modified;
-                fi.size = metadata.len();
-                fi.hash = hash.clone();
-                return hash;
-            },
-            None => {
-                if let Ok(path) = str::from_utf8(exe) {
-                    if let Ok(file) = File::open(path) {
-                        if let Ok(metadata) = file.metadata() {
-                            let modified = match metadata.modified() {
-                                Ok(v) => { 
-                                    match v.duration_since(UNIX_EPOCH) {
-                                        Ok(t) => { t.as_secs() },
-                                        Err(_) => { return b"-3".to_vec(); }
-                                    }
-                                }
-                                Err(_) => { return b"-3".to_vec(); }
-                            };
-                            hasher.write_u64(metadata.len());
-                            self.buffer.clear();
-                            if let Err(err) = file.take(32 * 1024).read_to_end(&mut self.buffer) {
-                                if err.kind() != ErrorKind::UnexpectedEof {
-                                    return b"-3".to_vec();
-                                }
-                            }
-                            hasher.write(&self.buffer);
-                            let hash = encode(hasher.finish().to_be_bytes()).into_bytes();
-                            let fileinfo = FileInfo {
-                                size: metadata.len(),
-                                hash: hash.clone(),
-                                modified: modified,
-                                accessed: coarsetime::Clock::now_since_epoch().as_secs()
-                            };
-                            self.put(exe.to_vec(), fileinfo);
-                            hash
-                        } else {
-                            return b"-3".to_vec();
-                        }
-                    } else {
-                        return b"-3".to_vec();
-                    }
-                } else {
-                    return b"-3".to_vec();
+        let Ok(path) = str::from_utf8(exe) else { return b"-3".to_vec() };
+
+        // Cache hit — validate mtime+size, return cached hash if unchanged.
+        if let Some(entry) = self.cache.get(exe) {
+            if let Some((mtime, size)) = file_stat(path) {
+                if mtime == entry.mtime && size == entry.size {
+                    return entry.hash.clone();
                 }
             }
-        };
-    }
+        }
 
-    pub fn put(&mut self, key: Vec<u8>, value: FileInfo) {
-        self.cache.insert(key, value);
+        // Miss or file changed — compute fresh hash and (re-)insert.
+        match compute_hash(path) {
+            Some((hash, mtime, size)) => {
+                self.cache.insert(exe.to_vec(), FileEntry { hash: hash.clone(), mtime, size });
+                hash
+            }
+            None => b"-3".to_vec(),
+        }
     }
-    
+}
+
+fn file_stat(path: &str) -> Option<(u64, u64)> {
+    let meta = std::fs::metadata(path).ok()?;
+    let mtime = meta.modified().ok()?
+        .duration_since(UNIX_EPOCH).ok()?
+        .as_secs();
+    Some((mtime, meta.len()))
+}
+
+/// xxhash64(decimal_size_string ++ first_32KB) — matches Go's genHash().
+fn compute_hash(path: &str) -> Option<(Vec<u8>, u64, u64)> {
+    let mut file = File::open(path).ok()?;
+    let meta     = file.metadata().ok()?;
+    let size     = meta.len();
+    let mtime    = meta.modified().ok()?
+        .duration_since(UNIX_EPOCH).ok()?
+        .as_secs();
+
+    let mut buf = vec![0u8; 32 * 1024];
+    let n = match file.read(&mut buf) {
+        Ok(n) => n,
+        Err(e) if e.kind() == ErrorKind::UnexpectedEof => buf.len(),
+        Err(_) => return None,
+    };
+
+    let mut h = XxHash64::with_seed(0);
+    h.write(size.to_string().as_bytes()); // matches Go strconv.FormatInt(size, 10)
+    h.write(&buf[..n]);
+    Some((encode(h.finish().to_be_bytes()).into_bytes(), mtime, size))
 }
 
 #[cfg(test)]
 mod hash_test {
     use super::HashCache;
     use std::str;
-    
+
     #[test]
     fn gethash() {
-        let mut hashcache = HashCache::new(1024);
-        let result = hashcache.get(b"/tmp/hades_test1.log");
-        let result2 = hashcache.get(b"/etc/hosts");
-        assert_eq!(result, b"-3".to_vec());
-        assert_ne!(result2, b"-3".to_vec());
-        println!("1: {:?}, 2: {:?}", str::from_utf8(&result).unwrap(), str::from_utf8(&result2).unwrap());
+        let c = HashCache::new(1024);
+        let r1 = c.get(b"/tmp/hades_test1.log");
+        let r2 = c.get(b"/etc/hosts");
+        assert_eq!(r1, b"-3".to_vec());
+        assert_ne!(r2, b"-3".to_vec());
+        println!("1: {:?}, 2: {:?}",
+            str::from_utf8(&r1).unwrap(),
+            str::from_utf8(&r2).unwrap());
     }
-
-    // use test::Bencher;
-    // #[bench]
-    // fn gethash_benchmark(bencher: &mut Bencher) {
-    //     let mut hashcache = HashCache::new(1024);
-    //     bencher.iter( || {
-    //         hashcache.get(b"/tmp/hades_test1.log");
-    //         hashcache.get(b"/etc/hosts");
-    //     });
-    // }
 }

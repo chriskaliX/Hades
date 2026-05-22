@@ -3,7 +3,7 @@
 </div>
 
 <div align=center>
-<img src="https://github.com/chriskaliX/Hades/actions/workflows/co-re.yaml/badge.svg"/>
+<img src="https://github.com/chriskaliX/Hades/actions/workflows/ci-edriver.yaml/badge.svg"/>
 </div>
 
 # Hades
