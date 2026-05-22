@@ -38,11 +38,6 @@ pub fn register_iter(f: PluginIterFn) {
     let _ = PLUGIN_ITER.set(f);
 }
 
-/// Returns snapshots of all currently live plugins, or an empty vec if the
-/// plugin module has not yet registered an iterator.
-pub fn iter_snapshots() -> Vec<PluginSnapshot> {
-    PLUGIN_ITER.get().map(|f| f()).unwrap_or_default()
-}
 
 // ── Cached totals (updated by PluginMetric::flush, read by AgentMetric) ────────
 //
