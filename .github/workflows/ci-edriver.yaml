@@ -24,9 +24,11 @@ jobs:
           - arch: x86_64
             runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            lib_path: /usr/lib/x86_64-linux-gnu
           - arch: aarch64
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
+            lib_path: /usr/lib/aarch64-linux-gnu
     steps:
       - name: "Git checkout"
         uses: actions/checkout@v4
@@ -65,8 +67,10 @@ jobs:
         run: cd plugins/edriver && make build
         env:
           PLATFORM: ${{ matrix.arch }}
+          LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
 
       - name: Test
         run: cd plugins/edriver && make test
         env:
           PLATFORM: ${{ matrix.arch }}
+          LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}

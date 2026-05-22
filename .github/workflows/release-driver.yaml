@@ -46,7 +46,8 @@ jobs:
           cd plugins/edriver
           make build
           cd ../..
-
+        env:
+          LIBBPF_SYS_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu
       - name: Strip & checksum
         run: |
           strip plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver
