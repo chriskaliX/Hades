@@ -50,7 +50,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             plugins/edriver/target
-          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-${{ hashFiles('plugins/edriver/Cargo.lock', 'plugins/edriver/.cargo/config.toml') }}
           restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-
 
       - name: Install build dependencies
