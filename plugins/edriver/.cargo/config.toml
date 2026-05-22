@@ -9,16 +9,10 @@ CC_x86_64_unknown_linux_musl  = "gcc"
 CC_aarch64_unknown_linux_musl = "gcc"
 
 # libbpf-sys does not emit -lzstd even though system libelf.a is built with zstd support.
-# During cross-compilation (host-gnu → target-musl), build scripts are compiled for
-# the HOST. Cargo ignores [target.HOST].rustflags for build scripts; only [host].rustflags
-# is applied. This is per Cargo spec: https://doc.rust-lang.org/cargo/reference/config.html
+# Build scripts are compiled for the HOST (gnu) triple; [host].rustflags injects -lzstd
+# so the build-script binary itself links successfully.
 [host]
 rustflags = ["-C", "link-arg=-lzstd"]
-
-# Keep linker for local x86→aarch64 cross-compilation convenience.
-# rustflags omitted here: they do NOT apply to build scripts during cross-compile.
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
 
 [target.x86_64-unknown-linux-musl]
 linker = "musl-gcc"

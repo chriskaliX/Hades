@@ -56,10 +56,13 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          # Core packages — must always succeed
+          # protobuf-compiler is isolated: the SDK build script panics at runtime if
+          # protoc is missing, and it must not be silently skipped due to a conflict
+          # in a combined apt-get line (e.g. linux-libc-dev version mismatch on arm64).
+          sudo apt-get install -y protobuf-compiler
+          # Core packages
           sudo apt-get install -y --no-install-recommends \
-            build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev \
-            musl-tools protobuf-compiler
+            build-essential pkgconf libelf-dev libzstd-dev linux-libc-dev musl-tools
           # BPF compilation toolchain — package name is distro-version-dependent
           sudo apt-get install -y --no-install-recommends clang llvm
 
@@ -69,6 +72,7 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
+          PROTOC: /usr/bin/protoc
 
       - name: Test
         run: cd plugins/edriver && make test
@@ -76,3 +80,4 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
+          PROTOC: /usr/bin/protoc
