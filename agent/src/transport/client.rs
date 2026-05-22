@@ -101,7 +101,7 @@ async fn run_session(ct: CancellationToken) {
 
     let inbound = match client.transfer(ReceiverStream::new(out_rx)).await {
         Ok(resp) => { log::info!("transport stream established"); resp.into_inner() }
-        Err(e)   => { log::error!("failed to open transfer stream: {e}"); return; }
+        Err(e)   => { log::error!("failed to open transfer stream: [{:?}] {}", e.code(), e.message()); return; }
     };
 
     let session     = ct.child_token();
@@ -136,6 +136,12 @@ async fn handle_receive(mut inbound: tonic::codec::Streaming<Command>, session: 
             result = inbound.message() => match result {
                 Ok(Some(cmd)) => {
                     trans().rx_cnt.fetch_add(1, Ordering::Relaxed);
+                    {
+                        use prost::Message as _;
+                        let byte_len = cmd.encoded_len() as u64;
+                        crate::transport::connection::stats_handler()
+                            .rx_bytes.fetch_add(byte_len, Ordering::Relaxed);
+                    }
                     agent::state::set_running();
                     if let Err(e) = resolve_cmd(cmd, &ct).await {
                         log::error!("resolve_cmd: {e}");

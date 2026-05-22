@@ -28,6 +28,8 @@ const (
 	// ssh log
 	sshCol   = "ssh_log"
 	alarmCol = "alarm"
+	// task ack
+	taskAckCol = "task_ack"
 	// configuration
 	configCol = "config"
 )
@@ -37,15 +39,16 @@ var MongoProxyImpl = &MongoProxy{}
 type MongoProxy struct {
 	client *mongo.Client
 	// Collection
-	StatusC *mongo.Collection
-	PluginC *mongo.Collection
-	AssetC  *mongo.Collection
-	UserC   *mongo.Collection
-	RecordC *mongo.Collection
-	MetricC *mongo.Collection
-	SshC    *mongo.Collection
-	AlarmC  *mongo.Collection
-	ConfigC *mongo.Collection
+	StatusC  *mongo.Collection
+	PluginC  *mongo.Collection
+	AssetC   *mongo.Collection
+	UserC    *mongo.Collection
+	RecordC  *mongo.Collection
+	MetricC  *mongo.Collection
+	SshC     *mongo.Collection
+	AlarmC   *mongo.Collection
+	ConfigC  *mongo.Collection
+	TaskAckC *mongo.Collection
 }
 
 func (m *MongoProxy) Init(uri string, poolsize uint64) error {
@@ -66,6 +69,11 @@ func (m *MongoProxy) Init(uri string, poolsize uint64) error {
 	m.StatusC = m.client.Database(dbName).Collection(agentCol)
 	m.PluginC = m.client.Database(dbName).Collection(pluginCol)
 	m.AssetC = m.client.Database(dbName).Collection(assetCol)
+	// compound index for per-agent asset queries (CountDocuments / Find by agent_id+data_type)
+	assetIdx := mongo.IndexModel{
+		Keys: bson.D{{Key: "agent_id", Value: 1}, {Key: "data_type", Value: 1}},
+	}
+	m.AssetC.Indexes().CreateOne(ctx, assetIdx)
 	m.UserC = m.client.Database(dbName).Collection(userCol)
 	m.RecordC = m.client.Database(dbName).Collection(recordCol)
 	// metrics. mongodb version over 5.0 is needed.
@@ -86,6 +94,19 @@ func (m *MongoProxy) Init(uri string, poolsize uint64) error {
 	// alarm
 	m.AlarmC = m.client.Database(dbName).Collection(alarmCol)
 	m.ConfigC = m.client.Database(dbName).Collection(configCol)
+	m.TaskAckC = m.client.Database(dbName).Collection(taskAckCol)
+	// TTL index on task_ack: auto-expire after 7 days
+	taskAckIdx := mongo.IndexModel{
+		Keys:    bson.M{"timestamp": 1},
+		Options: options.Index().SetExpireAfterSeconds(7 * 24 * 60 * 60),
+	}
+	m.TaskAckC.Indexes().CreateOne(ctx, taskAckIdx)
+	// unique index on token for fast upsert
+	tokenIdx := mongo.IndexModel{
+		Keys:    bson.M{"token": 1},
+		Options: options.Index().SetUnique(true).SetSparse(true),
+	}
+	m.TaskAckC.Indexes().CreateOne(ctx, tokenIdx)
 
 	// backend admin user init
 	res := m.UserC.FindOne(context.Background(), bson.M{"username": "admin"})

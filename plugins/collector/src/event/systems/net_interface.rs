@@ -64,7 +64,7 @@ fn collect_interfaces() -> Vec<IfaceInfo> {
                     .ok().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
                 let mtu = std::fs::read_to_string(format!("/sys/class/net/{name}/mtu"))
                     .ok().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
-                let flags = format!("{:#010x}", ifa.ifa_flags);
+                let flags = flags_to_str(ifa.ifa_flags);
                 IfaceInfo { name: name.clone(), flags, hardware_addr: String::new(), addrs: Vec::new(), index, mtu }
             });
 
@@ -103,3 +103,21 @@ fn collect_interfaces() -> Vec<IfaceInfo> {
     }
     map.into_values().collect()
 }
+
+fn flags_to_str(flags: u32) -> String {
+    [
+        (libc::IFF_UP as u32,          "up"),
+        (libc::IFF_BROADCAST as u32,   "broadcast"),
+        (libc::IFF_LOOPBACK as u32,    "loopback"),
+        (libc::IFF_POINTOPOINT as u32, "pointtopoint"),
+        (libc::IFF_MULTICAST as u32,   "multicast"),
+        (libc::IFF_RUNNING as u32,     "running"),
+        (libc::IFF_PROMISC as u32,     "promisc"),
+    ]
+    .iter()
+    .filter_map(|&(bit, name)| (flags & bit != 0).then_some(name))
+    .collect::<Vec<_>>()
+    .join("|")
+}
+
+

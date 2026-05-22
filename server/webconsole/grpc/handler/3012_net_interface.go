@@ -16,7 +16,6 @@ func (c *NetInterface) Name() string { return "net_interfaces" }
 
 func (c *NetInterface) Handle(m map[string]string, req *pb.RawData, conn *pool.Connection) error {
 	mapper := make(map[string]interface{})
-	// handle the data
 	for k, v := range m {
 		fv, err := strconv.ParseFloat(v, 64)
 		if err == nil {
@@ -25,7 +24,6 @@ func (c *NetInterface) Handle(m map[string]string, req *pb.RawData, conn *pool.C
 			mapper[k] = v
 		}
 	}
-
 	DefaultWorker.Add(c.ID(), req.AgentID, mapper)
 	return nil
 }

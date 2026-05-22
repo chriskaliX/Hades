@@ -173,24 +173,48 @@ func actionInsert(c *gin.Context, request PluginRequest) {
 		},
 	}
 
-	// Gather existing plugins
+	// Gather existing plugins: merge in-memory pool with MongoDB plugin_detail
+	// so that a fresh hboat restart (empty pool) does not evict already-running plugins.
 	conn, err := pool.GlobalGRPCPool.Get(request.AgentID)
 	if err != nil {
 		common.Response(c, common.ErrorCode, err.Error())
 		return
 	}
 
-	for name, detail := range conn.GetPluginsList() {
+	existingPlugins := conn.GetPluginsList() // in-memory (may be empty after restart)
+
+	// Fall back to MongoDB for any plugin not yet reported via heartbeat
+	var agentStatus struct {
+		PluginDetail map[string]map[string]interface{} `bson:"plugin_detail"`
+	}
+	if err := mongo.MongoProxyImpl.StatusC.FindOne(context.Background(),
+		bson.M{"agent_id": request.AgentID}).Decode(&agentStatus); err == nil {
+		for name, detail := range agentStatus.PluginDetail {
+			if _, ok := existingPlugins[name]; !ok {
+				existingPlugins[name] = detail
+			}
+		}
+	}
+
+	for name, detail := range existingPlugins {
 		if name == pluginConfig.Name {
 			continue
 		}
-		if version, ok := detail["pversion"]; ok {
-			command.Config = append(command.Config, &pb.ConfigItem{
-				Name:    name,
-				Version: version.(string),
-				SHA256:  pluginConfig.Sha256,
-			})
+		version, ok := detail["pversion"]
+		if !ok {
+			continue
 		}
+		// Look up the correct sha256 for this existing plugin from the database
+		var existingConfig PluginConfig
+		if err := mongo.MongoProxyImpl.PluginC.FindOne(context.Background(),
+			bson.M{"name": name, "pversion": version.(string)}).Decode(&existingConfig); err != nil {
+			continue
+		}
+		command.Config = append(command.Config, &pb.ConfigItem{
+			Name:    name,
+			Version: version.(string),
+			SHA256:  existingConfig.Sha256,
+		})
 	}
 
 	if err := pool.GlobalGRPCPool.SendCommand(request.AgentID, &command); err != nil {

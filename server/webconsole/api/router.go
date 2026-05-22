@@ -9,9 +9,9 @@ import (
 	"hboat/api/monitor"
 	"hboat/api/plugin"
 	"hboat/api/static"
+	"hboat/api/task"
 	"hboat/api/user"
 	"net/http"
-	"path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -45,18 +45,17 @@ func routerFrontend(r *gin.Engine) {
 			strings.HasSuffix(fullPath, ".svg") ||
 			strings.HasSuffix(fullPath, ".ico") ||
 			strings.HasSuffix(fullPath, ".ttf") {
-			fileName = strings.Split(fullPath, "/")[len(strings.Split(fullPath, "/"))-1]
+			// preserve full path so subdirectories like /scripts/ work correctly
+			fileName = strings.TrimPrefix(fullPath, "/")
 			fileType = strings.Split(fullPath, ".")[len(strings.Split(fullPath, "."))-1]
 		} else {
-			ctx.Header("Content-Type", "text/html")
 			ret, err := static.FrontendFile.ReadFile("frontend/index.html")
 			if err != nil {
-				_, _ = ctx.Writer.Write([]byte(err.Error()))
+				ctx.Data(http.StatusInternalServerError, "text/plain", []byte(err.Error()))
 				return
-			} else {
-				ctx.Header("Content-Length", fmt.Sprint(len(ret)))
-				_, _ = ctx.Writer.Write(ret)
 			}
+			ctx.Data(http.StatusOK, "text/html; charset=utf-8", ret)
+			return
 		}
 		switch fileType {
 		case "js":
@@ -78,7 +77,7 @@ func routerFrontend(r *gin.Engine) {
 		ctx.Header("Content-Description", "File Transfer")
 		ctx.Header("Content-Transfer-Encoding", "binary")
 		ctx.Header("Content-Disposition", "attachment; filename="+fileName)
-		ctx.FileFromFS(path.Join("frontend", fileName), http.FS(static.FrontendFile))
+		ctx.FileFromFS("frontend/"+fileName, http.FS(static.FrontendFile))
 	}
 
 	r.GET("/", staticHandler)
@@ -137,6 +136,11 @@ func RunGrpcServer(port int) {
 	}
 	{
 		apiv1Router.GET("/metric", monitor.MetricPerformance)
+	}
+	{
+		tGroup := apiv1Router.Group("/task")
+		tGroup.GET("/ack", task.GetTaskAck)
+		tGroup.GET("/list", task.ListTaskAck)
 	}
 	{
 		apiv1Router.Any("/tag", host.TagAction)

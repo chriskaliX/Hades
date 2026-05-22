@@ -1,24 +1,40 @@
-EBPF_BUILD := +$(MAKE) -C bpf
-EBPF_CO-RE_FLAG := core
-EBPF_SOURCE_PATH = bpf/hades_ebpf_driver.bpf.o
-EBPF_SOURCE_CO-RE_PATH = bpf/hades_ebpf_driver.bpf.core.o
-EBPF_TARGET_PATH = pkg/hades_ebpf_driver.o
-GO_TARGET_PATH := -o edriver
-VERSION := v1.1.2
+# SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+CMD_CLANG ?= clang
 
-.PHONY: mod-tidy
-mod-tidy:
-	@echo "Running go mod tidy..."
-	go mod tidy
+LIB_PATH := ../libs
+LIBBPF_CFLAGS = "-fPIC"
+LIBBPF_LDLAGS =
+LIBBPF_SRC = $(LIB_PATH)/libbpf/src
+PLATFORM := $(shell uname -m)
 
-no-core: mod-tidy
-	$(EBPF_BUILD)
-	mv $(EBPF_SOURCE_PATH) $(EBPF_TARGET_PATH)
-	CGO_ENABLED=0 go build -ldflags "-X 'edriver/constants.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
-core: mod-tidy
-	$(EBPF_BUILD) $(EBPF_CO-RE_FLAG)
-	mv $(EBPF_SOURCE_CO-RE_PATH) $(EBPF_TARGET_PATH)
-	CGO_ENABLED=0 go build -ldflags "-X 'edriver/constants.VERSION=$(VERSION)'" $(GO_TARGET_PATH) .
-testing: mod-tidy
-	cp $(EBPF_TARGET_PATH) tests/hades_ebpf_driver.o
-	CGO_ENABLED=0 go test -v -exec sudo ./...
+headers/libbpf/libbpf.a: \
+	$(LIBBPF_SRC) \
+	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
+
+	CC="$(CMD_CLANG)" \
+		CFLAGS="$(LIBBPF_CFLAGS)" \
+		LD_FLAGS="$(LIBBPF_LDFLAGS)" \
+		$(MAKE) \
+		-C $(LIBBPF_SRC) \
+		BUILD_STATIC_ONLY=1 \
+		DESTDIR=$(abspath ./src/bpf/headers/libbpf/) \
+		OBJDIR=$(abspath ./src/bpf/headers/libbpf/obj) \
+		INCLUDEDIR= LIBDIR= UAPIDIR= prefix= libdir= \
+		install install_uapi_headers
+	install -m 0640 ./src/bpf/headers/libbpf/bpf/*.h ./src/bpf/headers/
+
+build: \
+	headers/libbpf/libbpf.a
+
+	cargo fmt
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-gnu --features=static
+	
+debug: \
+	headers/libbpf/libbpf.a
+
+	cargo fmt
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-gnu --features=static,debug
+
+test:
+	cargo fmt
+	cargo test --target $(PLATFORM)-unknown-linux-gnu --features=static,debug -- --include-ignored --show-output

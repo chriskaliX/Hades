@@ -1,0 +1,1 @@
+(globalThis.utooChunk_ant_design_pro||(globalThis.utooChunk_ant_design_pro=[])).push(["object"==typeof document?document.currentScript:void 0,71791,t=>{"use strict";var e=t.i(77963);t.i(10325);var o=t.i(5932);t.s(["default",0,function(){let t=(0,o.useOutletContext)();return(0,e.jsx)(o.Outlet,{context:t})}])}]);

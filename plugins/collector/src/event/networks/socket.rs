@@ -64,7 +64,6 @@ fn parse_net_line(
     let inode: u64 = cols[9].parse().unwrap_or(0);
 
     let info = inode_map.get(&inode);
-    let state_str = tcp_state(state_raw);
 
     // Write into socket cache so proc_listen_addrs() can read it without
     // re-scanning /proc/net — mirrors Go's scache.Put(inode, socket).
@@ -75,7 +74,7 @@ fn parse_net_line(
                 local_port:  sport.parse().unwrap_or(0),
                 remote_addr: daddr.clone(),
                 remote_port: dport.parse().unwrap_or(0),
-                state:       state_str.clone(),
+                state:       tcp_state(state_raw).to_owned(),
                 protocol:    proto.trim_end_matches('6').to_owned(),
                 pid:         info.pid,
             });
@@ -89,7 +88,8 @@ fn parse_net_line(
     // Frontend expects numeric type: 6=TCP, 17=UDP
     let type_num = if proto.starts_with("tcp") { "6" } else { "17" };
     out.insert("type".into(),   type_num.to_owned());
-    out.insert("state".into(),  state_str);
+    // Server handler converts state to uint; send raw decimal code (1=ESTABLISHED, 10=LISTEN…)
+    out.insert("state".into(),  state_raw.to_string());
     out.insert("uid".into(),    uid);
     out.insert("inode".into(),  inode.to_string());
     out.insert("pid".into(),    info.map(|i| i.pid.to_string()).unwrap_or_default());

@@ -1,0 +1,27 @@
+[package]
+name = "edriver"
+version = "0.2.2"
+edition = "2021"
+authors = ["chriskali <chriskalix@protonmail.com>"]
+description = "Rust version of hades edriver"
+
+[features]
+debug = ["sdk/debug"]
+static = ["libbpf-rs/static"]
+
+[dependencies]
+anyhow = "1.0"
+log = { version = "0.4", features = ["std"] }
+libc = "0.2.186"
+users = "0.11.0"
+governor = "0.10.4"
+lazy_static = "1.5.0"
+twox-hash = "2.1"
+hex = "0.4"
+libbpf-rs = { version = "0.26.2", features = ["static"] }
+bitflags = "2.11.1"
+moka = { version = "0.12", features = ["sync"] }
+sdk = { path = "../../SDK/rust" }
+
+[build-dependencies]
+libbpf-cargo = "0.26.2"

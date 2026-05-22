@@ -94,7 +94,8 @@ impl Server {
                     log::warn!("plugin {name} receive truncated: {err}");
                     break;
                 }
-                self.stats.record_rx(len as u64);
+                // Child -> agent pipe: this is plugin upload traffic.
+                self.stats.record_tx(len as u64);
                 on_record(payload);
             }
         });
@@ -113,7 +114,8 @@ impl Server {
                 if writer.write_all(&len.to_le_bytes()).is_err() { break; }
                 if writer.write_all(&payload).is_err() { break; }
                 if writer.flush().is_err() { break; }
-                self.stats.record_tx((payload.len() + 4) as u64);
+                // Agent -> child pipe: this is plugin receive traffic (tasks/config).
+                self.stats.record_rx((payload.len() + 4) as u64);
             }
             log::info!("plugin {name} task loop exits");
         });

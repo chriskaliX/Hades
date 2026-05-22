@@ -8,6 +8,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
+use prost::Message as _;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TrySendError;
 
@@ -18,7 +19,7 @@ use crate::{
 use tokio_util::sync::CancellationToken;
 
 pub const BUFFER_TOTAL:  usize = 8192;
-pub const BUFFER_NORMAL: usize = 8186;
+pub const BUFFER_NORMAL: usize = 8160;
 
 pub static PLUGIN_TASK_CHAN:   OnceLock<mpsc::Sender<Task>>                    = OnceLock::new();
 pub static PLUGIN_CONFIG_CHAN: OnceLock<mpsc::Sender<HashMap<String, Config>>> = OnceLock::new();
@@ -94,8 +95,12 @@ impl Transfer {
             version:       agent::VERSION.to_owned(),
             product:       agent::PRODUCT.to_owned(),
         };
+        // Measure wire bytes before consuming `msg` with send().
+        let byte_len = msg.encoded_len() as u64;
         if tx.send(msg).await.is_err() { return false; }
         self.tx_cnt.fetch_add(count, Ordering::Relaxed);
+        crate::transport::connection::stats_handler()
+            .tx_bytes.fetch_add(byte_len, Ordering::Relaxed);
         true
     }
 
