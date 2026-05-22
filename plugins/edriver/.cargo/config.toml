@@ -3,10 +3,10 @@ LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_gnu  = "/usr/lib/x86_64-linux-gnu:/
 LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
 LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl  = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
 LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
-# musl-tools provides `musl-gcc` (native arch wrapper) but NOT `{arch}-linux-musl-gcc`.
-# Set CC_* so the cc crate finds it without guessing the nonexistent triplet name.
-CC_x86_64_unknown_linux_musl  = "musl-gcc"
-CC_aarch64_unknown_linux_musl = "musl-gcc"
+# libbpf-sys vendors and compiles libbpf C sources; use the native gcc (always present).
+# musl-gcc is only needed for the final Rust link step (set via [target.*].linker below).
+CC_x86_64_unknown_linux_musl  = "gcc"
+CC_aarch64_unknown_linux_musl = "gcc"
 
 # libbpf-sys does not emit -lzstd even though system libelf.a is built with zstd support.
 # Apply -lzstd to all host compilations (build scripts) via [host], and
