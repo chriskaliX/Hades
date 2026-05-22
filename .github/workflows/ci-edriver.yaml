@@ -43,11 +43,6 @@ jobs:
       - name: Add musl target
         run: rustup target add ${{ matrix.target }}
 
-      - name: Setup protoc
-        uses: actions/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Cache cargo registry & build
         uses: actions/cache@v4
         with:
@@ -61,7 +56,9 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends musl-tools
+          # protobuf-compiler on its own line, away from linux-libc-dev which
+          # conflicts on ubuntu-24.04-arm (matches ci-agent / ci-collector pattern).
+          sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
           # libelf-dev + libzstd-dev are required for libbpf-sys to link correctly.
           # Keep on their own line so a build-essential conflict cannot silently
           # drop them (build-essential pulls in linux-libc-dev which often conflicts
