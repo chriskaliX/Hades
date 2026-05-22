@@ -8,17 +8,13 @@ LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu
 CC_x86_64_unknown_linux_musl  = "gcc"
 CC_aarch64_unknown_linux_musl = "gcc"
 
-# libbpf-sys does not emit -lzstd even though system libelf.a is built with zstd support.
-# Build scripts are compiled for the HOST (gnu) triple and need -lzstd at link time.
-#
-# [host].rustflags only fires for true cross-arch compilation (e.g. x86_64→aarch64).
-# Both CI jobs are same-arch/different-libc (x86_64-gnu→x86_64-musl and
-# aarch64-gnu→aarch64-musl), so Cargo skips [host] and uses [target.HOST] instead.
-# No `linker` key needed: the default `cc` is correct on both GitHub-hosted runners.
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-lzstd"]
-
-[target.aarch64-unknown-linux-gnu]
+# libbpf-sys 1.x does not emit cargo:rustc-link-lib=zstd even though
+# Ubuntu 24.04's libelf.a is built with zstd support.
+# Build scripts always compile for the HOST triple (gnu). From Cargo 1.80+,
+# target-applies-to-host = false (default), so [target.HOST.rustflags] is
+# NOT applied to build scripts. Only [host].rustflags reaches them.
+# [host] fires whenever --target != host triple (always true: gnu != musl).
+[host]
 rustflags = ["-C", "link-arg=-lzstd"]
 
 [target.x86_64-unknown-linux-musl]
