@@ -93,6 +93,15 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
+          # RUSTFLAGS applies to ALL rustc invocations (highest priority, overrides
+          # config.toml [build].rustflags and [target.*].rustflags). Needed because
+          # [build].rustflags in config.toml is not reliably applied to build-script
+          # binaries by Cargo. The -lzstd is required because Ubuntu 24.04 system
+          # libelf.a (linked by libbpf-sys/static) is compiled with USE_ZSTD but
+          # libbpf-sys never emits cargo:rustc-link-lib=zstd.
+          # For the musl final binary, -static-pie (set by Rust for musl targets)
+          # forces the linker to use libzstd.a from libzstd-dev, keeping it static.
+          RUSTFLAGS: "-C link-arg=-lzstd"
 
       - name: Test
         run: |
@@ -102,3 +111,4 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
+          RUSTFLAGS: "-C link-arg=-lzstd"
