@@ -254,11 +254,11 @@ impl Log for Logger {
                 );
                 fields.insert("msg".to_owned(), record.args().to_string());
                 let mut rec = Record::default();
-                rec.set_data_type(1010);
-                rec.set_timestamp(current.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64);
+                rec.data_type = 1010;
+                rec.timestamp = current.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
                 let mut pld = Payload::default();
-                pld.set_fields(fields);
-                rec.set_data(pld);
+                pld.fields = fields;
+                rec.data = Some(pld);
                 let _ = client.send_record(&rec);
             }
         }

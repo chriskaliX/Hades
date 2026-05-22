@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
 
@@ -24,6 +25,18 @@ type TransferHandler struct{}
 func (h *TransferHandler) Transfer(stream pb.Transfer_TransferServer) (err error) {
 	var agentID, addr string
 	var data *pb.RawData
+
+	// Flush response HEADERS immediately.
+	// Go gRPC clients send bidi-stream request headers and then drive the
+	// request body concurrently; they do NOT wait for response headers before
+	// returning the stream object.  Tonic (Rust) does wait for response HEADERS
+	// before transfer().await resolves.  Without this call, Go gRPC only emits
+	// response HEADERS on the first Send(), which never happens until a command
+	// arrives — so tonic blocks forever waiting for HEADERS while the server
+	// blocks on Recv() waiting for data.
+	if err = stream.SendHeader(metadata.MD{}); err != nil {
+		return err
+	}
 
 	// receive the very first package once grpc established
 	if data, err = stream.Recv(); err != nil {

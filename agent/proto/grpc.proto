@@ -1,4 +1,3 @@
-// protoc --gogofaster_out=plugins=grpc:. grpc.proto
 syntax = "proto3";
 option go_package = "proto";
 package grpc;
@@ -35,8 +34,21 @@ message Command {
   repeated Config configs = 3;
 }
 
+/// Task types addressed to the agent itself (object_name == "hades-agent").
+/// Values in the 0–1099 range are reserved for agent-level operations.
+/// Values >= 1100 are forwarded to plugins without interpretation.
+enum TaskType {
+  TASK_SHUTDOWN = 0;
+  TASK_UPDATE   = 1;
+  TASK_SETENV   = 2;
+  TASK_UNSETENV = 3;
+  TASK_RESTART  = 4;
+  TASK_UPLOAD   = 5;
+}
+
 message Task {
-  int32 data_type = 1;
+  // Wire type is int32; prost decodes it as TaskType (unknown values kept as-is).
+  TaskType data_type = 1;
   string object_name = 2;
   string data = 3;
   string token = 4;
@@ -68,7 +80,7 @@ message FileUploadResponse {
   }
   StatusCode status = 1;
 }
-  
+
 service FileExt {
   rpc Upload(stream FileUploadRequest) returns (FileUploadResponse);
 }

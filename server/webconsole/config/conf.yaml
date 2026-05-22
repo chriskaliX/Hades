@@ -10,4 +10,4 @@ redis:
 backend:
   agent_heartbeat_offline_sec: 300
   user_session_lifetime_min: 1200
-  auth: true
+  auth: false

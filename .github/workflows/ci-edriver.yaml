@@ -1,0 +1,114 @@
+# driver ci build
+name: CI - edriver
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "plugins/edriver/**"
+      - "SDK/rust/**"
+      - ".github/workflows/ci-edriver.yaml"
+  pull_request:
+    paths:
+      - "plugins/edriver/**"
+      - "SDK/rust/**"
+      - ".github/workflows/ci-edriver.yaml"
+
+jobs:
+  edriver:
+    name: "Build and test edriver / ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            lib_path: /usr/lib/x86_64-linux-gnu
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            lib_path: /usr/lib/aarch64-linux-gnu
+    steps:
+      - name: "Git checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Add musl target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          # Intentionally do NOT cache plugins/edriver/target across commits:
+          # Cargo's build-script fingerprint does not always invalidate on
+          # [build].rustflags / config.toml changes, so a restored stale
+          # target/ would reuse a build-script binary linked without -lzstd
+          # and break the ZSTD fix. Re-linking from scratch is cheap; the
+          # registry cache (much larger) still provides the speedup.
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-registry-v2-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-registry-v2-
+
+      - name: Install build dependencies
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          # Install each package group on its own line so a single package
+          # conflict (notably linux-libc-dev on ubuntu-24.04-arm) cannot
+          # silently drop unrelated packages.
+          sudo apt-get install -y --no-install-recommends protobuf-compiler
+          sudo apt-get install -y --no-install-recommends musl-tools
+          # libelf-dev: provides libelf.a for libbpf-sys/static link.
+          # libzstd-dev: Ubuntu 24.04+ system libelf.a is compiled with USE_ZSTD,
+          # so libelf.a references ZSTD_* symbols.  libbpf-sys never emits
+          # `cargo:rustc-link-lib=zstd`, so we must supply libzstd.a ourselves.
+          # .cargo/config.toml adds -lzstd via [build].rustflags (host build-script)
+          # and [target.*-musl].rustflags -Wl,-Bstatic,-lzstd,-Bdynamic (final binary).
+          sudo apt-get install -y --no-install-recommends pkgconf libelf-dev libzstd-dev
+          # BPF compilation toolchain
+          sudo apt-get install -y --no-install-recommends clang llvm
+          # build-essential occasionally conflicts on ARM via linux-libc-dev.
+          sudo apt-get install -y --no-install-recommends build-essential || true
+
+      - name: Verify toolchain
+        run: |
+          set -euxo pipefail
+          which protoc
+          protoc --version
+
+      - name: Build
+        run: |
+          export PROTOC=$(which protoc)
+          cd plugins/edriver && make build
+        env:
+          PLATFORM: ${{ matrix.arch }}
+          LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
+          TARGET_CC: gcc
+          # RUSTFLAGS applies to ALL rustc invocations (highest priority, overrides
+          # config.toml [build].rustflags and [target.*].rustflags). Needed because
+          # [build].rustflags in config.toml is not reliably applied to build-script
+          # binaries by Cargo. The -lzstd is required because Ubuntu 24.04 system
+          # libelf.a (linked by libbpf-sys/static) is compiled with USE_ZSTD but
+          # libbpf-sys never emits cargo:rustc-link-lib=zstd.
+          # For the musl final binary, -static-pie (set by Rust for musl targets)
+          # forces the linker to use libzstd.a from libzstd-dev, keeping it static.
+          RUSTFLAGS: "-C link-arg=-lzstd"
+
+      - name: Test
+        run: |
+          export PROTOC=$(which protoc)
+          cd plugins/edriver && make test
+        env:
+          PLATFORM: ${{ matrix.arch }}
+          LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
+          TARGET_CC: gcc
+          RUSTFLAGS: "-C link-arg=-lzstd"

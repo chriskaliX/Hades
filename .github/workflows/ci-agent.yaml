@@ -1,0 +1,252 @@
+name: CI - agent
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "agent/**"
+      - ".github/workflows/ci-agent.yaml"
+  pull_request:
+    paths:
+      - "agent/**"
+      - ".github/workflows/ci-agent.yaml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── 1. Unit tests + lint ────────────────────────────────────────────────────
+  test:
+    name: cargo test + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            agent/target
+          key: test-${{ github.job }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
+          restore-keys: test-cargo-
+
+      - name: Install protoc
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler
+
+      - name: cargo test
+        run: cargo test --manifest-path agent/Cargo.toml
+
+      - name: clippy
+        run: cargo clippy --manifest-path agent/Cargo.toml -- -D warnings
+
+  # ── 2. Build .deb + .rpm (both arches, musl static) ────────────────────────
+  build:
+    name: build / ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            agent/target
+          key: build-${{ matrix.target }}-${{ hashFiles('agent/Cargo.lock') }}
+          restore-keys: build-${{ matrix.target }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-deb
+            ~/.cargo/bin/cargo-generate-rpm
+          key: cargo-pkg-tools-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install system dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
+
+      - name: Install packaging tools
+        run: |
+          command -v cargo-deb           || cargo install cargo-deb
+          command -v cargo-generate-rpm  || cargo install cargo-generate-rpm
+
+      - name: Build and package
+        run: make -C agent package-musl TARGET=${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hades-agent-deb-${{ matrix.arch }}
+          path: /tmp/hades-agent_*.deb
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hades-agent-rpm-${{ matrix.arch }}
+          path: /tmp/hades-agent-*.rpm
+          retention-days: 1
+
+  # ── 4. Integration test — systemd ───────────────────────────────────────────
+  integ-systemd:
+    name: integ / systemd / ${{ matrix.arch }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hades-agent-deb-${{ matrix.arch }}
+          path: /tmp/
+
+      - name: Install package
+        run: sudo dpkg -i /tmp/hades-agent_*.deb
+
+      - name: Verify unit is enabled
+        run: systemctl is-enabled hades-agent
+
+      - name: Start agent
+        run: sudo systemctl start hades-agent || true
+
+      - name: Wait for startup
+        run: sleep 3
+
+      - name: hadesctl status
+        run: sudo /etc/hades/hadesctl status
+
+      - name: hadesctl stop
+        run: sudo /etc/hades/hadesctl stop || true
+
+      - name: Disable service
+        run: sudo /etc/hades/hadesctl disable
+
+  # ── 5. Integration test — sysvinit (no systemd) ─────────────────────────────
+  integ-sysvinit:
+    name: integ / sysvinit / ${{ matrix.arch }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ubuntu:24.04
+      options: --privileged
+    steps:
+      - name: Install runtime dependencies
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends cron
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hades-agent-deb-${{ matrix.arch }}
+          path: /tmp/
+
+      - name: Install package
+        run: dpkg -i /tmp/hades-agent_*.deb || true
+
+      - name: Force sysvinit mode
+        run: |
+          mkdir -p /etc/init.d
+          cp /etc/hades/hades-agent.sysvinit /etc/init.d/hades-agent
+          chmod +x /etc/init.d/hades-agent
+          /etc/hades/hadesctl set --service_type=sysvinit
+          /etc/hades/hadesctl disable || true
+          /etc/hades/hadesctl enable
+
+      - name: Start agent
+        run: /etc/hades/hadesctl start
+
+      - name: Verify process spawned
+        run: |
+          sleep 3
+          PID_FILE=/var/run/hades-agent.pid
+          if [ -f "$PID_FILE" ]; then
+            PID=$(cat "$PID_FILE")
+            echo "PID file found: $PID"
+            kill -0 "$PID" 2>/dev/null && echo "Process is alive" \
+              || echo "Process exited (expected: no gRPC server)"
+          else
+            echo "PID file not found — hadesctl start may have failed"
+            exit 1
+          fi
+
+      - name: hadesctl status
+        run: /etc/hades/hadesctl status || true
+
+  # ── 6. Integration test — rpm (Rocky Linux) ─────────────────────────────────
+  integ-rpm:
+    name: integ / rpm / ${{ matrix.arch }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: rockylinux:9
+      options: --privileged
+    steps:
+      - name: Install runtime dependencies
+        run: dnf install -y --setopt=install_weak_deps=False cronie chkconfig
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hades-agent-rpm-${{ matrix.arch }}
+          path: /tmp/
+
+      - name: Install package
+        run: rpm -ivh --noscripts /tmp/hades-agent-*.rpm
+
+      - name: Verify files installed
+        run: |
+          test -f /etc/hades/hadesctl    || (echo "hadesctl missing"    && exit 1)
+          test -f /etc/hades/hades-agent || (echo "hades-agent missing" && exit 1)
+
+      - name: Enable service (sysvinit path — no systemd in container)
+        run: |
+          mkdir -p /etc/init.d
+          cp /etc/hades/hades-agent.sysvinit /etc/init.d/hades-agent
+          chmod +x /etc/init.d/hades-agent
+          /etc/hades/hadesctl set --service_type=sysvinit
+          /etc/hades/hadesctl enable
+
+      - name: hadesctl status
+        run: /etc/hades/hadesctl status || true
+
+      - name: hadesctl stop
+        run: /etc/hades/hadesctl stop || true

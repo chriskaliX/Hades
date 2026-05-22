@@ -3,71 +3,76 @@ name: Hades-collector
 on:
   push:
     tags:
-    - collector-v*
+      - collector-v*
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps: 
-      - uses: actions/checkout@v2
+    steps:
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-      
-      - name: go env
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.19'
-      
-      - name: auth
-        run: |
-          gh auth login --with-token <<<'${{ secrets.GITHUB_TOKEN }}'
-      
-      - name: build
-        run: |
-          cd plugins/collector
-          make
-          cd ../..
 
-      - name: upload
-        uses: actions/upload-artifact@v3
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          path: plugins/collector/collector
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl tools
+        run: sudo apt-get install -y musl-tools
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            plugins/collector/target
+          key: ${{ runner.os }}-cargo-collector-${{ hashFiles('plugins/collector/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-collector-
+
+      - name: Build
+        run: cd plugins/collector && make
+
+      - name: Strip & checksum
+        run: |
+          strip plugins/collector/collector
+          sha256sum plugins/collector/collector > plugins/collector/checksum.txt
+          cat plugins/collector/checksum.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
           name: collector
-      
+          path: |
+            plugins/collector/collector
+            plugins/collector/checksum.txt
+          retention-days: 7
+
   release:
+    needs: build
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-    - name: create release
-      id: create_release
-      uses: actions/create-release@v1
-      env: 
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        # draft for testing! 
-        draft: true
-        prerelease: false
-        release_name: Release ${{github.ref}}
-        tag_name: ${{github.ref}}
-    - name: version env
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-    - uses: actions/download-artifact@v3
-      with:
-        path: /tmp/collector
-    - name: package
-      working-directory: /tmp/collector/collector
-      run: |
-        sha256sum collector >> checksum.txt
-        tar zcvf /tmp/collector.tgz collector checksum.txt
-    - name: upload
-      id: upload
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      with:
-        asset_content_type: application/tar+gzip
-        asset_name: ${{ env.RELEASE_VERSION }}.tgz
-        asset_path: /tmp/collector.tgz
-        upload_url: ${{steps.create_release.outputs.upload_url}}
-    needs:
-    - build
+      - name: Extract version
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: collector
+          path: /tmp/collector
+
+      - name: Package
+        working-directory: /tmp/collector
+        run: tar zcvf /tmp/${{ env.RELEASE_VERSION }}.tgz collector checksum.txt
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          name: Release ${{ github.ref_name }}
+          files: /tmp/${{ env.RELEASE_VERSION }}.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

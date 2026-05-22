@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	mongodriver "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -172,14 +173,41 @@ func AgentClear(c *gin.Context) {
 
 
 func handleAppOverview(agent_id string) (map[string]int64, error) {
-	var pageReq common.PageReq
-	res := map[string]int64{}
+	// Use a single $group aggregation instead of N separate CountDocuments calls.
+	// With the compound index {agent_id,data_type} this is an index-only scan.
+	pipeline := mongodriver.Pipeline{
+		{{Key: "$match", Value: bson.M{"agent_id": agent_id}}},
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$data_type"},
+			{Key: "count", Value: bson.M{"$sum": 1}},
+		}}},
+	}
+	cursor, err := mongo.MongoProxyImpl.AssetC.Aggregate(context.TODO(), pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	// build data_type id → name reverse map
+	idToName := make(map[int]string, len(common.AssetAllowList))
 	for _, t := range common.AssetAllowList {
-		respCommon, err := common.DBPageSearch(context.TODO(), mongo.MongoProxyImpl.AssetC, &pageReq, bson.M{"agent_id": agent_id, "data_type": handler.EventNameCache[t].ID()})
-		if err != nil {
+		if ev, ok := handler.EventNameCache[t]; ok {
+			idToName[int(ev.ID())] = t
+		}
+	}
+
+	res := map[string]int64{}
+	for cursor.Next(context.TODO()) {
+		var row struct {
+			ID    int   `bson:"_id"`
+			Count int64 `bson:"count"`
+		}
+		if err := cursor.Decode(&row); err != nil {
 			continue
 		}
-		res[t] = respCommon.Total
+		if name, ok := idToName[row.ID]; ok {
+			res[name] = row.Count
+		}
 	}
-	return res, nil
+	return res, cursor.Err()
 }

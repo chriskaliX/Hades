@@ -1,0 +1,71 @@
+#!/bin/bash
+product_name="hades-agent"
+root_dir="/etc/hades"
+sysvinit_dir="/etc/init.d/"
+agent_ctl="hadesctl"
+
+error(){ echo -e "\e[91m$(date '+%Y-%m-%d %H:%M:%S.%3N')\t[ERRO]\t$1\e[0m"; }
+warn(){  echo -e "\e[93m$(date '+%Y-%m-%d %H:%M:%S.%3N')\t[WARN]\t$1\e[0m"; }
+info(){  echo -e "\e[96m$(date '+%Y-%m-%d %H:%M:%S.%3N')\t[INFO]\t$1\e[0m"; }
+succ(){  echo -e "\e[92m$(date '+%Y-%m-%d %H:%M:%S.%3N')\t[SUCC]\t$1\e[0m"; }
+
+expect(){
+    $1
+    rtc=$?
+    if [ $rtc -ne 0 ]; then
+        [ -n "$2" ] && $2
+        error "when exec $1, an unexpected error occurred, code: $rtc"
+        exit $rtc
+    fi
+}
+
+stop_agent(){
+    ${root_dir}/${agent_ctl} stop
+}
+
+delete_cgroups(){
+    # 1. Remove the service-specific subcgroup directories first.
+    #    The kernel refuses to unmount a cgroup hierarchy that still has
+    #    child cgroups; rmdir is safe even if the dirs don't exist.
+    for mp in "${root_dir}/cgroup/cpu" "${root_dir}/cgroup/memory" \
+              "/sys/fs/cgroup/cpu" "/sys/fs/cgroup/memory"; do
+        rmdir "${mp}/${product_name}" 2>/dev/null || true
+    done
+    # 2. Lazy-unmount (-l) each mount point we own.  -l detaches immediately
+    #    even if the fs is still "busy", so the subsequent rm -rf succeeds.
+    find "${root_dir}/cgroup" -mindepth 1 -maxdepth 1 -type d 2>/dev/null \
+      | while read -r mp; do
+          umount -l "$mp" >/dev/null 2>&1 || true
+        done
+    rm -rf "${root_dir}/cgroup"
+}
+
+disable_service(){
+    info "disable agent's service"
+    expect "${root_dir}/${agent_ctl} disable"
+    rm -f "${sysvinit_dir}/${product_name}"
+    succ "service disabled successfully"
+}
+
+clean_dirs(){
+    rm -rf ${root_dir}/log
+    rm -f  ${root_dir}/machine-id
+    rm -f  ${root_dir}/specified_env
+    rm -f  ${root_dir}/plugin.sock
+    rm -f  ${root_dir}/stderr ${root_dir}/stdout
+    rm -rf ${root_dir}/plugin
+    rm -f  /bin/${agent_ctl} /usr/bin/${agent_ctl} /usr/local/bin/${agent_ctl}
+}
+
+uninstall(){
+    disable_service
+    stop_agent
+    delete_cgroups
+    clean_dirs
+}
+
+# deb: "remove"=uninstall  "upgrade"=upgrade-stop
+# rpm: 0=uninstall          1=upgrade-stop
+if [ "$1" == 'remove' ] || [ "$1" == 'upgrade' ] || [ "$1" -eq 0 ] 2>/dev/null || [ "$1" -eq 1 ] 2>/dev/null; then
+    uninstall
+fi

@@ -21,6 +21,6 @@ clean:
 .PHONY: build_frontend
 build_frontend:
 	rm -rf api/static/frontend/*
-	cd ../frontend && npm run build
-	cp -r ../frontend/dist/* api/static/frontend/
+	cd frontend_v2 && npm run build
+	cp -r frontend_v2/dist/* api/static/frontend/
 	go build -o hboat cmd/main.go
