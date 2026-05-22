@@ -55,19 +55,26 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          set -euxo pipefail
           sudo apt-get update -qq
-          # protobuf-compiler on its own line, away from linux-libc-dev which
-          # conflicts on ubuntu-24.04-arm (matches ci-agent / ci-collector pattern).
-          sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
-          # libelf-dev + libzstd-dev are required for libbpf-sys to link correctly.
-          # Keep on their own line so a build-essential conflict cannot silently
-          # drop them (build-essential pulls in linux-libc-dev which often conflicts
-          # with the pre-installed version on GitHub ARM runners).
+          # Install each package group on its own line so a single package
+          # conflict (notably linux-libc-dev on ubuntu-24.04-arm) cannot
+          # silently drop unrelated packages. Mandatory packages have NO
+          # `|| true` fallback so install failures are visible.
+          sudo apt-get install -y --no-install-recommends protobuf-compiler
+          sudo apt-get install -y --no-install-recommends musl-tools
           sudo apt-get install -y --no-install-recommends pkgconf libelf-dev libzstd-dev
+          sudo apt-get install -y --no-install-recommends clang llvm
+          # Optional: build-essential / linux-libc-dev sometimes conflict on ARM.
           sudo apt-get install -y --no-install-recommends build-essential || true
           sudo apt-get install -y linux-libc-dev || true
-          # BPF compilation toolchain
-          sudo apt-get install -y --no-install-recommends clang llvm
+
+      - name: Verify toolchain and export PROTOC
+        run: |
+          set -euxo pipefail
+          which protoc
+          protoc --version
+          echo "PROTOC=$(which protoc)" >> "$GITHUB_ENV"
 
       - name: Build
         run: cd plugins/edriver && make build
@@ -75,9 +82,6 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
-          # prost-build (SDK/rust/build.rs) calls protoc; set PROTOC explicitly
-          # so it does not rely on PATH lookup heuristics.
-          PROTOC: /usr/bin/protoc
 
       - name: Test
         run: cd plugins/edriver && make test
@@ -85,4 +89,3 @@ jobs:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
-          PROTOC: /usr/bin/protoc
