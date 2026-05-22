@@ -79,22 +79,25 @@ jobs:
           # build-essential occasionally conflicts on ARM via linux-libc-dev.
           sudo apt-get install -y --no-install-recommends build-essential || true
 
-      - name: Verify toolchain and export PROTOC
+      - name: Verify toolchain
         run: |
           set -euxo pipefail
           which protoc
           protoc --version
-          echo "PROTOC=$(which protoc)" >> "$GITHUB_ENV"
 
       - name: Build
-        run: cd plugins/edriver && make build
+        run: |
+          export PROTOC=$(which protoc)
+          cd plugins/edriver && make build
         env:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
           TARGET_CC: gcc
 
       - name: Test
-        run: cd plugins/edriver && make test
+        run: |
+          export PROTOC=$(which protoc)
+          cd plugins/edriver && make test
         env:
           PLATFORM: ${{ matrix.arch }}
           LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
