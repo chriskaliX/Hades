@@ -20,10 +20,10 @@ impl AppAccount {
         return true;
     }
 
-    pub fn get_account_info(account_info:&mut Vec<AppAccountInfo>) -> bool {
+    pub fn get_account_info(account_info: &mut Vec<AppAccountInfo>) -> bool {
         let users = Users::new_with_refreshed_list();
         for user in users.list() {
-            let account_ctx = AppAccountInfo{
+            let account_ctx = AppAccountInfo {
                 serveruser: user.name().to_string(),
                 servername: user.name().to_string(),
                 serverusid: user.id().to_string(),
@@ -36,5 +36,4 @@ impl AppAccount {
         }
         return true;
     }
-    
 }

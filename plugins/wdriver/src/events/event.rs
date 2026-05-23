@@ -1,8 +1,6 @@
 pub struct Event;
 
 impl Event {
-
-
     // Handle Message
     pub fn handle_msg_notify() -> bool {
         return true;
@@ -12,5 +10,4 @@ impl Event {
     pub fn waiti_queue_data_dispatch() -> bool {
         return true;
     }
-
 }

@@ -1,4 +1,4 @@
-// account 
+// account
 pub struct AppAccountInfo {
     pub serveruser: String,
     pub servername: String,
@@ -6,7 +6,7 @@ pub struct AppAccountInfo {
     pub serverflag: u32,
 }
 
-// auto start 
+// auto start
 pub struct AppRegRunInfo {
     pub valuename: String,
     pub valuekey: String,
@@ -25,22 +25,22 @@ pub struct AppFileExInfo {
     pub filecreate: String,
     pub filemodify: String,
     pub fileaccess: String,
-    pub fileattributes:String,
+    pub fileattributes: String,
     pub filesize: String,
-    pub fileattributes_hide:String,
+    pub fileattributes_hide: String,
     pub filepath: String,
-    pub filemd5: String
+    pub filemd5: String,
 }
-pub struct AppFileInfo{
+pub struct AppFileInfo {
     pub filesize: u32,
     pub filename: String,
     pub filepath: String,
 }
 pub struct AppDriectInfo {
-    pub directname:  String,
+    pub directname: String,
     pub directsize: u32,
     pub filecount: u32,
-    pub file_array: Vec<AppFileInfo>, 
+    pub file_array: Vec<AppFileInfo>,
 }
 
 // network
@@ -57,9 +57,9 @@ pub struct AppNetWorkInfo {
     pub state: String,
 }
 
-// process 
-pub struct  AppProcessInfo {
-    pub pid : u32,
+// process
+pub struct AppProcessInfo {
+    pub pid: u32,
     pub th32parentprocessid: u32,
     pub exefile: String,
     pub priclassbase: String,
@@ -80,7 +80,7 @@ pub struct AppSoftWareInfo {
 }
 pub struct AppServiceInfo {
     pub displayname: String,
-    pub servicename: String, 
+    pub servicename: String,
     pub binarypath: String,
     pub description: String,
     pub currentstate: String,

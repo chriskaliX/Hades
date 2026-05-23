@@ -1,6 +1,6 @@
 use crate::{
     appcore::app_include::AppRegRunInfo, appcore::app_include::AppTaskSchedulerRunInfo,
-    util::windwos_autostart::App,
+    util::windwos_autostart::{list_task_scheduler, App},
 };
 
 pub struct AppAutoStart {
@@ -46,6 +46,21 @@ impl AppAutoStart {
     }
 
     pub fn get_astart_taskschedu(astart_tasksched: &mut Vec<AppTaskSchedulerRunInfo>) -> bool {
+        let tasks = match list_task_scheduler() {
+            Ok(tasks) => tasks,
+            Err(_) => return false,
+        };
+
+        for task in tasks.into_iter().take(1000) {
+            astart_tasksched.push(AppTaskSchedulerRunInfo {
+                valuename: task.get_name(),
+                state: task.get_state(),
+                lastime: task.get_last_time(),
+                nexttime: task.get_next_time(),
+                taskcommand: task.get_command(),
+            });
+        }
+
         if astart_tasksched.is_empty() {
             return false;
         }

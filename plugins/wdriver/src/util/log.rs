@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use log::LevelFilter;
+use std::path::PathBuf;
 
 pub fn init_log(curr_path: &PathBuf) -> bool {
     let debug_mode = {
@@ -50,7 +50,11 @@ pub fn init_log(curr_path: &PathBuf) -> bool {
     }
 
     log::info!("------------------------------------------------------------------");
-    log::info!("process path:{:?} client version:{}", curr_path, version::version!());
+    log::info!(
+        "process path:{:?} client version:{}",
+        curr_path,
+        version::version!()
+    );
 
     debug_mode
 }

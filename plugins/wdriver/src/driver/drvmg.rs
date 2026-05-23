@@ -1,9 +1,5 @@
 use std::ptr::null_mut;
-use windows::{
-    core::*, 
-    Win32::Foundation::*, 
-    Win32::Storage::FileSystem::*, 
-};
+use windows::{core::*, Win32::Foundation::*, Win32::Storage::FileSystem::*};
 
 pub struct DrivenManageImpl {
     pub handle: HANDLE,
@@ -11,12 +7,13 @@ pub struct DrivenManageImpl {
 
 impl DrivenManageImpl {
     pub fn new() -> Self {
-        Self { handle: HANDLE(null_mut()) }
+        Self {
+            handle: HANDLE(null_mut()),
+        }
     }
 
     // Chekcout Driver Status
     pub fn get_driver_stu(_driver_name: String) -> bool {
-        
         return true;
     }
 
@@ -38,7 +35,7 @@ impl DrivenManageImpl {
                 self.handle = driver_handle;
                 return true;
             } else {
-                let err  = GetLastError();
+                let err = GetLastError();
                 println!("{}", err.to_hresult().0);
                 return false;
             }
@@ -46,18 +43,15 @@ impl DrivenManageImpl {
     }
 
     // Send Data Pop Data
-    pub async  fn send_driver_data(&self, _code: u32, _data: String) -> bool {
-
+    pub async fn send_driver_data(&self, _code: u32, _data: String) -> bool {
         return true;
     }
 
     // Read Data Push Queue
-    pub async fn read_driver_data(&self) {
-
-    }
+    pub async fn read_driver_data(&self) {}
 
     pub fn close_driver_handle(&mut self) {
-        if self.handle.is_invalid(){
+        if self.handle.is_invalid() {
             return;
         }
         unsafe {
@@ -65,5 +59,4 @@ impl DrivenManageImpl {
         }
         self.handle = HANDLE(null_mut());
     }
-
 }

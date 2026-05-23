@@ -3,15 +3,17 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 use wdriver::{
     appcore::{
-        app_account::AppAccount, app_autostart::AppAutoStart, app_net::AppNetwork,
-        app_process::AppProcess, app_service_software::AppServiceSoftWare,
+        app_account::AppAccount, app_autostart::AppAutoStart, app_file::AppFile,
+        app_net::AppNetwork, app_process::AppProcess, app_service_software::AppServiceSoftWare,
+        etw::etw::Etw,
     },
     protocol::{Payload, Record, Task},
-    transport::{unix_timestamp, Client},
+    transport::{unix_timestamp, Client, RecordWriter},
 };
 
 fn main() {
     let mut client = Client::new();
+    let record_writer = client.record_writer();
     loop {
         let task = match client.receive_task() {
             Ok(task) => task,
@@ -19,11 +21,12 @@ fn main() {
         };
 
         if task.data_type == 0 {
+            Etw::stop();
             let _ = send_task_ack(&mut client, &task.token, "success", "");
             break;
         }
 
-        let result = dispatch_task(&mut client, &task);
+        let result = dispatch_task(&mut client, &record_writer, &task);
         match result {
             Ok(count) => {
                 let msg = format!("{} records", count);
@@ -36,13 +39,20 @@ fn main() {
     }
 }
 
-fn dispatch_task(client: &mut Client, task: &Task) -> Result<usize, String> {
+fn dispatch_task(
+    client: &mut Client,
+    record_writer: &RecordWriter,
+    task: &Task,
+) -> Result<usize, String> {
     match task.data_type {
         200 => collect_process(client),
         202 => collect_autostart(client),
         203 => collect_network(client),
         207 => collect_account(client),
         208 => collect_software(client),
+        209 => collect_directory(client, task),
+        210 => collect_file_info(client, task),
+        300..=305 => Etw::start(record_writer.clone()),
         _ => Err(format!("unsupported task {}", task.data_type)),
     }
 }
@@ -72,12 +82,16 @@ fn collect_process(client: &mut Client) -> Result<usize, String> {
 }
 
 fn collect_autostart(client: &mut Client) -> Result<usize, String> {
-    let mut items = Vec::new();
-    if !AppAutoStart::get_astart_register(&mut items) {
+    let mut reg_items = Vec::new();
+    let mut task_items = Vec::new();
+    let reg_ok = AppAutoStart::get_astart_register(&mut reg_items);
+    let task_ok = AppAutoStart::get_astart_taskschedu(&mut task_items);
+    if !reg_ok && !task_ok {
         return Err("autostart collection returned no data".to_string());
     }
+
     let mut count = 0;
-    for item in items {
+    for item in reg_items {
         send_windows_json(
             client,
             202,
@@ -89,6 +103,23 @@ fn collect_autostart(client: &mut Client) -> Result<usize, String> {
         )?;
         count += 1;
     }
+
+    for item in task_items {
+        send_windows_json(
+            client,
+            202,
+            json!({
+                "win_user_autorun_flag": "2",
+                "win_user_autorun_tschname": item.valuename,
+                "win_user_autorun_tscState": item.state.to_string(),
+                "win_user_autorun_tscLastTime": item.lastime.to_string(),
+                "win_user_autorun_tscNextTime": item.nexttime.to_string(),
+                "win_user_autorun_tscCommand": item.taskcommand,
+            }),
+        )?;
+        count += 1;
+    }
+
     Ok(count)
 }
 
@@ -145,11 +176,30 @@ fn collect_account(client: &mut Client) -> Result<usize, String> {
 }
 
 fn collect_software(client: &mut Client) -> Result<usize, String> {
+    let mut service_items = Vec::new();
     let mut items = Vec::new();
-    if !AppServiceSoftWare::get_software_info(&mut items) {
-        return Err("software collection returned no data".to_string());
+    let service_ok = AppServiceSoftWare::get_services_info(&mut service_items);
+    let software_ok = AppServiceSoftWare::get_software_info(&mut items);
+    if !service_ok && !software_ok {
+        return Err("software/service collection returned no data".to_string());
     }
+
     let mut count = 0;
+    for item in service_items {
+        send_windows_json(
+            client,
+            208,
+            json!({
+                "win_user_softwareserver_flag": "1",
+                "win_user_server_lpsName": item.servicename,
+                "win_user_server_lpdName": item.displayname,
+                "win_user_server_lpPath": item.binarypath,
+                "win_user_server_lpDescr": item.description,
+                "win_user_server_status": item.currentstate,
+            }),
+        )?;
+        count += 1;
+    }
     for item in items {
         send_windows_json(
             client,
@@ -168,6 +218,76 @@ fn collect_software(client: &mut Client) -> Result<usize, String> {
         count += 1;
     }
     Ok(count)
+}
+
+fn collect_directory(client: &mut Client, task: &Task) -> Result<usize, String> {
+    let path = task_path(task)?;
+    let item = AppFile::get_directory_info(&path)
+        .ok_or_else(|| "directory collection returned no data".to_string())?;
+
+    send_windows_json(
+        client,
+        209,
+        json!({
+            "win_user_driectinfo_flag": "1",
+            "win_user_driectinfo_filecout": item.filecount.to_string(),
+            "win_user_driectinfo_size": item.directsize.to_string(),
+        }),
+    )?;
+
+    let mut count = 1;
+    for file in item.file_array {
+        send_windows_json(
+            client,
+            209,
+            json!({
+                "win_user_driectinfo_flag": "2",
+                "win_user_driectinfo_filename": file.filename,
+                "win_user_driectinfo_filePath": file.filepath,
+                "win_user_driectinfo_fileSize": file.filesize.to_string(),
+            }),
+        )?;
+        count += 1;
+    }
+
+    Ok(count)
+}
+
+fn collect_file_info(client: &mut Client, task: &Task) -> Result<usize, String> {
+    let path = task_path(task)?;
+    let item = AppFile::get_file_info(&path)
+        .ok_or_else(|| "file collection returned no data".to_string())?;
+
+    send_windows_json(
+        client,
+        210,
+        json!({
+            "win_user_fileinfo_filename": item.filename,
+            "win_user_fileinfo_dwFileAttributes": item.fileattributes,
+            "win_user_fileinfo_dwFileAttributesHide": item.fileattributes_hide,
+            "win_user_fileinfo_md5": item.filemd5,
+            "win_user_fileinfo_m_seFileSizeof": item.filesize,
+            "win_user_fileinfo_seFileAccess": item.fileaccess,
+            "win_user_fileinfo_seFileCreate": item.filecreate,
+            "win_user_fileinfo_seFileModify": item.filemodify,
+        }),
+    )?;
+
+    Ok(1)
+}
+
+fn task_path(task: &Task) -> Result<String, String> {
+    let path = if task.data.is_empty() {
+        task.object_name.trim()
+    } else {
+        task.data.trim()
+    };
+
+    if path.is_empty() {
+        return Err("task path is empty".to_string());
+    }
+
+    Ok(path.to_string())
 }
 
 fn send_windows_json(client: &mut Client, data_type: i32, value: Value) -> Result<(), String> {
