@@ -1,6 +1,4 @@
-use std::borrow::Cow;
 use std::error::Error;
-use std::fmt::Debug;
 use winreg::enums::*;
 use winreg::reg_key::RegKey;
 use winreg::reg_value::RegValue;

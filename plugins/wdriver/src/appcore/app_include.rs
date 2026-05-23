@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 // account 
 pub struct AppAccountInfo {
     pub serveruser: String,
@@ -87,4 +85,3 @@ pub struct AppServiceInfo {
     pub description: String,
     pub currentstate: String,
 }
-

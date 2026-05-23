@@ -4,8 +4,8 @@ use crate::{
 };
 
 pub struct AppServiceSoftWare {
-    services_info: Vec<AppServiceInfo>,
-    software_info: Vec<AppSoftWareInfo>,
+    pub services_info: Vec<AppServiceInfo>,
+    pub software_info: Vec<AppSoftWareInfo>,
 }
 
 impl AppServiceSoftWare {
@@ -37,12 +37,11 @@ impl AppServiceSoftWare {
             Err(_) => return false,
         };
         for app in apps {
-            let mut installpath = "".to_string();
-            if app.install_path().is_empty() {
-                installpath = app.installlocal_path().into_owned();
+            let installpath = if app.install_path().is_empty() {
+                app.installlocal_path().into_owned()
             } else {
-                installpath = app.install_path().into_owned();
-            }
+                app.install_path().into_owned()
+            };
             let software_ctx = AppSoftWareInfo {
                 name: app.name().into_owned(),
                 version: app.version().into_owned(),

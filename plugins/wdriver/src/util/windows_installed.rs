@@ -36,40 +36,40 @@ impl AppList {
     }
 }
 impl App {
-    fn get_value(&self, name: &str) -> Cow<str> {
+    fn get_value(&self, name: &str) -> Cow<'_, str> {
         self.reg
             .get_value::<String, &str>(name)
             .map(Cow::Owned)
             .unwrap_or_else(|_| Cow::Borrowed(""))
     }
-    pub fn name(&self) -> Cow<str> {
+    pub fn name(&self) -> Cow<'_, str> {
         self.get_value("DisplayName")
     }
-    pub fn icon(&self) -> Cow<str> {
+    pub fn icon(&self) -> Cow<'_, str> {
         self.get_value("DisplayIcon")
     }
-    pub fn publisher(&self) -> Cow<str> {
+    pub fn publisher(&self) -> Cow<'_, str> {
         self.get_value("Publisher")
     }
-    pub fn version(&self) -> Cow<str> {
+    pub fn version(&self) -> Cow<'_, str> {
         self.get_value("DisplayVersion")
     }
-    pub fn size(&self) -> Cow<str> {
+    pub fn size(&self) -> Cow<'_, str> {
         self.get_value("Size")
     }
-    pub fn helplink(&self) -> Cow<str> {
+    pub fn helplink(&self) -> Cow<'_, str> {
         self.get_value("HelpLink")
     }
-    pub fn install_path(&self) -> Cow<str> {
+    pub fn install_path(&self) -> Cow<'_, str> {
         self.get_value("InstallLocation")
     }
-    pub fn installlocal_path(&self) -> Cow<str> {
+    pub fn installlocal_path(&self) -> Cow<'_, str> {
         self.get_value("InstallLocation")
     }
-    pub fn uninstall_path(&self) -> Cow<str> {
+    pub fn uninstall_path(&self) -> Cow<'_, str> {
         self.get_value("UninstallString")
     }
-    pub fn dump(&self) -> Cow<str> {
+    pub fn dump(&self) -> Cow<'_, str> {
         self.reg
             .enum_values()
             .map(|r| {

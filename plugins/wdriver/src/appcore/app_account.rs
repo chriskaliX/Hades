@@ -1,6 +1,6 @@
 use sysinfo::Users;
 
-use crate::{appcore::app_include::AppAccountInfo};
+use crate::appcore::app_include::AppAccountInfo;
 
 pub struct AppAccount {
     pub account_info: Vec<AppAccountInfo>,
@@ -9,8 +9,8 @@ pub struct AppAccount {
 impl AppAccount {
     pub fn init() -> bool {
         let mut account_info: Vec<AppAccountInfo> = vec![];
-        let bOk = Self::get_account_info(&mut account_info);
-        if false == bOk {
+        let b_ok = Self::get_account_info(&mut account_info);
+        if false == b_ok {
             return false;
         }
 

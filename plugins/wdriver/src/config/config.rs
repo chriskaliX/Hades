@@ -1,42 +1,31 @@
 extern crate yaml_rust;
-use napi_derive::napi;
-use napi::threadsafe_function::ThreadsafeFunction;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    io::Read,
-    path::PathBuf,
-    ptr::null,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
-use yaml_rust::{YamlEmitter, YamlLoader};
+use std::{fs, path::PathBuf, ptr::null};
+use yaml_rust::YamlLoader;
 
 use crate::{util::log::init_log};
 
 pub struct RuleImpl {
     // dns
-    rule_dns: Vec<RuleDns>,
+    pub rule_dns: Vec<RuleDns>,
 
     // redirect
-    rule_redirect: Vec<RuleRediRect>,
+    pub rule_redirect: Vec<RuleRediRect>,
 
     // transport
-    rule_transport: Vec<RuleTranSport>,
+    pub rule_transport: Vec<RuleTranSport>,
 
     // directory
-    rule_directory: Vec<RuleDirectory>,
+    pub rule_directory: Vec<RuleDirectory>,
 
     // process
-    rule_process: RuleProcess,
+    pub rule_process: RuleProcess,
 
     // thread
-    rule_thread: RuleThread,
+    pub rule_thread: RuleThread,
 
     // register
-    rule_register: Vec<RuleResgiter>,
+    pub rule_register: Vec<RuleResgiter>,
 }
 
 impl RuleImpl {
@@ -180,7 +169,7 @@ impl RuleImpl {
     }
 
     // Analyze dns rule
-    pub fn get_dns_rule(file_path: String, _data: &mut String,  rule_dns: &mut Vec<RuleDns>) -> bool {
+    pub fn get_dns_rule(file_path: String, _data: &mut String,  _rule_dns: &mut Vec<RuleDns>) -> bool {
         if file_path.is_empty() {
             return false;
         }
@@ -217,7 +206,7 @@ impl RuleImpl {
     }
 
     // Analyze Redirect rule
-    pub fn get_redirect_rule(file_path: String, _data: &mut String, rule_redirect: &mut Vec<RuleRediRect>) -> bool {
+    pub fn get_redirect_rule(file_path: String, _data: &mut String, _rule_redirect: &mut Vec<RuleRediRect>) -> bool {
         if file_path.is_empty() {
             return false;
         }
@@ -238,7 +227,7 @@ impl RuleImpl {
     }
 
     // Analyze transport layer rule
-    pub fn get_transport_rule(file_path: String, _data: &mut String, rule_transport: &mut Vec<RuleTranSport>) -> bool {
+    pub fn get_transport_rule(file_path: String, _data: &mut String, _rule_transport: &mut Vec<RuleTranSport>) -> bool {
         if file_path.is_empty() {
             return false;
         }
@@ -417,4 +406,3 @@ pub struct RuleResgiter {
     #[serde(rename = "permissions")]
     pub register_permiss: String,
 }
-

@@ -9,8 +9,8 @@ pub struct AppProcess {
 impl AppProcess {
     pub fn init() -> bool {
         let mut process_info: Vec<AppProcessInfo> = vec![];
-        let bOk = Self::get_process_info(&mut process_info);
-        if false == bOk {
+        let b_ok = Self::get_process_info(&mut process_info);
+        if false == b_ok {
             return false;
         }
 

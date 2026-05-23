@@ -1,12 +1,12 @@
 pub struct AppSysInfo {
-    cpu: String,
-    name: String,
-    os_version: String,
-    display_card: Vec<String>,
-    camera: Vec<String>,
-    bluetooth: Vec<String>,
-    voice: Vec<String>,
-    microphone: Vec<String>
+    pub cpu: String,
+    pub name: String,
+    pub os_version: String,
+    pub display_card: Vec<String>,
+    pub camera: Vec<String>,
+    pub bluetooth: Vec<String>,
+    pub voice: Vec<String>,
+    pub microphone: Vec<String>
 }
 
 impl AppSysInfo {

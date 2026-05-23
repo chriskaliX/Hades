@@ -1,9 +1,7 @@
-use std::{fs, io::Read, path::PathBuf, ptr::{null, null_mut}, result};
+use std::ptr::null_mut;
 use windows::{
     core::*, 
-    Win32::System::IO::*,
     Win32::Foundation::*, 
-    Win32::System::Threading::*,
     Win32::Storage::FileSystem::*, 
 };
 
@@ -17,7 +15,7 @@ impl DrivenManageImpl {
     }
 
     // Chekcout Driver Status
-    pub fn get_driver_stu(driver_name: String) -> bool {
+    pub fn get_driver_stu(_driver_name: String) -> bool {
         
         return true;
     }

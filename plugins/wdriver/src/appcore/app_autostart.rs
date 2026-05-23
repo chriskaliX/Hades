@@ -4,8 +4,8 @@ use crate::{
 };
 
 pub struct AppAutoStart {
-    astart_register: Vec<AppRegRunInfo>,
-    astart_tasksched: Vec<AppTaskSchedulerRunInfo>,
+    pub astart_register: Vec<AppRegRunInfo>,
+    pub astart_tasksched: Vec<AppTaskSchedulerRunInfo>,
 }
 
 impl AppAutoStart {

@@ -1,11 +1,3 @@
-use windows::{
-    Win32::Foundation::*, 
-    Win32::System::Threading::*,
-    Win32::System::Services::*,
-};
-
-use std::ptr::{null_mut};
-
 pub struct Service;
 
 impl Service {

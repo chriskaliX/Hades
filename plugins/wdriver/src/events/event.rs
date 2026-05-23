@@ -4,7 +4,7 @@ impl Event {
 
 
     // Handle Message
-    fn handle_msg_notify() -> bool {
+    pub fn handle_msg_notify() -> bool {
         return true;
     }
 
