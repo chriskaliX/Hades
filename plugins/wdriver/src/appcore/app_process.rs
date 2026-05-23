@@ -1,6 +1,6 @@
 use sysinfo::*;
 
-use crate::{appcore::app_include::AppProcessInfo};
+use crate::appcore::app_include::AppProcessInfo;
 
 pub struct AppProcess {
     pub process_info: Vec<AppProcessInfo>,
@@ -20,26 +20,23 @@ impl AppProcess {
         return true;
     }
 
-    pub fn get_process_info(process_info:&mut Vec<AppProcessInfo>) -> bool {
+    pub fn get_process_info(process_info: &mut Vec<AppProcessInfo>) -> bool {
         let mut sysinfo = System::new_all();
         sysinfo.refresh_processes(ProcessesToUpdate::All, true);
 
         for (pid, process) in sysinfo.processes() {
-            let mut cmdline  = "".to_string();
+            let mut cmdline = "".to_string();
             for s in process.cmd() {
                 if s.is_empty() {
                     continue;
                 }
-                cmdline.push_str(s.clone().into_string().unwrap().as_str());
+                cmdline.push_str(s.to_string_lossy().as_ref());
                 cmdline.push_str("|");
             }
-            let process_ctx = AppProcessInfo{
+            let process_ctx = AppProcessInfo {
                 pid: pid.as_u32(),
-                th32parentprocessid: match process.parent() {
-                    Some(_) => { process.parent().unwrap().as_u32() },
-                    None => { 0 },
-                },
-                exefile: process.name().to_os_string().into_string().unwrap(),
+                th32parentprocessid: process.parent().map(|pid| pid.as_u32()).unwrap_or(0),
+                exefile: process.name().to_string_lossy().into_owned(),
                 priclassbase: process.status().to_string(),
                 threadcount: 0,
                 processfullpath: cmdline,
@@ -52,5 +49,4 @@ impl AppProcess {
         }
         return true;
     }
-    
 }

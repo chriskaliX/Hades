@@ -1,5 +1,7 @@
-
-use crate::{util::windwos_autostart::App, appcore::app_include::AppRegRunInfo, appcore::app_include::AppTaskSchedulerRunInfo};
+use crate::{
+    appcore::app_include::AppRegRunInfo, appcore::app_include::AppTaskSchedulerRunInfo,
+    util::windwos_autostart::App,
+};
 
 pub struct AppAutoStart {
     astart_register: Vec<AppRegRunInfo>,
@@ -7,11 +9,10 @@ pub struct AppAutoStart {
 }
 
 impl AppAutoStart {
-
     pub fn init() -> bool {
         let mut astart_register: Vec<AppRegRunInfo> = vec![];
         let mut astart_tasksched: Vec<AppTaskSchedulerRunInfo> = vec![];
-        
+
         let _ = Self::get_astart_register(&mut astart_register);
         let _ = Self::get_astart_taskschedu(&mut astart_tasksched);
 
@@ -26,8 +27,11 @@ impl AppAutoStart {
         return true;
     }
 
-    pub fn get_astart_register(astart_register:&mut Vec<AppRegRunInfo>) -> bool {
-        let apps = App::list().unwrap();
+    pub fn get_astart_register(astart_register: &mut Vec<AppRegRunInfo>) -> bool {
+        let apps = match App::list() {
+            Ok(apps) => apps,
+            Err(_) => return false,
+        };
         for app in apps {
             let regrun_ctx = AppRegRunInfo {
                 valuename: app.get_key(),
@@ -41,12 +45,10 @@ impl AppAutoStart {
         return true;
     }
 
-    pub fn get_astart_taskschedu(astart_tasksched:&mut Vec<AppTaskSchedulerRunInfo>) -> bool {
-        
+    pub fn get_astart_taskschedu(astart_tasksched: &mut Vec<AppTaskSchedulerRunInfo>) -> bool {
         if astart_tasksched.is_empty() {
             return false;
         }
         return true;
     }
-
 }

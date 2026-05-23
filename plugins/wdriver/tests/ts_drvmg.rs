@@ -1,4 +1,4 @@
-use wdriver_rs::driver::drvmg::*;
+use wdriver::driver::drvmg::*;
 
 #[test]
 // 驱动启动状态

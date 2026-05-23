@@ -39,6 +39,7 @@ Declaration: This project is based on [Tracee](https://github.com/aquasecurity/t
 - [EDriver](https://github.com/chriskaliX/Hades/tree/main/plugins/edriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
 - [Eguard](https://github.com/chriskaliX/Hades/tree/main/plugins/eguard)
+- [WDriver](https://github.com/chriskaliX/Hades/tree/main/plugins/wdriver)
 - [NCP](https://github.com/chriskaliX/Hades/tree/main/plugins/ncp)
 - Scanner
 - Logger

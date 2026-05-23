@@ -1,15 +1,13 @@
-use std::ops::Deref;
-
+use crate::appcore::app_include::AppNetWorkInfo;
 use netstat2::*;
 use sysinfo::*;
-use crate::{appcore::app_include::AppNetWorkInfo};
 
 pub struct AppNetwork {
     pub network_info: Vec<AppNetWorkInfo>,
 }
 
 impl AppNetwork {
-    pub fn init() -> bool{
+    pub fn init() -> bool {
         let mut network_info: Vec<AppNetWorkInfo> = vec![];
         let bok = Self::get_socket_info(&mut network_info);
         if false == bok {
@@ -22,7 +20,7 @@ impl AppNetwork {
         return true;
     }
 
-    pub fn get_socket_info(network_info:&mut Vec<AppNetWorkInfo>) -> bool{
+    pub fn get_socket_info(network_info: &mut Vec<AppNetWorkInfo>) -> bool {
         let af_flags: AddressFamilyFlags = AddressFamilyFlags::all();
         let proto_flags: ProtocolFlags = ProtocolFlags::all();
         let sockets_info = get_sockets_info(af_flags, proto_flags);
@@ -36,27 +34,35 @@ impl AppNetwork {
             for si in sockets_info {
                 let proc_info = si
                     .associated_pids
-                    .into_iter()
-                    .find_map(|pid| sysinfo.process(Pid::from_u32(pid))).unwrap();
-                    // .map(|p| ProcessInfo::new(&p.name().to_string_lossy(), p.pid().as_u32()))
-                    // .unwrap_or_default();
-                let mut cmdline  = "".to_string();
-                for s in proc_info.cmd() {
-                    if s.is_empty() {
-                        continue;
+                    .iter()
+                    .find_map(|pid| sysinfo.process(Pid::from_u32(*pid)));
+                let pid = proc_info
+                    .map(|process| process.pid().as_u32())
+                    .or_else(|| si.associated_pids.first().copied())
+                    .unwrap_or(0);
+                let parent_pid = proc_info
+                    .and_then(|process| process.parent())
+                    .map(|pid| pid.as_u32())
+                    .unwrap_or(0);
+                let process_name = proc_info
+                    .map(|process| process.name().to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let mut cmdline = "".to_string();
+                if let Some(proc_info) = proc_info {
+                    for s in proc_info.cmd() {
+                        if s.is_empty() {
+                            continue;
+                        }
+                        cmdline.push_str(s.to_string_lossy().as_ref());
+                        cmdline.push_str("|");
                     }
-                    cmdline.push_str(s.clone().into_string().unwrap().as_str());
-                    cmdline.push_str("|");
                 }
                 match si.protocol_socket_info {
                     ProtocolSocketInfo::Tcp(tcp_si) => {
                         let network_ctx: AppNetWorkInfo = AppNetWorkInfo {
-                            pid: proc_info.pid().as_u32(),
-                            th32parentprocessid: match proc_info.parent() {
-                                Some(_) => { proc_info.parent().unwrap().as_u32() },
-                                None => { 0 },
-                            },
-                            processname: proc_info.name().to_os_string().into_string().unwrap(),
+                            pid,
+                            th32parentprocessid: parent_pid,
+                            processname: process_name.clone(),
                             cmd: cmdline,
                             protocol: "TCP".to_string(),
                             localaddress: tcp_si.local_addr.to_string(),
@@ -69,13 +75,10 @@ impl AppNetwork {
                     }
                     ProtocolSocketInfo::Udp(udp_si) => {
                         let network_ctx: AppNetWorkInfo = AppNetWorkInfo {
-                            pid: proc_info.pid().as_u32(),
-                            th32parentprocessid: match proc_info.parent() {
-                                Some(_) => { proc_info.parent().unwrap().as_u32() },
-                                None => { 0 },
-                            },
-                            processname: proc_info.name().to_os_string().into_string().unwrap(),
-                            cmd: "".to_string(),
+                            pid,
+                            th32parentprocessid: parent_pid,
+                            processname: process_name.clone(),
+                            cmd: cmdline,
                             protocol: "UDP".to_string(),
                             localaddress: udp_si.local_addr.to_string(),
                             remoteaddress: "".to_string(),
@@ -94,5 +97,4 @@ impl AppNetwork {
         }
         return true;
     }
-    
 }

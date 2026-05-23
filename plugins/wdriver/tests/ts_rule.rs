@@ -14,7 +14,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-use wdriver_rs::config::config::*;
+use wdriver::config::config::*;
 
 #[test]
 pub fn unit_get_dns_rule() {

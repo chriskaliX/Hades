@@ -1,9 +1,9 @@
-use wdriver_rs::appcore::app_account;
-use wdriver_rs::appcore::app_autostart;
-use wdriver_rs::appcore::app_include;
-use wdriver_rs::appcore::app_net;
-use wdriver_rs::appcore::app_process;
-use wdriver_rs::appcore::app_service_software;
+use wdriver::appcore::app_account;
+use wdriver::appcore::app_autostart;
+use wdriver::appcore::app_include;
+use wdriver::appcore::app_net;
+use wdriver::appcore::app_process;
+use wdriver::appcore::app_service_software;
 
 #[test]
 pub fn unit_test_account() {

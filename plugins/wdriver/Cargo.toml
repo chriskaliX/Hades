@@ -1,5 +1,5 @@
 [package]
-name = "wdriver_rs"
+name = "wdriver"
 version = "24.12.4"
 edition = "2021"
 
@@ -13,6 +13,7 @@ yaml-rust = "0.4"
 fast_log = "1.5.51"
 serde = { version = "1.0.211", features = ["derive"] }
 serde_json = "1.0.132"
+prost = "0.13"
 napi = { version = "2.16.12", default-features = false, features = ["napi4", "serde-json", "tokio_rt"] }
 napi-derive = "2.16.12"
 tokio = { version = "1.40.0", features = ["rt-multi-thread", "sync", "io-util", "time", "process", "macros", "rt", "fs", "net"] }
