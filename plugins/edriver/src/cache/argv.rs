@@ -39,7 +39,10 @@ impl ArgvCache {
                 *b = b' ';
             }
         }
-        let offset = file.iter().rposition(|x| !x.is_ascii_whitespace()).unwrap_or_default();
+        let offset = file
+            .iter()
+            .rposition(|x| !x.is_ascii_whitespace())
+            .unwrap_or_default();
         file.truncate(offset + 1);
         let cmdline = String::from_utf8(file).unwrap_or_default();
         self.put(pid, cmdline.clone());

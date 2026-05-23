@@ -21,7 +21,7 @@ pub fn parse_inode_create(data: &[u8], _trans: &mut Transformer) -> Result<Optio
     m.insert("exe".into(), dec.string()?);
     m.insert("filename".into(), dec.string()?);
     let _family_raw = dec.string()?; // void*-encoded u16, not usable as integer
-    let _sinfo_raw  = dec.string()?; // void*-encoded struct, not usable as socket info
+    let _sinfo_raw = dec.string()?; // void*-encoded struct, not usable as socket info
     Ok(Some(m))
 }
 

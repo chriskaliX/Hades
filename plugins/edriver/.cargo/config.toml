@@ -1,14 +1,22 @@
 [env]
-LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
-LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
+LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_gnu  = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
+LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
+LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl  = "/usr/lib/x86_64-linux-musl:/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
+LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-musl:/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
+# libbpf-sys compiles libbpf C sources using the native gcc.
+# For musl targets, we must use musl-gcc so libbpf C code is compiled against
+# musl headers (not glibc headers). With glibc headers, _FORTIFY_SOURCE
+# injects __snprintf_chk/__sprintf_chk/__realpath_chk etc., which musl doesn't
+# provide. musl-gcc wraps gcc with the musl specs (-specs .../musl-gcc.specs)
+# and points include paths to musl headers.
+CC_x86_64_unknown_linux_musl  = "musl-gcc"
+CC_aarch64_unknown_linux_musl = "musl-gcc"
 
+# vendored-libelf builds elfutils --without-zstd; no zstd dependency anywhere.
 [target.x86_64-unknown-linux-musl]
-linker = "x86_64-linux-musl-gcc"
+linker = "musl-gcc"
 rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.aarch64-unknown-linux-musl]
-linker = "aarch64-linux-musl-gcc"
+linker = "musl-gcc"
 rustflags = ["-C", "target-feature=+crt-static"]
-
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"

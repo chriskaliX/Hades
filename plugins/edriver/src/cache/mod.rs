@@ -9,11 +9,7 @@ use moka::sync::Cache;
 use std::time::Duration;
 
 use self::{
-    argv::ArgvCache,
-    hash::HashCache,
-    ksym::KsymCache,
-    module_scan::ModuleScanCache,
-    ns::NsCache,
+    argv::ArgvCache, hash::HashCache, ksym::KsymCache, module_scan::ModuleScanCache, ns::NsCache,
     user::UserCache,
 };
 

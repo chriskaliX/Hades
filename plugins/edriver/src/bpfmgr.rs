@@ -63,18 +63,9 @@ impl Bpfmanager {
         // to bash.  None have a binary-path in the SEC annotation, so libbpf
         // cannot auto-attach them; they are either attached manually later or
         // skipped on kernels where the target is not present.
-        open_skel
-            .progs
-            .trigger_sct_scan
-            .set_autoload(false);
-        open_skel
-            .progs
-            .trigger_module_scan
-            .set_autoload(false);
-        open_skel
-            .progs
-            .uretprobe_bash_readline
-            .set_autoload(false);
+        open_skel.progs.trigger_sct_scan.set_autoload(false);
+        open_skel.progs.trigger_module_scan.set_autoload(false);
+        open_skel.progs.uretprobe_bash_readline.set_autoload(false);
 
         let mut skel = open_skel.load().context("Load skel failed")?;
 
@@ -86,11 +77,7 @@ impl Bpfmanager {
         let val: u32 = 0;
         skel.maps
             .pid_filter
-            .update(
-                &my_pid.to_ne_bytes(),
-                &val.to_ne_bytes(),
-                MapFlags::ANY,
-            )
+            .update(&my_pid.to_ne_bytes(), &val.to_ne_bytes(), MapFlags::ANY)
             .context("Failed to add self to pid_filter")?;
 
         let mut trans = Transformer::new();
