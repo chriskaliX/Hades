@@ -74,6 +74,16 @@ jobs:
           # .cargo/config.toml adds -lzstd via [build].rustflags (host build-script)
           # and [target.*-musl].rustflags -Wl,-Bstatic,-lzstd,-Bdynamic (final binary).
           sudo apt-get install -y --no-install-recommends pkgconf libelf-dev libzstd-dev
+          # linux-headers: libbpf-rs default feature is vendored-libbpf, which
+          # compiles libbpf C code from source via musl-gcc.  musl-gcc uses
+          # -nostdinc and only searches /usr/include/<arch>-linux-musl, so
+          # asm/unistd.h and asm/types.h must be available there.
+          # linux-libc-dev provides /usr/include/<arch>-linux-gnu/asm; we
+          # symlink it into the musl include tree (same layout as a typical
+          # local Ubuntu install).
+          sudo apt-get install -y --no-install-recommends linux-libc-dev
+          sudo ln -sf /usr/include/$(uname -m)-linux-gnu/asm \
+            /usr/include/$(uname -m)-linux-musl/asm
           # BPF compilation toolchain
           sudo apt-get install -y --no-install-recommends clang llvm
           # build-essential occasionally conflicts on ARM via linux-libc-dev.
