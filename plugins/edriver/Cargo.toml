@@ -25,14 +25,23 @@ lazy_static = "1.5.0"
 twox-hash = "2.1"
 hex = "0.4"
 libbpf-rs = { version = "0.26.2", features = ["static"] }
+# Add vendored-zlib directly so libbpf-sys compiles zlib from its vendored
+# source (using CC_x86_64_unknown_linux_musl=musl-gcc set in .cargo/config.toml)
+# instead of linking the system libz.a.  The system libz.a on Ubuntu is
+# compiled with glibc headers (_FORTIFY_SOURCE=2), which generates
+# __snprintf_chk / __vsnprintf_chk calls that musl doesn't provide.
+# Compiling zlib from source with musl-gcc uses musl headers and avoids these.
+libbpf-sys = { version = "1.7", features = ["vendored-zlib"] }
 bitflags = "2.11.1"
 moka = { version = "0.12", features = ["sync"] }
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
 libbpf-cargo = "0.26.2"
-# Resolver 2 splits feature sets for [dependencies] and [build-dependencies].
-# libbpf-cargo → libbpf-sys is compiled for the HOST and also links the
-# system libelf.a (USE_ZSTD on Ubuntu 24.04+). We pin `static` here so that
-# `-lzstd` from [build].rustflags in .cargo/config.toml resolves those refs.
-libbpf-sys = { version = "1.7", features = ["static"] }
+# NOTE: Do NOT add libbpf-sys with features=["static"] here.
+# libbpf-cargo depends on libbpf-rs (default-features=false) → libbpf-sys
+# (no static). If we pin static here, the HOST build-script binary links
+# system libelf.a which on Ubuntu 24.04+ is compiled with USE_ZSTD and
+# references ZSTD_* symbols that libbpf-sys never emits as link-lib.
+# The static feature is only needed for the final binary, which is covered
+# by [dependencies] libbpf-rs/static → libbpf-sys/static.

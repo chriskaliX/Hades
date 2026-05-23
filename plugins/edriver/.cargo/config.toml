@@ -1,12 +1,16 @@
 [env]
 LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_gnu  = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
 LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
-LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl  = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
-LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
+LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_musl  = "/usr/lib/x86_64-linux-musl:/usr/lib/x86_64-linux-gnu:/usr/lib64:/usr/lib"
+LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_musl = "/usr/lib/aarch64-linux-musl:/usr/lib/aarch64-linux-gnu:/usr/lib64:/usr/lib"
 # libbpf-sys compiles libbpf C sources using the native gcc.
-# musl-gcc is only needed for the final Rust link step (set via [target.*].linker below).
-CC_x86_64_unknown_linux_musl  = "gcc"
-CC_aarch64_unknown_linux_musl = "gcc"
+# For musl targets, we must use musl-gcc so libbpf C code is compiled against
+# musl headers (not glibc headers). With glibc headers, _FORTIFY_SOURCE
+# injects __snprintf_chk/__sprintf_chk/__realpath_chk etc., which musl doesn't
+# provide. musl-gcc wraps gcc with the musl specs (-specs .../musl-gcc.specs)
+# and points include paths to musl headers.
+CC_x86_64_unknown_linux_musl  = "musl-gcc"
+CC_aarch64_unknown_linux_musl = "musl-gcc"
 
 # libbpf-sys/static links the system libelf.a.  On Ubuntu 24.04+ that libelf.a
 # is compiled with USE_ZSTD, referencing ZSTD_* symbols that libbpf-sys never
