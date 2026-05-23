@@ -38,6 +38,7 @@ sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
 libbpf-cargo = "0.26.2"
+cc = "1"
 # NOTE: Do NOT add libbpf-sys with features=["static"] here.
 # libbpf-cargo depends on libbpf-rs (default-features=false) → libbpf-sys
 # (no static). If we pin static here, the HOST build-script binary links
