@@ -7,44 +7,69 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: "Release agent / ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          submodules: recursive
+          targets: ${{ matrix.target }}
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry & build
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             agent/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('agent/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: build-${{ matrix.target }}-${{ hashFiles('agent/Cargo.lock') }}
+          restore-keys: build-${{ matrix.target }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-deb
+            ~/.cargo/bin/cargo-generate-rpm
+          key: cargo-pkg-tools-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends protobuf-compiler musl-tools
 
       - name: Install packaging tools
-        run: cargo install cargo-deb cargo-generate-rpm
+        run: |
+          command -v cargo-deb          || cargo install cargo-deb
+          command -v cargo-generate-rpm || cargo install cargo-generate-rpm
 
       - name: Extract version from tag
-        run: |
-          TAG=${GITHUB_REF#refs/tags/agent-v}
-          echo "BUILD_VERSION=${TAG}" >> $GITHUB_ENV
+        run: echo "BUILD_VERSION=${GITHUB_REF#refs/tags/agent-v}" >> $GITHUB_ENV
 
-      - name: Build .deb
-        run: cd agent/deploy && make deb
+      - name: Build and package
+        run: make -C agent package-musl TARGET=${{ matrix.target }}
 
-      - name: Build .rpm
-        run: cd agent/deploy && make rpm
-
-      - name: Upload packages
+      - name: Upload .deb
         uses: actions/upload-artifact@v4
         with:
-          name: hades-agent-packages
-          path: /tmp/hades-agent*
+          name: hades-agent-deb-${{ matrix.arch }}
+          path: /tmp/hades-agent_*.deb
+          retention-days: 7
+
+      - name: Upload .rpm
+        uses: actions/upload-artifact@v4
+        with:
+          name: hades-agent-rpm-${{ matrix.arch }}
+          path: /tmp/hades-agent-*.rpm
           retention-days: 7
 
   release:
@@ -52,12 +77,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download packages
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: hades-agent-packages
           path: /tmp/packages
 
       - name: Create GitHub release
@@ -66,6 +88,6 @@ jobs:
           draft: true
           prerelease: false
           name: Release ${{ github.ref_name }}
-          files: /tmp/packages/*
+          files: /tmp/packages/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
