@@ -4,6 +4,8 @@
 
 <div align=center>
 <img src="https://github.com/chriskaliX/Hades/actions/workflows/ci-edriver.yaml/badge.svg"/>
+<img src="https://github.com/chriskaliX/Hades/actions/workflows/ci-collector.yaml/badge.svg"/>
+<img src="https://github.com/chriskaliX/Hades/actions/workflows/ci-agent.yaml/badge.svg"/>
 </div>
 
 # Hades - eBPF based HIDS
