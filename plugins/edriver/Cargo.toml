@@ -38,6 +38,7 @@ libbpf-rs = { version = "0.26.2", features = ["static"] }
 libbpf-sys = { version = "1.7", features = ["vendored-zlib"] }
 bitflags = "2.11.1"
 moka = { version = "0.12", features = ["sync"] }
+coarsetime = "0.1"
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]

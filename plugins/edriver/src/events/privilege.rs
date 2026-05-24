@@ -9,7 +9,7 @@ use super::common::{Decoder, Fields};
 
 pub fn parse_commit_creds(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
     m.insert("pid".into(), dec.u32()?.to_string());
     m.insert("tgid".into(), dec.u32()?.to_string());
     m.insert("comm".into(), dec.string()?);

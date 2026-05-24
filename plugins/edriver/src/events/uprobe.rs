@@ -9,7 +9,7 @@ use super::common::{Decoder, Fields};
 
 pub fn parse_bash_readline(data: &[u8], trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
 
     // EVT_SUBMIT field order: pid, tgid, comm, exe, line, tty_path, stdin_path,
     // stdout_path, family(u16), sinfo(hds_socket_info=16 bytes raw), pidtree, pwd_path.

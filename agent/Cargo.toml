@@ -93,6 +93,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow        = "1"
 async-stream  = "0.3"
+coarsetime    = "0.1"
 flate2        = "1"
 hex           = "0.4"
 libc          = "0.2"

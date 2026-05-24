@@ -199,8 +199,13 @@ fn cpu_info() -> (usize, usize, String, String) {
         "0.0".to_owned()
     };
 
+    // "model name" exists on x86; ARM may use "Processor" or "Hardware"
     let model_name = info.cpus.first()
-        .and_then(|cpu| cpu.get("model name"))
+        .and_then(|cpu| {
+            cpu.get("model name")
+                .or_else(|| cpu.get("Processor"))
+                .or_else(|| cpu.get("Hardware"))
+        })
         .map(|s| s.trim().to_owned())
         .unwrap_or_default();
 

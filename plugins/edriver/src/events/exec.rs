@@ -18,7 +18,7 @@ use super::common::{Decoder, Fields, EDEFAULT};
 // in userspace after the event is parsed.
 pub fn parse_execve(data: &[u8], trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut fields = Fields::new();
+    let mut fields = Fields::with_capacity(32);
 
     let pid = dec.u32()?;
     let tgid = dec.u32()?;

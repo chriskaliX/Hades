@@ -47,14 +47,15 @@ impl Server {
     ///
     /// - `agent_rx` — read end of the record pipe (child writes here)
     /// - `agent_tx` — write end of the task pipe (child reads from here)
-    /// - `on_record` — called from the read thread for each received frame
+    /// - `on_record` — called from the read thread for each received frame;
+    ///   the slice is valid only for the duration of the call (buffer is reused)
     pub fn new(
         name: String,
         version: String,
         child: Child,
         agent_rx: File,
         agent_tx: File,
-        on_record: impl Fn(Vec<u8>) + Send + 'static,
+        on_record: impl Fn(&[u8]) + Send + 'static,
     ) -> Arc<Self> {
         let (task_tx, task_rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(0);
         let server = Arc::new(Self {
@@ -75,11 +76,13 @@ impl Server {
     fn spawn_receive_loop(
         self: Arc<Self>,
         rx: File,
-        on_record: impl Fn(Vec<u8>) + Send + 'static,
+        on_record: impl Fn(&[u8]) + Send + 'static,
     ) {
         let name = self.name.clone();
         std::thread::spawn(move || {
             let mut reader = BufReader::with_capacity(128 * 1024, rx);
+            // Scratch buffer reused across every frame — eliminates per-frame heap allocation.
+            let mut scratch: Vec<u8> = Vec::with_capacity(4096);
             loop {
                 let mut len_buf = [0_u8; 4];
                 if let Err(err) = reader.read_exact(&mut len_buf) {
@@ -89,14 +92,14 @@ impl Server {
                     break;
                 }
                 let len = u32::from_le_bytes(len_buf) as usize;
-                let mut payload = vec![0_u8; len];
-                if let Err(err) = reader.read_exact(&mut payload) {
+                scratch.resize(len, 0);
+                if let Err(err) = reader.read_exact(&mut scratch) {
                     log::warn!("plugin {name} receive truncated: {err}");
                     break;
                 }
                 // Child -> agent pipe: this is plugin upload traffic.
                 self.stats.record_tx(len as u64);
-                on_record(payload);
+                on_record(&scratch);
             }
         });
     }

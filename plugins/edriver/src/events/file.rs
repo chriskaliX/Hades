@@ -14,7 +14,7 @@ pub fn parse_inode_create(data: &[u8], _trans: &mut Transformer) -> Result<Optio
     // them via _EVT_WRITE_STR (length-prefixed string), not as raw integers/structs.
     // The resulting bytes are not usable as structured socket info; consume them as strings.
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
     m.insert("pid".into(), dec.u32()?.to_string());
     m.insert("tgid".into(), dec.u32()?.to_string());
     m.insert("comm".into(), dec.string()?);
@@ -27,7 +27,7 @@ pub fn parse_inode_create(data: &[u8], _trans: &mut Transformer) -> Result<Optio
 
 pub fn parse_sb_mount(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
     m.insert("dev_name".into(), dec.string()?);
     m.insert("path".into(), dec.string()?);
     m.insert("type".into(), dec.string()?);
@@ -41,7 +41,7 @@ pub fn parse_sb_mount(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fi
 
 pub fn parse_inode_rename(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
     m.insert("pid".into(), dec.u32()?.to_string());
     m.insert("tgid".into(), dec.u32()?.to_string());
     m.insert("comm".into(), dec.string()?);
@@ -53,7 +53,7 @@ pub fn parse_inode_rename(data: &[u8], _trans: &mut Transformer) -> Result<Optio
 
 pub fn parse_inode_link(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
     m.insert("pid".into(), dec.u32()?.to_string());
     m.insert("tgid".into(), dec.u32()?.to_string());
     m.insert("comm".into(), dec.string()?);

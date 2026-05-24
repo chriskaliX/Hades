@@ -31,6 +31,12 @@ struct Cli {
 
 #[tokio::main]
 async fn main() {
+    // Start coarse clock updater (4 ms resolution) — must be the first thing
+    // so all coarsetime::Instant / Clock calls throughout the process are valid.
+    let _coarse_updater = coarsetime::Updater::new(4)
+        .start()
+        .expect("coarsetime updater");
+
     let _ = log::init();
 
     let cli = Cli::parse();

@@ -1,11 +1,12 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicU64, Ordering},
-        LazyLock, OnceLock,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+        Arc, LazyLock, OnceLock,
     },
-    time::{Instant, SystemTime, UNIX_EPOCH},
 };
+
+use coarsetime::{Clock, Instant};
 
 use parking_lot::Mutex;
 use prost::Message as _;
@@ -29,13 +30,47 @@ static TRANS: LazyLock<Transfer> = LazyLock::new(Transfer::new);
 /// Returns a reference to the process-global [`Transfer`] instance.
 pub fn trans() -> &'static Transfer { &TRANS }
 
+/// Pre-built, non-records portion of a [`PackagedData`] frame.
+/// Rebuilt only when `agent::host()` issues a new [`Arc`] (IP/hostname change).
+struct HdrCache {
+    snapshot:      Arc<crate::agent::host::HostInfo>,
+    agent_id:      String,
+    version:       String,
+    product:       String,
+    hostname:      String,
+    intranet_ipv4: Vec<String>,
+    intranet_ipv6: Vec<String>,
+    extranet_ipv4: Vec<String>,
+    extranet_ipv6: Vec<String>,
+}
+
+impl HdrCache {
+    fn build(h: Arc<crate::agent::host::HostInfo>) -> Self {
+        Self {
+            agent_id:      agent::ID.clone(),
+            version:       agent::VERSION.to_owned(),
+            product:       agent::PRODUCT.to_owned(),
+            hostname:      h.hostname.clone(),
+            intranet_ipv4: nonempty_vec(&h.private_ipv4),
+            intranet_ipv6: nonempty_vec(&h.private_ipv6),
+            extranet_ipv4: nonempty_vec(&h.public_ipv4),
+            extranet_ipv6: nonempty_vec(&h.public_ipv6),
+            snapshot:      h,
+        }
+    }
+}
+
 pub struct Transfer {
     pub(super) inner:       Mutex<Vec<Record>>,
     pub        tx_cnt:      AtomicU64,
     pub        rx_cnt:      AtomicU64,
     /// Records dropped due to buffer overflow.
     pub        drop_cnt:    AtomicU64,
-                            update_time: Mutex<Instant>,
+    /// Approximate buffer occupancy; allows a fast idle-skip without locking.
+    pub        len_hint:    AtomicUsize,
+               update_time: Mutex<Instant>,
+    /// Cached PackagedData header; rebuilt only on host-info change.
+               hdr:         Mutex<HdrCache>,
 }
 
 impl Transfer {
@@ -46,6 +81,8 @@ impl Transfer {
             rx_cnt:      AtomicU64::new(0),
             drop_cnt:    AtomicU64::new(0),
             update_time: Mutex::new(Instant::now()),
+            len_hint:    AtomicUsize::new(0),
+            hdr:         Mutex::new(HdrCache::build(agent::host::get())),
         }
     }
 
@@ -54,12 +91,14 @@ impl Transfer {
         if buf.len() >= BUFFER_NORMAL {
             if important && buf.len() < BUFFER_TOTAL {
                 buf.push(rec);
+                self.len_hint.fetch_add(1, Ordering::Relaxed);
                 return Ok(());
             }
             self.drop_cnt.fetch_add(1, Ordering::Relaxed);
             anyhow::bail!("buffer overflow");
         }
         buf.push(rec);
+        self.len_hint.fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
 
@@ -70,6 +109,7 @@ impl Transfer {
         debug_assert!(out.is_empty());
         let mut buf = self.inner.lock();
         std::mem::swap(&mut *buf, out);
+        self.len_hint.store(0, Ordering::Relaxed);
     }
 
     /// Atomically drain the record buffer and send one [`PackagedData`] frame.
@@ -78,24 +118,32 @@ impl Transfer {
     /// Returns `false` if the channel is closed (session should terminate),
     /// `true` in all other cases (including when the buffer was empty).
     pub async fn send(&self, tx: &mpsc::Sender<PackagedData>) -> bool {
+        // Fast path: skip mutex acquisition entirely when nothing is buffered.
+        if self.len_hint.load(Ordering::Relaxed) == 0 { return true; }
         let mut records = Vec::new();
         self.drain_into(&mut records);
         if records.is_empty() { return true; }
         let count = records.len() as u64;
-        let h = agent::host::get();
-        let msg = PackagedData {
-            records,
-            payloads:      vec![],
-            agent_id:      agent::ID.clone(),
-            intranet_ipv4: nonempty_vec(&h.private_ipv4),
-            intranet_ipv6: nonempty_vec(&h.private_ipv6),
-            extranet_ipv4: nonempty_vec(&h.public_ipv4),
-            extranet_ipv6: nonempty_vec(&h.public_ipv6),
-            hostname:      h.hostname.clone(),
-            version:       agent::VERSION.to_owned(),
-            product:       agent::PRODUCT.to_owned(),
+        // Use cached header; rebuild only when host info changes (rare).
+        let msg = {
+            let mut hdr = self.hdr.lock();
+            let h = agent::host::get();
+            if !Arc::ptr_eq(&h, &hdr.snapshot) {
+                *hdr = HdrCache::build(h);
+            }
+            PackagedData {
+                records,
+                payloads:      vec![],
+                agent_id:      hdr.agent_id.clone(),
+                intranet_ipv4: hdr.intranet_ipv4.clone(),
+                intranet_ipv6: hdr.intranet_ipv6.clone(),
+                extranet_ipv4: hdr.extranet_ipv4.clone(),
+                extranet_ipv6: hdr.extranet_ipv6.clone(),
+                hostname:      hdr.hostname.clone(),
+                version:       hdr.version.clone(),
+                product:       hdr.product.clone(),
+            }
         };
-        // Measure wire bytes before consuming `msg` with send().
         let byte_len = msg.encoded_len() as u64;
         if tx.send(msg).await.is_err() { return false; }
         self.tx_cnt.fetch_add(count, Ordering::Relaxed);
@@ -105,9 +153,9 @@ impl Transfer {
     }
 
     pub fn get_state(&self) -> (f64, f64) {
-        let now  = Instant::now();
+        let now = Instant::now();
         let mut ut = self.update_time.lock();
-        let secs = now.duration_since(*ut).as_secs_f64();
+        let secs = (now - *ut).as_f64();
         *ut = now;
         if secs > 0.0 {
             let tx = self.tx_cnt.swap(0, Ordering::Relaxed) as f64 / secs;
@@ -124,7 +172,7 @@ fn nonempty_vec(s: &str) -> Vec<String> {
 }
 
 fn task_record(token: &str, msg: &str, status: &str) -> Record {
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let ts = Clock::now_since_epoch().as_secs() as i64;
     Record {
         data_type: 5100,
         timestamp: ts,
