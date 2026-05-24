@@ -8,7 +8,7 @@ import (
 )
 
 type UProcessInfo struct {
-	Win_User_Process_Pid       string `json:"win_ser_process_pid"`
+	Win_User_Process_Pid       string `json:"win_user_process_pid"`
 	Win_User_Process_Pribase   string `json:"win_user_process_pribase"`
 	Win_User_Process_Thrcout   string `json:"win_user_process_thrcout"`
 	Win_User_Process_Parenid   string `json:"win_user_process_parenid"`

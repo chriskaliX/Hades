@@ -1,0 +1,50 @@
+[package]
+name = "wdriver"
+version = "24.12.4"
+edition = "2021"
+
+[dependencies]
+log = "0.4.22"
+fern = "0.7.0"
+chrono = "0.4.38"
+version = "3.0.0"
+process_path = "0.1"
+yaml-rust = "0.4"
+fast_log = "1.5.51"
+serde = { version = "1.0.211", features = ["derive"] }
+serde_json = "1.0.132"
+prost = "0.13"
+md5 = "0.7"
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Diagnostics_Etw",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_Time",
+] }
+napi = { version = "2.16.12", default-features = false, features = ["napi4", "serde-json", "tokio_rt"] }
+napi-derive = "2.16.12"
+tokio = { version = "1.40.0", features = ["rt-multi-thread", "sync", "io-util", "time", "process", "macros", "rt", "fs", "net"] }
+tokio-util = "0.7.12"
+
+winreg = "0.52.0"
+sysinfo = "0.33.0"
+netstat2 = "0.11.0"
+windows-service = "0.7.0"
+win_etw_macros = "0.1.*"
+win_etw_provider = "0.1.*"
+
+[dependencies.windows]
+version = "0.58.0"
+features = [
+    "Win32_Security",
+    "Win32_System_IO",
+    "Win32_Foundation",
+    "Win32_System_Services",
+    "Win32_System_Threading",
+    "Win32_Storage_FileSystem",
+]
+
+[profile.test]
+debug-assertions = false

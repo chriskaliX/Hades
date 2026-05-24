@@ -84,7 +84,7 @@ static __always_inline int l7_acl_rule(net_packet_t pkt, struct __sk_buff *skb) 
         // trim key
         struct dns_policy_key key = {0};
         key.prefixlen = DNS_MAX_PRELEN;
-
+        
         bpf_skb_load_bytes(skb, DNS_OFFSET, (void *)&pkt.buf_p->buf[SIZE_CONTEXT], SIZE_DNSHDR);
         int offset = load_dns(pkt, &key, skb);
         void *output_data = pkt.buf_p->buf;

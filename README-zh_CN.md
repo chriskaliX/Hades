@@ -37,6 +37,7 @@ Hades 是一个基于 eBPF 的主机入侵检测系统，同时兼容低版本�
 - [EDriver](https://github.com/chriskaliX/Hades/tree/main/plugins/edriver)
 - [Collector](https://github.com/chriskaliX/Hades/tree/main/plugins/collector)
 - [Eguard](https://github.com/chriskaliX/Hades/tree/main/plugins/eguard)
+- [WDriver](https://github.com/chriskaliX/Hades/tree/main/plugins/wdriver)
 - [NCP](https://github.com/chriskaliX/Hades/tree/main/plugins/ncp)
 - Scanner
 - Logger

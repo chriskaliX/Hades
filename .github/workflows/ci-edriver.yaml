@@ -103,6 +103,12 @@ jobs:
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
+          # Intentionally do NOT cache plugins/edriver/target across commits:
+          # Cargo's build-script fingerprint does not always invalidate on
+          # [build].rustflags / config.toml changes, so a restored stale
+          # target/ would reuse a build-script binary linked without -lzstd
+          # and break the ZSTD fix. Re-linking from scratch is cheap; the
+          # registry cache (much larger) still provides the speedup.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
