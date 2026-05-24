@@ -9,7 +9,7 @@ use super::common::{Decoder, Fields, EDEFAULT};
 
 pub fn parse_sys_connect(data: &[u8], trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
 
     let fd = dec.i32()?;
     let family = dec.u16()?;
@@ -40,7 +40,7 @@ pub fn parse_sys_connect(data: &[u8], trans: &mut Transformer) -> Result<Option<
 
 pub fn parse_socket_bind(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
 
     let family = dec.u16()?;
     m.insert("family".into(), family.to_string());
@@ -67,7 +67,7 @@ pub fn parse_socket_bind(data: &[u8], _trans: &mut Transformer) -> Result<Option
 
 pub fn parse_udp_recvmsg(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
 
     let family = dec.u16()?;
     let ret = dec.i64()?;

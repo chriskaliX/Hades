@@ -14,7 +14,7 @@ fn main() {
         .clang_args([
             "-D__BPF_TRACING__",
             "-DCORE",
-            "-Isrc/bpf/headers/",
+            "-I../libs/libbpf/src/",
             "-I../libs/core/",
             "-I../libs/bpfheaders/",
             "-Isrc/bpf/",

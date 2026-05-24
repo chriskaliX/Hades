@@ -10,7 +10,7 @@ use super::common::{Decoder, Fields, EDEFAULT};
 
 pub fn parse_do_init_module(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(4);
     m.insert("modname".into(), dec.string()?);
     m.insert("exe".into(), dec.string()?);
     Ok(Some(m))
@@ -18,7 +18,7 @@ pub fn parse_do_init_module(data: &[u8], _trans: &mut Transformer) -> Result<Opt
 
 pub fn parse_kernel_read_file(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(4);
     m.insert("typeid".into(), dec.i32()?.to_string());
     m.insert("filename".into(), dec.string()?);
     Ok(Some(m))
@@ -26,7 +26,7 @@ pub fn parse_kernel_read_file(data: &[u8], _trans: &mut Transformer) -> Result<O
 
 pub fn parse_call_usermodehelper(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(4);
     m.insert("path".into(), dec.string()?);
     m.insert("argv".into(), dec.string()?);
     m.insert("wait".into(), dec.i32()?.to_string());
@@ -42,7 +42,7 @@ pub fn parse_anti_rkt_sct(data: &[u8], trans: &mut Transformer) -> Result<Option
         return Ok(None);
     }
 
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(4);
     m.insert("index".into(), index.to_string());
     m.insert("addr".into(), addr.to_string());
     Ok(Some(m))
@@ -50,7 +50,7 @@ pub fn parse_anti_rkt_sct(data: &[u8], trans: &mut Transformer) -> Result<Option
 
 pub fn parse_anti_rkt_fops(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(4);
     m.insert("mask".into(), dec.i32()?.to_string());
     m.insert("path".into(), dec.string()?);
     Ok(Some(m))
@@ -70,7 +70,7 @@ pub fn parse_anti_rkt_module(data: &[u8], trans: &mut Transformer) -> Result<Opt
         return Ok(None);
     }
 
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(4);
     m.insert("iter_count".into(), summary.iter_count.to_string());
     m.insert("kernel_count".into(), summary.kernel_count.to_string());
     m.insert("user_count".into(), summary.user_count.to_string());

@@ -32,7 +32,10 @@ impl NsCache {
             Err(_) => return ENOTFOUND.to_string(),
         };
         let mut pod_name = String::new();
-        for mut kv in file.split(|c| *c == b'\0').map(|s| s.splitn(2, |c| *c == b'=')) {
+        for mut kv in file
+            .split(|c| *c == b'\0')
+            .map(|s| s.splitn(2, |c| *c == b'='))
+        {
             if let (Some(k), Some(v)) = (kv.next(), kv.next()) {
                 if matches!(k, b"MY_POD_NAME" | b"POD_NAME") {
                     pod_name.push_str(str::from_utf8(v).unwrap_or(""));

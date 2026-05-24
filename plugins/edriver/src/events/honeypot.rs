@@ -9,7 +9,7 @@ use super::common::{Decoder, Fields};
 
 pub fn parse_honeypot_portscan(data: &[u8], _trans: &mut Transformer) -> Result<Option<Fields>> {
     let mut dec = Decoder::new(data);
-    let mut m = Fields::new();
+    let mut m = Fields::with_capacity(8);
 
     let family = dec.u16()?;
     let proto = dec.u8()?;

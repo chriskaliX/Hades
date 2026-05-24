@@ -95,8 +95,8 @@ impl Plugin {
             child,
             agent_rx,
             agent_tx,
-            move |bytes: Vec<u8>| {
-                match Record::decode(bytes.as_slice()) {
+            move |bytes: &[u8]| {
+                match Record::decode(bytes) {
                     Ok(record) => {
                         if let Err(err) = trans().transmission(record, false) {
                             log::warn!("plugin {name} record dropped: {err}");

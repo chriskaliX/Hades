@@ -14,6 +14,12 @@ debug = ["sdk/debug"]
 # .cargo/config.toml ([build].rustflags for host build-scripts, and
 # [target.*-musl].rustflags for the final binary).
 static = ["libbpf-rs/static"]
+# Enable vendored elfutils compilation via libbpf-sys.
+# Only needed on glibc hosts (Ubuntu) where the system libelf.a is compiled
+# with USE_ZSTD.  On Alpine/musl the system libelf-static is already
+# musl-native and zstd-free, so this is unnecessary (and won't build on musl
+# because elfutils configure requires glibc-only argp/fts).
+vendored-libelf = ["libbpf-sys/vendored-libelf"]
 
 [dependencies]
 anyhow = "1.0"
@@ -25,14 +31,32 @@ lazy_static = "1.5.0"
 twox-hash = "2.1"
 hex = "0.4"
 libbpf-rs = { version = "0.26.2", features = ["static"] }
+# Add vendored-zlib directly so libbpf-sys compiles zlib from its vendored
+# source (using CC_x86_64_unknown_linux_musl=musl-gcc set in .cargo/config.toml)
+# instead of linking the system libz.a.  The system libz.a on Ubuntu is
+# compiled with glibc headers (_FORTIFY_SOURCE=2), which generates
+# __snprintf_chk / __vsnprintf_chk calls that musl doesn't provide.
+# Compiling zlib from source with musl-gcc uses musl headers and avoids these.
+# vendored-zlib: compile zlib from source so the .a is musl-compatible on
+# both Alpine and Ubuntu.  vendored-libelf is NOT listed here; it is gated
+# behind the optional `vendored-libelf` feature above and activated only on
+# glibc CI (ubuntu:24.04 aarch64) via CARGO_EXTRA_FEATURES in the Makefile.
+libbpf-sys = { version = "1.7", features = ["vendored-zlib"] }
 bitflags = "2.11.1"
 moka = { version = "0.12", features = ["sync"] }
+coarsetime = "0.1"
 sdk = { path = "../../SDK/rust" }
 
 [build-dependencies]
 libbpf-cargo = "0.26.2"
-# Resolver 2 splits feature sets for [dependencies] and [build-dependencies].
-# libbpf-cargo → libbpf-sys is compiled for the HOST and also links the
-# system libelf.a (USE_ZSTD on Ubuntu 24.04+). We pin `static` here so that
-# `-lzstd` from [build].rustflags in .cargo/config.toml resolves those refs.
-libbpf-sys = { version = "1.7", features = ["static"] }
+# libbpf-cargo default → libbpf-rs/default → libbpf-sys/vendored-libbpf →
+# static-libbpf for the HOST build-script. libbpf's make install
+# BUILD_STATIC_ONLY=y creates a fat liblibbpf.a that embeds libelf object
+# files. Without vendored-libelf here, it embeds the SYSTEM libelf.a which
+# on Ubuntu 24.04+ is built with USE_ZSTD, causing ZSTD_* undefined symbol
+# errors when linking the HOST build-script binary.
+# vendored-libelf forces elfutils to be built with --without-zstd so the
+# embedded libelf objects are ZSTD-free.
+# NOTE: Do NOT add features=["static"] here (without vendored-libelf) since
+# that would make the HOST link system libelf.a directly with ZSTD refs.
+libbpf-sys = { version = "1.7", features = ["vendored-libelf", "vendored-zlib"] }

@@ -3,93 +3,165 @@ name: Hades-driver
 on:
   push:
     tags:
-    - edriver-v*
+      - edriver-v*
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: "Release edriver / ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.container }}
+    env:
+      PLATFORM: ${{ matrix.arch }}
+      LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
+      LIBBPF_SYS_EXTRA_CFLAGS: ${{ matrix.extra_cflags }}
+      CC_x86_64_unknown_linux_musl: ${{ matrix.cc }}
+      CC_aarch64_unknown_linux_musl: ${{ matrix.cc }}
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: ${{ matrix.cc }}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: ${{ matrix.cc }}
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      CARGO_EXTRA_FEATURES: ${{ matrix.cargo_extra_features }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            container: ubuntu:24.04
+            cc: musl-gcc
+            lib_path: ""
+            extra_cflags: "-idirafter /usr/include -idirafter /usr/include/x86_64-linux-gnu"
+            cargo_extra_features: ",vendored-libelf"
+            rustflags: "-C target-feature=+crt-static"
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            container: ubuntu:24.04
+            cc: musl-gcc
+            lib_path: ""
+            extra_cflags: "-idirafter /usr/include -idirafter /usr/include/aarch64-linux-gnu -mno-outline-atomics"
+            cargo_extra_features: ",vendored-libelf"
+            rustflags: "-C target-feature=+crt-static"
     steps:
-      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            bash curl git ca-certificates \
+            build-essential linux-headers-generic \
+            clang llvm \
+            libelf-dev zlib1g-dev \
+            musl-tools musl-dev \
+            protobuf-compiler \
+            pkg-config \
+            autoconf automake libtool autopoint gettext flex bison gawk
+
+      - name: Git checkout
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: Clone libbpf submodule
+        run: |
+          git clone --depth=1 --branch v1.2.2 \
+            https://github.com/libbpf/libbpf.git plugins/libs/libbpf
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-musl
+          targets: ${{ matrix.target }}
 
-      - name: Add musl target
-        run: rustup target add x86_64-unknown-linux-musl
-
-      - name: Cache cargo registry & build
+      - name: Cache cargo registry
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            plugins/edriver/target
-          key: ${{ runner.os }}-release-edriver-${{ hashFiles('plugins/edriver/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-release-edriver-
+          key: ${{ matrix.arch }}-cargo-edriver-v10-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ matrix.arch }}-cargo-edriver-v10-
 
-      - name: Install build dependencies
+      - name: Build musl compat libs (argp / fts / obstack)
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential pkgconf libelf-dev libzstd-dev musl-tools llvm-14 clang-14 protobuf-compiler
-          for tool in clang llc llvm-strip
-          do
-            sudo rm -f /usr/bin/$tool
-            sudo ln -s /usr/bin/${tool}-14 /usr/bin/$tool
-          done
+          set -eux
+          ARCH=$(uname -m)
+          MUSL_LIB=/usr/lib/${ARCH}-linux-musl
+          MUSL_INC=/usr/include/${ARCH}-linux-musl
+
+          git clone --depth=1 https://github.com/ericonr/argp-standalone /tmp/argp-standalone
+          cd /tmp/argp-standalone
+          autoreconf -fiv
+          CC=musl-gcc ./configure --prefix=/usr
+          make -j$(nproc)
+          cp libargp.a ${MUSL_LIB}/
+          cp argp.h    ${MUSL_INC}/
+
+          git clone --depth=1 https://github.com/void-linux/musl-fts /tmp/musl-fts
+          cd /tmp/musl-fts
+          ./bootstrap.sh
+          CC=musl-gcc ./configure --enable-static --disable-shared \
+            --prefix=/usr --libdir=${MUSL_LIB} --includedir=${MUSL_INC}
+          make -j$(nproc) && make install
+
+          git clone --depth=1 https://github.com/void-linux/musl-obstack /tmp/musl-obstack
+          cd /tmp/musl-obstack
+          ./bootstrap.sh
+          CC=musl-gcc ./configure --enable-static --disable-shared \
+            --prefix=/usr --libdir=${MUSL_LIB} --includedir=${MUSL_INC}
+          make -j$(nproc) && make install
 
       - name: Build
         run: |
-          cd plugins/edriver
-          make build
-          cd ../..
-        env:
-          LIBBPF_SYS_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu
-      - name: Strip & checksum
+          export PROTOC=$(which protoc)
+          cd plugins/edriver && make build
+
+      - name: Strip & upload
         run: |
-          strip plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver
-          cp plugins/edriver/target/x86_64-unknown-linux-musl/release/edriver plugins/edriver/edriver
-          sha256sum plugins/edriver/edriver > plugins/edriver/checksum.txt
+          BINARY=plugins/edriver/target/${{ matrix.target }}/release/edriver
+          strip "$BINARY"
+          cp "$BINARY" plugins/edriver/edriver-${{ matrix.arch }}
+          sha256sum plugins/edriver/edriver-${{ matrix.arch }} \
+            > plugins/edriver/edriver-${{ matrix.arch }}.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: edriver
+          name: edriver-${{ matrix.arch }}
           path: |
-            plugins/edriver/edriver
-            plugins/edriver/checksum.txt
+            plugins/edriver/edriver-${{ matrix.arch }}
+            plugins/edriver/edriver-${{ matrix.arch }}.sha256
           retention-days: 7
-      
+
   release:
     runs-on: ubuntu-latest
+    needs: build
     permissions: write-all
     steps:
-    - name: Extract version
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - name: Extract version
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: edriver
-        path: /tmp/edriver
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/edriver
 
-    - name: Package
-      working-directory: /tmp/edriver
-      run: |
-        tar zcvf /tmp/${{ env.RELEASE_VERSION }}.tgz edriver checksum.txt
+      - name: Package
+        run: |
+          tar zcf /tmp/${{ env.RELEASE_VERSION }}-x86_64.tgz \
+            -C /tmp/edriver/edriver-x86_64 .
+          tar zcf /tmp/${{ env.RELEASE_VERSION }}-aarch64.tgz \
+            -C /tmp/edriver/edriver-aarch64 .
 
-    - name: Create GitHub release
-      uses: softprops/action-gh-release@v2
-      with:
-        draft: true
-        prerelease: false
-        name: Release ${{ github.ref_name }}
-        files: /tmp/${{ env.RELEASE_VERSION }}.tgz
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    needs:
-    - build
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          name: Release ${{ github.ref_name }}
+          files: |
+            /tmp/${{ env.RELEASE_VERSION }}-x86_64.tgz
+            /tmp/${{ env.RELEASE_VERSION }}-aarch64.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,41 +1,20 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-CMD_CLANG ?= clang
+# Extra cargo features appended to every --features= flag.
+# Set to ",vendored-libelf" on glibc hosts (ubuntu CI) where the system
+# libelf.a is glibc-compiled and vendored compilation is required.
+CARGO_EXTRA_FEATURES ?=
 
-LIB_PATH := ../libs
-LIBBPF_CFLAGS = "-fPIC"
-LIBBPF_LDLAGS =
-LIBBPF_SRC = $(LIB_PATH)/libbpf/src
 PLATFORM := $(shell uname -m)
 LIBC     ?= musl
 
-headers/libbpf/libbpf.a: \
-	$(LIBBPF_SRC) \
-	$(wildcard $(LIBBPF_SRC)/*.[ch]) \
-
-	CC="$(CMD_CLANG)" \
-		CFLAGS="$(LIBBPF_CFLAGS)" \
-		LD_FLAGS="$(LIBBPF_LDFLAGS)" \
-		$(MAKE) \
-		-C $(LIBBPF_SRC) \
-		BUILD_STATIC_ONLY=1 \
-		DESTDIR=$(abspath ./src/bpf/headers/libbpf/) \
-		OBJDIR=$(abspath ./src/bpf/headers/libbpf/obj) \
-		INCLUDEDIR= LIBDIR= UAPIDIR= prefix= libdir= \
-		install install_uapi_headers
-	install -m 0640 ./src/bpf/headers/libbpf/bpf/*.h ./src/bpf/headers/
-
-build: \
-	headers/libbpf/libbpf.a
-
+build:
 	cargo fmt
-	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static$(CARGO_EXTRA_FEATURES)
 
-debug: \
-	headers/libbpf/libbpf.a
-
+debug:
 	cargo fmt
-	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static,debug
+	cargo build --release --bin edriver --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static,debug$(CARGO_EXTRA_FEATURES)
 
 test:
 	cargo fmt
-	cargo test --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static,debug -- --include-ignored --show-output
+	cargo test --target $(PLATFORM)-unknown-linux-$(LIBC) --features=static,debug$(CARGO_EXTRA_FEATURES) -- --include-ignored --show-output

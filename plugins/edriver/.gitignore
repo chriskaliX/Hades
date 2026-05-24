@@ -1,0 +1,8 @@
+# Cargo build output
+/target/
+
+# libbpf headers are sourced directly from plugins/libs/libbpf/src/
+# at build time via build.rs (-I../libs/libbpf/src/).
+# Ignore any locally generated copies in src/bpf/headers/.
+src/bpf/headers/*.h
+src/bpf/headers/libbpf/

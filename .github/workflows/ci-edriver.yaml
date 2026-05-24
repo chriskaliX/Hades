@@ -17,6 +17,20 @@ jobs:
   edriver:
     name: "Build and test edriver / ${{ matrix.arch }}"
     runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.container }}
+    env:
+      PLATFORM: ${{ matrix.arch }}
+      LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
+      # Use -idirafter (not -I) so musl sysroot headers keep priority;
+      # linux/bpf.h etc. are still found via /usr/include as last resort.
+      LIBBPF_SYS_EXTRA_CFLAGS: ${{ matrix.extra_cflags }}
+      CC_x86_64_unknown_linux_musl: ${{ matrix.cc }}
+      CC_aarch64_unknown_linux_musl: ${{ matrix.cc }}
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: ${{ matrix.cc }}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: ${{ matrix.cc }}
+      RUSTFLAGS: ${{ matrix.rustflags }}
+      CARGO_EXTRA_FEATURES: ${{ matrix.cargo_extra_features }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,24 +38,67 @@ jobs:
           - arch: x86_64
             runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            lib_path: /usr/lib/x86_64-linux-gnu
+            # Ubuntu + musl-gcc + vendored-libelf (--without-zstd).
+            # elfutils ./configure needs argp/fts/obstack, which are absent from
+            # musl libc.  We pre-build them (argp-standalone, musl-fts,
+            # musl-obstack) using musl-gcc and install to /usr/lib/x86_64-linux-musl
+            # before running `cargo build`, so configure finds them.
+            container: ubuntu:24.04
+            cc: musl-gcc
+            lib_path: ""
+            extra_cflags: "-idirafter /usr/include -idirafter /usr/include/x86_64-linux-gnu"
+            cargo_extra_features: ",vendored-libelf"
+            rustflags: "-C target-feature=+crt-static"
           - arch: aarch64
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
-            lib_path: /usr/lib/aarch64-linux-gnu
+            # Same approach as x86_64.  ubuntu:24.04 on arm64 supports JS
+            # actions; Alpine ARM64 does not (no Node.js ARM64 in Alpine).
+            container: ubuntu:24.04
+            cc: musl-gcc
+            lib_path: ""
+            # -mno-outline-atomics: GCC 13 on aarch64 defaults to
+            # -moutline-atomics, emitting __aarch64_ldadd4/8_acq_rel etc.
+            # These live in libatomic, not musl libc, causing undefined-reference
+            # link errors.  Disabling outline atomics uses inline LL/SC
+            # sequences instead, which musl supports natively.
+            extra_cflags: "-idirafter /usr/include -idirafter /usr/include/aarch64-linux-gnu -mno-outline-atomics"
+            cargo_extra_features: ",vendored-libelf"
+            rustflags: "-C target-feature=+crt-static"
     steps:
-      - name: "Git checkout"
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            bash curl git ca-certificates \
+            build-essential linux-headers-generic \
+            clang llvm \
+            libelf-dev zlib1g-dev \
+            musl-tools musl-dev \
+            protobuf-compiler \
+            pkg-config \
+            autoconf automake libtool autopoint gettext flex bison gawk
+
+      - name: Git checkout
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: false  # libbpf submodule cloned explicitly below
+
+      - name: Clone libbpf submodule
+        # The submodule is pinned to v1.1.0 (2023); a shallow clone of that
+        # old commit is unreliable.  Clone at the v1.2.2 tag instead, which
+        # matches the intended version recorded in .gitmodules (tags = v1.2.2).
+        run: |
+          git clone --depth=1 --branch v1.2.2 \
+            https://github.com/libbpf/libbpf.git plugins/libs/libbpf
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
-      - name: Add musl target
-        run: rustup target add ${{ matrix.target }}
+          components: rustfmt
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -55,60 +112,76 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-registry-v2-${{ hashFiles('plugins/edriver/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-cargo-edriver-registry-v2-
+          key: ${{ matrix.arch }}-cargo-edriver-v10-${{ hashFiles('plugins/edriver/Cargo.lock') }}
+          restore-keys: ${{ matrix.arch }}-cargo-edriver-v10-
 
-      - name: Install build dependencies
+      # elfutils ./configure (invoked by libbpf-sys vendored-libelf build.rs)
+      # runs with CC=musl-gcc.  musl libc lacks argp_parse, fts_close, and
+      # _obstack_free, causing configure to abort.  We pre-build the three
+      # void-linux musl-compat shims (identical to Alpine's argp-standalone,
+      # musl-fts-dev, musl-obstack-dev packages) and install the .a + headers
+      # into musl-gcc's default sysroot search path so configure finds them.
+      - name: Build musl compat libs (argp / fts / obstack)
         run: |
-          set -euxo pipefail
-          sudo apt-get update -qq
-          # Install each package group on its own line so a single package
-          # conflict (notably linux-libc-dev on ubuntu-24.04-arm) cannot
-          # silently drop unrelated packages.
-          sudo apt-get install -y --no-install-recommends protobuf-compiler
-          sudo apt-get install -y --no-install-recommends musl-tools
-          # libelf-dev: provides libelf.a for libbpf-sys/static link.
-          # libzstd-dev: Ubuntu 24.04+ system libelf.a is compiled with USE_ZSTD,
-          # so libelf.a references ZSTD_* symbols.  libbpf-sys never emits
-          # `cargo:rustc-link-lib=zstd`, so we must supply libzstd.a ourselves.
-          # .cargo/config.toml adds -lzstd via [build].rustflags (host build-script)
-          # and [target.*-musl].rustflags -Wl,-Bstatic,-lzstd,-Bdynamic (final binary).
-          sudo apt-get install -y --no-install-recommends pkgconf libelf-dev libzstd-dev
-          # BPF compilation toolchain
-          sudo apt-get install -y --no-install-recommends clang llvm
-          # build-essential occasionally conflicts on ARM via linux-libc-dev.
-          sudo apt-get install -y --no-install-recommends build-essential || true
+          set -eux
+          ARCH=$(uname -m)                              # x86_64 or aarch64
+          MUSL_LIB=/usr/lib/${ARCH}-linux-musl
+          MUSL_INC=/usr/include/${ARCH}-linux-musl
+
+          # 1. argp-standalone – provides argp_parse
+          # NOTE: Makefile.am uses noinst_LIBRARIES so `make install` does NOT
+          # install libargp.a.  We build and copy manually.
+          git clone --depth=1 https://github.com/ericonr/argp-standalone /tmp/argp-standalone
+          cd /tmp/argp-standalone
+          autoreconf -fiv
+          CC=musl-gcc ./configure --prefix=/usr
+          make -j$(nproc)
+          cp libargp.a ${MUSL_LIB}/
+          cp argp.h    ${MUSL_INC}/
+
+          # 2. musl-fts – provides fts_close (NetBSD implementation)
+          git clone --depth=1 https://github.com/void-linux/musl-fts /tmp/musl-fts
+          cd /tmp/musl-fts
+          ./bootstrap.sh
+          CC=musl-gcc ./configure --enable-static --disable-shared \
+            --prefix=/usr --libdir=${MUSL_LIB} --includedir=${MUSL_INC}
+          make -j$(nproc) && make install
+
+          # 3. musl-obstack – provides _obstack_free (from gcc libiberty)
+          git clone --depth=1 https://github.com/void-linux/musl-obstack /tmp/musl-obstack
+          cd /tmp/musl-obstack
+          ./bootstrap.sh
+          CC=musl-gcc ./configure --enable-static --disable-shared \
+            --prefix=/usr --libdir=${MUSL_LIB} --includedir=${MUSL_INC}
+          make -j$(nproc) && make install
+
+          # Verify all three libs landed in the musl sysroot
+          ls -la ${MUSL_LIB}/libargp.a ${MUSL_LIB}/libfts.a ${MUSL_LIB}/libobstack.a
 
       - name: Verify toolchain
         run: |
-          set -euxo pipefail
-          which protoc
-          protoc --version
+          which protoc && protoc --version
+          which clang   && clang --version | head -1
+          musl-gcc --version | head -1
 
       - name: Build
         run: |
           export PROTOC=$(which protoc)
-          cd plugins/edriver && make build
-        env:
-          PLATFORM: ${{ matrix.arch }}
-          LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
-          TARGET_CC: gcc
-          # RUSTFLAGS applies to ALL rustc invocations (highest priority, overrides
-          # config.toml [build].rustflags and [target.*].rustflags). Needed because
-          # [build].rustflags in config.toml is not reliably applied to build-script
-          # binaries by Cargo. The -lzstd is required because Ubuntu 24.04 system
-          # libelf.a (linked by libbpf-sys/static) is compiled with USE_ZSTD but
-          # libbpf-sys never emits cargo:rustc-link-lib=zstd.
-          # For the musl final binary, -static-pie (set by Rust for musl targets)
-          # forces the linker to use libzstd.a from libzstd-dev, keeping it static.
-          RUSTFLAGS: "-C link-arg=-lzstd"
+          BUILD_LOG=/tmp/edriver-build.log
+          if ! ( cd plugins/edriver && make build ) > "$BUILD_LOG" 2>&1; then
+            echo "=== Build failed, last 200 lines ==="
+            tail -200 "$BUILD_LOG"
+            echo "## Build failure" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -200 "$BUILD_LOG" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "error:|panicked at|make: \*\*\*|error\[|undefined reference" "$BUILD_LOG" \
+              | grep -v "^warning" | head -20 \
+              | while IFS= read -r line; do echo "::error::$line"; done
+            exit 2
+          fi
 
       - name: Test
         run: |
           export PROTOC=$(which protoc)
           cd plugins/edriver && make test
-        env:
-          PLATFORM: ${{ matrix.arch }}
-          LIBBPF_SYS_LIBRARY_PATH: ${{ matrix.lib_path }}
-          TARGET_CC: gcc
-          RUSTFLAGS: "-C link-arg=-lzstd"

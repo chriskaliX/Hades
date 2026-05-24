@@ -2,6 +2,7 @@ use crate::cache::Transformer;
 use crate::events::parse_event;
 use crate::scanner;
 use anyhow::{anyhow, Context, Result};
+use coarsetime::{Clock, Updater};
 use lazy_static::lazy_static;
 use libbpf_rs::{
     skel::{OpenSkel, Skel, SkelBuilder},
@@ -14,7 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
     sync::Arc,
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 mod hades_skel {
@@ -35,6 +36,10 @@ pub struct Bpfmanager {}
 impl Bpfmanager {
     pub fn new(client: Client) -> Result<Self> {
         Self::bump_rlimit()?;
+        // Start coarse clock updater (4 ms resolution, ~0% CPU overhead).
+        // Must be started before any Clock::now_since_epoch() calls.
+        let _coarse_updater = Updater::new(4).start()
+            .map_err(|e| anyhow!("coarsetime updater: {e}"))?;
 
         let skel_builder = HadesSkelBuilder::default();
         // libbpf-rs 0.24+ requires passing a MaybeUninit storage to open().
@@ -63,18 +68,9 @@ impl Bpfmanager {
         // to bash.  None have a binary-path in the SEC annotation, so libbpf
         // cannot auto-attach them; they are either attached manually later or
         // skipped on kernels where the target is not present.
-        open_skel
-            .progs
-            .trigger_sct_scan
-            .set_autoload(false);
-        open_skel
-            .progs
-            .trigger_module_scan
-            .set_autoload(false);
-        open_skel
-            .progs
-            .uretprobe_bash_readline
-            .set_autoload(false);
+        open_skel.progs.trigger_sct_scan.set_autoload(false);
+        open_skel.progs.trigger_module_scan.set_autoload(false);
+        open_skel.progs.uretprobe_bash_readline.set_autoload(false);
 
         let mut skel = open_skel.load().context("Load skel failed")?;
 
@@ -86,11 +82,7 @@ impl Bpfmanager {
         let val: u32 = 0;
         skel.maps
             .pid_filter
-            .update(
-                &my_pid.to_ne_bytes(),
-                &val.to_ne_bytes(),
-                MapFlags::ANY,
-            )
+            .update(&my_pid.to_ne_bytes(), &val.to_ne_bytes(), MapFlags::ANY)
             .context("Failed to add self to pid_filter")?;
 
         let mut trans = Transformer::new();
@@ -105,10 +97,7 @@ impl Bpfmanager {
             let data_type = u32::from_ne_bytes([data[0], data[1], data[2], data[3]]);
             match parse_event(data_type, &data[4..], &mut trans) {
                 Ok(Some(fields)) => {
-                    let timestamp = match SystemTime::now().duration_since(UNIX_EPOCH) {
-                        Ok(v) => v.as_secs() as i64,
-                        Err(_) => 0,
-                    };
+                    let timestamp = Clock::now_since_epoch().as_secs() as i64;
                     let mut rec = Record::default();
                     rec.timestamp = timestamp;
                     rec.data_type = data_type as i32;
@@ -159,10 +148,7 @@ impl Bpfmanager {
         thread::Builder::new()
             .name("heartbeat".to_string())
             .spawn(move || loop {
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs() as i64;
+                let timestamp = Clock::now_since_epoch().as_secs() as i64;
 
                 let mut rec = Record::default();
                 rec.timestamp = timestamp;
